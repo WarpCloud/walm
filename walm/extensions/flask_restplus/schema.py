@@ -4,7 +4,7 @@ import flask_marshmallow
 class SchemaMixin(object):
     def __deepcopy__(self, memo):
         # XXX: Flask-RESTplus makes unnecessary data copying, while
-        # marshmallow.Schema doesn't support deepcopyng.
+        # marshmallow.Schema doesn't support deep copying.
         return self
 
 
