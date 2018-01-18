@@ -55,6 +55,45 @@ class Settings(object):
 
     PRODUCT_META_HOME = os.getenv('PRODUCT_META_HOME', 'product-meta')
 
+    ##############
+    #     k8s
+    ##############
+    from tdc_commons import k8s
+
+    # Kubernetes host and security settings
+    KUBERNETES_HOST = os.getenv('KUBERNETES_HOST', 'localhost:8080')
+    k8s.k8s_base_config.kubernetes_host = KUBERNETES_HOST
+    k8s.k8s_base_config.kubernetes_client_cert = os.getenv('KUBERNETES_CLIENT_CERT', None)
+    k8s.k8s_base_config.kubernetes_client_key = os.getenv('KUBERNETES_CLIENT_KEY', None)
+    k8s.k8s_base_config.kubernetes_ca = os.getenv('KUBERNETES_CA', None)
+
+    # Use https protocol to access kube services
+    _kube_secure_enabled = os.getenv('KUBERNETES_SECURE_ENABLED', 'false').lower()
+    KUBERNETES_SECURE_ENABLED = _kube_secure_enabled == 'true' or KUBERNETES_HOST.startswith('https')
+
+    if KUBERNETES_SECURE_ENABLED:
+        k8s.k8s_base_config.kubernetes_secure = True
+        k8s.k8s_base_config.token_path = os.getenv('SERVICE_ACCOUNT_TOKEN_FILE',
+                                                   '/var/run/secrets/kubernetes.io/serviceaccount/token')
+
+    # Default TOS prefix labels
+    # Default TOS instance prefix labels (No need to modify except for future major upgrade)
+    INSTANCE_LABEL_PREFIX = os.getenv('INSTANCE_LABEL_PREFIX', k8s.k8s_base_config.instance_label_prefix)
+    INSTANCE_CONTROL_LABEL_PREFIX = os.getenv('INSTANCE_CONTROL_LABEL_PREFIX',
+                                              k8s.k8s_base_config.instance_control_label_prefix)
+
+    k8s.k8s_base_config.instance_control_label_prefix = INSTANCE_LABEL_PREFIX
+    k8s.k8s_base_config.instance_control_label_prefix = INSTANCE_CONTROL_LABEL_PREFIX
+
+    APP_ROLE_LABEL_PREFIX = k8s.k8s_base_config.app_role_label_prefix
+    SECRET_KEYTAB_LABEL_PREFIX = k8s.k8s_base_config.secret_keytab_label_prefix
+
+    # Timeout when requesting k8s info.
+    KUBERNETES_TIMEOUT = os.getenv('KUBERNETES_TIMEOUT', 5)  # Seconds
+    k8s.k8s_base_config.timeout_seconds = KUBERNETES_TIMEOUT
+
+    DEFAULT_TOS_TENANT = os.getenv('DEFAULT_TOS_TENANT', 'kube-system')
+
 
 class ProductionConfig(Settings):
     DEBUG = False
