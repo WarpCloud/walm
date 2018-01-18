@@ -1,6 +1,6 @@
 import logging
 
-from flask_restplus import Namespace, Resource
+from walm.extensions.flask_restplus import Namespace, Resource
 
 from .schemas import ApplicationSchema
 
@@ -11,7 +11,7 @@ api = Namespace('application', description="Application module")
 @api.route('/')
 class ApplicationResource(Resource):
 
-    @api.response(ApplicationSchema(), description='Get applications')
+    @api.response(ApplicationSchema())
     def get(self):
         from .models import Application
         return Application.get()

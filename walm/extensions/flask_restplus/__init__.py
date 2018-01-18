@@ -24,17 +24,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from flask_marshmallow import Marshmallow
-from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy(session_options={'autocommit': True})
-ma = Marshmallow()
-
-
-def init_app(app, **kwargs):
-    """
-    Application extensions initialization.
-    """
-    # NOTICE: Initialize SQLAlchemy before Marshmallow
-    db.init_app(app)
-    ma.init_app(app)
+from flask_restplus import *
+from .namespace import *
+from .schema import *

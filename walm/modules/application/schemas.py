@@ -1,5 +1,4 @@
-from flask_marshmallow.sqla import ModelSchema
-
+from walm.extensions.flask_restplus.schema import ModelSchema
 from .models import Application
 
 
