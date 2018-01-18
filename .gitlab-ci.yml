@@ -23,6 +23,6 @@ gold_build:
       - echo "Stop docker"
       - ps aux | grep docker | grep -v "grep" |  awk '{print $2}' | xargs kill -9 || true
   only:
-      - master@TDC/walm
+      - master@TDC/WALM
   tags:
     - k8s
