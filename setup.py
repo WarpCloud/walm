@@ -56,7 +56,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     data_files=data_files,
-    scripts=['bin/walm'],
+    scripts=['bin/walm_server'],
     url='http://172.16.1.41:10080/TDC/WALM',
     license='Transwarp Copyright',
     author='xiaming.chen',

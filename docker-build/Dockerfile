@@ -24,7 +24,7 @@ RUN python setup.py install
 # Install necessary files
 COPY ./docker-build/scripts/ $WALM_HOME/scripts/
 COPY ./migrations/ $WALM_HOME/migrations/
-COPY ./bin/walm $WALM_HOME/scripts/
+COPY ./bin/walm_server $WALM_HOME/scripts/
 
 # Clear temporary files
 RUN rm -rf $WALM_TMP

@@ -19,7 +19,7 @@ THISFOLDER=$(cd $(dirname $FILEPATH) && pwd)
 
 cd $WALM_HOME
 
-WALM_CMD=`which walm`
+WALM_CMD=`which walm_server`
 if [ $? -ne 0 ]; then
     echo "Executable binary 'walm' not in the PATH, exit."
     exit 1

@@ -93,3 +93,6 @@ def create_app(flask_config_name=None, **kwargs):
     Migrate(app, db)
 
     return app
+
+
+app = create_app()

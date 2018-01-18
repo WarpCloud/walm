@@ -29,5 +29,5 @@ export PRODUCT_META_HOME=/path/to/product-meta
 export KUBERNETES_HOST=172.16.3.234:8080
 export SQLALCHEMY_DATABASE_URI=mysql://root:password@localhost:3306/walmdb?charset=utf8
 
-walm runserver --debug
+walm_server run --debug
 ```

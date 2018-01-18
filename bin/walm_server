@@ -31,11 +31,10 @@ from subprocess import Popen
 from flask_migrate import MigrateCommand
 from flask_script import Manager
 
-from walm import create_app
+from walm import app
 
 logger = logging.getLogger(__name__)
 
-app = create_app()
 config = app.config
 
 manager = Manager(app)
@@ -57,7 +56,7 @@ manager.add_command('db', MigrateCommand)
 @manager.option(
     '-t', '--timeout', default=config.get("WALM_WEBSERVER_TIMEOUT"),
     help="Specify the timeout (seconds) for the gunicorn web server")
-def runserver(debug, address, port, timeout, workers):
+def run(debug, address, port, timeout, workers):
     """Start an WALM web server."""
     if debug:
         app.run(
