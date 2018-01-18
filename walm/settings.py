@@ -44,8 +44,7 @@ class Settings(object):
 
     ENABLED_MODULES = (
         'application',
-        # Keep api module as last one for module injection
-        'api'
+        'api'  # Keep api module as last one for module injection
     )
 
     # WALM web server settings
