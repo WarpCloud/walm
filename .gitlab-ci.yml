@@ -1,0 +1,28 @@
+image: 172.16.1.99/transwarp/base/builder:centos7
+
+before_script:
+    - startdocker.sh &
+    - sleep 60s
+    - export PUB_HARBOR=172.16.1.99
+    - export PUB_MAJOR_VERSION=tdc-1.0
+
+stages:
+   - gold_build
+
+gold_build:
+  stage: gold_build
+  script:
+      - set -e
+      - git submodule update --init
+      - echo "Build gold"
+      - export PUB_PROJECT=gold
+      - export PUB_TAG_MAJOR=$PUB_HARBOR/$PUB_PROJECT/walm:$PUB_MAJOR_VERSION
+      - docker build --no-cache --force-rm -f docker-build/Dockerfile -t $PUB_TAG_MAJOR .
+      - docker login -u xiaming.chen -p Transwarp01 $PUB_HARBOR
+      - docker push $PUB_TAG_MAJOR
+      - echo "Stop docker"
+      - ps aux | grep docker | grep -v "grep" |  awk '{print $2}' | xargs kill -9 || true
+  only:
+      - master@TDC/walm
+  tags:
+    - k8s
