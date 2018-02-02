@@ -1,8 +1,8 @@
 image: 172.16.1.99/transwarp/base/builder:centos7
 
 before_script:
-    - startdocker.sh &
-    - sleep 60s
+    - source /etc/profile
+    - source /root/.bashrc
     - export PUB_HARBOR=172.16.1.99
     - export PUB_MAJOR_VERSION=tdc-1.0
 
@@ -13,6 +13,8 @@ gold_build:
   stage: gold_build
   script:
       - set -e
+      - startdocker.sh &
+      - sleep 60s
       - git submodule update --init
       - echo "Build gold"
       - export PUB_PROJECT=gold
