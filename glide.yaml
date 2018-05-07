@@ -1,0 +1,24 @@
+package: walm
+import:
+- package: github.com/emicklei/go-restful
+  version: ~2.6.1
+- package: github.com/emicklei/go-restful-openapi
+  version: ~0.9.1
+- package: github.com/go-openapi/spec
+- package: github.com/prometheus/client_golang
+  version: ~0.9.0-pre1
+  subpackages:
+  - prometheus/promhttp
+- package: github.com/spf13/cobra
+  version: ~0.0.2
+- package: github.com/spf13/pflag
+  version: ~1.0.1
+- package: gopkg.in/pipe.v2
+- package: k8s.io/client-go
+  version: ~7.0.0
+  subpackages:
+  - kubernetes
+  - rest
+  - util/homedir
+testImport:
+- package: gopkg.in/check.v1
