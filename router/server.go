@@ -3,32 +3,29 @@ package router
 import (
 	"fmt"
 	"net/http"
-
-	"walm/pkg/setting"
-	"walm/router/api/v1"
+	"time"
 )
 
 type Server struct {
 	ApiErrCh                chan error
-	Wi                      v1.WalmInterface
 	Port                    int
 	TlsEnable               bool
 	TlsCertFile, TlsKeyFile string
 	OauthEnable             bool
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	RunMode                 string
 }
 
-var conf *setting.Config
-
-func (server *Server) StartServer(sc *setting.Config) error {
-	conf = sc
+func (server *Server) StartServer() error {
 	go func() {
-		router := InitRouter(server.OauthEnable)
+		router := InitRouter(server.OauthEnable, server.RunMode)
 
 		s := &http.Server{
 			Addr:           fmt.Sprintf(":%d", server.Port),
 			Handler:        router,
-			ReadTimeout:    conf.ReadTimeout,
-			WriteTimeout:   conf.WriteTimeout,
+			ReadTimeout:    server.ReadTimeout,
+			WriteTimeout:   server.WriteTimeout,
 			MaxHeaderBytes: 1 << 20,
 		}
 		//walm_api.AddPrometheusHandler(restful.DefaultContainer)

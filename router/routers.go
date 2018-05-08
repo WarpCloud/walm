@@ -12,7 +12,7 @@ import (
 	"walm/router/middleware"
 )
 
-func InitRouter(oauth bool) *gin.Engine {
+func InitRouter(oauth bool, runmode string) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.RecoveryWithWriter(Log.Out))
@@ -20,9 +20,16 @@ func InitRouter(oauth bool) *gin.Engine {
 	//enable swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	//add Prometheus Metric
-	p := middleware.NewPrometheus("Walm-gin")
-	p.Use(r)
+	gin.SetMode(runmode)
+	if runmode == "debug" {
+		r.Use(gin.LoggerWithWriter(Log.Out))
+	} else {
+		//add Prometheus Metric
+		p := middleware.NewPrometheus("Walm-gin")
+		p.Use(r)
+		//add open tracing
+
+	}
 
 	//add Probe for readiness and liveness
 	r.GET("/readiness", readinessProbe)
@@ -40,11 +47,6 @@ func InitRouter(oauth bool) *gin.Engine {
 		apiv1.GET("/application/{appname}", v1.GetApplicationbyName)
 		apiv1.GET("/application/{appname}/rollback/{version}", v1.RollBackApplication)
 		apiv1.PUT("/application/{chart}", v1.UpdateApplication)
-	}
-
-	gin.SetMode(conf.RunMode)
-	if conf.RunMode == "debug" {
-		r.Use(gin.LoggerWithWriter(Log.Out))
 	}
 
 	return r
