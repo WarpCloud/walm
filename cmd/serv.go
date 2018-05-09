@@ -77,6 +77,7 @@ func (sc *ServCmd) run() error {
 		ReadTimeout:  settings.ReadTimeout,
 		WriteTimeout: settings.WriteTimeout,
 		RunMode:      settings.RunMode,
+		ZipkinUrl:    settings.ZipkinUrl,
 	}
 
 	if err := server.StartServer(&settings); err != nil {

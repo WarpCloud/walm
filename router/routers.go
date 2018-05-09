@@ -5,6 +5,8 @@ import (
 	"github.com/swaggo/gin-swagger"
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 
+	trace "github.com/gin-contrib/tracing"
+
 	_ "walm/docs"
 	. "walm/pkg/util/log"
 	inst "walm/router/api/v1/instance"
@@ -42,7 +44,7 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 		p := middleware.NewPrometheus("Walm-gin")
 		p.Use(r)
 		//add open tracing
-
+		r.Use(trace.SpanFromHeaders(middleware.Tracer,"Walm"))
 	}
 
 	//add Probe for readiness and liveness

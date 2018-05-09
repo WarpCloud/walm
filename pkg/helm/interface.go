@@ -16,7 +16,7 @@ type Interface struct {
 var Helm *Interface
 
 func init() {
-	Helm = &Interface{cmd: "helm"}
+	Helm = &Interface{cmd: "helm "}
 }
 
 func (inst *Interface) makeCmd(subcmd string, args, flags []string) (error, string) {

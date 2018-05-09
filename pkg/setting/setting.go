@@ -39,6 +39,8 @@ type Config struct {
 	Debug bool
 	// KubeContext is the name of the kubeconfig context.
 	KubeContext string
+
+	ZipkinUrl string
 }
 
 func (conf Config) InitIni() {
@@ -155,6 +157,10 @@ func (conf Config) Init(fs *pflag.FlagSet) {
 		}
 	}
 
+	if v, ok := os.LookupEnv(ZipkinUrl); ok {
+		conf.ZipkinUrl = v
+	}
+
 }
 
 func (conf Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
@@ -181,6 +187,8 @@ const (
 
 	HTTPRTimeOutEnvVar = "HTTP_READ_TIMEOUT"
 	HTTPWTimeOutEnvVar = "HTTP_WRITE_TIMEOUT"
+
+	ZipkinUrl = "ZIPKIN_URL"
 )
 
 // envMap maps flag names to envvars

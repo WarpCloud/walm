@@ -3,21 +3,23 @@ package middleware
 import (
 	// "github.com/gin-contrib/tracing"
 	// "github.com/gin-gonic/gin"
-	"os"
+	"errors"
 
 	stdopentracing "github.com/opentracing/opentracing-go"
 	zipkinot "github.com/openzipkin/zipkin-go-opentracing"
 )
 
 var Tracer stdopentracing.Tracer
+var collector zipkinot.Collector
 
 func InitTracer(url string) error {
+	var err error
 	if url != "" {
-		collector, err := zipkinot.NewHTTPCollector(url)
+		collector, err = zipkinot.NewHTTPCollector(url)
 		if err != nil {
 			return err
 		}
-		defer collector.Close()
+
 		var (
 			debug       = false
 			hostPort    = "localhost:80"
@@ -29,6 +31,11 @@ func InitTracer(url string) error {
 			return err
 		}
 	} else {
-		return error.New("zipin url is none")
+		return errors.New("zipin url is none")
 	}
+	return nil
+}
+
+func EndTrace() {
+	defer collector.Close()
 }

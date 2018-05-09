@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"walm/router/middleware"
 )
 
 type Server struct {
@@ -15,11 +16,18 @@ type Server struct {
 	ReadTimeout             time.Duration
 	WriteTimeout            time.Duration
 	RunMode                 string
+	ZipkinUrl               string
 }
 
 func (server *Server) StartServer() error {
 	go func() {
 		router := InitRouter(server.OauthEnable, server.RunMode)
+		if runmode != "debug" {
+			//EndTrac will be called when close the server
+			//so the init need be placed here
+			middleware.InitTracer(server.ZipkinUrl)
+			defer middleware.EndTrace()
+		}
 
 		s := &http.Server{
 			Addr:           fmt.Sprintf(":%d", server.Port),
