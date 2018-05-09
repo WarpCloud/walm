@@ -7,10 +7,24 @@ import (
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
-	"walm/router/api/v1"
+	inst "walm/router/api/v1/instance"
 	"walm/router/ex"
 	"walm/router/middleware"
 )
+
+// @title Walm
+// @version 1.0.0
+// @description Warp application lifecycle manager.
+
+// @contact.name bing.han
+// @contact.url http://transwarp.io
+// @contact.email bing.han@transwarp.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host walm.transwarp.io
+// @BasePath /walm/api/v1
 
 func InitRouter(oauth bool, runmode string) *gin.Engine {
 	r := gin.New()
@@ -41,12 +55,16 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 		apiv1.Use(middleware.JWT())
 	}
 	{
-		apiv1.DELETE("/application/{appName}", v1.DeleteApplication)
-		apiv1.POST("/application/{chart}", v1.DeployApplication)
-		apiv1.GET("/application/{namespace}/status/{appname}", v1.FindApplicationsStatus)
-		apiv1.GET("/application/{appname}", v1.GetApplicationbyName)
-		apiv1.GET("/application/{appname}/rollback/{version}", v1.RollBackApplication)
-		apiv1.PUT("/application/{chart}", v1.UpdateApplication)
+		instance := apiv1.Group("/inst")
+		{
+			instance.DELETE("/application/{appName}", inst.DeleteApplication)
+			instance.POST("/application/{chart}", inst.DeployApplication)
+			instance.GET("/application/{namespace}/status/{appname}", inst.ListApplicationsWithStatus)
+			instance.GET("/application/{appname}", inst.GetApplicationStatusbyName)
+			instance.GET("/application/{appname}/rollback/{version}", inst.RollBackApplication)
+			instance.PUT("/application/{chart}", inst.UpdateApplication)
+		}
+
 	}
 
 	return r

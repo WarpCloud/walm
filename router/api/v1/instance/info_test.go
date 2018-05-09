@@ -1,4 +1,4 @@
-package helm
+package instance
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ type StatusSuite struct{}
 
 func (stat *StatusSuite) Test_String(c *C) {
 	datetime := time.Date(int(2018), time.March, int(30), int(12), int(12), int(12), int(0), time.FixedZone("UTC", int(8*60*60))).String()
-	s := Status{
+	s := Info{
 		Name:      "test",
 		Revision:  "v1.0.0",
 		Updated:   datetime,
@@ -29,7 +29,7 @@ func (stat *StatusSuite) Test_String(c *C) {
 	data, err := json.Marshal(s)
 	c.Assert(err, IsNil, Commentf("json encode err: %s", err))
 
-	dedata := &Status{}
+	dedata := &Info{}
 	err = json.Unmarshal(data, dedata)
 	c.Assert(err, IsNil, Commentf("json dncode err: %s", err))
 	c.Assert(s, DeepEquals, *dedata, Commentf("change happend when encode and decode"))
@@ -39,7 +39,7 @@ func (stat *StatusSuite) Test_String(c *C) {
 func (stat *StatusSuite) Test_StatusCode(c *C) {
 	datetime := time.Date(int(2018), time.March, int(30), int(12), int(12), int(12), int(0), time.FixedZone("UTC", int(8*60*60))).String()
 	//datetime := time.Now().Format(time.UnixDate)
-	s := Status{
+	s := Info{
 		Name:      "test",
 		Revision:  "v1.0.0",
 		Updated:   datetime,
@@ -48,7 +48,7 @@ func (stat *StatusSuite) Test_StatusCode(c *C) {
 		Namespace: "namespace",
 	}
 
-	jdedata := &Status{}
+	jdedata := &Info{}
 	jsonb := `{"name":"test",
 		"revision":"v1.0.0",
 		"updated":"2018-03-30 12:12:12 +0800 UTC",

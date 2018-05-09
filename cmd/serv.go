@@ -2,7 +2,6 @@ package main
 
 import (
 	"walm/models"
-	"walm/pkg/helm"
 	"walm/pkg/util/oauth"
 	"walm/router"
 
@@ -69,15 +68,15 @@ func (sc *ServCmd) run() error {
 	apiErrCh := make(chan error)
 
 	server := &router.Server{
-		ApiErrCh:    apiErrCh,
-		Port:        sc.port,
-		OauthEnable: sc.oauth,
-		TlsEnable:   tlsEnable,
-		TlsCertFile: tlsCertFile,
-		TlsKeyFile:  tlsKeyFile,
-		ReadTimeout  settings.ReadTimeout,
-		WriteTimeout settings.WriteTimeout,
-		RunMode      settings.RunMode,
+		ApiErrCh:     apiErrCh,
+		Port:         sc.port,
+		OauthEnable:  sc.oauth,
+		TlsEnable:    tlsEnable,
+		TlsCertFile:  tlsCertFile,
+		TlsKeyFile:   tlsKeyFile,
+		ReadTimeout:  settings.ReadTimeout,
+		WriteTimeout: settings.WriteTimeout,
+		RunMode:      settings.RunMode,
 	}
 
 	if err := server.StartServer(&settings); err != nil {

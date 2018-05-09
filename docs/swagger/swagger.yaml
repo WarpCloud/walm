@@ -1,5 +1,345 @@
+basePath: /walm/api/v1
+definitions:
+  ex.ApiResponse:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  instance.Application:
+    properties:
+      install:
+        type: boolean
+      links:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      namespace:
+        type: string
+      repo:
+        type: string
+      reset-values:
+        type: boolean
+      reuse-values:
+        type: boolean
+      value:
+        type: string
+      version:
+        type: string
+    type: object
+  instance.Info:
+    properties:
+      chart:
+        type: string
+      name:
+        type: string
+      namespace:
+        type: string
+      revision:
+        type: string
+      status:
+        type: string
+      updated:
+        type: string
+    type: object
+host: walm.transwarp.io
 info:
-  contact: {}
-  license: {}
-paths: {}
+  contact:
+    email: bing.han@transwarp.io
+    name: bing.han
+    url: http://transwarp.io
+  description: Warp application lifecycle manager.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Walm
+  version: 1.0.0
+paths:
+  /application/{appName}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an Appliation
+      parameters:
+      - description: identifier of the application
+        in: path
+        name: appName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+    get:
+      consumes:
+      - application/json
+      description: Get an Appliation by name with status
+      parameters:
+      - description: identifier of the application
+        in: path
+        name: appName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/instance.Info'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /application/{appname}/rollback/{version}:
+    get:
+      consumes:
+      - application/json
+      description: Rollback Application to aim version
+      parameters:
+      - description: identifier of the application
+        in: path
+        name: appName
+        required: true
+        type: string
+      - description: identifier of the version
+        in: path
+        name: version
+        required: true
+        type: string
+      - description: if recreate pods
+        in: query
+        name: recreate
+        type: boolean
+      - description: if force to update and restart pods
+        in: query
+        name: force
+        type: boolean
+      - description: if wait for finish
+        in: query
+        name: wait
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/instance.Info'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /application/{chart}:
+    post:
+      consumes:
+      - application/json
+      description: deploy an application with the givin data
+      parameters:
+      - description: identifier of the chart
+        in: path
+        name: chart
+        required: true
+        type: string
+      - description: Update application
+        in: body
+        name: application
+        required: true
+        schema:
+          $ref: '#/definitions/instance.Application'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+    put:
+      consumes:
+      - application/json
+      description: Update an Appliation
+      parameters:
+      - description: identifier of the chart
+        in: path
+        name: chart
+        required: true
+        type: string
+      - description: Update application
+        in: body
+        name: application
+        required: true
+        schema:
+          $ref: '#/definitions/instance.Application'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /application/{namespace}/status/{appname}:
+    get:
+      consumes:
+      - application/json
+      description: find the aim application status
+      parameters:
+      - description: identifier of the chart
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: identifier of the appName
+        in: path
+        name: appname
+        required: true
+        type: string
+      - description: identifier of the appName
+        in: query
+        name: reverse
+        type: boolean
+      - description: max num to display
+        in: query
+        name: max
+        type: integer
+      - description: the offset of result
+        in: query
+        name: offset
+        type: integer
+      - description: if display all of result
+        in: query
+        name: all
+        type: boolean
+      - description: if display deleted release
+        in: query
+        name: deleted
+        type: boolean
+      - description: if display deleting release
+        in: query
+        name: deleting
+        type: boolean
+      - description: if display deployed release
+        in: query
+        name: deployed
+        type: boolean
+      - description: if display failed release
+        in: query
+        name: failed
+        type: boolean
+      - description: if display pending release
+        in: query
+        name: pending
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/instance.Info'
+            type: object
+        "404":
+          description: Invalid status not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
 swagger: "2.0"
