@@ -3,6 +3,7 @@ package helm
 import (
 	"bytes"
 	"errors"
+	"io/ioutil"
 	"strings"
 
 	"gopkg.in/pipe.v2"
@@ -40,8 +41,21 @@ func execPipeLine(cmd string) (error, *bytes.Buffer) {
 	return err, b
 }
 
+// MakeValueFile creates a temporary file in TempDir (see os.TempDir)
+// and writes values to the file and resturn its name. It is the caller's responsibility
+// to remove the file returned if necessary.
 func (inst *Interface) MakeValueFile(data []byte) (string, error) {
-	return "", nil
+	tmpFile, err := ioutil.TempFile("", "tmp-values-")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	if _, err = tmpFile.Write(data); err != nil {
+		return tmpFile.Name(), err
+	}
+	tmpFile.Sync()
+	return tmpFile.Name(), nil
 }
 
 func (inst *Interface) Detele(args, flags []string) error {
