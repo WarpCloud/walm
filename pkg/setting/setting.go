@@ -1,7 +1,7 @@
 package setting
 
 import (
-	"log"
+	"fmt"
 	"time"
 	"walm/pkg/setting/homepath"
 
@@ -12,6 +12,8 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/util/homedir"
+
+	. "walm/pkg/util/log"
 )
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
@@ -34,7 +36,8 @@ type Config struct {
 
 	TillerConnectionTimeout int64
 	// Home is the local path to the Helm home directory.
-	Home homepath.Home
+	Home           homepath.Home
+	ValueCachePath string
 	// Debug indicates whether or not Helm is running in Debug mode.
 	Debug bool
 	// KubeContext is the name of the kubeconfig context.
@@ -44,11 +47,11 @@ type Config struct {
 }
 
 func (conf Config) InitIni() {
-	iniPath := conf.Home + "app.ini"
+	iniPath := conf.Home.Config() + "/app.ini"
 	var err error
 	conf.Cfg, err = ini.Load(iniPath)
 	if err != nil {
-		log.Fatalf("Fail to parse 'conf/app.ini': %v", err)
+		Log.Fatalf("Fail to parse '%s': %v", iniPath, err)
 	}
 
 	conf.LoadBase()
@@ -64,7 +67,7 @@ func (conf Config) LoadBase() {
 func (conf Config) LoadServer() {
 	sec, err := conf.Cfg.GetSection("server")
 	if err != nil {
-		log.Fatalf("Fail to get section 'server': %v", err)
+		Log.Fatalf("Fail to get section 'server': %v", err)
 	}
 
 	conf.RunMode = conf.Cfg.Section("").Key("RUN_MODE").MustString("debug")
@@ -78,7 +81,7 @@ func (conf Config) LoadServer() {
 func (conf Config) LoadApp() {
 	sec, err := conf.Cfg.GetSection("app")
 	if err != nil {
-		log.Fatalf("Fail to get section 'app': %v", err)
+		Log.Fatalf("Fail to get section 'app': %v", err)
 	}
 
 	conf.JwtSecret = sec.Key("JWT_SECRET").MustString("!@)*#)!@U#@*!@!)")
@@ -88,7 +91,7 @@ func (conf Config) LoadApp() {
 func (conf Config) LoadDatabase() {
 	sec, err := conf.Cfg.GetSection("database")
 	if err != nil {
-		log.Fatal(2, "Fail to get section 'database': %v", err)
+		Log.Fatal(2, "Fail to get section 'database': %v", err)
 	}
 
 	conf.DbType = sec.Key("TYPE").String()
@@ -118,8 +121,16 @@ func (conf Config) Init(fs *pflag.FlagSet) {
 		conf.setFlagFromEnv(name, envar, fs)
 	}
 
-	conf.InitIni()
+	{
+		ensureDirectories(conf.Home)
+		conf.ValueCachePath = conf.Home.Cache()
+	}
 
+	conf.InitIni()
+	conf.EnableEnvValue()
+}
+
+func (conf Config) EnableEnvValue() {
 	if v, ok := os.LookupEnv(DbNameEnvVar); ok {
 		conf.DbName = v
 	}
@@ -160,7 +171,6 @@ func (conf Config) Init(fs *pflag.FlagSet) {
 	if v, ok := os.LookupEnv(ZipkinUrl); ok {
 		conf.ZipkinUrl = v
 	}
-
 }
 
 func (conf Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
@@ -196,4 +206,24 @@ var envMap = map[string]string{
 	"debug": DebugEnvVar,
 	"home":  HomeEnvVar,
 	"port":  PortEnvVar,
+}
+
+func ensureDirectories(home homepath.Home) error {
+	configDirectories := []string{
+		home.String(),
+		home.Cache(),
+		home.Config(),
+	}
+
+	for _, p := range configDirectories {
+		if fi, err := os.Stat(p); err != nil {
+			if err := os.MkdirAll(p, 0755); err != nil {
+				return fmt.Errorf("Could not create %s: %s", p, err)
+			}
+		} else if !fi.IsDir() {
+			return fmt.Errorf("%s must be a directory", p)
+		}
+	}
+
+	return nil
 }

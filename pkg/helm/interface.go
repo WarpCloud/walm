@@ -3,7 +3,12 @@ package helm
 import (
 	"bytes"
 	"errors"
+	"os"
 	"strings"
+
+	"walm/pkg/setting"
+	"walm/pkg/util/idutil"
+	. "walm/pkg/util/log"
 
 	"gopkg.in/pipe.v2"
 )
@@ -31,6 +36,7 @@ func (inst *Interface) makeCmd(subcmd string, args, flags []string) (error, stri
 }
 
 func execPipeLine(cmd string) (error, *bytes.Buffer) {
+	Log.Debugf("beging to exec cmd:%s\n", cmd)
 	b := &bytes.Buffer{}
 	p := pipe.Line(
 		pipe.Exec(cmd),
@@ -41,7 +47,22 @@ func execPipeLine(cmd string) (error, *bytes.Buffer) {
 }
 
 func (inst *Interface) MakeValueFile(data []byte) (string, error) {
-	return "", nil
+	id := idutil.GetUuid("V")
+	fn := setting.Config.ValueCachePath + id
+	dl := len(data)
+
+	if fi, err := os.Create(fn); err != nil {
+		return "", err
+	} else {
+
+		_, err := fi.Write(data)
+		defer fi.Close()
+		if err != nil {
+			return "", err
+		} else {
+			return fn, nil
+		}
+	}
 }
 
 func (inst *Interface) Detele(args, flags []string) error {

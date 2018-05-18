@@ -10,6 +10,7 @@ import (
 	_ "walm/docs"
 	. "walm/pkg/util/log"
 	inst "walm/router/api/v1/instance"
+	cluster "walm/router/api/v1/cluster"
 	"walm/router/ex"
 	"walm/router/middleware"
 )
@@ -59,12 +60,18 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 	{
 		instance := apiv1.Group("/inst")
 		{
-			instance.DELETE("/application/{appName}", inst.DeleteApplication)
-			instance.POST("/application/{chart}", inst.DeployApplication)
-			instance.GET("/application/{namespace}/status/{appname}", inst.ListApplicationsWithStatus)
-			instance.GET("/application/{appname}", inst.GetApplicationStatusbyName)
-			instance.GET("/application/{appname}/rollback/{version}", inst.RollBackApplication)
-			instance.PUT("/application/{chart}", inst.UpdateApplication)
+			instance.DELETE("/{appName}", inst.DeleteApplication)
+			instance.POST("/{chart}", inst.DeployApplication)
+			instance.GET("/{namespace}/status/{appname}", inst.ListApplicationsWithStatus)
+			instance.GET("/{appname}", inst.GetApplicationStatusbyName)
+			instance.GET("/{appname}/rollback/{version}", inst.RollBackApplication)
+			instance.PUT("/{chart}", inst.UpdateApplication)
+		}
+		instance := apiv1.Group("/cluster")
+		{
+			instance.POST("/{namespace}/{name}", cluster.DeployCluster)
+			instance.GET("/{namespace}/{name}", cluster.ListCluster)
+			instance.DELETE("/{namespace}/{name}", cluster.DeleteCluster)
 		}
 
 	}
