@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"io/ioutil"
 	"strings"
 
 	"walm/pkg/setting"
@@ -46,23 +47,21 @@ func execPipeLine(cmd string) (error, *bytes.Buffer) {
 	return err, b
 }
 
+// MakeValueFile creates a temporary file in TempDir (see os.TempDir)
+// and writes values to the file and resturn its name. It is the caller's responsibility
+// to remove the file returned if necessary.
 func (inst *Interface) MakeValueFile(data []byte) (string, error) {
-	id := idutil.GetUuid("V")
-	fn := setting.Config.ValueCachePath + id
-	dl := len(data)
-
-	if fi, err := os.Create(fn); err != nil {
+	tmpFile, err := ioutil.TempFile("", "tmp-values-")
+	if err != nil {
 		return "", err
-	} else {
-
-		_, err := fi.Write(data)
-		defer fi.Close()
-		if err != nil {
-			return "", err
-		} else {
-			return fn, nil
-		}
 	}
+	defer tmpFile.Close()
+
+	if _, err = tmpFile.Write(data); err != nil {
+		return tmpFile.Name(), err
+	}
+	tmpFile.Sync()
+	return tmpFile.Name(), nil
 }
 
 func (inst *Interface) Detele(args, flags []string) error {
