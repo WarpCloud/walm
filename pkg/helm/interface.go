@@ -3,12 +3,10 @@ package helm
 import (
 	"bytes"
 	"errors"
-	"os"
+	
 	"io/ioutil"
 	"strings"
-
-	"walm/pkg/setting"
-	"walm/pkg/util/idutil"
+	
 	. "walm/pkg/util/log"
 
 	"gopkg.in/pipe.v2"
@@ -80,7 +78,22 @@ func (inst *Interface) Rollback(args, flags []string) error {
 		return err
 	}
 }
+
+func (inst *Interface) UpdateRepo() error {
+	if err, cmd := inst.makeCmd("repo", []string{"update"} , []string{}); err != nil {
+		return err
+	} else {
+		err, _ = execPipeLine(cmd)
+		return err
+	}
+}
+
 func (inst *Interface) DeplyApplications(args, flags []string) error {
+	//update repo before install chart
+	if err := inst.UpdateRepo();err!=nil{
+		return err
+	}
+
 	if err, cmd := inst.makeCmd("install", args, flags); err != nil {
 		return err
 	} else {
