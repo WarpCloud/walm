@@ -4,10 +4,11 @@
 
 FROM golang:1.10.1-alpine3.7 as builder
 
-RUN apk add --no-cache git curl openssl
+RUN apk add --no-cache git curl openssl make
 
-RUN go get github.com/Masterminds/glide
-RUN go get github.com/swaggo/swag
+RUN go get -u -v github.com/Masterminds/glide
+RUN go get -u -v github.com/swaggo/swag
+RUN cd /go/src/github.com/swaggo/swag && /usr/bin/make deps && /usr/bin/make
 
 # swagger-0.13.0
 # RUN go get github.com/go-swagger/go-swagger/cmd/swagger

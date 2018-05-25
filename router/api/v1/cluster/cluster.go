@@ -5,7 +5,6 @@ import (
 )
 
 type Cluster struct {
-	ProdName string                 `json:"prodname" description:"product info"`
-	Conf     string                 `json:"config" description:"product config"`
-	Apps     []instance.Application `json:"apps" description:"list of application of the cluster"`
+	Conf string                 `json:"config" description:"product config (json format)"`
+	Apps []instance.Application `json:"apps" description:"list of application of the cluster"`
 }

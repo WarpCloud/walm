@@ -36,6 +36,12 @@ func InitTracer(url string) error {
 	return nil
 }
 
+/*
+func EnableTrace() gin.HandlerFunc {
+	return trace.SpanFromHeaders(Tracer, "Walm", stdopentracing.ChildOf, false)
+}
+*/
+
 func EndTrace() {
 	defer collector.Close()
 }

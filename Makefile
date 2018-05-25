@@ -9,11 +9,11 @@ TRAG.Version:=$(TRAG.Gopkg)/pkg/version
 
 DOCKER_TAGS=latest
 RUN_IN_DOCKER:=docker run -it -v `pwd`:/go/src/$(TRAG.Gopkg)  -w /go/src/$(TRAG.Gopkg) -e GOBIN=/go/src/$(TRAG.Gopkg)/bin -e USER_ID=`id -u` -e GROUP_ID=`id -g` 172.16.1.99/transwarp/walm-builder:1.0
-GO_FILES:=./cmd ./test ./pkg
-DB_TEST:=OP_DB_UNIT_TEST=1 OPENPITRIX_MYSQL_HOST=127.0.0.1 OPENPITRIX_MYSQL_PORT=13306
+GO_FILES:=./cmd ./test ./pkg ./models ./router
+WITH_DB_TEST:=WITH_DB_UNIT_TEST=1 WALM_DB_HOST=127.0.0.1:13306 WALM_DB_NAME=walm WALM_DB_USER=root WALM_DB_PASS=passwd
 
 define get_diff_files
-    $(eval DIFF_FILES=$(shell git diff --name-only --diff-filter=ad | grep -E "^(test|cmd|pkg)/.+\.go"))
+    $(eval DIFF_FILES=$(shell git diff --name-only --diff-filter=ad | grep -E "^(test|cmd|pkg|models|router)/.+\.go"))
 endef
 define get_build_flags
     $(eval SHORT_VERSION=$(shell git describe --tags --always --dirty="-dev"))
@@ -32,58 +32,43 @@ empty:=
 space:= $(empty) $(empty)
 CMDS=$(subst $(comma),$(space),$(CMD))
 
-.PHONY: all
-all: build
+.PHONY: init-vendor
+init-vendor:
+	$(RUN_IN_DOCKER) glide init
+	@echo "init-vendor done"
 
+.PHONY: update-vendor
+update-vendor:
+	$(RUN_IN_DOCKER) glide update
+	@echo "update-vendor done"
+
+.PHONY: update-builder
+update-builder:
+	docker pull 172.16.1.99/transwarp/walm-builder:1.0
+	@echo "update-builder done"
+
+.PHONY: all
+all: generate build
+
+.PHONY: generate
+generate:
+	$(RUN_IN_DOCKER) make gen-version
+	@echo "generate done"
+
+.PHONY: generate-in-local
+gen-version:
+	go generate ./pkg/version/
 
 .PHONY: build
-build: 
-	$(RUN_IN_DOCKER) time go install -v -ldflags '$(BUILD_FLAG)' $(TRAG.Gopkg)/cmd/
-	@docker build -t $(TARG.Name) -f ./Dockerfile.dev ./bin
+build:
+	@echo "build" $(TARG.Name):$(DOCKER_TAGS)
+	@docker build -t $(TARG.Name):$(DOCKER_TAGS) .
 	@docker image prune -f 1>/dev/null 2>&1
 	@echo "build done"
 
-.PHONY: compose-update
-compose-update: build compose-up
-	@echo "compose-update done"
-
-.PHONY: compose-update-service-without-deps
-compose-update-service-without-deps: build
-	docker-compose up -d --no-dep $(COMPOSE_APP_SERVICES)
-	@echo "compose-update-service-without-deps done"
-
-.PHONY: compose-logs-f
-compose-logs-f:
-	docker-compose logs -f $(COMPOSE_APP_SERVICES)
-
-.PHONY: compose-migrate-db
-compose-migrate-db:
-	docker-compose exec openpitrix-db bash -c "cat /docker-entrypoint-initdb.d/*.sql | mysql -uroot -ppassword"
-	docker-compose up $(COMPOSE_DB_CTRL)
-
-compose-update-%:
-	CMD=$* make build
-	docker-compose up -d --no-deps openpitrix-$*
-	@echo "compose-update done"
-
-.PHONY: compose-up
-compose-up:
-	docker-compose up -d openpitrix-db && sleep 20 && docker-compose up -d
-	@echo "compose-up done"
-
-.PHONY: compose-up-app
-compose-up-app:
-	docker-compose -f docker-compose-app.yml up -d openpitrix-db && sleep 20 && docker-compose -f docker-compose-app.yml up -d
-	@echo "compose-up app service done"
-
-.PHONY: compose-down
-compose-down:
-	docker-compose down
-	@echo "compose-down done"
-
-.PHONY: release
-release:
-	@echo "TODO"
+.PHONY: install
+install:
+	time go install -v -ldflags '$(BUILD_FLAG)' $(TRAG.Gopkg)/cmd/
 
 .PHONY: test
 test:
@@ -91,10 +76,19 @@ test:
 	@make e2e-test
 	@echo "test done"
 
+.PHONY: unit-test
+unit-test:
+	$(WITH_DB_TEST) go test -v -a -tags="unit&integration" ./...
+	@echo "unit-test done"
+
+.PHONY: purge-test
+purge-test:
+	go test -v -a -tags="purge" ./...
+	@echo "unit-test done"
 
 .PHONY: e2e-test
 e2e-test:
-	go test -v -a -tags="integration" ./test/...
+	go test -v -a -tags="e2e" ./test/...
 	@echo "e2e-test done"
 
 .PHONY: ci-test
@@ -112,7 +106,3 @@ clean:
 	-make -C ./pkg/version clean
 	@echo "ok"
 
-.PHONY: unit-test
-unit-test:
-	$(DB_TEST) go test -v -a -tags="db" ./...
-	@echo "unit-test done"

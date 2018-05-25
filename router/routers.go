@@ -6,11 +6,12 @@ import (
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 
 	trace "github.com/gin-contrib/tracing"
+	stdopentracing "github.com/opentracing/opentracing-go"
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
+	clus "walm/router/api/v1/cluster"
 	inst "walm/router/api/v1/instance"
-	cluster "walm/router/api/v1/cluster"
 	"walm/router/ex"
 	"walm/router/middleware"
 )
@@ -45,7 +46,11 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 		p := middleware.NewPrometheus("Walm-gin")
 		p.Use(r)
 		//add open tracing
-		r.Use(trace.SpanFromHeaders(middleware.Tracer,"Walm"))
+		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption{
+			return stdopentracing.ChildOf(spancontext)
+			} 
+		r.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false))
+		
 	}
 
 	//add Probe for readiness and liveness
@@ -58,20 +63,20 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 		apiv1.Use(middleware.JWT())
 	}
 	{
-		instance := apiv1.Group("/inst")
+		instance := apiv1.Group("/instance")
 		{
-			instance.DELETE("/{appName}", inst.DeleteApplication)
+			instance.DELETE("/{namespace}/{appName}", inst.DeleteApplication)
 			instance.POST("/{chart}", inst.DeployApplication)
 			instance.GET("/{namespace}/status/{appname}", inst.ListApplicationsWithStatus)
-			instance.GET("/{appname}", inst.GetApplicationStatusbyName)
-			instance.GET("/{appname}/rollback/{version}", inst.RollBackApplication)
+			instance.GET("/{namespace}/info{appname}", inst.GetApplicationStatusbyName)
+			instance.GET("/{namespace}/rollback/{appname}/{version}", inst.RollBackApplication)
 			instance.PUT("/{chart}", inst.UpdateApplication)
 		}
-		instance := apiv1.Group("/cluster")
+		cluster := apiv1.Group("/cluster")
 		{
-			instance.POST("/{namespace}/{name}", cluster.DeployCluster)
-			instance.GET("/{namespace}/{name}", cluster.StatusCluster)
-			instance.DELETE("/{namespace}/{name}", cluster.DeleteCluster)
+			cluster.POST("/{namespace}/{name}", clus.DeployCluster)
+			cluster.GET("/{namespace}/{name}", clus.StatusCluster)
+			cluster.DELETE("/{namespace}/{name}", clus.DeleteCluster)
 		}
 
 	}

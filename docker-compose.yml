@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  walm-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ${DATA_PATH}/mysql:/var/lib/mysql
+      - ./model/db:/docker-entrypoint-initdb.d
+    ports:
+     - "13306:3306" 
+    container_name: "walm-db"
+  walm-db-ctl:
+    image: boxfuse/flyway:5.0.7-alpine
+    command: -url=jdbc:mysql://walm-db/walm -user=root -password=${MYSQL_ROOT_PASSWORD} -validateOnMigrate=false migrate
+    volumes:
+      - ./model/schema:/flyway/sql
+    links:
+      - walm-db:walm-db
+    depends_on:
+      - walm-db
+    container_name: "walm-db-ctrl"
+  walm-app:
+    image: "walm:dev"
+    command: ["walm","serv","--debug"]
+    links:
+      - walm-db:walm-db
+    depends_on:
+      - walm-db
+      - walm-db-ctl
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - WITH_DB_UNIT_TEST=1
+      - WALM_DB_NAME=walm 
+      - WALM_DB_USER=root
+    ports:
+     - "15000:5000" 
+    container_name: "walm-app"

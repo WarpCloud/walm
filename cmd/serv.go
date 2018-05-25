@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"walm/models"
+	. "walm/pkg/util/log"
 	"walm/pkg/util/oauth"
 	"walm/router"
 
@@ -9,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const servereDesc = `
+const servDesc = `
 This command enable a WALM Web server.
 
 you can sp  the listen host and pot like :
@@ -24,12 +26,12 @@ type ServCmd struct {
 }
 
 func newServCmd() *cobra.Command {
-	inst := &walmCmd{}
+	inst := &ServCmd{}
 
 	cmd := &cobra.Command{
 		Use:   "serv [-a addr] [-p port]",
 		Short: "enable a Walm Web Server",
-		Long:  servereDesc,
+		Long:  servDesc,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return models.Init(&settings)
 		},
@@ -38,28 +40,28 @@ func newServCmd() *cobra.Command {
 				inst.port = settings.HTTPPort
 			}
 			if inst.port == 0 {
-				Log.Errorf("start API server failed:%s exiting\n", err)
-				return error.New()
+				Log.Errorln("start API server failed, please spec JwtSecret")
+				return errors.New("none port spec")
 			}
 			if inst.oauth {
 				if len(settings.JwtSecret) > 0 {
 					oauth.SetJwtSecret(settings.JwtSecret)
 				} else {
 					Log.Errorln("If enable oauth ,please set JwtSecret")
-					return error.New()
+					return errors.New("none JwtSecret")
 				}
 
 			}
 			return inst.run()
 		},
 		PostRun: func(_ *cobra.Command, _ []string) {
-			return models.CloseDB()
+			defer models.CloseDB()
 		},
 	}
 
 	f := cmd.Flags()
-	f.Int32VarP(&inst.port, "port", "p", 0, "address to listen on")
-	f.BoolVarP(&inst.oauth, "oauth", false, "enable oauth or not")
+	f.IntVarP(&inst.port, "port", "p", 0, "address to listen on")
+	f.BoolVar(&inst.oauth, "oauth", false, "enable oauth or not")
 
 	return cmd
 }
@@ -80,7 +82,7 @@ func (sc *ServCmd) run() error {
 		ZipkinUrl:    settings.ZipkinUrl,
 	}
 
-	if err := server.StartServer(&settings); err != nil {
+	if err := server.StartServer(); err != nil {
 		log.Errorf("start API server failed:%s exiting\n", err)
 		return err
 	} else {

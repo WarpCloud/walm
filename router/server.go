@@ -22,7 +22,7 @@ type Server struct {
 func (server *Server) StartServer() error {
 	go func() {
 		router := InitRouter(server.OauthEnable, server.RunMode)
-		if runmode != "debug" {
+		if server.RunMode != "debug" {
 			//EndTrac will be called when close the server
 			//so the init need be placed here
 			middleware.InitTracer(server.ZipkinUrl)

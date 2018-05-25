@@ -5,6 +5,7 @@ import (
 )
 
 type Info struct {
-	Status string          `json:"name" description:"status of the cluster"`
-	Infos  []instance.Info `json:"infos" description:"list of info of the releases of cluster"`
+	Name      string          `json:"name" description:"Name of the cluster"`
+	Namespace string          `json:"name" description:"Namespace of the cluster"`
+	Infos     []instance.Info `json:"infos" description:"list of info of the releases of cluster"`
 }

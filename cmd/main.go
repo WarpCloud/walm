@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"os"
 
 	"github.com/spf13/cobra"
@@ -11,8 +9,6 @@ import (
 	. "walm/pkg/util/log"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/helm/pkg/kube"
 )
 
 var (
@@ -49,18 +45,18 @@ func newRootCmd(args []string) *cobra.Command {
 			tlsCaCertFile = os.ExpandEnv(tlsCaCertFile)
 			tlsCertFile = os.ExpandEnv(tlsCertFile)
 			tlsKeyFile = os.ExpandEnv(tlsKeyFile)
-			return setupConnection()
+			return nil //setupConnection()
 		},
 	}
 	flags := cmd.PersistentFlags()
 
 	settings.AddFlags(flags)
 
-	//out := cmd.OutOrStdout()
-
 	cmd.AddCommand(
 		// chart commands
 		addFlagsTLS(newServCmd()),
+		addFlagsTLS(newVersionCmd()),
+		newMigrateCmd(),
 	)
 
 	flags.Parse(args)
@@ -68,19 +64,18 @@ func newRootCmd(args []string) *cobra.Command {
 	// set defaults from environment
 	settings.Init(flags)
 
-	// Find and add plugins
-	//loadPlugins(cmd, out)
-
 	return cmd
 }
 
 func main() {
 	cmd := newRootCmd(os.Args[1:])
 	if err := cmd.Execute(); err != nil {
+		Log.Errorln(err)
 		os.Exit(1)
 	}
 }
 
+/*
 func setupConnection() error {
 
 	if config, client, err := getKubeClient(settings.KubeContext); err != nil {
@@ -110,6 +105,7 @@ func getKubeClient(context string) (*rest.Config, *kubernetes.Clientset, error) 
 	}
 	return config, client, nil
 }
+*/
 
 // addFlagsTLS adds the flags for supporting client side TLS to the
 // helm command (only those that invoke communicate to Tiller.)

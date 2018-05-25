@@ -12,6 +12,7 @@ package ex
 
 import (
 	"fmt"
+	"strings"
 )
 
 type ApiResponse struct {
@@ -35,10 +36,26 @@ func ReturnInternalServerError(err error) (int, ApiResponse) {
 	return INTERNAL_ERROR, ar
 }
 
+func ReturnInternalServerErrors(errs []error) (int, ApiResponse) {
+	ar := ApiResponse{
+		Code:    INTERNAL_ERROR,
+		Message: fmt.Sprintf("%s,%s", GetMsg(INTERNAL_ERROR), makeErrMessage(errs)),
+	}
+	return INTERNAL_ERROR, ar
+}
+
 func ReturnOK() (int, ApiResponse) {
 	ar := ApiResponse{
 		Code:    SUCCESS,
 		Message: GetMsg(SUCCESS),
 	}
 	return SUCCESS, ar
+}
+
+func makeErrMessage(errs []error) string {
+	var msgs []string
+	for _, err := range errs {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, ";")
 }
