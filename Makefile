@@ -26,11 +26,7 @@ endef
 
 COMPOSE_APP_SERVICES=openpitrix-runtime-manager openpitrix-app-manager openpitrix-repo-indexer openpitrix-api-gateway openpitrix-repo-manager openpitrix-job-manager openpitrix-task-manager openpitrix-cluster-manager
 COMPOSE_DB_CTRL=openpitrix-app-db-ctrl openpitrix-repo-db-ctrl openpitrix-runtime-db-ctrl openpitrix-job-db-ctrl openpitrix-task-db-ctrl openpitrix-cluster-db-ctrl
-CMD?=...
-comma:= ,
-empty:=
-space:= $(empty) $(empty)
-CMDS=$(subst $(comma),$(space),$(CMD))
+
 
 .PHONY: init-vendor
 init-vendor:
@@ -47,6 +43,7 @@ update-builder:
 	docker pull 172.16.1.99/transwarp/walm-builder:1.0
 	@echo "update-builder done"
 
+#all:init-vendor/update-vendor update-builder generate build
 .PHONY: all
 all: generate build
 

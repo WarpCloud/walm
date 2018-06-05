@@ -45,6 +45,7 @@ func newRootCmd(args []string) *cobra.Command {
 			tlsCaCertFile = os.ExpandEnv(tlsCaCertFile)
 			tlsCertFile = os.ExpandEnv(tlsCertFile)
 			tlsKeyFile = os.ExpandEnv(tlsKeyFile)
+
 			return nil //setupConnection()
 		},
 	}
@@ -60,7 +61,6 @@ func newRootCmd(args []string) *cobra.Command {
 	)
 
 	flags.Parse(args)
-
 	// set defaults from environment
 	settings.Init(flags)
 
