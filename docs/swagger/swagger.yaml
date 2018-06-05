@@ -1,5 +1,14 @@
 basePath: /walm/api/v1
 definitions:
+  cluster.Cluster:
+    properties:
+      apps:
+        items:
+          type: '&{instance Application}'
+        type: array
+      config:
+        type: string
+    type: object
   ex.ApiResponse:
     properties:
       code:
@@ -58,6 +67,128 @@ info:
   title: Walm
   version: 1.0.0
 paths:
+  /{namespace}/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an Cluster
+      parameters:
+      - description: identifier of the namespace
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: the name of cluster
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: cluster not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+    get:
+      consumes:
+      - application/json
+      description: Get states of an Cluster
+      parameters:
+      - description: identifier of the namespace
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: the name of cluster
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: cluster not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+    post:
+      consumes:
+      - application/json
+      description: Deplou an Cluster
+      parameters:
+      - description: identifier of the namespace
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: the name of cluster
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Apps of Cluster
+        in: body
+        name: apps
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.Cluster'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: namespace not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
   /application/{appName}:
     delete:
       consumes:

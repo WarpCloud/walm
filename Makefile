@@ -68,7 +68,8 @@ build:
 
 .PHONY: install
 install:
-	time go install -v -ldflags '$(BUILD_FLAG)' $(TRAG.Gopkg)/cmd/
+	time go install -v -ldflags '$(BUILD_FLAG)' $(TRAG.Gopkg)/cmd/walm
+	#$(RUN_IN_DOCKER) time go install -v -ldflags '$(BUILD_FLAG)' $(TRAG.Gopkg)/cmd/walm
 
 .PHONY: test
 test:

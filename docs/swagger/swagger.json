@@ -432,9 +432,200 @@
                     }
                 }
             }
+        },
+        "/{namespace}/{name}": {
+            "get": {
+                "description": "Get states of an Cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the namespace",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the name of cluster",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "cluster not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Deplou an Cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the namespace",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the name of cluster",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Apps of Cluster",
+                        "name": "apps",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.Cluster"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "namespace not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an Cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the namespace",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the name of cluster",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "cluster not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "cluster.Cluster": {
+            "type": "object",
+            "properties": {
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "type": "\u0026{instance Application}"
+                    }
+                },
+                "config": {
+                    "type": "string"
+                }
+            }
+        },
         "ex.ApiResponse": {
             "type": "object",
             "properties": {
