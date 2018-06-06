@@ -54,7 +54,7 @@ definitions:
       updated:
         type: string
     type: object
-host: walm.transwarp.io
+host: localhost:8000
 info:
   contact:
     email: bing.han@transwarp.io
@@ -189,135 +189,7 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
-  /application/{appName}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an Appliation
-      parameters:
-      - description: identifier of the application
-        in: path
-        name: appName
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "400":
-          description: Invalid Name supplied!
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "404":
-          description: Application not found
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "500":
-          description: Server Error
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-    get:
-      consumes:
-      - application/json
-      description: Get an Appliation by name with status
-      parameters:
-      - description: identifier of the application
-        in: path
-        name: appName
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ok
-          schema:
-            $ref: '#/definitions/instance.Info'
-            type: object
-        "400":
-          description: Invalid Name supplied!
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "404":
-          description: Application not found
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "405":
-          description: Invalid input
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "500":
-          description: Server Error
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-  /application/{appname}/rollback/{version}:
-    get:
-      consumes:
-      - application/json
-      description: Rollback Application to aim version
-      parameters:
-      - description: identifier of the application
-        in: path
-        name: appName
-        required: true
-        type: string
-      - description: identifier of the version
-        in: path
-        name: version
-        required: true
-        type: string
-      - description: if recreate pods
-        in: query
-        name: recreate
-        type: boolean
-      - description: if force to update and restart pods
-        in: query
-        name: force
-        type: boolean
-      - description: if wait for finish
-        in: query
-        name: wait
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ok
-          schema:
-            $ref: '#/definitions/instance.Info'
-            type: object
-        "400":
-          description: Invalid Name supplied!
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "404":
-          description: Application not found
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "405":
-          description: Invalid input
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "500":
-          description: Server Error
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-  /application/{chart}:
+  /instance/{chart}:
     post:
       consumes:
       - application/json
@@ -403,7 +275,141 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
-  /application/{namespace}/status/{appname}:
+  /instance/{namespace}/{appname}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an Appliation
+      parameters:
+      - description: identifier of the application
+        in: path
+        name: appname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /instance/{namespace}/info/{appname}:
+    get:
+      consumes:
+      - application/json
+      description: Get an Appliation by name with status
+      parameters:
+      - description: identifier of the chart
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: identifier of the application
+        in: path
+        name: appname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/instance.Info'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /instance/{namespace}/rollback/{appname}/{version}:
+    get:
+      consumes:
+      - application/json
+      description: Rollback Application to aim version
+      parameters:
+      - description: identifier of the application
+        in: path
+        name: appname
+        required: true
+        type: string
+      - description: identifier of the version
+        in: path
+        name: version
+        required: true
+        type: string
+      - description: if recreate pods
+        in: query
+        name: recreate
+        type: boolean
+      - description: if force to update and restart pods
+        in: query
+        name: force
+        type: boolean
+      - description: if wait for finish
+        in: query
+        name: wait
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/instance.Info'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Application not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+  /instance/{namespace}/status/{appname}:
     get:
       consumes:
       - application/json
@@ -414,12 +420,12 @@ paths:
         name: namespace
         required: true
         type: string
-      - description: identifier of the appName
+      - description: identifier of the appname
         in: path
         name: appname
         required: true
         type: string
-      - description: identifier of the appName
+      - description: identifier of the appname
         in: query
         name: reverse
         type: boolean

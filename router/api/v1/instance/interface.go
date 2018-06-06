@@ -41,12 +41,12 @@ func SetWalmInst(inter WalmInterface) {
 // @OperationId DeleteApplication
 // @Accept  json
 // @Produce  json
-// @Param   appName     path    string     true        "identifier of the application"
+// @Param   appname     path    string     true        "identifier of the application"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "Application not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{appName} [delete]
+// @Router /instance/{namespace}/{appname} [delete]
 func DeleteApplication(c *gin.Context) {
 
 	var args []string
@@ -92,7 +92,7 @@ func DeleteApplication(c *gin.Context) {
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{chart} [post]
+// @Router /instance/{chart} [post]
 func DeployApplication(c *gin.Context) {
 
 	var args []string
@@ -187,8 +187,8 @@ func DeployApplication(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the chart"
-// @Param   appname     path    string     true      "identifier of the appName"
-// @Param   reverse     query    boolean     false      "identifier of the appName"
+// @Param   appname     path    string     true      "identifier of the appname"
+// @Param   reverse     query    boolean     false      "identifier of the appname"
 // @Param   max     query    int     false      "max num to display"
 // @Param   offset     query    int     false      "the offset of result"
 // @Param   all     query    boolean     false      "if display all of result"
@@ -200,7 +200,7 @@ func DeployApplication(c *gin.Context) {
 // @Success 200 {object} instance.Info	"ok"
 // @Failure 404 {object} ex.ApiResponse "Invalid status not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{namespace}/status/{appname} [get]
+// @Router /instance/{namespace}/status/{appname} [get]
 func ListApplicationsWithStatus(c *gin.Context) {
 
 	var args []string
@@ -298,13 +298,14 @@ func ListApplicationsWithStatus(c *gin.Context) {
 // @OperationId GetApplicationbyName
 // @Accept  json
 // @Produce  json
-// @Param   appName     path    string     true        "identifier of the application"
+// @Param   namespace     path    string     true      "identifier of the chart"
+// @Param   appname     path    string     true        "identifier of the application"
 // @Success 200 {object} instance.Info	"ok"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "Application not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{appName} [get]
+// @Router /instance/{namespace}/info/{appname} [get]
 func GetApplicationStatusbyName(c *gin.Context) {
 	var args []string
 	var flags []string
@@ -332,7 +333,7 @@ func GetApplicationStatusbyName(c *gin.Context) {
 // @OperationId RollBackApplication
 // @Accept  json
 // @Produce  json
-// @Param   appName     path    string     true        "identifier of the application"
+// @Param   appname     path    string     true        "identifier of the application"
 // @Param   version     path    string     true        "identifier of the version"
 // @Param   recreate     query    boolean     false      "if recreate pods"
 // @Param   force     query    boolean     false      "if force to update and restart pods"
@@ -342,7 +343,7 @@ func GetApplicationStatusbyName(c *gin.Context) {
 // @Failure 404 {object} ex.ApiResponse "Application not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{appname}/rollback/{version} [get]
+// @Router /instance/{namespace}/rollback/{appname}/{version} [get]
 func RollBackApplication(c *gin.Context) {
 	var args []string
 	var flags []string
@@ -408,7 +409,7 @@ func RollBackApplication(c *gin.Context) {
 // @Failure 404 {object} ex.ApiResponse "Application not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /application/{chart} [put]
+// @Router /instance/{chart} [put]
 func UpdateApplication(c *gin.Context) {
 	var args []string
 	var flags []string

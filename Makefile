@@ -56,6 +56,16 @@ generate:
 gen-version:
 	go generate ./pkg/version/
 
+
+.PHONY: gen-swagger
+gen-swagger:
+	$(RUN_IN_DOCKER) make generate-swagger
+	@echo "gen-swagger done"
+
+.PHONY: gen-swagger-in-local
+generate-swagger:
+	@swag init -g router/routers.go
+
 .PHONY: build
 build:
 	@echo "build" $(TARG.Name):$(DOCKER_TAGS)

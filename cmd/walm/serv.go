@@ -74,7 +74,7 @@ func (sc *ServCmd) run() error {
 		TlsKeyFile:   tlsKeyFile,
 		ReadTimeout:  conf.ReadTimeout,
 		WriteTimeout: conf.WriteTimeout,
-		RunMode:      conf.RunMode,
+		RunMode:      conf.Debug,
 		ZipkinUrl:    conf.ZipkinUrl,
 	}
 

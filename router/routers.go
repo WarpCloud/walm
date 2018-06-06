@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/swaggo/gin-swagger"
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 
@@ -27,31 +28,34 @@ import (
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host walm.transwarp.io
+// @host  localhost:8000
 // @BasePath /walm/api/v1
 
-func InitRouter(oauth bool, runmode string) *gin.Engine {
+func InitRouter(oauth, runmode bool) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	r.Use(gin.RecoveryWithWriter(Log.Out))
+	//r.Use(gin.RecoveryWithWriter(Log.Out))
 
-	//enable swagger UI
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	gin.SetMode(runmode)
-	if runmode == "debug" {
+	if runmode {
+		gin.SetMode(gin.DebugMode)
+		Log.SetLevel(logrus.DebugLevel)
 		r.Use(gin.LoggerWithWriter(Log.Out))
 	} else {
+		Log.SetLevel(logrus.InfoLevel)
 		//add Prometheus Metric
 		p := middleware.NewPrometheus("Walm-gin")
 		p.Use(r)
 		//add open tracing
-		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption{
+		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
 			return stdopentracing.ChildOf(spancontext)
-			} 
+		}
 		r.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false))
-		
+
 	}
+
+	//enable swagger UI
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	//add Probe for readiness and liveness
 	r.GET("/readiness", readinessProbe)
@@ -65,18 +69,18 @@ func InitRouter(oauth bool, runmode string) *gin.Engine {
 	{
 		instance := apiv1.Group("/instance")
 		{
-			instance.DELETE("/{namespace}/{appName}", inst.DeleteApplication)
-			instance.POST("/{chart}", inst.DeployApplication)
-			instance.GET("/{namespace}/status/{appname}", inst.ListApplicationsWithStatus)
-			instance.GET("/{namespace}/info{appname}", inst.GetApplicationStatusbyName)
-			instance.GET("/{namespace}/rollback/{appname}/{version}", inst.RollBackApplication)
-			instance.PUT("/{chart}", inst.UpdateApplication)
+			instance.DELETE("/:namespace/:appName", inst.DeleteApplication)
+			instance.POST("/:chart}", inst.DeployApplication)
+			instance.GET("/:namespace/status/:appname", inst.ListApplicationsWithStatus)
+			instance.GET("/:namespace/info/:appname", inst.GetApplicationStatusbyName)
+			instance.GET("/:namespace/rollback/:appname/:version", inst.RollBackApplication)
+			instance.PUT("/:chart", inst.UpdateApplication)
 		}
 		cluster := apiv1.Group("/cluster")
 		{
-			cluster.POST("/{namespace}/{name}", clus.DeployCluster)
-			cluster.GET("/{namespace}/{name}", clus.StatusCluster)
-			cluster.DELETE("/{namespace}/{name}", clus.DeleteCluster)
+			cluster.POST("/:namespace/:name", clus.DeployCluster)
+			cluster.GET("/:namespace/:name", clus.StatusCluster)
+			cluster.DELETE("/:namespace/:name", clus.DeleteCluster)
 		}
 
 	}

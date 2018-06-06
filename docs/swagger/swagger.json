@@ -14,197 +14,10 @@
         },
         "version": "1.0.0"
     },
-    "host": "walm.transwarp.io",
+    "host": "localhost:8000",
     "basePath": "/walm/api/v1",
     "paths": {
-        "/application/{appName}": {
-            "get": {
-                "description": "Get an Appliation by name with status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "identifier of the application",
-                        "name": "appName",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ok",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/instance.Info"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid Name supplied!",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Application not found",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "405": {
-                        "description": "Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Server Error",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Delete an Appliation",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "identifier of the application",
-                        "name": "appName",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid Name supplied!",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Application not found",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Server Error",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/application/{appname}/rollback/{version}": {
-            "get": {
-                "description": "Rollback Application to aim version",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "identifier of the application",
-                        "name": "appName",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "identifier of the version",
-                        "name": "version",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if recreate pods",
-                        "name": "recreate",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if force to update and restart pods",
-                        "name": "force",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if wait for finish",
-                        "name": "wait",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ok",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/instance.Info"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid Name supplied!",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Application not found",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "405": {
-                        "description": "Invalid input",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Server Error",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/application/{chart}": {
+        "/instance/{chart}": {
             "put": {
                 "description": "Update an Appliation",
                 "consumes": [
@@ -329,7 +142,153 @@
                 }
             }
         },
-        "/application/{namespace}/status/{appname}": {
+        "/instance/{namespace}/info/{appname}": {
+            "get": {
+                "description": "Get an Appliation by name with status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the chart",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "identifier of the application",
+                        "name": "appname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/instance.Info"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Application not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/instance/{namespace}/rollback/{appname}/{version}": {
+            "get": {
+                "description": "Rollback Application to aim version",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the application",
+                        "name": "appname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "identifier of the version",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "if recreate pods",
+                        "name": "recreate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "if force to update and restart pods",
+                        "name": "force",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "if wait for finish",
+                        "name": "wait",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/instance.Info"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Application not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/instance/{namespace}/status/{appname}": {
             "get": {
                 "description": "find the aim application status",
                 "consumes": [
@@ -348,14 +307,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "identifier of the appName",
+                        "description": "identifier of the appname",
                         "name": "appname",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "boolean",
-                        "description": "identifier of the appName",
+                        "description": "identifier of the appname",
                         "name": "reverse",
                         "in": "query"
                     },
@@ -418,6 +377,56 @@
                     },
                     "404": {
                         "description": "Invalid status not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/instance/{namespace}/{appname}": {
+            "delete": {
+                "description": "Delete an Appliation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the application",
+                        "name": "appname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Application not found",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/ex.ApiResponse"

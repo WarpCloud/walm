@@ -8,5 +8,5 @@ var Log *logrus.Logger
 
 func init() {
 	Log = logrus.New()
-	//logrus.SetFormatter(new(logrus.TextFormatter))
+	Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, DisableColors: true}
 }

@@ -29,13 +29,16 @@ func (inst *Interface) makeCmd(subcmd string, args, flags []string) (error, stri
 	}
 	cmd := inst.cmd
 	cmd += subcmd
+	cmd += " "
 	cmd += strings.Join(flags, " ")
+	cmd += " "
 	cmd += strings.Join(args, " ")
 	return nil, cmd
 }
 
 func execPipeLine(cmd string) (error, *bytes.Buffer) {
-	Log.Debugf("beging to exec cmd:%s\n", cmd)
+	Log.Debugf("beging to exec cmd: %s", cmd)
+	defer Log.Debugf("end to exec cmd: %s", cmd)
 	b := &bytes.Buffer{}
 	p := pipe.Line(
 		pipe.Exec(cmd),

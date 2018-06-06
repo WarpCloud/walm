@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	. "walm/pkg/util/log"
+
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/util/homedir"
 )
@@ -15,8 +17,6 @@ import (
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 
 type Config struct {
-	RunMode string
-
 	HTTPPort     int
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
@@ -58,16 +58,16 @@ var envMap = map[string]string{
 }
 
 // AddFlags binds flags to the given flagset.
-func (conf Config) AddFlags(fs *pflag.FlagSet) {
+func (conf *Config) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&conf.Debug, "debug", false, "enable verbose output")
 	fs.StringVar((*string)(&conf.Home), "home", DefaultWalmHome, "location of your Walm config. Overrides $WALM_HOME")
 	fs.IntVar(&conf.HTTPPort, "port", 8000, "api server port")
 
-	fs.StringVar(&conf.DbType, "dbname", "", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbName, "dbtype", "", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbUser, "dbuser", "", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbPassword, "dbpass", "", "name of the kubeconfig context to use")
+	fs.StringVar(&conf.DbName, "dbname", "walm", "name of the kubeconfig context to use")
+	fs.StringVar(&conf.DbType, "dbtype", "mysql", "name of the kubeconfig context to use")
+	fs.StringVar(&conf.DbUser, "dbuser", "root", "name of the kubeconfig context to use")
+	fs.StringVar(&conf.DbPassword, "dbpass", "passwd", "name of the kubeconfig context to use")
 	fs.StringVar(&conf.DbHost, "dbhost", "", "name of the kubeconfig context to use")
 	fs.StringVar(&conf.TablePrefix, "dbtabpre", "", "name of the kubeconfig context to use")
 
@@ -80,7 +80,7 @@ func (conf Config) AddFlags(fs *pflag.FlagSet) {
 }
 
 // Init sets values from the environment.
-func (conf Config) Init(fs *pflag.FlagSet) {
+func (conf *Config) Init(fs *pflag.FlagSet) {
 	for name, envar := range envMap {
 		conf.setFlagFromEnv(name, envar, fs)
 	}
@@ -88,10 +88,10 @@ func (conf Config) Init(fs *pflag.FlagSet) {
 	{
 		ensureDirectories(conf.Home)
 	}
-
+	Log.Debugln(conf)
 }
 
-func (conf Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
+func (conf *Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
 	if fs.Changed(name) {
 		return
 	}
