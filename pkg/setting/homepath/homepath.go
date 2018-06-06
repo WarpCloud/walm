@@ -58,10 +58,3 @@ func (h Home) TLSCert() string {
 func (h Home) TLSKey() string {
 	return h.Path("key.pem")
 }
-func (h Home) Cache() string {
-	return h.Path("cache")
-}
-
-func (h Home) Config() string {
-	return h.Path("conf")
-}

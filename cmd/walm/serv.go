@@ -21,7 +21,6 @@ you can sp  the listen host and pot like :
 `
 
 type ServCmd struct {
-	port  int
 	oauth bool
 }
 
@@ -33,19 +32,17 @@ func newServCmd() *cobra.Command {
 		Short: "enable a Walm Web Server",
 		Long:  servDesc,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return models.Init(&settings)
+			return models.Init(&conf)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if inst.port == 0 {
-				inst.port = settings.HTTPPort
-			}
-			if inst.port == 0 {
+
+			if conf.HTTPPort == 0 {
 				Log.Errorln("start API server failed, please spec JwtSecret")
 				return errors.New("none port spec")
 			}
 			if inst.oauth {
-				if len(settings.JwtSecret) > 0 {
-					oauth.SetJwtSecret(settings.JwtSecret)
+				if len(conf.JwtSecret) > 0 {
+					oauth.SetJwtSecret(conf.JwtSecret)
 				} else {
 					Log.Errorln("If enable oauth ,please set JwtSecret")
 					return errors.New("none JwtSecret")
@@ -60,7 +57,6 @@ func newServCmd() *cobra.Command {
 	}
 
 	f := cmd.Flags()
-	f.IntVarP(&inst.port, "port", "p", 0, "address to listen on")
 	f.BoolVar(&inst.oauth, "oauth", false, "enable oauth or not")
 
 	return cmd
@@ -71,15 +67,15 @@ func (sc *ServCmd) run() error {
 
 	server := &router.Server{
 		ApiErrCh:     apiErrCh,
-		Port:         sc.port,
+		Port:         conf.HTTPPort,
 		OauthEnable:  sc.oauth,
 		TlsEnable:    tlsEnable,
 		TlsCertFile:  tlsCertFile,
 		TlsKeyFile:   tlsKeyFile,
-		ReadTimeout:  settings.ReadTimeout,
-		WriteTimeout: settings.WriteTimeout,
-		RunMode:      settings.RunMode,
-		ZipkinUrl:    settings.ZipkinUrl,
+		ReadTimeout:  conf.ReadTimeout,
+		WriteTimeout: conf.WriteTimeout,
+		RunMode:      conf.RunMode,
+		ZipkinUrl:    conf.ZipkinUrl,
 	}
 
 	if err := server.StartServer(); err != nil {

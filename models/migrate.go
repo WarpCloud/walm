@@ -16,9 +16,11 @@ func createNoneExistDB(conf *setting.Config) error {
 	if datebase, err := sql.Open(conf.DbType, dbconf); err != nil {
 		return err
 	} else {
-		if _, err := datebase.Exec("CREATE DATABASE IF NOT EXISTS walm DEFAULT CHARSET utf8 COLLATE utf8_general_ci"); err != nil {
+		dbstr := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s DEFAULT CHARSET utf8 COLLATE utf8_general_ci", conf.DbName)
+		if _, err := datebase.Exec(dbstr); err != nil {
 			return err
 		}
+		datebase.Close()
 	}
 	return nil
 }
@@ -54,6 +56,7 @@ func AutoMigrate(conf *setting.Config) error {
 	return nil
 }
 
+/*
 func CreateProductTable() bool {
 	db.DropTableIfExists("product",
 		"app_list",
@@ -95,3 +98,4 @@ func CreateEventTable() bool {
 
 	return true
 }
+*/

@@ -3,6 +3,8 @@ package main
 import (
 	"walm/models"
 
+	. "walm/pkg/util/log"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,9 +21,6 @@ func newMigrateCmd() *cobra.Command {
 		Use:   "migrate",
 		Short: "auto migrate db of walm",
 		Long:  migrateDesc,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return models.Init(&settings)
-		},
 
 		Run: func(cmd *cobra.Command, args []string) {
 			defer mc.run()
@@ -35,5 +34,7 @@ func newMigrateCmd() *cobra.Command {
 }
 
 func (mc *migrateCmd) run() {
-	models.AutoMigrate()
+	if err := models.AutoMigrate(&conf); err != nil {
+		Log.Fatal(err)
+	}
 }

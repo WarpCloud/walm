@@ -13,16 +13,16 @@ services:
 
   walm-app:
     image: "walm:last"
-    command: ["walm","serv","--debug"]
+    command: ["walm","migrate","&&","walm","serv","--debug"]
     links:
       - walm-db:walm-db
     depends_on:
       - walm-db
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - WITH_DB_UNIT_TEST=1
       - WALM_DB_NAME=walm 
       - WALM_DB_USER=root
+      - WALM_DB_PASS=${MYSQL_ROOT_PASSWORD}
     ports:
-     - "15000:5000" 
+     - "18000:8000" 
     container_name: "walm-app"

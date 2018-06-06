@@ -22,7 +22,7 @@ var (
 	tlsKeyDefault    = "$WALM_HOME/key.pem"
 
 	client   *kubernetes.Clientset
-	settings setting.Config
+	conf setting.Config
 )
 
 var globalUsage = `The Warp application lifecycle manager
@@ -51,18 +51,18 @@ func newRootCmd(args []string) *cobra.Command {
 	}
 	flags := cmd.PersistentFlags()
 
-	settings.AddFlags(flags)
+	conf.AddFlags(flags)
 
 	cmd.AddCommand(
 		// chart commands
 		addFlagsTLS(newServCmd()),
-		addFlagsTLS(newVersionCmd()),
+		newVersionCmd(),
 		newMigrateCmd(),
 	)
 
 	flags.Parse(args)
 	// set defaults from environment
-	settings.Init(flags)
+	conf.Init(flags)
 
 	return cmd
 }
