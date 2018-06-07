@@ -18,7 +18,7 @@ local kube = import '../../../applib/kube.libsonnet';
                                         imagePullPolicy: 'Always',
                                         args: ['walm serv'],
                                         env: env ,
-                                        resources: kube.v1.ContainerResources(config.App.resources.cpu_request,config.App.resources.memory_limit,config.App.resources.memory_limit,config.App.resources.memory_request),
+                                        resources: kube.v1.ContainerResourcesV2(config.App.resources),
                                         },
                                         ],
                                 initContainers: [
