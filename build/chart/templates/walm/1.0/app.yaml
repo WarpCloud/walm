@@ -1,0 +1,114 @@
+name: walm
+version: 1.0
+jsonnetTemplatePath: template-json/walm-main.jsonnet
+meta:
+  provides:
+    HDFS_NAMENODE_ANNOTATION:
+      resourceType: deployments
+      selector:
+        name: walm
+      key: 'walm.annotations'
+    NAME_NODE_HL_SVC:
+      resourceType: services
+      selector:
+        name: walm-hl
+      key: ''
+
+templates:
+  - name: Walm server
+    deployFile: hdfs-walm-deployment.json
+    svcFile: hdfs-walm-svc.json
+    hlSvcFile: hdfs-walm-hl-svc.json
+
+dependencies:
+  - applicationSelector:
+      transwarp.app: txsql
+    name: txsql
+    minVersion: 5.1
+    requires:
+      zookeeper_rc: $(ZK_RC)
+      zookeeper_statefulSet: $(ZK_SFS)
+
+userConfig:
+  showTabs: True
+  configTabs:
+    - name: Walm配置
+      configs:
+        - name: walm_memory_limit
+          level: basic
+          type: spinner
+          label: 内存限制
+          resourceType: memory
+          options:
+            default: 1
+            step: 0.1
+
+        - name: walm_cpu_limit
+          level: basic
+          type: spinner
+          label: CPU限制
+          resourceType: cpu
+          options:
+            default: 2
+            step: 0.1
+
+        - name: walm_priority
+          level: basic
+          type: spinner
+          label: 优先级
+          options:
+            minValue: 0
+            default: 0
+            maxValue: 10
+
+        - name: walm_replication
+          level: basic
+          type: spinner
+          label: Block Replication数量
+          options:
+            default: 1
+
+        - name: walm_port
+          type: node_port_box
+          label: walm
+          options:
+            default: 8000
+
+        - name: walm_db_name
+          type: spinner
+          label: walm数据库名称
+          options:
+            default: "walm"
+
+        - name: walm_db_type
+          type: spinner
+          label: walm数据库类型
+          options:
+            default: "mysql"     
+
+        - name: walm_db_password
+          type: spinner
+          label: walm数据库密码
+          options:
+            default: "mysql"
+
+        - name: walm_db_host
+          type: spinner
+          label: walm数据库主机链接串
+        
+        - name: walm_db_tabpre
+          type: spinner
+          label: walm数据库表前缀
+        
+        - name: walm_http_readtimeout
+          type: spinner
+          label: walm服务器读取超时时间
+          options:
+            default: 0
+
+        - name: walm_http_writetimeout
+          type: spinner
+          label: walm服务器写入超时时间
+          options:
+            default: 0
+

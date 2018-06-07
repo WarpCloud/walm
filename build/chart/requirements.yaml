@@ -1,0 +1,4 @@
+dependencies:
+- name: txsql
+  minVersion: 5.2.0
+  repository: http://172.16.1.41:8880/

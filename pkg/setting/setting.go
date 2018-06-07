@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	. "walm/pkg/util/log"
-
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/util/homedir"
 )
@@ -55,6 +53,7 @@ var envMap = map[string]string{
 	"zipkinurl":                 ZipkinUrl,
 	"tiller-connection-timeout": TillerConnTimeOut,
 	"kube-context":              KubeContext,
+	"JwtSecret":                 JwtSecret,
 }
 
 // AddFlags binds flags to the given flagset.
@@ -70,6 +69,8 @@ func (conf *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&conf.DbPassword, "dbpass", "passwd", "name of the kubeconfig context to use")
 	fs.StringVar(&conf.DbHost, "dbhost", "", "name of the kubeconfig context to use")
 	fs.StringVar(&conf.TablePrefix, "dbtabpre", "", "name of the kubeconfig context to use")
+
+	fs.StringVar(&conf.JwtSecret, "jwtsecret", "", "value of jwtsecrect")
 
 	fs.DurationVar(&conf.ReadTimeout, "httpreadtimeout", time.Duration(0), "httpreadtimeout")
 	fs.DurationVar(&conf.WriteTimeout, "httpwritetimeout", time.Duration(0), "httpwritetimeout")
@@ -88,7 +89,6 @@ func (conf *Config) Init(fs *pflag.FlagSet) {
 	{
 		ensureDirectories(conf.Home)
 	}
-	Log.Debugln(conf)
 }
 
 func (conf *Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
@@ -119,6 +119,7 @@ const (
 	ZipkinUrl         = "ZIPKIN_URL"
 	TillerConnTimeOut = "TILLER_CONN_TIMEOUT"
 	KubeContext       = "KUBE_CONTEXT"
+	JwtSecret         = "WALM_JWTSECRET"
 )
 
 // envMap maps flag names to envvars

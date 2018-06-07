@@ -1,0 +1,12 @@
+{
+    "modules": [
+      {
+        "container_names": [
+          "walm"
+        ],
+        "kind": "Deployment",
+        "module": "walm"
+      }
+    ],
+    "volumes": []
+  }
