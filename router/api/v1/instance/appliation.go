@@ -6,6 +6,7 @@ type Application struct {
 	Version    string   `json:"version,omitempty"  description:"version of the release"`
 	Value      string   `json:"value,omitempty"  description:"value array of the release (json format)"`
 	Links      []string `json:"links,omitempty"  description:"link array of the release"`
+	Chart      string   `json:"chart,omitempty"  description:"chart info"`
 	Repo       string   `json:"repo,omitempty"  description:"repo where to find chart"`
 	Install    bool     `json:"install,omitempty"  description:"if install when not existed"`
 	ResetValue bool     `json:"reset-values,omitempty"  description:"if reset value when install"`

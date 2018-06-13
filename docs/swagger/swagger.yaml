@@ -60,7 +60,7 @@ info:
     email: bing.han@transwarp.io
     name: bing.han
     url: http://transwarp.io
-  description: Warp application lifecycle manager.
+  description: cluster lifecycle manager
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -106,6 +106,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - Cluster
     get:
       consumes:
       - application/json
@@ -144,6 +146,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - Cluster
     post:
       consumes:
       - application/json
@@ -189,6 +193,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - Cluster
   /instance/{chart}:
     post:
       consumes:
@@ -230,6 +236,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
     put:
       consumes:
       - application/json
@@ -275,6 +283,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
   /instance/{namespace}/{appname}:
     delete:
       consumes:
@@ -309,6 +319,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
   /instance/{namespace}/info/{appname}:
     get:
       consumes:
@@ -353,6 +365,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
   /instance/{namespace}/rollback/{appname}/{version}:
     get:
       consumes:
@@ -409,6 +423,8 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
   /instance/{namespace}/status/{appname}:
     get:
       consumes:
@@ -479,4 +495,6 @@ paths:
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
+      tags:
+      - instance
 swagger: "2.0"

@@ -16,6 +16,20 @@ func InsertAppInst(app AppInst) error {
 	return nil
 }
 
+func InsertCluster(cluster *Cluster) error {
+	p := db.Begin()
+	if err := p.Create(*cluster).Error; err != nil {
+		db.Rollback()
+		return err
+	}
+	p.Commit()
+	if err := p.Where("name = ?", cluster.Name).Find(cluster).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func UpdateAppInstByApp(app AppInst) error {
 	p := db.Begin()
 	if err := p.Update(app).Error; err != nil {

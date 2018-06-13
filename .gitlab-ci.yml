@@ -1,0 +1,57 @@
+image: 172.16.1.99/transwarp/base/builder:centos7
+
+before_script:
+    - source /etc/profile
+    - source /root/.bashrc
+    - startdocker.sh &
+    - sleep 60s
+    - export PUB_HARBOR=172.16.1.99
+    - export STAGE=gold
+    - export PUB_MAJOR_VERSION=tdc-1.1
+    - export PUB_REVISION=${PUB_MAJOR_VERSION}-`date "+%Y-%m-%d-%H-%M-%S"`-${CI_COMMIT_SHA}
+
+stages:
+   - precommit_build
+   - postcommit_build
+   - gold_build
+
+gold_build:
+  stage: gold_build
+  script:
+    - set -e
+    - echo
+    - echo "Build gold"
+    - export TAG_REVISION=$PUB_HARBOR/$STAGE/ockle:$PUB_REVISION
+    - export TAG_MAJOR=$PUB_HARBOR/$STAGE/ockle:$PUB_MAJOR_VERSION
+    - docker build --no-cache --force-rm -t $TAG_REVISION .
+    - docker tag $TAG_REVISION $TAG_MAJOR
+    - docker push $TAG_REVISION
+    - docker push $TAG_MAJOR
+    - echo "Stop docker"
+    - ps aux | grep docker | grep -v "grep" |  awk '{print $2}' | xargs kill -9 || true
+  only:
+    - master@TDC/WALM
+  tags:
+    - k8s
+    
+precommit_build:
+  stage: precommit_build
+  script:
+    - set -e
+    - make purge-test
+    - make build
+  only:
+      - master@TDC/WALM
+  tags:
+    - k8s
+
+postcommit_build:
+  stage: postcommit_build
+  script:
+    - set -e
+    - make test
+    - make build
+  only:
+      - master@TDC/WALM
+  tags:
+    - k8s

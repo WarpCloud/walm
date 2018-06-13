@@ -4,7 +4,7 @@ type Cluster struct {
 	ClusterId  int    `gorm:"primary_key;auto_increment;column:cluster_id"`
 	Name       string `gorm:"column:name"`
 	Namespace  string `gorm:"column:namespace"`
-	ProdId     int    `gorm:"column:prod_id"`
+	ProdId     int    `gorm:"column:prod_id;default:0"`
 	ConfigTemp string `gorm:"column:config_temp"`
 }
 

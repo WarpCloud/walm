@@ -67,6 +67,9 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		apiv1.Use(middleware.JWT())
 	}
 	{
+		//@Tags
+		//@Name instance
+		//@Description instance lifecycle manager
 		instance := apiv1.Group("/instance")
 		{
 			instance.DELETE("/:namespace/:appName", inst.DeleteApplication)
@@ -76,6 +79,9 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 			instance.GET("/:namespace/rollback/:appname/:version", inst.RollBackApplication)
 			instance.PUT("/:chart", inst.UpdateApplication)
 		}
+		//@Tags
+		//@Name cluster
+		//@Description cluster lifecycle manager
 		cluster := apiv1.Group("/cluster")
 		{
 			cluster.POST("/:namespace/:name", clus.DeployCluster)

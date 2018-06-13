@@ -26,17 +26,18 @@ type WalmInterface interface {
 	MakeValueFile(data []byte) (string, error) //if or not delete file after install or update
 }
 
-var walmInst WalmInterface
+var WalmInst WalmInterface
 
 func init() {
 	SetWalmInst(helm.Helm)
 }
 
 func SetWalmInst(inter WalmInterface) {
-	walmInst = inter
+	WalmInst = inter
 }
 
 // DeleteApplication godoc
+// @Tags instance
 // @Description Delete an Appliation
 // @OperationId DeleteApplication
 // @Accept  json
@@ -66,7 +67,7 @@ func DeleteApplication(c *gin.Context) {
 
 	Log.Infof("begin to delete instance:%s; namespace:%s. \n", name, namespace)
 	defer Log.Infof("finish delete instance:%s; namespace:%s. \n", name, namespace)
-	if err := walmInst.Detele(args, flags); err != nil {
+	if err := WalmInst.Detele(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	}
@@ -82,6 +83,7 @@ func DeleteApplication(c *gin.Context) {
 }
 
 // Deploy godoc
+// @Tags instance
 // @Description deploy an application with the givin data
 // @OperationId Deploy
 // @Accept  json
@@ -143,7 +145,7 @@ func DeployApplication(c *gin.Context) {
 			if data, err := yaml.JSONToYAML([]byte(postdata.Value)); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 			} else {
-				if name, err := walmInst.MakeValueFile(data); err != nil {
+				if name, err := WalmInst.MakeValueFile(data); err != nil {
 					c.JSON(ex.ReturnInternalServerError(err))
 					return
 				} else {
@@ -165,7 +167,7 @@ func DeployApplication(c *gin.Context) {
 
 	Log.Infof("begin to install instance:%s; namespace:%s; chart \n", app.Name, app.Namespace, app.AppPkg)
 	defer Log.Infof("finish delete instance:%s; namespace:%s; chart:%s \n", app.Name, app.Namespace, app.AppPkg)
-	if err := walmInst.DeplyApplications(args, flags); err != nil {
+	if err := WalmInst.DeplyApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	}
@@ -182,6 +184,7 @@ func DeployApplication(c *gin.Context) {
 }
 
 // FindApplicationsStatus godoc
+// @Tags instance
 // @Description find the aim application status
 // @OperationId FindApplicationsStatus
 // @Accept  json
@@ -267,7 +270,7 @@ func ListApplicationsWithStatus(c *gin.Context) {
 		flags = append(flags, "--pending")
 	}
 
-	if table, err := walmInst.ListApplications(args, flags); err != nil {
+	if table, err := WalmInst.ListApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
 		var ia []Info
@@ -294,6 +297,7 @@ func ListApplicationsWithStatus(c *gin.Context) {
 }
 
 // GetApplicationbyName godoc
+// @Tags instance
 // @Description Get an Appliation by name with status
 // @OperationId GetApplicationbyName
 // @Accept  json
@@ -320,7 +324,7 @@ func GetApplicationStatusbyName(c *gin.Context) {
 	flags = append(flags, "--revision")
 	flags = append(flags, "--output json")
 
-	if str, err := walmInst.StatusApplications(args, flags); err != nil {
+	if str, err := WalmInst.StatusApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
 		c.JSON(http.StatusOK, str) //need edit
@@ -329,6 +333,7 @@ func GetApplicationStatusbyName(c *gin.Context) {
 }
 
 // RollBackApplication godoc
+// @Tags instance
 // @Description Rollback Application to aim version
 // @OperationId RollBackApplication
 // @Accept  json
@@ -386,7 +391,7 @@ func RollBackApplication(c *gin.Context) {
 
 	Log.Infof("begin to rollback instance %s; namespace %s; version: %s \n", name, namespace, version)
 	defer Log.Infof("finish delete instance %s; namespace %s; version: %s \n", name, namespace, version)
-	if err := walmInst.Rollback(args, flags); err != nil {
+	if err := WalmInst.Rollback(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
 		if err := models.UpdateAppInst(name, version, "version"); err != nil {
@@ -398,6 +403,7 @@ func RollBackApplication(c *gin.Context) {
 }
 
 // UpdateApplication godoc
+// @Tags instance
 // @Description Update an Appliation
 // @OperationId UpdateApplication
 // @Accept  json
@@ -466,7 +472,7 @@ func UpdateApplication(c *gin.Context) {
 			if data, err := yaml.JSONToYAML([]byte(postdata.Value)); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 			} else {
-				if name, err := walmInst.MakeValueFile(data); err != nil {
+				if name, err := WalmInst.MakeValueFile(data); err != nil {
 					c.JSON(ex.ReturnInternalServerError(err))
 					return
 				} else {
@@ -478,7 +484,7 @@ func UpdateApplication(c *gin.Context) {
 	}
 	Log.Infof("begin to update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
 	defer Log.Infof("finish update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
-	if err := walmInst.UpdateApplications(args, flags); err != nil {
+	if err := WalmInst.UpdateApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	}
