@@ -26,7 +26,6 @@ func InsertCluster(cluster *Cluster) error {
 	if err := p.Where("name = ?", cluster.Name).Find(cluster).Error; err != nil {
 		return err
 	}
-
 	return nil
 }
 
