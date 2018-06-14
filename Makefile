@@ -9,6 +9,7 @@ TRAG.Version:=$(TRAG.Gopkg)/pkg/version
 
 DOCKER_TAGS=latest
 RUN_IN_DOCKER:=docker run -it -v `pwd`:/go/src/$(TRAG.Gopkg)  -w /go/src/$(TRAG.Gopkg) -e GOBIN=/go/src/$(TRAG.Gopkg)/bin -e USER_ID=`id -u` -e GROUP_ID=`id -g` 172.16.1.99/transwarp/walm-builder:1.0
+RUN_IN_DOCKER_WITH_DB:=docker run -it -v `pwd`:/go/src/$(TRAG.Gopkg)  -w /go/src/$(TRAG.Gopkg) -e GOBIN=/go/src/$(TRAG.Gopkg)/bin -e USER_ID=`id -u` -e GROUP_ID=`id -g` -e WITH_DB_UNIT_TEST=1 -e WALM_DB_HOST=127.0.0.1:13306 -e WALM_DB_NAME=walm -e WALM_DB_USER=root -e WALM_DB_PASS=passwd 172.16.1.99/transwarp/walm-builder:1.0
 GO_FILES:=./cmd ./test ./pkg ./models ./router
 WITH_DB_TEST:=WITH_DB_UNIT_TEST=1 WALM_DB_HOST=127.0.0.1:13306 WALM_DB_NAME=walm WALM_DB_USER=root WALM_DB_PASS=passwd
 
@@ -86,16 +87,31 @@ test:
 
 .PHONY: unit-test
 unit-test:
-	$(WITH_DB_TEST) go test -v -a -tags="unit&integration" ./...
+	$(RUN_IN_DOCKER_WITH_DB)  go test -v -a -tags="unit&integration" ./...
 	@echo "unit-test done"
 
 .PHONY: purge-test
 purge-test:
-	go test -v -a -tags="purge" ./...
+	$(RUN_IN_DOCKER) go test -v -a -tags="purge" ./...
 	@echo "unit-test done"
 
 .PHONY: e2e-test
 e2e-test:
+	$(RUN_IN_DOCKER) go test -v -a -tags="e2e" ./test/...
+	@echo "e2e-test done"
+
+.PHONY: unit-test-local
+unit-test-local:
+	$(WITH_DB_TEST) go test -v -a -tags="unit&integration" ./...
+	@echo "unit-test done"
+
+.PHONY: purge-test-local
+purge-test-local:
+	go test -v -a -tags="purge" ./...
+	@echo "unit-test done"
+
+.PHONY: e2e-test-local
+e2e-test-local:
 	go test -v -a -tags="e2e" ./test/...
 	@echo "e2e-test done"
 
