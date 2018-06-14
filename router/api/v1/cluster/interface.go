@@ -60,7 +60,7 @@ func DeployCluster(c *gin.Context) {
 		}
 
 		if len(postdata.Apps) > 0 {
-			if err, apps := getGragh(name, namespace, &postdata); err != nil {
+			if err, apps := getGragh(cluster.ClusterId, name, namespace, &postdata); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 				return
 			} else {
