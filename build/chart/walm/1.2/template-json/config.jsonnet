@@ -28,15 +28,6 @@
 
   
   Advance_Config: {
-    db_conf: {
-      dbname: "walm",
-      dbtype: "mysql",
-      dbuser: "root",
-      dbpass: "passwd",
-      dbhost: "",
-      dbtabpre: "",
-    },
-    conf: {
       debug: false,
       port: 8000,
       httpreadtimeout: 0,
@@ -46,10 +37,13 @@
       kube_context: "default",
       oauth: false,  
       JwtSecret:"",
+
+      dbname: "walm",
+      dbtype: "mysql",
+      dbtabpre: "",
     },
-  },
   
   # depended applications
-  txsql_rc: {},
-  # TosVersion: "1.5",
+  MYSQL_CLIENT_CONFIG: {
+  },
 }

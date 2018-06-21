@@ -29,14 +29,6 @@ Transwarp_Config:
   Transwarp_Auto_Injected_Volumes: []
 
 Advance_Config:
-  db_conf:
-    "dbname": "walm"
-    "dbtype": "mysql"
-    "dbuser": "root"
-    "dbpass": "passwd"
-    "dbhost": ""
-    "dbtabpre": ""
-  conf:
     "httpreadtimeout": 0
     "httpwritetimeout": 0
     "debug": false
@@ -46,9 +38,10 @@ Advance_Config:
     "oauth": false
     "JwtSecret": ""
     "port": 8000
+    "dbname": "walm"
+    "dbtype": "mysql"
+    "dbtabpre": ""
 
 Dependencies:
   txsql:
     enabled: false
-
-    

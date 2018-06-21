@@ -37,7 +37,7 @@ local kube = import '../../../applib/kube.libsonnet';
         config
       ),
 
-    svc(_name, config)::kube.v1.NodePortService(name=_name + '-', moduleName=_name, config=config) {
+    svc(_name, config)::kube.v1.Service(name=_name + '-', moduleName=_name, config=config) {
         spec+: {
           ports: [
             { name: 'port', port: 8000, protocol: 'TCP', targetPort: 8000 },

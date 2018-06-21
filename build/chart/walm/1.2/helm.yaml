@@ -7,3 +7,9 @@ keywords:
 description: The TransWarp Application Lifecycle Manager
 name: walm
 version: 1.0.0
+
+dependencies:
+  - name: txsql
+    repository: http://172.16.1.41:8880/
+    minVersion: 5.2
+    condition: Dependencies.txsql.enabled

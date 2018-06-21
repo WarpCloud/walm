@@ -1,0 +1,276 @@
+{
+   "dummy-svc.json": {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+         "annotations": {
+            "transwarp.meta": "{\"provides\": {\"WALM_CONFIG\": {\"immediate_value\": {\"walm_http_port\": 8000}}}}"
+         },
+         "labels": {
+            "transwarp.alias": "walm_0000",
+            "transwarp.app": "walm",
+            "transwarp.install": "1160",
+            "transwarp.meta": "true",
+            "transwarp.name": "app-dummy",
+            "transwarp.scope": "namespace",
+            "transwarp.svc.scope": "app"
+         },
+         "name": "app-dummy-1160"
+      },
+      "spec": {
+         "clusterIP": "None",
+         "ports": [
+            {
+               "port": 5000,
+               "targetPort": 5000
+            }
+         ],
+         "selector": { }
+      }
+   },
+   "walm-deployment.json": {
+      "apiVersion": "extensions/v1beta1",
+      "kind": "Deployment",
+      "metadata": {
+         "annotations": { },
+         "labels": {
+            "transwarp.alias": "walm_0000",
+            "transwarp.install": "1160",
+            "transwarp.name": "walm-srv"
+         },
+         "name": "walm-srv-1160"
+      },
+      "spec": {
+         "replicas": 1,
+         "selector": {
+            "matchLabels": {
+               "transwarp.install": "1160",
+               "transwarp.name": "walm-srv"
+            }
+         },
+         "template": {
+            "metadata": {
+               "annotations": {
+                  "cni.networks": "overlay",
+                  "podAntiAffinity": {
+                     "requiredDuringSchedulingIgnoredDuringExecution": [
+                        {
+                           "labelSelector": {
+                              "matchLabels": {
+                                 "transwarp.alias": "walm_0000",
+                                 "transwarp.install": "1160",
+                                 "transwarp.name": "walm-srv"
+                              }
+                           },
+                           "namespaces": [
+                              "u5003"
+                           ],
+                           "topologyKey": "kubernetes.io/hostname"
+                        }
+                     ]
+                  },
+                  "transwarp.app": "walm"
+               },
+               "labels": {
+                  "transwarp.alias": "walm_0000",
+                  "transwarp.install": "1160",
+                  "transwarp.name": "walm-srv"
+               }
+            },
+            "spec": {
+               "containers": [
+                  {
+                     "args": [
+                        "walm serv"
+                     ],
+                     "env": [
+                        {
+                           "name": "WALM_HTTP_PORT",
+                           "value": 8000
+                        },
+                        {
+                           "name": "WALM_DEBUG",
+                           "value": false
+                        },
+                        {
+                           "name": "WALM_DB_NAME",
+                           "value": "walm"
+                        },
+                        {
+                           "name": "WALM_DB_TYPE",
+                           "value": "mysql"
+                        },
+                        {
+                           "name": "WALM_TABLE_PREFIX",
+                           "value": ""
+                        },
+                        {
+                           "name": "HTTP_READ_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "HTTP_READ_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "ZIPKIN_URL",
+                           "value": ""
+                        },
+                        {
+                           "name": "TILLER_CONN_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "KUBE_CONTEXT",
+                           "value": "default"
+                        },
+                        {
+                           "name": "WALM_OAUTH",
+                           "value": false
+                        },
+                        {
+                           "name": "WALM_JWTSECRET",
+                           "value": ""
+                        }
+                     ],
+                     "image": "172.16.1.99:5000/gold/walm:tdc-1.0",
+                     "imagePullPolicy": "Always",
+                     "name": "walm-srv",
+                     "resources": {
+                        "limits": {
+                           "cpu": "4",
+                           "memory": "4Gi"
+                        },
+                        "requests": {
+                           "cpu": "1",
+                           "memory": "2Gi"
+                        }
+                     }
+                  }
+               ],
+               "initContainers": [
+                  {
+                     "command": [
+                        "walm migrate"
+                     ],
+                     "env": [
+                        {
+                           "name": "WALM_HTTP_PORT",
+                           "value": 8000
+                        },
+                        {
+                           "name": "WALM_DEBUG",
+                           "value": false
+                        },
+                        {
+                           "name": "WALM_DB_NAME",
+                           "value": "walm"
+                        },
+                        {
+                           "name": "WALM_DB_TYPE",
+                           "value": "mysql"
+                        },
+                        {
+                           "name": "WALM_TABLE_PREFIX",
+                           "value": ""
+                        },
+                        {
+                           "name": "HTTP_READ_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "HTTP_READ_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "ZIPKIN_URL",
+                           "value": ""
+                        },
+                        {
+                           "name": "TILLER_CONN_TIMEOUT",
+                           "value": 0
+                        },
+                        {
+                           "name": "KUBE_CONTEXT",
+                           "value": "default"
+                        },
+                        {
+                           "name": "WALM_OAUTH",
+                           "value": false
+                        },
+                        {
+                           "name": "WALM_JWTSECRET",
+                           "value": ""
+                        }
+                     ],
+                     "image": "172.16.1.99:5000/gold/walm:tdc-1.0",
+                     "imagePullPolicy": "Always",
+                     "name": "walm-init"
+                  }
+               ],
+               "priority": 0,
+               "terminationGracePeriodSeconds": 0
+            }
+         }
+      }
+   },
+   "walm-hl-svc.json": {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+         "annotations": {
+            "service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"
+         },
+         "labels": {
+            "k8s-app": "walm-srv-hl",
+            "kubernetes.io/headless-service": "true",
+            "transwarp.alias": "walm_0000",
+            "transwarp.install": "1160",
+            "transwarp.name": "walm-srv-hl"
+         },
+         "name": "walm-srv-hl-1160"
+      },
+      "spec": {
+         "clusterIP": "None",
+         "ports": [
+            {
+               "name": "walm-port",
+               "port": 8000,
+               "protocol": "TCP"
+            }
+         ],
+         "selector": {
+            "transwarp.install": "1160",
+            "transwarp.name": "walm-srv"
+         }
+      }
+   },
+   "walm-svc.json": {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+         "annotations": { },
+         "labels": {
+            "k8s-app": "walm-srv",
+            "transwarp.alias": "walm_0000",
+            "transwarp.install": "1160",
+            "transwarp.name": "walm-srv"
+         },
+         "name": "walm-srv-1160"
+      },
+      "spec": {
+         "ports": [
+            {
+               "name": "port",
+               "port": 8000,
+               "protocol": "TCP",
+               "targetPort": 8000
+            }
+         ],
+         "selector": {
+            "transwarp.install": "1160",
+            "transwarp.name": "walm-srv"
+         }
+      }
+   }
+}

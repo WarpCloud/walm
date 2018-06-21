@@ -1,6 +1,0 @@
-[[template]]
-src = "tdh-env.sh.tmpl"
-dest = "/etc/tdh-env.sh"
-check_cmd = "/bin/true"
-reload_cmd = "/bin/true"
-keys = [ "/" ]

@@ -1,2 +1,0 @@
-{dependencies: [{condition: Dependencies.txsql.enabled, minVersion: 5.2, name: txsql,
-      repository: 'http://172.16.1.41:8880/'}]}

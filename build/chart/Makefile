@@ -1,18 +1,24 @@
+CHART.Name:=walm
+CHART.Version:=1.2
+CHART.Repo:=http://172.16.1.41:8080/api/chart
+
+RUN_IN_DOCKER:=docker run -it -v `pwd`:/root/$(CHART.Name)  -w /root/$(CHART.Name)  172.16.1.99/gold/helm:tos18-latest
+
 default:
-	docker build -t walm-builder:1.0 .
-	docker tag walm-builder:1.0 172.16.1.99/transwarp/walm-builder:1.0
+	$(RUN_IN_DOCKER) helm package -u walm
 	@echo "package chart ok"
 
 pull:
-	docker pull 172.16.1.99/transwarp/walm-builder:1.0
+	$(RUN_IN_DOCKER) helm fetch $(CHART.Name):$(CHART.Version)
 	@echo "pull ok"
 
 push:
-	docker push 172.16.1.99/transwarp/walm-builder:1.0
+	curl --data-binary "$(CHART.Name):$(CHART.Version).tgz" $(CHART.Repo)
 	@echo "push ok"
 
-run:
-	docker run --rm -it -v `pwd`:/root 172.16.1.99/transwarp/walm-builder:1.0
+create:
+	helm install --name walm-helm-test --link txsql= walm 
 
 clean:
+	rm -f walm-*.tgz
 	@echo "clean ok"
