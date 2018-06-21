@@ -1,0 +1,5 @@
+TxSQLNodes=({{- replace (getv "/txsql/txsqlnodes") "," " " -1 }})
+
+{{- range gets "/install_conf/*" }}
+{{base .Key}}={{.Value}}
+{{- end }}

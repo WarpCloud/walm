@@ -1,0 +1,6 @@
+[[template]]
+src = "guardian-site.xml.tmpl"
+dest = "/etc/guardian-site.xml"
+check_cmd = "/bin/true"
+reload_cmd = "/bin/true"
+keys = [ "/" ]

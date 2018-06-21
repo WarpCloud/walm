@@ -1,0 +1,6 @@
+[[template]]
+src = "msl-site.xml.tmpl"
+dest = "/etc/msl-site.xml"
+check_cmd = "/bin/true"
+reload_cmd = "/bin/true"
+keys = [ "/" ]

@@ -1,0 +1,13 @@
+name: txsql
+version: 5.1
+jsonnetTemplatePath: template-json/txsql-main.jsonnet
+meta:
+  provides:
+    MYSQL_CLIENT_CONFIG:
+      immediateValue: $(MYSQL_CLIENT_CONFIG)
+
+templates:
+  - name: txsql
+    sfsFile: txsql-statefulset.json
+    hlSvcFile: txsql-hl-svc.json
+    svcFile: txsql-svc.json

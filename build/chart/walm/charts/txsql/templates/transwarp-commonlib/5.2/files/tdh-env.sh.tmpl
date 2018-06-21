@@ -1,0 +1,22 @@
+#!/bin/bash
+set -x
+
+setup_keytab() {
+  echo "setup_keytab"
+{{ if eq (getv "/security/auth_type") "kerberos" }}
+  # link_keytab
+  export KRB_MOUNTED_CONF_PATH=${KRB_MOUNTED_CONF_PATH:-/var/run/secrets/transwarp.io/tosvolume/keytab/krb5.conf}
+  export KRB_MOUNTED_KEYTAB=${KRB_MOUNTED_KEYTAB:-/var/run/secrets/transwarp.io/tosvolume/keytab/keytab}
+  if [ ! -f $KRB_MOUNTED_CONF_PATH ]; then
+    echo "Expect krb5.conf at $KRB_MOUNTED_CONF_PATH but not found!"
+    exit 1
+  fi
+  if [ ! -f $KRB_MOUNTED_KEYTAB ]; then
+    echo "Expect keytab file at $KRB_MOUNTED_KEYTAB but not found!"
+    exit 1
+  fi
+  ln -svf $KRB_MOUNTED_CONF_PATH /etc/krb5.conf
+  [ -d /etc/keytabs ] || mkdir -p /etc/keytabs
+  ln -svf $KRB_MOUNTED_KEYTAB /etc/keytabs/keytab
+{{ end }}
+}

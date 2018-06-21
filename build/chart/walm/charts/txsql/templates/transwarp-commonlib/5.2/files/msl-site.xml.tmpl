@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property>
+    <name>transwarp.tls.enable</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>tls.server.url</name>
+    <value>https://172.16.1.41:60907/licence</value>
+  </property>
+  <property>
+    <name>tls.ca.filepath</name>
+    <value>/srv/licence/ca.crt</value>
+  </property>
+  <property>
+    <name>tls.cert.filepath</name>
+    <value>/srv/licence/license.cert</value>
+  </property>
+  <property>
+    <name>tls.key.filepath</name>
+    <value>/srv/licence/license.key</value>
+  </property>
+  <property>
+    <name>tls.public.filepath</name>
+    <value>/srv/licence/license-pub.der</value>
+  </property>
+  <property>
+    <name>tls.init.interval</name>
+    <value>10000</value>
+  </property>
+  <property>
+    <name>tls.check.interval</name>
+    <value>60000</value>
+  </property>
+  <property>
+    <name>tls.init.retry.max.times</name>
+    <value>3</value>
+  </property>
+</configuration>

@@ -1,0 +1,13 @@
+[[template]]
+src = "core-site.xml.tmpl"
+dest = "/etc/hadoop/conf/core-site.xml"
+check_cmd = "/bin/true"
+reload_cmd = "/bin/true"
+keys = [ "/" ]
+
+[[template]]
+src = "hdfs-site.xml.tmpl"
+dest = "/etc/hadoop/conf/hdfs-site.xml"
+check_cmd = "/bin/true"
+reload_cmd = "/bin/true"
+keys = [ "/" ]

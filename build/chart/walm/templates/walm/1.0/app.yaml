@@ -1,18 +1,6 @@
 name: walm
 version: 1.0
 jsonnetTemplatePath: template-json/walm-main.jsonnet
-meta:
-  provides:
-    HDFS_NAMENODE_ANNOTATION:
-      resourceType: deployments
-      selector:
-        name: walm
-      key: 'walm.annotations'
-    NAME_NODE_HL_SVC:
-      resourceType: services
-      selector:
-        name: walm-hl
-      key: ''
 
 templates:
   - name: Walm server
