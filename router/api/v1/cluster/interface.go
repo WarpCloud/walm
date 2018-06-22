@@ -102,9 +102,9 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 	}
 
 	if len(app.Links) > 0 {
-		for _, v := range app.Links {
+		for k, v := range app.Links {
 			flags = append(flags, "--link")
-			flags = append(flags, v)
+			flags = append(flags, k+"="+v)
 		}
 	}
 

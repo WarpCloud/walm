@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"strconv"
+	"strings"
 	"walm/router/api/v1/instance"
 )
 
@@ -85,8 +86,10 @@ color:
 //godoc
 //expand depend of instance
 func expandDep(leaf *Leaf) *instance.Application {
+
 	for _, dep := range leaf.app.Depend {
-		leaf.app.inst.Links = append(leaf.app.inst.Links, dep.Name)
+		chartname := strings.Split(dep.Chart, ",")[0]
+		leaf.app.inst.Links[chartname] = dep.Name
 	}
 	return leaf.app.inst
 }
