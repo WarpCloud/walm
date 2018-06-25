@@ -22,24 +22,16 @@ type ApiResponse struct {
 
 func ReturnBadRequest() (int, ApiResponse) {
 	ar := ApiResponse{
-		Code:    INTERNAL_ERROR,
+		Code:    INVALID_PARAMS,
 		Message: fmt.Sprintf("%s", GetMsg(INVALID_PARAMS)),
 	}
-	return INTERNAL_ERROR, ar
+	return INVALID_PARAMS, ar
 }
 
 func ReturnInternalServerError(err error) (int, ApiResponse) {
 	ar := ApiResponse{
 		Code:    INTERNAL_ERROR,
-		Message: fmt.Sprintf("%s,%s", GetMsg(INTERNAL_ERROR), err),
-	}
-	return INTERNAL_ERROR, ar
-}
-
-func ReturnInternalServerErrors(errs []error) (int, ApiResponse) {
-	ar := ApiResponse{
-		Code:    INTERNAL_ERROR,
-		Message: fmt.Sprintf("%s,%s", GetMsg(INTERNAL_ERROR), makeErrMessage(errs)),
+		Message: fmt.Sprintf("%s:%s", GetMsg(INTERNAL_ERROR), err),
 	}
 	return INTERNAL_ERROR, ar
 }

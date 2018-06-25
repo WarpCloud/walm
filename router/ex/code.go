@@ -1,9 +1,11 @@
 package ex
 
+import "net/http"
+
 const (
 	SUCCESS        = 200
-	INTERNAL_ERROR = 500
-	INVALID_PARAMS = 400
+	INTERNAL_ERROR = http.StatusInternalServerError
+	INVALID_PARAMS = http.StatusBadRequest
 
 	ERROR_AUTH_CHECK_TOKEN_FAIL    = 10001
 	ERROR_AUTH_CHECK_TOKEN_TIMEOUT = 10002

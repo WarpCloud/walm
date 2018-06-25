@@ -191,7 +191,7 @@ func StatusCluster(c *gin.Context) {
 			}
 		}
 		if len(errs) > 0 {
-			c.JSON(ex.ReturnInternalServerErrors(errs))
+			c.JSON(ex.ReturnInternalServerError(errs[0]))
 			return
 		}
 	}
@@ -238,7 +238,7 @@ func DeleteCluster(c *gin.Context) {
 			}
 		}
 		if len(errs) > 0 {
-			c.JSON(ex.ReturnInternalServerErrors(errs))
+			c.JSON(ex.ReturnInternalServerError(errs[0]))
 			return
 		}
 	}
