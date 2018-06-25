@@ -134,9 +134,9 @@ func DeployApplication(c *gin.Context) {
 		}
 
 		if len(postdata.Links) > 0 {
-			for _, v := range postdata.Links {
+			for k, v := range postdata.Links {
 				flags = append(flags, "--link")
-				flags = append(flags, v)
+				flags = append(flags, k+"="+v)
 			}
 		}
 
@@ -461,9 +461,9 @@ func UpdateApplication(c *gin.Context) {
 		}
 
 		if len(postdata.Links) > 0 {
-			for _, v := range postdata.Links {
+			for k, v := range postdata.Links {
 				flags = append(flags, "--link")
-				flags = append(flags, v)
+				flags = append(flags, k+"="+v)
 			}
 		}
 
