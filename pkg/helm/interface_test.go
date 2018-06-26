@@ -3,7 +3,6 @@ package helm
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"testing"
 
 	"gopkg.in/check.v1"
@@ -44,8 +43,6 @@ func (sh *mockShell) execPipeLine(cmd string, args []string) (error, *bytes.Buff
 	for _, arg := range args[:end] {
 		result_2 = result_2 + " " + arg
 	}
-	fmt.Println(result_1)
-	fmt.Println(result_2)
 	if result_1 != result_2 {
 		return errors.New("Not equal"), nil
 	}
