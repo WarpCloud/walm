@@ -28,6 +28,11 @@ func (ars *apiResSuite) TestApiResponse_returnInternalServerError(c *C) {
 	c.Assert(ise.Message, Equals, "Internal Server error:server error!")
 }
 
+func (ars *apiResSuite) TestApiResponse_ReturnOK(c *C) {
+	ok, _ := ReturnOK()
+	c.Assert(ok, Equals, SUCCESS)
+}
+
 type myerr struct {
 	msg string
 }

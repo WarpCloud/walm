@@ -24,6 +24,7 @@ type WalmInterface interface {
 	StatusApplications(args, flags []string) (string, error)
 	ListApplications(args, flags []string) (*bytes.Buffer, error)
 	MakeValueFile(data []byte) (string, error) //if or not delete file after install or update
+	UpdateRepo(args []string) error
 }
 
 var WalmInst WalmInterface
@@ -136,7 +137,7 @@ func DeployApplication(c *gin.Context) {
 		if len(postdata.Links) > 0 {
 			for k, v := range postdata.Links {
 				flags = append(flags, "--link")
-				flags = append(flags, k+"="+v)
+				flags = append(flags, k+"="+v+"."+k)
 			}
 		}
 
@@ -167,6 +168,10 @@ func DeployApplication(c *gin.Context) {
 
 	Log.Infof("begin to install instance:%s; namespace:%s; chart \n", app.Name, app.Namespace, app.AppPkg)
 	defer Log.Infof("finish delete instance:%s; namespace:%s; chart:%s \n", app.Name, app.Namespace, app.AppPkg)
+	if err := WalmInst.UpdateRepo([]string{"update"}); err != nil {
+		c.JSON(ex.ReturnInternalServerError(err))
+		return
+	}
 	if err := WalmInst.DeplyApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
@@ -322,7 +327,8 @@ func GetApplicationStatusbyName(c *gin.Context) {
 	args = append(args, name)
 
 	flags = append(flags, "--revision")
-	flags = append(flags, "--output json")
+	flags = append(flags, "--output")
+	flags = append(flags, "json")
 
 	if str, err := WalmInst.StatusApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
@@ -395,7 +401,7 @@ func RollBackApplication(c *gin.Context) {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
 		if err := models.UpdateAppInst(name, version, "version"); err != nil {
-			Log.Errorf("occu error when update  AppInst: %s \n", err)
+			Log.Errorf("occu error when rollback  AppInst: %s \n", err)
 			c.JSON(ex.ReturnInternalServerError(err))
 		}
 		c.JSON(ex.ReturnOK())
@@ -463,7 +469,7 @@ func UpdateApplication(c *gin.Context) {
 		if len(postdata.Links) > 0 {
 			for k, v := range postdata.Links {
 				flags = append(flags, "--link")
-				flags = append(flags, k+"="+v)
+				flags = append(flags, k+"="+v+"."+k)
 			}
 		}
 
@@ -484,6 +490,10 @@ func UpdateApplication(c *gin.Context) {
 	}
 	Log.Infof("begin to update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
 	defer Log.Infof("finish update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
+	if err := WalmInst.UpdateRepo([]string{"update"}); err != nil {
+		c.JSON(ex.ReturnInternalServerError(err))
+		return
+	}
 	if err := WalmInst.UpdateApplications(args, flags); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return

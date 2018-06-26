@@ -87,7 +87,7 @@ test:
 
 .PHONY: unit-test
 unit-test:
-	$(RUN_IN_DOCKER_WITH_DB)  go test -v -a -tags="unit&integration" ./...
+	$(RUN_IN_DOCKER_WITH_DB)  go test -v -a -tags="unit db" ./...
 	@echo "unit-test done"
 
 .PHONY: purge-test
@@ -97,22 +97,7 @@ purge-test:
 
 .PHONY: e2e-test
 e2e-test:
-	$(RUN_IN_DOCKER) go test -v -a -tags="e2e" ./test/...
-	@echo "e2e-test done"
-
-.PHONY: unit-test-local
-unit-test-local:
-	$(WITH_DB_TEST) go test -v -a -tags="unit&integration" ./...
-	@echo "unit-test done"
-
-.PHONY: purge-test-local
-purge-test-local:
-	go test -v -a -tags="purge" ./...
-	@echo "unit-test done"
-
-.PHONY: e2e-test-local
-e2e-test-local:
-	go test -v -a -tags="e2e" ./test/...
+	$(RUN_IN_DOCKER) go test -v -a -tags="integration db" ./test/...
 	@echo "e2e-test done"
 
 .PHONY: ci-test

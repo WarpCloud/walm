@@ -12,7 +12,6 @@ package ex
 
 import (
 	"fmt"
-	"strings"
 )
 
 type ApiResponse struct {
@@ -42,12 +41,4 @@ func ReturnOK() (int, ApiResponse) {
 		Message: GetMsg(SUCCESS),
 	}
 	return SUCCESS, ar
-}
-
-func makeErrMessage(errs []error) string {
-	var msgs []string
-	for _, err := range errs {
-		msgs = append(msgs, err.Error())
-	}
-	return strings.Join(msgs, ";")
 }

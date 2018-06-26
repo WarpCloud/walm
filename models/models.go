@@ -14,7 +14,7 @@ var db *gorm.DB
 
 func Init(conf *setting.Config) error {
 	var err error
-	if db, err = gorm.Open(conf.DbType, fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+	if db, err = gorm.Open(conf.DbType, fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		conf.DbUser,
 		conf.DbPassword,
 		conf.DbHost,

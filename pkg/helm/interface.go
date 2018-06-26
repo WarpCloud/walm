@@ -3,45 +3,54 @@ package helm
 import (
 	"bytes"
 	"errors"
-	
+
 	"io/ioutil"
-	"strings"
-	
+
 	. "walm/pkg/util/log"
 
 	"gopkg.in/pipe.v2"
 )
 
+type Cmd interface {
+	execPipeLine(cmd string, args []string) (error, *bytes.Buffer)
+}
+
+type Shell struct{}
+
 type Interface struct {
-	cmd  string
-	path string
+	cmd      string
+	path     string
+	executor Cmd
 }
 
 var Helm *Interface
 
 func init() {
-	Helm = &Interface{cmd: "helm "}
+	Helm = &Interface{cmd: "helm", executor: &Shell{}}
 }
 
-func (inst *Interface) makeCmd(subcmd string, args, flags []string) (error, string) {
+func (inst *Interface) makeCmd(subcmd string, args, flags []string) (error, []string) {
 	if len(args) == 0 && len(flags) == 0 {
-		return errors.New("no args and no flags"), ""
+		return errors.New("no args and no flags"), nil
 	}
-	cmd := inst.cmd
-	cmd += subcmd
-	cmd += " "
-	cmd += strings.Join(flags, " ")
-	cmd += " "
-	cmd += strings.Join(args, " ")
-	return nil, cmd
+	argarray := []string{}
+	argarray = append(argarray, subcmd)
+	for _, arg := range args {
+		argarray = append(argarray, arg)
+	}
+	for _, flag := range flags {
+		argarray = append(argarray, flag)
+	}
+
+	return nil, argarray
 }
 
-func execPipeLine(cmd string) (error, *bytes.Buffer) {
+func (sh *Shell) execPipeLine(cmd string, args []string) (error, *bytes.Buffer) {
 	Log.Debugf("beging to exec cmd: %s", cmd)
 	defer Log.Debugf("end to exec cmd: %s", cmd)
 	b := &bytes.Buffer{}
 	p := pipe.Line(
-		pipe.Exec(cmd),
+		pipe.Exec(cmd, args...),
 		pipe.Write(b),
 	)
 	err := pipe.Run(p)
@@ -66,70 +75,72 @@ func (inst *Interface) MakeValueFile(data []byte) (string, error) {
 }
 
 func (inst *Interface) Detele(args, flags []string) error {
-	if err, cmd := inst.makeCmd("delete", args, flags); err != nil {
+	if err, arg := inst.makeCmd("delete", args, flags); err != nil {
 		return err
 	} else {
-		err, _ = execPipeLine(cmd)
+		err, _ = inst.executor.execPipeLine(inst.cmd, arg)
 		return err
 	}
 }
 func (inst *Interface) Rollback(args, flags []string) error {
-	if err, cmd := inst.makeCmd("rollback", args, flags); err != nil {
+	if err, arg := inst.makeCmd("rollback", args, flags); err != nil {
 		return err
 	} else {
-		err, _ = execPipeLine(cmd)
+		err, _ = inst.executor.execPipeLine(inst.cmd, arg)
 		return err
 	}
 }
 
-func (inst *Interface) UpdateRepo() error {
-	if err, cmd := inst.makeCmd("repo", []string{"update"} , []string{}); err != nil {
+func (inst *Interface) UpdateRepo(args []string) error {
+	if err, arg := inst.makeCmd("repo", args, []string{}); err != nil {
 		return err
 	} else {
-		err, _ = execPipeLine(cmd)
+		err, _ = inst.executor.execPipeLine(inst.cmd, arg)
 		return err
 	}
 }
 
 func (inst *Interface) DeplyApplications(args, flags []string) error {
 	//update repo before install chart
-	if err := inst.UpdateRepo();err!=nil{
-		return err
-	}
+	/*
+		if err := inst.UpdateRepo([]string{"update"}); err != nil {
+			return err
+		}
+	*/
 
-	if err, cmd := inst.makeCmd("install", args, flags); err != nil {
+	if err, arg := inst.makeCmd("install", args, flags); err != nil {
 		return err
 	} else {
-		err, _ = execPipeLine(cmd)
+		err, _ = inst.executor.execPipeLine(inst.cmd, arg)
 		return err
 	}
 }
 func (inst *Interface) UpdateApplications(args, flags []string) error {
-	if err, cmd := inst.makeCmd("upgrade", args, flags); err != nil {
+	if err, arg := inst.makeCmd("upgrade", args, flags); err != nil {
 		return err
 	} else {
-		err, _ = execPipeLine(cmd)
+		err, _ = inst.executor.execPipeLine(inst.cmd, arg)
 		return err
 	}
 }
 
 func (inst *Interface) StatusApplications(args, flags []string) (string, error) {
-	if err, cmd := inst.makeCmd("status", args, flags); err != nil {
+	if err, arg := inst.makeCmd("status", args, flags); err != nil {
 		return "", err
 	} else {
 		var b *bytes.Buffer
-		err, b = execPipeLine(cmd)
+		err, b = inst.executor.execPipeLine(inst.cmd, arg)
 		return b.String(), err
 	}
 }
 
 func (inst *Interface) ListApplications(args, flags []string) (*bytes.Buffer, error) {
 
-	if err, cmd := inst.makeCmd("list", args, flags); err != nil {
+	if err, arg := inst.makeCmd("list", args, flags); err != nil {
 		return &bytes.Buffer{}, err
 	} else {
 		var b *bytes.Buffer
-		err, b = execPipeLine(cmd)
+		err, b = inst.executor.execPipeLine(inst.cmd, arg)
 		return b, err
 	}
 }

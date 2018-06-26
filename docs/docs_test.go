@@ -4,17 +4,17 @@ import (
 	"testing"
 
 	"github.com/swaggo/swag"
-	. "gopkg.in/check.v1"
+	"gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) { TestingT(t) }
+func Test(t *testing.T) { check.TestingT(t) }
 
 type docSuite struct {
 }
 
-var _ = Suite(&docSuite{})
+var _ = check.Suite(&docSuite{})
 
-func (ds *docSuite) TestReadDoc(c *C) {
+func (ds *docSuite) TestReadDoc(c *check.C) {
 	doc, _ := swag.ReadDoc()
-	c.Assert(doc, Matches, ".*lifecycle.*")
+	c.Assert(doc, check.Matches, "(?s).*cluster lifecycle manager.*")
 }

@@ -16,7 +16,7 @@ func createNoneExistDB(conf *setting.Config) error {
 	if datebase, err := sql.Open(conf.DbType, dbconf); err != nil {
 		return err
 	} else {
-		dbstr := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s DEFAULT CHARSET utf8 COLLATE utf8_general_ci", conf.DbName)
+		dbstr := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_general_ci", conf.DbName)
 		if _, err := datebase.Exec(dbstr); err != nil {
 			return err
 		}

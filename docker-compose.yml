@@ -13,13 +13,13 @@ services:
 
   walm-app:
     image: "walm:last"
+    #init: walm migrate
     command: ["walm","migrate","&&","walm","serv","--debug"]
     links:
       - walm-db:walm-db
     depends_on:
       - walm-db
     environment:
-      - WITH_DB_UNIT_TEST=1
       - WALM_DB_NAME=walm 
       - WALM_DB_USER=root
       - WALM_DB_PASS=${MYSQL_ROOT_PASSWORD}
