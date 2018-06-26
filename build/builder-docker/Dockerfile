@@ -4,7 +4,7 @@
 
 FROM golang:1.10.1-alpine3.7 as builder
 
-RUN apk add --no-cache git curl openssl make
+RUN apk add --no-cache git curl openssl make gcc
 
 RUN go get -u -v github.com/Masterminds/glide
 RUN go get -u -v github.com/swaggo/swag
