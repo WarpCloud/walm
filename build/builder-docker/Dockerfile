@@ -19,6 +19,6 @@ RUN mkdir -p /swagger && cd /swagger \
 
 FROM golang:1.10.1-alpine3.7
 
-RUN apk add --no-cache git  make curl openssl jq 
+RUN apk add --no-cache git  make curl openssl jq gcc
 
 COPY --from=builder /go/bin /go/bin

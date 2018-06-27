@@ -3,11 +3,16 @@
 package models
 
 import (
-	"testing"
 	"walm/pkg/setting"
+
+	"gopkg.in/check.v1"
 )
 
-func TestAutoMigrate(t *testing.T) {
+type atuoMigrateSuite struct{}
+
+var _ = check.Suite(&atuoMigrateSuite{})
+
+func (ams *atuoMigrateSuite) Test_AutoMigrate(c *check.C) {
 	conf := &setting.Config{
 		DbUser:     "root",
 		DbPassword: "passwd",
@@ -15,7 +20,6 @@ func TestAutoMigrate(t *testing.T) {
 		DbType:     "mysql",
 		DbName:     "walm",
 	}
-	if err := AutoMigrate(conf); err != nil {
-		t.Fatal(err)
-	}
+	err := AutoMigrate(conf)
+	c.Assert(err, check.IsNil)
 }
