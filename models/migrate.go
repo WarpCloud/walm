@@ -12,7 +12,7 @@ import (
 )
 
 func createNoneExistDB(conf *setting.Config) error {
-	dbconf := fmt.Sprintf("%s:%s@%s/", conf.DbUser, conf.DbPassword, conf.DbHost)
+	dbconf := fmt.Sprintf("%s:%s@tcp(%s)/", conf.DbUser, conf.DbPassword, conf.DbHost)
 	if datebase, err := sql.Open(conf.DbType, dbconf); err != nil {
 		return err
 	} else {
@@ -30,7 +30,7 @@ func AutoMigrate(conf *setting.Config) error {
 		return errors.New("create database failed!")
 	}
 	var err error
-	if db, err = gorm.Open(conf.DbType, fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+	if db, err = gorm.Open(conf.DbType, fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		conf.DbUser,
 		conf.DbPassword,
 		conf.DbHost,
