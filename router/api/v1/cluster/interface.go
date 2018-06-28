@@ -127,7 +127,7 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 	appInst.InstalledTime, appInst.LastTime = ti, ti
 
 	if err := models.InsertAppInst(appInst); err != nil {
-		Log.Errorf("occu error when insert into AppInst: %s \n", err)
+		Log.Errorf("error occu when insert into AppInst: %s \n", err)
 
 		return err
 	}
