@@ -35,6 +35,22 @@ func ReturnInternalServerError(err error) (int, ApiResponse) {
 	return INTERNAL_ERROR, ar
 }
 
+func ReturnClusterExistError() (int, ApiResponse) {
+	ar := ApiResponse{
+		Code:    ERROR_CLUSTER_EXIST,
+		Message: fmt.Sprintf("%s", GetMsg(ERROR_CLUSTER_EXIST)),
+	}
+	return ERROR_CLUSTER_EXIST, ar
+}
+
+func ReturnClusterNotExistError() (int, ApiResponse) {
+	ar := ApiResponse{
+		Code:    ERROR_CLUSTER_NOT_EXIST,
+		Message: fmt.Sprintf("%s", GetMsg(ERROR_CLUSTER_NOT_EXIST)),
+	}
+	return ERROR_CLUSTER_NOT_EXIST, ar
+}
+
 func ReturnOK() (int, ApiResponse) {
 	ar := ApiResponse{
 		Code:    SUCCESS,

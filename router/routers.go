@@ -87,6 +87,7 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 			cluster.POST("/:namespace/:name", clus.DeployCluster)
 			cluster.GET("/:namespace/:name", clus.StatusCluster)
 			cluster.DELETE("/:namespace/:name", clus.DeleteCluster)
+			cluster.POST("/:namespace/instance/:name", clus.DeployInstanceInCluster)
 		}
 
 	}

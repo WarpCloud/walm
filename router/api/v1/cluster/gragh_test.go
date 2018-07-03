@@ -118,6 +118,24 @@ func (mdi *mockDepInst) getDeps(leaf *Leaf) []Leaf {
 			},
 		}
 	}
+	if leaf.app.inst.Chart == "test_chart_3_1:1.0.0" {
+		return []Leaf{
+			Leaf{
+				app: &Application{
+					inst:     &instance.Application{Name: "test_1", Chart: "test_chart_1:1.0.0", Links: map[string]string{}},
+					Depend:   map[string]*instance.Application{},
+					Bedepend: []*Application{},
+				},
+			},
+			Leaf{
+				app: &Application{
+					inst:     &instance.Application{Name: "test_2", Chart: "test_chart_2:1.0.0", Links: map[string]string{}},
+					Depend:   map[string]*instance.Application{},
+					Bedepend: []*Application{},
+				},
+			},
+		}
+	}
 	return []Leaf{}
 }
 
@@ -144,10 +162,10 @@ func (cs *clusterSuite) Test_getDepArray(c *check.C) {
 
 	c.Assert(depArray, check.HasLen, 3)
 	c.Assert(depArray[0].app.inst.Name, check.Equals, "test_1")
-	c.Assert(depArray[1].app.inst.Name, check.Equals, "test_chart_1_1:1.0.0_1001")
-	c.Assert(depArray[2].app.inst.Name, check.Equals, "test_chart_1_2:1.0.0_1001")
-	c.Assert(leaf.app.Depend["test_chart_1_1:1.0.0"].Name, check.Equals, "test_chart_1_1:1.0.0_1001")
-	c.Assert(leaf.app.Depend["test_chart_1_2:1.0.0"].Name, check.Equals, "test_chart_1_2:1.0.0_1001")
+	c.Assert(depArray[1].app.inst.Chart, check.Equals, "test_chart_1_1:1.0.0")
+	c.Assert(depArray[2].app.inst.Chart, check.Equals, "test_chart_1_2:1.0.0")
+	c.Assert(leaf.app.Depend["test_chart_1_1:1.0.0"].Name, check.Equals, "test_1_1")
+	c.Assert(leaf.app.Depend["test_chart_1_2:1.0.0"].Name, check.Equals, "test_1_2")
 	c.Assert(depArray[1].app.Bedepend[0].inst.Name, check.Equals, "test_1")
 	c.Assert(depArray[2].app.Bedepend[0].inst.Name, check.Equals, "test_1")
 }
@@ -169,10 +187,32 @@ func (cu *clusterSuite) Test_getGragh(c *check.C) {
 
 	c.Assert(err, check.IsNil)
 	c.Assert(instList, check.HasLen, 5)
-	c.Assert(instList[0].Name, check.Equals, "test_chart_2_1:1.0.0_1001")
-	c.Assert(instList[1].Name, check.Equals, "test_chart_1_2:1.0.0_1001")
-	c.Assert(instList[2].Name, check.Equals, "test_chart_1_1:1.0.0_1001")
+	c.Assert(instList[0].Name, check.Equals, "test_2_1")
+	c.Assert(instList[1].Chart, check.Equals, "test_chart_1_2:1.0.0")
+	c.Assert(instList[2].Chart, check.Equals, "test_chart_1_1:1.0.0")
 	c.Assert(instList[3].Name, check.Equals, "test_1")
 	c.Assert(instList[4].Name, check.Equals, "test_2")
+
+}
+
+func (cu *clusterSuite) Test_getGraghForInstance(c *check.C) {
+	back := depInst
+	depInst = &mockDepInst{}
+	defer func() {
+		depInst = back
+	}()
+	releaeMap := map[string]string{
+		"test_chart_1:1.0.0": "test_1",
+		"test_chart_2:1.0.0": "test_2"}
+	inst := &instance.Application{
+		Name:  "test_3_1",
+		Chart: "test_chart_3_1:1.0.0",
+		Links: map[string]string{},
+	}
+	err, instList := getGraghForInstance(1001, releaeMap, inst)
+	c.Assert(err, check.IsNil)
+	c.Assert(instList, check.HasLen, 4)
+	c.Assert(instList[0].Name, check.Equals, "test_3_1")
+	c.Assert(instList[0].Links["test_chart_2"], check.Equals, "test_2")
 
 }

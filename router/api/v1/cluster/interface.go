@@ -15,9 +15,65 @@ import (
 	"walm/router/ex"
 )
 
+// DeployInstanceInCluster godoc
+// @Tags Cluster
+// @Description Deploy an Instance into Cluster
+// @OperationId DeployInstanceInCluster
+// @Accept  json
+// @Produce  json
+// @Param   namespace     path    string     true        "identifier of the namespace"
+// @Param   name     path    string     true        "the name of cluster"
+// @Param   apps     body   instance.Application    true    "Apps of Cluster"
+// @Success 200 {object} ex.ApiResponse "OK"
+// @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
+// @Failure 404 {object} ex.ApiResponse "namespace not found"
+// @Failure 500 {object} ex.ApiResponse "Server Error"
+// @Router "/:namespace/instance/:name" [post]
+func DeployInstanceInCluster(c *gin.Context) {
+	name := c.Param("name")
+	if len(name) == 0 {
+		c.JSON(ex.ReturnBadRequest())
+		return
+	}
+	namespace := c.Param("namespace")
+	if len(namespace) == 0 {
+		c.JSON(ex.ReturnBadRequest())
+		return
+	}
+	var postdata instance.Application
+	if err := c.BindJSON(&postdata); err != nil {
+		c.JSON(ex.ReturnBadRequest())
+		return
+	} else {
+
+		if err, cluster := models.GetClusterInfo(name); err != nil {
+			c.JSON(ex.ReturnClusterNotExistError())
+			return
+		} else {
+
+			if err, releaseMap := getReleasMap(name); err != nil {
+				c.JSON(ex.ReturnInternalServerError(err))
+				return
+			} else {
+				if err, apps := getGraghForInstance(cluster.ClusterId, releaseMap, &postdata); err != nil {
+					c.JSON(ex.ReturnInternalServerError(err))
+					return
+				} else {
+					for _, app := range apps {
+						if err := deployInstance(cluster, app); err != nil {
+							c.JSON(ex.ReturnInternalServerError(err))
+						}
+					}
+				}
+			}
+
+		}
+	}
+}
+
 // DeployCluster godoc
 // @Tags Cluster
-// @Description Deplou an Cluster
+// @Description Deploy an Cluster
 // @OperationId DeployCluster
 // @Accept  json
 // @Produce  json
@@ -104,7 +160,7 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 	if len(app.Links) > 0 {
 		for k, v := range app.Links {
 			flags = append(flags, "--link")
-			flags = append(flags, k+"="+v+"."+k)
+			flags = append(flags, k+"="+v)
 		}
 	}
 
@@ -170,11 +226,11 @@ func StatusCluster(c *gin.Context) {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	} else {
-		Log.Infof("begin to get status of cluser %s; namespace %s; releaes: %s", name, namespace, strings.Join(releases, ","))
+		Log.Infof("begin to get status of cluser %s; namespace %s; ", name, namespace)
 		var errs []error
 
 		for _, release := range releases {
-			if table, err := instance.WalmInst.ListApplications([]string{release}, []string{"--namespace", namespace, "--all"}); err != nil {
+			if table, err := instance.WalmInst.ListApplications([]string{release.Name}, []string{"--namespace", namespace, "--all"}); err != nil {
 				errs = append(errs, err)
 			} else {
 				for _, line := range strings.Split(table.String(), "/n") {
@@ -226,13 +282,13 @@ func DeleteCluster(c *gin.Context) {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	} else {
-		Log.Infof("begin to delete cluser %s; namespace %s; releaes: %s", name, namespace, strings.Join(releases, ","))
+		Log.Infof("begin to delete cluser %s; namespace %s;", name, namespace)
 		var errs []error
 		for _, release := range releases {
-			if err := instance.WalmInst.Detele([]string{release}, []string{}); err != nil {
+			if err := instance.WalmInst.Detele([]string{release.Name}, []string{}); err != nil {
 				errs = append(errs, err)
 			} else {
-				if err := models.DeleteAppInst(release); err != nil {
+				if err := models.DeleteAppInst(release.Name); err != nil {
 					errs = append(errs, err)
 				}
 			}
@@ -250,4 +306,16 @@ func DeleteCluster(c *gin.Context) {
 
 	c.JSON(ex.ReturnOK())
 
+}
+
+func getReleasMap(name string) (error, map[string]string) {
+	if releases, err := models.GetReleasesOfCluster(name); err != nil {
+		return err, nil
+	} else {
+		releaeMap := map[string]string{}
+		for _, release := range releases {
+			releaeMap[release.Release] = release.Name
+		}
+		return nil, releaeMap
+	}
 }

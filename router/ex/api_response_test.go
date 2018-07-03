@@ -28,6 +28,16 @@ func (ars *apiResSuite) TestApiResponse_returnInternalServerError(c *C) {
 	c.Assert(ise.Message, Equals, "Internal Server error:server error!")
 }
 
+func (ars *apiResSuite) TestApiResponse_returnClusterExistError(c *C) {
+	_, ise := ReturnClusterExistError()
+	c.Assert(ise.Code, Equals, ERROR_CLUSTER_EXIST)
+}
+
+func (ars *apiResSuite) TestApiResponse_returnClusterNotExistError(c *C) {
+	_, ise := ReturnClusterNotExistError()
+	c.Assert(ise.Code, Equals, ERROR_CLUSTER_NOT_EXIST)
+}
+
 func (ars *apiResSuite) TestApiResponse_ReturnOK(c *C) {
 	ok, _ := ReturnOK()
 	c.Assert(ok, Equals, SUCCESS)

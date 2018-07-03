@@ -82,19 +82,32 @@ func DeleteCluster(name string) error {
 	return nil
 }
 
-func GetReleasesOfCluster(clustername string) ([]string, error) {
+type ReleaseName struct {
+	Name    string
+	Release string
+}
+
+func GetReleasesOfCluster(clustername string) ([]ReleaseName, error) {
 	insts := []int{}
 	var clusterid int
 
 	if err := db.Where("name = ?", clustername).Select("cluster_id").Find(&clusterid).Select("app_inst_id").Find(insts, "cluster_id = ？", clusterid).Error; err != nil {
-		return []string{}, err
+		return []ReleaseName{}, err
 	}
 
-	namelist := []string{}
+	namelist := []ReleaseName{}
 
-	if err := db.Where("app_inst_id in ?", insts).Select("name").Find(namelist).Error; err != nil {
+	if err := db.Where("app_inst_id in ?", insts).Select("name,app_pkg").Find(namelist).Error; err != nil {
 		return namelist, err
 	}
 
 	return namelist, nil
+}
+
+func GetClusterInfo(clustername string) (error, *Cluster) {
+	cluster := &Cluster{}
+	if err := db.Where("name = ?", clustername).Find(cluster).Error; err != nil {
+		return err, nil
+	}
+	return nil, cluster
 }
