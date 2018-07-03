@@ -2,7 +2,7 @@ CHART.Name:=walm
 CHART.Version:=1.2
 CHART.Repo:=http://172.16.1.41:8080/api/chart
 
-RUN_IN_DOCKER:=docker run -it -v `pwd`:/root/$(CHART.Name)  -w /root/$(CHART.Name)  172.16.1.99/gold/helm:tos18-latest
+RUN_IN_DOCKER:=docker run -it -v `pwd`:/root/$(CHART.Name)  -w /root/$(CHART.Name)  172.16.1.99/transwarp/helm-charts-build
 
 default:
 	$(RUN_IN_DOCKER) helm package -u walm
