@@ -46,7 +46,7 @@ func DeleteInstance(c *gin.Context) {
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   instance     path    string     true      "identifier of the instance"
-// @Param   instance     body   instance.Instance    true    "Update instance"
+// @Param   instance     body   helm.ReleaseRequest    true    "ReleaseRequest of instance"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
@@ -81,7 +81,7 @@ func DeployInstance(c *gin.Context) {
 // @Param   appname     path    string     true      "identifier of the appname"
 // @Param   max     query    int     false      "max num to display"
 // @Param   offset     query    int     false      "the offset of result"
-// @Success 200 {object} []helm.ReleaseInfo	"ok"
+// @Success 200 {object} helm.ReleaseInfo	"ok"
 // @Failure 404 {object} ex.ApiResponse "Invalid status not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
 // @Router /instance/namespace/:namespace/list [get]
@@ -160,7 +160,7 @@ func GetInstanceInfo(c *gin.Context) {
 // @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   appname     path    string     true        "identifier of the instance"
 // @Param   version     path    string     true        "identifier of the version"
-// @Success 200 {object} instance.Info	"ok"
+// @Success 200 {object} ex.ApiResponse	"ok"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"

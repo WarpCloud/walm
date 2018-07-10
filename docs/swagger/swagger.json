@@ -237,7 +237,7 @@
                         "required": true,
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/instance.Application"
+                            "$ref": "#/definitions/helm.ReleaseRequest"
                         }
                     }
                 ],
@@ -273,7 +273,70 @@
                 }
             }
         },
-        "/instance/namespace/{namespace}/chart/{chart}": {
+        "/instance/namespace/": {
+            "get": {
+                "description": "find the aim instance status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "instance"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "identifier of the instance",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "identifier of the appname",
+                        "name": "appname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "max num to display",
+                        "name": "max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the offset of result",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/helm.ReleaseInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Invalid status not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            },
             "put": {
                 "description": "Update an Appliation",
                 "consumes": [
@@ -288,26 +351,26 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
+                        "description": "namespace of the instance",
                         "name": "namespace",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
-                        "name": "chart",
+                        "description": "identifier of the instance",
+                        "name": "appname",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Update application",
-                        "name": "application",
+                        "description": "Update instance",
+                        "name": "instance",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/instance.Application"
+                            "$ref": "#/definitions/helm.ReleaseRequest"
                         }
                     }
                 ],
@@ -327,7 +390,7 @@
                         }
                     },
                     "404": {
-                        "description": "Application not found",
+                        "description": "Instance not found",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/ex.ApiResponse"
@@ -350,7 +413,7 @@
                 }
             },
             "post": {
-                "description": "deploy an application with the givin data",
+                "description": "deploy an instance with the givin data",
                 "consumes": [
                     "application/json"
                 ],
@@ -363,26 +426,26 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
+                        "description": "identifier of the instance",
                         "name": "namespace",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
-                        "name": "chart",
+                        "description": "identifier of the instance",
+                        "name": "instance",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Update application",
-                        "name": "application",
+                        "description": "ReleaseRequest of instance",
+                        "name": "instance",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/instance.Application"
+                            "$ref": "#/definitions/helm.ReleaseRequest"
                         }
                     }
                 ],
@@ -433,14 +496,14 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
+                        "description": "identifier of the instance",
                         "name": "namespace",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "identifier of the application",
+                        "description": "identifier of the instance",
                         "name": "appname",
                         "in": "path",
                         "required": true
@@ -462,7 +525,7 @@
                         }
                     },
                     "404": {
-                        "description": "Application not found",
+                        "description": "Instance not found",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/ex.ApiResponse"
@@ -493,7 +556,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
+                        "description": "identifier of the instance",
                         "name": "namespace",
                         "in": "path",
                         "required": true
@@ -511,7 +574,7 @@
                         "description": "ok",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/instance.Info"
+                            "$ref": "#/definitions/helm.ReleaseInfo"
                         }
                     },
                     "400": {
@@ -522,7 +585,7 @@
                         }
                     },
                     "404": {
-                        "description": "Application not found",
+                        "description": "Instance not found",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/ex.ApiResponse"
@@ -545,116 +608,9 @@
                 }
             }
         },
-        "/instance/namespace/{namespace}/name/{appname}/status": {
-            "get": {
-                "description": "find the aim application status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "instance"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "identifier of the chart",
-                        "name": "namespace",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "identifier of the appname",
-                        "name": "appname",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "identifier of the appname",
-                        "name": "reverse",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "max num to display",
-                        "name": "max",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "the offset of result",
-                        "name": "offset",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display all of result",
-                        "name": "all",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display deleted release",
-                        "name": "deleted",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display deleting release",
-                        "name": "deleting",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display deployed release",
-                        "name": "deployed",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display failed release",
-                        "name": "failed",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if display pending release",
-                        "name": "pending",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ok",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/instance.Info"
-                        }
-                    },
-                    "404": {
-                        "description": "Invalid status not found",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Server Error",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/instance/namespace/{namespace}/name/{appname}/version/{version}/rollback": {
             "get": {
-                "description": "Rollback Application to aim version",
+                "description": "Rollback Instance to aim version",
                 "consumes": [
                     "application/json"
                 ],
@@ -667,14 +623,14 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "identifier of the chart",
+                        "description": "identifier of the instance",
                         "name": "namespace",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "identifier of the application",
+                        "description": "identifier of the instance",
                         "name": "appname",
                         "in": "path",
                         "required": true
@@ -685,24 +641,6 @@
                         "name": "version",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if recreate pods",
-                        "name": "recreate",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if force to update and restart pods",
-                        "name": "force",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "if wait for finish",
-                        "name": "wait",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -710,7 +648,7 @@
                         "description": "ok",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/instance.Info"
+                            "$ref": "#/definitions/ex.ApiResponse"
                         }
                     },
                     "400": {
@@ -721,7 +659,7 @@
                         }
                     },
                     "404": {
-                        "description": "Application not found",
+                        "description": "Instance not found",
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/ex.ApiResponse"
@@ -752,11 +690,11 @@
                 "apps": {
                     "type": "array",
                     "items": {
-                        "type": "\u0026{instance Application}"
+                        "type": "\u0026{helm ReleaseRequest}"
                     }
                 },
-                "config": {
-                    "type": "string"
+                "configvalues": {
+                    "type": "object"
                 }
             }
         },
@@ -771,16 +709,22 @@
                 }
             }
         },
-        "instance.Application": {
+        "helm.ReleaseInfo": {
             "type": "object",
             "properties": {
-                "chart": {
+                "chartappversion": {
                     "type": "string"
                 },
-                "install": {
-                    "type": "boolean"
+                "chartname": {
+                    "type": "string"
                 },
-                "links": {
+                "chartversion": {
+                    "type": "string"
+                },
+                "configvalues": {
+                    "type": "object"
+                },
+                "dependencies": {
                     "type": "object"
                 },
                 "name": {
@@ -789,42 +733,33 @@
                 "namespace": {
                     "type": "string"
                 },
-                "repo": {
-                    "type": "string"
-                },
-                "reset-values": {
-                    "type": "boolean"
-                },
-                "reuse-values": {
-                    "type": "boolean"
-                },
-                "value": {
-                    "type": "string"
+                "statuscode": {
+                    "type": "integer"
                 },
                 "version": {
-                    "type": "string"
+                    "type": "integer"
                 }
             }
         },
-        "instance.Info": {
+        "helm.ReleaseRequest": {
             "type": "object",
             "properties": {
-                "chart": {
+                "chartname": {
                     "type": "string"
+                },
+                "chartversion": {
+                    "type": "string"
+                },
+                "configvalues": {
+                    "type": "object"
+                },
+                "dependencies": {
+                    "type": "object"
                 },
                 "name": {
                     "type": "string"
                 },
                 "namespace": {
-                    "type": "string"
-                },
-                "revision": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updated": {
                     "type": "string"
                 }
             }

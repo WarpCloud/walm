@@ -21,7 +21,7 @@ import (
 // @Produce  json
 // @Param   namespace     path    string     true        "identifier of the namespace"
 // @Param   name     path    string     true        "the name of cluster"
-// @Param   apps     body   instance.Application    true    "Apps of Cluster"
+// @Param   apps     body   helm.ReleaseRequest    true    "Apps of Cluster"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "namespace not found"

@@ -4,10 +4,10 @@ definitions:
     properties:
       apps:
         items:
-          type: '&{instance Application}'
+          type: '&{helm ReleaseRequest}'
         type: array
-      config:
-        type: string
+      configvalues:
+        type: object
     type: object
   ex.ApiResponse:
     properties:
@@ -16,42 +16,40 @@ definitions:
       message:
         type: string
     type: object
-  instance.Application:
+  helm.ReleaseInfo:
     properties:
-      chart:
+      chartappversion:
         type: string
-      install:
-        type: boolean
-      links:
+      chartname:
+        type: string
+      chartversion:
+        type: string
+      configvalues:
+        type: object
+      dependencies:
         type: object
       name:
         type: string
       namespace:
         type: string
-      repo:
-        type: string
-      reset-values:
-        type: boolean
-      reuse-values:
-        type: boolean
-      value:
-        type: string
+      statuscode:
+        type: integer
       version:
-        type: string
+        type: integer
     type: object
-  instance.Info:
+  helm.ReleaseRequest:
     properties:
-      chart:
+      chartname:
         type: string
+      chartversion:
+        type: string
+      configvalues:
+        type: object
+      dependencies:
+        type: object
       name:
         type: string
       namespace:
-        type: string
-      revision:
-        type: string
-      status:
-        type: string
-      updated:
         type: string
     type: object
 host: localhost:8000
@@ -216,7 +214,7 @@ paths:
         name: apps
         required: true
         schema:
-          $ref: '#/definitions/instance.Application'
+          $ref: '#/definitions/helm.ReleaseRequest'
           type: object
       produces:
       - application/json
@@ -243,28 +241,71 @@ paths:
             type: object
       tags:
       - Cluster
-  /instance/namespace/{namespace}/chart/{chart}:
-    post:
+  /instance/namespace/:
+    get:
       consumes:
       - application/json
-      description: deploy an application with the givin data
+      description: find the aim instance status
       parameters:
-      - description: identifier of the chart
+      - description: identifier of the instance
         in: path
         name: namespace
         required: true
         type: string
-      - description: identifier of the chart
+      - description: identifier of the appname
         in: path
-        name: chart
+        name: appname
         required: true
         type: string
-      - description: Update application
+      - description: max num to display
+        in: query
+        name: max
+        type: integer
+      - description: the offset of result
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/helm.ReleaseInfo'
+            type: object
+        "404":
+          description: Invalid status not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - instance
+    post:
+      consumes:
+      - application/json
+      description: deploy an instance with the givin data
+      parameters:
+      - description: identifier of the instance
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: identifier of the instance
+        in: path
+        name: instance
+        required: true
+        type: string
+      - description: ReleaseRequest of instance
         in: body
-        name: application
+        name: instance
         required: true
         schema:
-          $ref: '#/definitions/instance.Application'
+          $ref: '#/definitions/helm.ReleaseRequest'
           type: object
       produces:
       - application/json
@@ -296,22 +337,22 @@ paths:
       - application/json
       description: Update an Appliation
       parameters:
-      - description: identifier of the chart
+      - description: namespace of the instance
         in: path
         name: namespace
         required: true
         type: string
-      - description: identifier of the chart
+      - description: identifier of the instance
         in: path
-        name: chart
+        name: appname
         required: true
         type: string
-      - description: Update application
+      - description: Update instance
         in: body
-        name: application
+        name: instance
         required: true
         schema:
-          $ref: '#/definitions/instance.Application'
+          $ref: '#/definitions/helm.ReleaseRequest'
           type: object
       produces:
       - application/json
@@ -327,7 +368,7 @@ paths:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
         "404":
-          description: Application not found
+          description: Instance not found
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
@@ -349,12 +390,12 @@ paths:
       - application/json
       description: Delete an Appliation
       parameters:
-      - description: identifier of the chart
+      - description: identifier of the instance
         in: path
         name: namespace
         required: true
         type: string
-      - description: identifier of the application
+      - description: identifier of the instance
         in: path
         name: appname
         required: true
@@ -373,7 +414,7 @@ paths:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
         "404":
-          description: Application not found
+          description: Instance not found
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
@@ -390,7 +431,7 @@ paths:
       - application/json
       description: Get an Appliation by name with status
       parameters:
-      - description: identifier of the chart
+      - description: identifier of the instance
         in: path
         name: namespace
         required: true
@@ -406,7 +447,7 @@ paths:
         "200":
           description: ok
           schema:
-            $ref: '#/definitions/instance.Info'
+            $ref: '#/definitions/helm.ReleaseInfo'
             type: object
         "400":
           description: Invalid Name supplied!
@@ -414,7 +455,7 @@ paths:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
         "404":
-          description: Application not found
+          description: Instance not found
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
@@ -430,90 +471,18 @@ paths:
             type: object
       tags:
       - instance
-  /instance/namespace/{namespace}/name/{appname}/status:
-    get:
-      consumes:
-      - application/json
-      description: find the aim application status
-      parameters:
-      - description: identifier of the chart
-        in: path
-        name: namespace
-        required: true
-        type: string
-      - description: identifier of the appname
-        in: path
-        name: appname
-        required: true
-        type: string
-      - description: identifier of the appname
-        in: query
-        name: reverse
-        type: boolean
-      - description: max num to display
-        in: query
-        name: max
-        type: integer
-      - description: the offset of result
-        in: query
-        name: offset
-        type: integer
-      - description: if display all of result
-        in: query
-        name: all
-        type: boolean
-      - description: if display deleted release
-        in: query
-        name: deleted
-        type: boolean
-      - description: if display deleting release
-        in: query
-        name: deleting
-        type: boolean
-      - description: if display deployed release
-        in: query
-        name: deployed
-        type: boolean
-      - description: if display failed release
-        in: query
-        name: failed
-        type: boolean
-      - description: if display pending release
-        in: query
-        name: pending
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ok
-          schema:
-            $ref: '#/definitions/instance.Info'
-            type: object
-        "404":
-          description: Invalid status not found
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "500":
-          description: Server Error
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-      tags:
-      - instance
   /instance/namespace/{namespace}/name/{appname}/version/{version}/rollback:
     get:
       consumes:
       - application/json
-      description: Rollback Application to aim version
+      description: Rollback Instance to aim version
       parameters:
-      - description: identifier of the chart
+      - description: identifier of the instance
         in: path
         name: namespace
         required: true
         type: string
-      - description: identifier of the application
+      - description: identifier of the instance
         in: path
         name: appname
         required: true
@@ -523,25 +492,13 @@ paths:
         name: version
         required: true
         type: string
-      - description: if recreate pods
-        in: query
-        name: recreate
-        type: boolean
-      - description: if force to update and restart pods
-        in: query
-        name: force
-        type: boolean
-      - description: if wait for finish
-        in: query
-        name: wait
-        type: boolean
       produces:
       - application/json
       responses:
         "200":
           description: ok
           schema:
-            $ref: '#/definitions/instance.Info'
+            $ref: '#/definitions/ex.ApiResponse'
             type: object
         "400":
           description: Invalid Name supplied!
@@ -549,7 +506,7 @@ paths:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
         "404":
-          description: Application not found
+          description: Instance not found
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
