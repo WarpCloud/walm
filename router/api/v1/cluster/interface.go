@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
+	"walm_bak/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosuri/uitable"
 
-	"walm/models"
+	helm "walm/pkg/helm"
+	"walm/pkg/util/file"
 	. "walm/pkg/util/log"
 	"walm/router/api/v1/instance"
 	"walm/router/ex"
+
+	"github.com/ghodss/yaml"
 )
 
 // DeployInstanceInCluster godoc
@@ -28,7 +31,7 @@ import (
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "namespace not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router "/:namespace/instance/:name" [post]
+// @Router /cluster/namespace/{namespace}/name/{name}/instance [post]
 func DeployInstanceInCluster(c *gin.Context) {
 	name := c.Param("name")
 	if len(name) == 0 {
@@ -46,7 +49,7 @@ func DeployInstanceInCluster(c *gin.Context) {
 		return
 	} else {
 
-		if err, cluster := models.GetClusterInfo(name); err != nil {
+		if err, cluster := GetClusterInfo(name); err != nil {
 			c.JSON(ex.ReturnClusterNotExistError())
 			return
 		} else {
@@ -84,7 +87,7 @@ func DeployInstanceInCluster(c *gin.Context) {
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "namespace not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /cluster/{namespace}/{name} [post]
+// @Router /cluster/namespace/{namespace}/name/{name} [post]
 func DeployCluster(c *gin.Context) {
 
 	name := c.Param("name")
@@ -103,17 +106,6 @@ func DeployCluster(c *gin.Context) {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	} else {
-
-		cluster := &models.Cluster{
-			Name:       name,
-			Namespace:  namespace,
-			ConfigTemp: postdata.Conf,
-		}
-
-		if err := models.InsertCluster(cluster); err != nil {
-			c.JSON(ex.ReturnInternalServerError(err))
-			return
-		}
 
 		if len(postdata.Apps) > 0 {
 			if err, apps := getGragh(cluster.ClusterId, name, namespace, &postdata); err != nil {
@@ -142,7 +134,7 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 		args = append(args, app.Name)
 		args = append(args, app.Chart)
 	} else {
-		app.Name = fmt.Sprintf("%s-%s-%d", app.Chart, cluster.Name, cluster.ClusterId)
+		app.Name = fmt.Sprintf("%s-%d-%s", cluster.Name, cluster.ClusterId, app.Chart)
 	}
 	if len(app.Namespace) > 0 {
 		flags = append(flags, "--namespace")
@@ -164,27 +156,33 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 		}
 	}
 
-	appInst := models.AppInst{
-		Name:        app.Name,
-		Namespace:   app.Namespace,
-		AppPkg:      app.Chart,
-		Vers:        app.Version,
-		ConfigTemp:  app.Value,
-		Status:      "deployed",
-		ClusterId:   cluster.ClusterId,
-		InstallTime: time.Now().Unix(),
+	if len(cluster.ConfigTemp) > 0 {
+		flags = append(flags, "--values")
+		if data, err := yaml.JSONToYAML([]byte(cluster.ConfigTemp)); err != nil {
+			return err
+		} else {
+			if name, err := file.MakeValueFile(data); err != nil {
+				return err
+			} else {
+				flags = append(flags, name)
+			}
+		}
 	}
 
-	if err := instance.WalmInst.DeplyApplications(args, flags); err != nil {
-		return err
+	if len(app.Value) > 0 {
+		flags = append(flags, "--values")
+		if data, err := yaml.JSONToYAML([]byte(app.Value)); err != nil {
+			return err
+		} else {
+			if name, err := file.MakeValueFile(data); err != nil {
+				return err
+			} else {
+				flags = append(flags, name)
+			}
+		}
 	}
 
-	ti := time.Now().Unix()
-	appInst.InstalledTime, appInst.LastTime = ti, ti
-
-	if err := models.InsertAppInst(appInst); err != nil {
-		Log.Errorf("error occu when insert into AppInst: %s \n", err)
-
+	if err := helm.Helm.DeplyApplications(args, flags); err != nil {
 		return err
 	}
 
@@ -203,7 +201,7 @@ func deployInstance(cluster *models.Cluster, app instance.Application) error {
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "cluster not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /cluster/{namespace}/{name} [get]
+// @Router /cluster/namespace/{namespace}/name/{name} [get]
 func StatusCluster(c *gin.Context) {
 	//ListApplications
 	name := c.Param("name")
@@ -222,7 +220,7 @@ func StatusCluster(c *gin.Context) {
 		Infos: []instance.Info{},
 	}
 
-	if releases, err := models.GetReleasesOfCluster(name); err != nil {
+	if releases, err := GetReleasesOfCluster(name); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	} else {
@@ -230,7 +228,7 @@ func StatusCluster(c *gin.Context) {
 		var errs []error
 
 		for _, release := range releases {
-			if table, err := instance.WalmInst.ListApplications([]string{release.Name}, []string{"--namespace", namespace, "--all"}); err != nil {
+			if table, err := helm.Helm.ListApplications([]string{release.Name}, []string{"--namespace", namespace, "--all"}); err != nil {
 				errs = append(errs, err)
 			} else {
 				for _, line := range strings.Split(table.String(), "/n") {
@@ -266,7 +264,7 @@ func StatusCluster(c *gin.Context) {
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "cluster not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /cluster/{namespace}/{name} [delete]
+// @Router /cluster/namespace/{namespace}/name/{name} [delete]
 func DeleteCluster(c *gin.Context) {
 	name := c.Param("name")
 	if len(name) == 0 {
@@ -278,19 +276,15 @@ func DeleteCluster(c *gin.Context) {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	}
-	if releases, err := models.GetReleasesOfCluster(name); err != nil {
+	if releases, err := GetReleasesOfCluster(name); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 		return
 	} else {
 		Log.Infof("begin to delete cluser %s; namespace %s;", name, namespace)
 		var errs []error
 		for _, release := range releases {
-			if err := instance.WalmInst.Detele([]string{release.Name}, []string{}); err != nil {
+			if err := helm.Helm.Detele([]string{release.Name}, []string{}); err != nil {
 				errs = append(errs, err)
-			} else {
-				if err := models.DeleteAppInst(release.Name); err != nil {
-					errs = append(errs, err)
-				}
 			}
 		}
 		if len(errs) > 0 {
@@ -299,17 +293,12 @@ func DeleteCluster(c *gin.Context) {
 		}
 	}
 
-	if err := models.DeleteCluster(name); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-
 	c.JSON(ex.ReturnOK())
 
 }
 
 func getReleasMap(name string) (error, map[string]string) {
-	if releases, err := models.GetReleasesOfCluster(name); err != nil {
+	if releases, err := GetReleasesOfCluster(name); err != nil {
 		return err, nil
 	} else {
 		releaeMap := map[string]string{}
@@ -318,4 +307,8 @@ func getReleasMap(name string) (error, map[string]string) {
 		}
 		return nil, releaeMap
 	}
+}
+
+func GetReleasesOfCluster(name string) ([]release, err) {
+	return []release{}, nil
 }

@@ -46,7 +46,7 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		//add Prometheus Metric
 		p := middleware.NewPrometheus("Walm-gin")
 		p.Use(r)
-		//add open tracing
+		//add opentracing
 		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
 			return stdopentracing.ChildOf(spancontext)
 		}
@@ -72,22 +72,22 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		//@Description instance lifecycle manager
 		instance := apiv1.Group("/instance")
 		{
-			instance.DELETE("/:namespace/:appName", inst.DeleteApplication)
-			instance.POST("/:chart}", inst.DeployApplication)
-			instance.GET("/:namespace/status/:appname", inst.ListApplicationsWithStatus)
-			instance.GET("/:namespace/info/:appname", inst.GetApplicationStatusbyName)
-			instance.GET("/:namespace/rollback/:appname/:version", inst.RollBackApplication)
-			instance.PUT("/:chart", inst.UpdateApplication)
+			instance.DELETE("/namespace/:namespace/name/:appname", inst.DeleteInstance)
+			instance.POST("/namespace/:namespace/name/:appname", inst.DeployInstance)
+			instance.GET("/namespace/:namespace/list", inst.ListInstances)
+			instance.GET("/namespace/:namespace/name/:appname/info", inst.GetInstanceInfo)
+			instance.GET("/namespace/:namespace/name/:appname/version/:version/rollback", inst.RollBackInstance)
+			instance.PUT("/namespace/:namespace/name/:appname", inst.UpdateInstance)
 		}
 		//@Tags
 		//@Name cluster
 		//@Description cluster lifecycle manager
 		cluster := apiv1.Group("/cluster")
 		{
-			cluster.POST("/:namespace/:name", clus.DeployCluster)
-			cluster.GET("/:namespace/:name", clus.StatusCluster)
-			cluster.DELETE("/:namespace/:name", clus.DeleteCluster)
-			cluster.POST("/:namespace/instance/:name", clus.DeployInstanceInCluster)
+			cluster.POST("/namespace/:namespace/name/:name", clus.DeployCluster)
+			cluster.GET("/namespace/:namespace/name/:name", clus.StatusCluster)
+			cluster.DELETE("/namespace/:namespace/name/:name", clus.DeleteCluster)
+			cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
 		}
 
 	}

@@ -57,7 +57,6 @@ func newRootCmd(args []string) *cobra.Command {
 		// chart commands
 		addFlagsTLS(newServCmd()),
 		newVersionCmd(),
-		newMigrateCmd(),
 	)
 
 	flags.Parse(args)

@@ -1,520 +1,228 @@
 package instance
 
 import (
-	"bytes"
+	"errors"
 	"net/http"
-	"strings"
-	"time"
+	"strconv"
 
-	"walm/models"
-	helm "walm/pkg/helm"
-	. "walm/pkg/util/log"
+	"walm/pkg/helm"
 	"walm/router/ex"
 
-	"github.com/ghodss/yaml"
 	"github.com/gin-gonic/gin"
-	"github.com/gosuri/uitable"
 )
 
-type WalmInterface interface {
-	Detele(args, flags []string) error
-	Rollback(args, flags []string) error
-	DeplyApplications(args, flags []string) error
-	UpdateApplications(args, flags []string) error
-	StatusApplications(args, flags []string) (string, error)
-	ListApplications(args, flags []string) (*bytes.Buffer, error)
-	MakeValueFile(data []byte) (string, error) //if or not delete file after install or update
-	UpdateRepo(args []string) error
+func GetPathParams(c *gin.Context, names []string) (values []string, err error) {
+	for _, name := range names {
+		values = append(values, c.Param(name))
+	}
+	for _, value := range values {
+		if len(value) == 0 {
+			err = errors.New("")
+			c.JSON(ex.ReturnBadRequest())
+			break
+		}
+	}
+	return
 }
 
-var WalmInst WalmInterface
-
-func init() {
-	SetWalmInst(helm.Helm)
-}
-
-func SetWalmInst(inter WalmInterface) {
-	WalmInst = inter
-}
-
-// DeleteApplication godoc
+// DeleteInstance godoc
 // @Tags instance
 // @Description Delete an Appliation
-// @OperationId DeleteApplication
+// @OperationId DeleteInstance
 // @Accept  json
 // @Produce  json
-// @Param   appname     path    string     true        "identifier of the application"
+// @Param   namespace     path    string     true      "identifier of the instance"
+// @Param   appname     path    string     true        "identifier of the instance"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
-// @Failure 404 {object} ex.ApiResponse "Application not found"
+// @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{namespace}/{appname} [delete]
-func DeleteApplication(c *gin.Context) {
+// @Router /instance/namespace/{namespace}/name/{appname} [delete]
+func DeleteInstance(c *gin.Context) {
 
-	var args []string
-	var flags []string
-	name := c.Param("appname")
-	if len(name) == 0 {
-		c.JSON(ex.ReturnBadRequest())
+	if values, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	} else {
-		args = append(args, name)
+		if err := helm.DeleteRealese(values[0], values[1]); err != nil {
+			c.JSON(ex.ReturnInternalServerError(err))
+			return
+		}
 	}
-	namespace := c.Param("namespace")
-	if len(namespace) == 0 {
-		c.JSON(ex.ReturnBadRequest())
-		return
-	}
-
-	Log.Infof("begin to delete instance:%s; namespace:%s. \n", name, namespace)
-	defer Log.Infof("finish delete instance:%s; namespace:%s. \n", name, namespace)
-	if err := WalmInst.Detele(args, flags); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-
-	if err := models.DeleteAppInst(name); err != nil {
-		Log.Errorf("occu error when delete AppInst: %s \n", err)
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-
 	c.JSON(ex.ReturnOK())
 
 }
 
 // Deploy godoc
 // @Tags instance
-// @Description deploy an application with the givin data
+// @Description deploy an instance with the givin data
 // @OperationId Deploy
 // @Accept  json
 // @Produce  json
-// @Param   chart     path    string     true      "identifier of the chart"
-// @Param   application     body   instance.Application    true    "Update application"
+// @Param   namespace     path    string     true      "identifier of the instance"
+// @Param   instance     path    string     true      "identifier of the instance"
+// @Param   instance     body   instance.Instance    true    "Update instance"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{chart} [post]
-func DeployApplication(c *gin.Context) {
+// @Router /instance/namespace/:namespace/name/:appname [post]
+func DeployInstance(c *gin.Context) {
 
-	var args []string
-	var flags []string
-	chart := c.Param("chart")
-	if len(chart) == 0 {
-		c.JSON(ex.ReturnBadRequest())
+	if _, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	}
-	var postdata Application
+	var postdata helm.ReleaseRequest
 	if err := c.Bind(&postdata); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	} else {
-		if len(postdata.Name) > 0 {
-			/*
-			 flags = append(flags,"--name")
-			 flags = append(flags,postdata.Name)
-			*/
-			args = append(args, postdata.Name)
-			args = append(args, chart)
-		} else {
-			c.JSON(ex.ReturnBadRequest())
+		if err := helm.InstallUpgradeRealese(postdata); err != nil {
+			c.JSON(ex.ReturnInternalServerError(err))
 			return
-		}
-		if len(postdata.Namespace) > 0 {
-			flags = append(flags, "--namespace")
-			flags = append(flags, postdata.Namespace)
-		}
-		if len(postdata.Repo) > 0 {
-			flags = append(flags, "--repo")
-			flags = append(flags, postdata.Repo)
-		}
-		if len(postdata.Version) > 0 {
-			flags = append(flags, "--version")
-			flags = append(flags, postdata.Version)
-		}
-
-		if len(postdata.Links) > 0 {
-			for k, v := range postdata.Links {
-				flags = append(flags, "--link")
-				flags = append(flags, k+"="+v)
-			}
-		}
-
-		if len(postdata.Value) > 0 {
-			flags = append(flags, "--values")
-			if data, err := yaml.JSONToYAML([]byte(postdata.Value)); err != nil {
-				c.JSON(ex.ReturnInternalServerError(err))
-			} else {
-				if name, err := WalmInst.MakeValueFile(data); err != nil {
-					c.JSON(ex.ReturnInternalServerError(err))
-					return
-				} else {
-					flags = append(flags, name)
-				}
-			}
+		} else {
+			c.JSON(ex.ReturnOK())
 		}
 	}
-
-	app := models.AppInst{
-		Name:        postdata.Name,
-		Namespace:   postdata.Namespace,
-		AppPkg:      chart,
-		Vers:        postdata.Version,
-		ConfigTemp:  postdata.Value,
-		Status:      "deployed",
-		InstallTime: time.Now().Unix(),
-	}
-
-	Log.Infof("begin to install instance:%s; namespace:%s; chart \n", app.Name, app.Namespace, app.AppPkg)
-	defer Log.Infof("finish delete instance:%s; namespace:%s; chart:%s \n", app.Name, app.Namespace, app.AppPkg)
-	if err := WalmInst.UpdateRepo([]string{"update"}); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-	if err := WalmInst.DeplyApplications(args, flags); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-
-	ti := time.Now().Unix()
-	app.InstalledTime, app.LastTime = ti, ti
-
-	if err := models.InsertAppInst(app); err != nil {
-		Log.Errorf("occu error when insert into AppInst: %s \n", err)
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-	c.JSON(ex.ReturnOK())
 }
 
-// FindApplicationsStatus godoc
+// FindInstancesStatus godoc
 // @Tags instance
-// @Description find the aim application status
-// @OperationId FindApplicationsStatus
+// @Description find the aim instance status
+// @OperationId FindInstancesStatus
 // @Accept  json
 // @Produce  json
-// @Param   namespace     path    string     true      "identifier of the chart"
+// @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   appname     path    string     true      "identifier of the appname"
-// @Param   reverse     query    boolean     false      "identifier of the appname"
 // @Param   max     query    int     false      "max num to display"
 // @Param   offset     query    int     false      "the offset of result"
-// @Param   all     query    boolean     false      "if display all of result"
-// @Param   deleted     query    boolean     false      "if display deleted release"
-// @Param   deleting     query    boolean     false      "if display deleting release"
-// @Param   deployed     query    boolean     false      "if display deployed release"
-// @Param   failed     query    boolean     false      "if display failed release"
-// @Param   pending     query    boolean     false      "if display pending release"
-// @Success 200 {object} instance.Info	"ok"
+// @Success 200 {object} []helm.ReleaseInfo	"ok"
 // @Failure 404 {object} ex.ApiResponse "Invalid status not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{namespace}/status/{appname} [get]
-func ListApplicationsWithStatus(c *gin.Context) {
+// @Router /instance/namespace/:namespace/list [get]
+func ListInstances(c *gin.Context) {
 
-	var args []string
-	var flags []string
-
-	name := c.Param("appname")
+	name := c.Param("namespace")
 	if len(name) == 0 {
 		c.JSON(ex.ReturnBadRequest())
 		return
-	} else {
-		args = append(args, name)
 	}
 
-	namespace := c.Param("namespace")
-	if len(namespace) > 0 {
-		flags = append(flags, "--namespace")
-		flags = append(flags, namespace)
-	}
-
-	reverse := c.Query("reverse")
-	if len(reverse) > 0 {
-		flags = append(flags, "--reverse")
-	}
+	var imax, ioffset int
 
 	max := c.Query("max")
 	if len(max) > 0 {
-		flags = append(flags, "--max")
-		flags = append(flags, max)
+		var err error
+		if imax, err = strconv.Atoi(max); err != nil {
+			imax = -1
+		}
 	}
 
 	offset := c.Query("offset")
 	if len(offset) > 0 {
-		flags = append(flags, "--offset")
-		flags = append(flags, offset)
+		var err error
+		if ioffset, err = strconv.Atoi(offset); err != nil {
+			ioffset = 0
+		}
 	}
 
-	all := c.Query("all")
-	if len(all) > 0 {
-		flags = append(flags, "--all")
-	}
-
-	deleted := c.Query("deleted")
-	if len(deleted) > 0 {
-		flags = append(flags, "--deleted")
-	}
-
-	deleting := c.Query("deleting")
-	if len(deleting) > 0 {
-		flags = append(flags, "--deleting")
-	}
-
-	deployed := c.Query("deployed")
-	if len(deployed) > 0 {
-		flags = append(flags, "--deployed")
-	}
-
-	failed := c.Query("failed")
-	if len(failed) > 0 {
-		flags = append(flags, "--failed")
-	}
-
-	pending := c.Query("pending")
-	if len(pending) > 0 {
-		flags = append(flags, "--pending")
-	}
-
-	if table, err := WalmInst.ListApplications(args, flags); err != nil {
+	if releases, err := helm.ListReleases(); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
-		var ia []Info
-		for _, line := range strings.Split(table.String(), "/n") {
-			values := strings.Split(line, uitable.Separator)
-			ia = append(ia, Info{
-				Name:      values[0],
-				Revision:  values[1],
-				Updated:   values[2],
-				Status:    values[3],
-				Chart:     values[4],
-				Namespace: values[5],
-			})
+		ilen := imax + ioffset
+		if ilen > ioffset && ilen < len(releases) {
+			c.JSON(http.StatusOK, releases[ioffset:ilen])
+		} else {
+			c.JSON(http.StatusOK, releases[ioffset:])
 		}
-		for _, info := range ia {
-			if err := models.UpdateAppInst(info.Name, info.Status, "status"); err != nil {
-				Log.Errorf("occu error when update  AppInst: %s \n", err)
-				c.JSON(ex.ReturnInternalServerError(err))
-			}
-		}
-		c.JSON(http.StatusOK, ia)
 	}
 
 }
 
-// GetApplicationbyName godoc
+// GetInstancebyName godoc
 // @Tags instance
 // @Description Get an Appliation by name with status
-// @OperationId GetApplicationbyName
+// @OperationId GetInstancebyName
 // @Accept  json
 // @Produce  json
-// @Param   namespace     path    string     true      "identifier of the chart"
+// @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   appname     path    string     true        "identifier of the application"
-// @Success 200 {object} instance.Info	"ok"
+// @Success 200 {object} helm.ReleaseInfo	"ok"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
-// @Failure 404 {object} ex.ApiResponse "Application not found"
+// @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{namespace}/info/{appname} [get]
-func GetApplicationStatusbyName(c *gin.Context) {
-	var args []string
-	var flags []string
+// @Router /instance/namespace/{namespace}/name/{appname}/info [get]
+func GetInstanceInfo(c *gin.Context) {
 
-	name := c.Param("appname")
-	if len(name) == 0 {
-		c.JSON(ex.ReturnBadRequest())
+	if values, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
-	}
-	args = append(args, name)
-
-	flags = append(flags, "--revision")
-	flags = append(flags, "--output")
-	flags = append(flags, "json")
-
-	if str, err := WalmInst.StatusApplications(args, flags); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
-		c.JSON(http.StatusOK, str) //need edit
-		return
-	}
-}
-
-// RollBackApplication godoc
-// @Tags instance
-// @Description Rollback Application to aim version
-// @OperationId RollBackApplication
-// @Accept  json
-// @Produce  json
-// @Param   appname     path    string     true        "identifier of the application"
-// @Param   version     path    string     true        "identifier of the version"
-// @Param   recreate     query    boolean     false      "if recreate pods"
-// @Param   force     query    boolean     false      "if force to update and restart pods"
-// @Param   wait     query    boolean     false      "if wait for finish"
-// @Success 200 {object} instance.Info	"ok"
-// @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
-// @Failure 404 {object} ex.ApiResponse "Application not found"
-// @Failure 405 {object} ex.ApiResponse "Invalid input"
-// @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{namespace}/rollback/{appname}/{version} [get]
-func RollBackApplication(c *gin.Context) {
-	var args []string
-	var flags []string
-
-	name := c.Param("appname")
-	if len(name) == 0 {
-		c.JSON(ex.ReturnBadRequest())
-		return
-	}
-
-	namespace := c.Param("namespace")
-	if len(namespace) == 0 {
-		c.JSON(ex.ReturnBadRequest())
-		return
-	}
-
-	args = append(args, name)
-
-	version := c.Param("version")
-	if len(version) > 0 {
-		args = append(args, version)
-	}
-
-	recreate := c.Query("recreate")
-	if len(recreate) > 0 {
-		flags = append(flags, "--recreate-pods")
-	}
-
-	force := c.Query("force")
-	if len(force) > 0 {
-		flags = append(flags, "--force")
-
-	}
-
-	wait := c.Query("wait")
-	if len(wait) > 0 {
-		flags = append(flags, "--wait")
-
-	}
-
-	Log.Infof("begin to rollback instance %s; namespace %s; version: %s \n", name, namespace, version)
-	defer Log.Infof("finish delete instance %s; namespace %s; version: %s \n", name, namespace, version)
-	if err := WalmInst.Rollback(args, flags); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-	} else {
-		if err := models.UpdateAppInst(name, version, "version"); err != nil {
-			Log.Errorf("occu error when rollback  AppInst: %s \n", err)
+		if release, err := helm.GetReleases(values[0], values[1]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
+		} else {
+			c.JSON(http.StatusOK, release)
 		}
-		c.JSON(ex.ReturnOK())
 	}
 }
 
-// UpdateApplication godoc
+// RollBackInstance godoc
+// @Tags instance
+// @Description Rollback Instance to aim version
+// @OperationId RollBackInstance
+// @Accept  json
+// @Produce  json
+// @Param   namespace     path    string     true      "identifier of the instance"
+// @Param   appname     path    string     true        "identifier of the instance"
+// @Param   version     path    string     true        "identifier of the version"
+// @Success 200 {object} instance.Info	"ok"
+// @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
+// @Failure 404 {object} ex.ApiResponse "Instance not found"
+// @Failure 405 {object} ex.ApiResponse "Invalid input"
+// @Failure 500 {object} ex.ApiResponse "Server Error"
+// @Router /instance/namespace/{namespace}/name/{appname}/version/{version}/rollback [get]
+func RollBackInstance(c *gin.Context) {
+	if values, err := GetPathParams(c, []string{"namespace", "appname", "version"}); err != nil {
+		return
+	} else {
+		if err := helm.RollbackRealese(values[0], values[1], values[2]); err != nil {
+			c.JSON(ex.ReturnInternalServerError(err))
+			return
+		}
+	}
+	c.JSON(ex.ReturnOK())
+}
+
+// UpdateInstance godoc
 // @Tags instance
 // @Description Update an Appliation
-// @OperationId UpdateApplication
+// @OperationId UpdateInstance
 // @Accept  json
 // @Produce  json
-// @Param   chart     path    string     true      "identifier of the chart"
-// @Param   application     body   instance.Application    true    "Update application"
+// @Param   namespace     path    string     true      "namespace of the instance"
+// @Param   appname     path    string     true      "identifier of the instance"
+// @Param   instance     body   helm.ReleaseRequest    true    "Update instance"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
-// @Failure 404 {object} ex.ApiResponse "Application not found"
+// @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/{chart} [put]
-func UpdateApplication(c *gin.Context) {
-	var args []string
-	var flags []string
-	chart := c.Param("chart")
-	if len(chart) == 0 {
-		c.JSON(ex.ReturnBadRequest())
+// @Router /instance/namespace/:namespace/name/:appname [put]
+func UpdateInstance(c *gin.Context) {
+
+	if _, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
-	} else {
-		args = append(args, chart)
 	}
-	var postdata Application
+	var postdata helm.ReleaseRequest
 	if err := c.Bind(&postdata); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	} else {
-		if len(postdata.Name) > 0 {
-			flags = append(flags, "--name")
-			flags = append(flags, postdata.Name)
+		if err := helm.InstallUpgradeRealese(postdata); err != nil {
+			c.JSON(ex.ReturnInternalServerError(err))
+			return
+		} else {
+			c.JSON(ex.ReturnOK())
 		}
-		if len(postdata.Namespace) > 0 {
-			flags = append(flags, "--namespace")
-			flags = append(flags, postdata.Namespace)
-		}
-		if len(postdata.Repo) > 0 {
-			flags = append(flags, "--repo")
-			flags = append(flags, postdata.Repo)
-		}
-		if len(postdata.Version) > 0 {
-			flags = append(flags, "--version")
-			flags = append(flags, postdata.Version)
-		}
-		if postdata.Install {
-			flags = append(flags, "--install")
-			//flags = append(flags,postdata.Install)
-		}
-		if postdata.ResetValue {
-			flags = append(flags, "--reset-values")
-			//flags = append(flags,postdata.ResetValue)
-		}
-		if postdata.ReuseValue {
-			flags = append(flags, "--reuse-values")
-			//flags = append(flags,postdata.ReuseValue)
-		}
-
-		if len(postdata.Links) > 0 {
-			for k, v := range postdata.Links {
-				flags = append(flags, "--link")
-				flags = append(flags, k+"="+v)
-			}
-		}
-
-		if len(postdata.Value) > 0 {
-			flags = append(flags, "--values")
-			if data, err := yaml.JSONToYAML([]byte(postdata.Value)); err != nil {
-				c.JSON(ex.ReturnInternalServerError(err))
-			} else {
-				if name, err := WalmInst.MakeValueFile(data); err != nil {
-					c.JSON(ex.ReturnInternalServerError(err))
-					return
-				} else {
-					flags = append(flags, name)
-				}
-			}
-		}
-
-	}
-	Log.Infof("begin to update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
-	defer Log.Infof("finish update instance %s; namespace %s; chart: %s", postdata.Name, postdata.Namespace, chart)
-	if err := WalmInst.UpdateRepo([]string{"update"}); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-	if err := WalmInst.UpdateApplications(args, flags); err != nil {
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
 	}
 
-	ti := time.Now().Unix()
-	app := models.AppInst{
-		Name:          postdata.Name,
-		Namespace:     postdata.Namespace,
-		AppPkg:        chart,
-		Vers:          postdata.Version,
-		ConfigTemp:    postdata.Value,
-		Status:        "deployed",
-		InstalledTime: ti,
-		LastTime:      ti,
-	}
-
-	if err := models.UpdateAppInstByApp(app); err != nil {
-		Log.Errorf("occu error when update AppInst: %s", err)
-		c.JSON(ex.ReturnInternalServerError(err))
-		return
-	}
-	c.JSON(ex.ReturnOK())
 }

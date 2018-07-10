@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"strconv"
 	"strings"
 	"walm/router/api/v1/instance"
 )
@@ -204,9 +203,10 @@ func expandDep(leaf *Leaf) *instance.Application {
 func getDepArray(leaf *Leaf, a_leaf *[]Leaf) []Leaf {
 	for _, leaf_1 := range depInst.getDeps(leaf) {
 		leaf_1.level = leaf.level + 1
-		if len(leaf_1.app.inst.Name) == 0 {
-			leaf_1.app.inst.Name = leaf_1.app.inst.Chart + "_" + strconv.Itoa(leaf.app.ClusterId)
-		}
+		/*
+			if len(leaf_1.app.inst.Name) == 0 {
+				leaf_1.app.inst.Name = leaf_1.app.inst.Chart + "_" + strconv.Itoa(leaf.app.ClusterId)
+			}*/
 		leaf.app.Depend[leaf_1.app.inst.Chart] = leaf_1.app.inst
 		leaf_1.app.Bedepend = append(leaf_1.app.Bedepend, leaf.app)
 		*a_leaf = append(*a_leaf, leaf_1)

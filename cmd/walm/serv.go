@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"walm/models"
 	. "walm/pkg/util/log"
 	"walm/pkg/util/oauth"
 	"walm/router"
@@ -31,9 +30,7 @@ func newServCmd() *cobra.Command {
 		Use:   "serv [-a addr] [-p port]",
 		Short: "enable a Walm Web Server",
 		Long:  servDesc,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return models.Init(&conf)
-		},
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if conf.HTTPPort == 0 {
@@ -50,9 +47,6 @@ func newServCmd() *cobra.Command {
 
 			}
 			return inst.run()
-		},
-		PostRun: func(_ *cobra.Command, _ []string) {
-			defer models.CloseDB()
 		},
 	}
 

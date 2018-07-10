@@ -25,7 +25,7 @@ func (server *Server) StartServer() error {
 		if !server.RunMode {
 			//EndTrac will be called when close the server
 			//so the init need be placed here
-			middleware.InitTracer(server.ZipkinUrl)
+			middleware.InitTracer(server.ZipkinUrl, server.Port)
 			defer middleware.EndTrace()
 		}
 

@@ -22,9 +22,6 @@ type Config struct {
 	PageSize  int
 	JwtSecret string
 
-	//db config
-	DbType, DbName, DbUser, DbPassword, DbHost, TablePrefix string
-
 	TillerConnectionTimeout int64
 	// Home is the local path to the Helm home directory.
 	Home homepath.Home
@@ -37,15 +34,9 @@ type Config struct {
 }
 
 var envMap = map[string]string{
-	"debug":    DebugEnvVar,
-	"home":     HomeEnvVar,
-	"port":     PortEnvVar,
-	"dbname":   DbNameEnvVar,
-	"dbtype":   DbTypeEnvVar,
-	"dbuser":   DbUserEnvVar,
-	"dbpass":   DbPassEnvVar,
-	"dbhost":   DbHostEnvVar,
-	"dbtabpre": DbTabPreEnvVar,
+	"debug": DebugEnvVar,
+	"home":  HomeEnvVar,
+	"port":  PortEnvVar,
 
 	"httpreadtimeout":  HTTPRTimeOutEnvVar,
 	"httpwritetimeout": HTTPWTimeOutEnvVar,
@@ -62,13 +53,6 @@ func (conf *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&conf.Debug, "debug", false, "enable verbose output")
 	fs.StringVar((*string)(&conf.Home), "home", DefaultWalmHome, "location of your Walm config. Overrides $WALM_HOME")
 	fs.IntVar(&conf.HTTPPort, "port", 8000, "api server port")
-
-	fs.StringVar(&conf.DbName, "dbname", "walm", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbType, "dbtype", "mysql", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbUser, "dbuser", "root", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbPassword, "dbpass", "passwd", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.DbHost, "dbhost", "", "name of the kubeconfig context to use")
-	fs.StringVar(&conf.TablePrefix, "dbtabpre", "", "name of the kubeconfig context to use")
 
 	fs.StringVar(&conf.JwtSecret, "jwtsecret", "", "value of jwtsecrect")
 
@@ -105,13 +89,6 @@ const (
 	HomeEnvVar  = "WALM_HOME"
 	PortEnvVar  = "WALM_HTTP_PORT"
 	DebugEnvVar = "WALM_DEBUG"
-
-	DbNameEnvVar   = "WALM_DB_NAME"
-	DbTypeEnvVar   = "WALM_DB_TYPE"
-	DbUserEnvVar   = "WALM_DB_USER"
-	DbPassEnvVar   = "WALM_DB_PASS"
-	DbHostEnvVar   = "WALM_DB_HOST"
-	DbTabPreEnvVar = "WALM_TABLE_PREFIX"
 
 	HTTPRTimeOutEnvVar = "HTTP_READ_TIMEOUT"
 	HTTPWTimeOutEnvVar = "HTTP_WRITE_TIMEOUT"

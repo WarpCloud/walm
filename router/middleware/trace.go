@@ -4,6 +4,7 @@ import (
 	// "github.com/gin-contrib/tracing"
 	// "github.com/gin-gonic/gin"
 	"errors"
+	"fmt"
 
 	stdopentracing "github.com/opentracing/opentracing-go"
 	zipkinot "github.com/openzipkin/zipkin-go-opentracing"
@@ -12,7 +13,7 @@ import (
 var Tracer stdopentracing.Tracer
 var collector zipkinot.Collector
 
-func InitTracer(url string) error {
+func InitTracer(url string, port int) error {
 	var err error
 	if url != "" {
 		collector, err = zipkinot.NewHTTPCollector(url)
@@ -22,7 +23,7 @@ func InitTracer(url string) error {
 
 		var (
 			debug       = false
-			hostPort    = "localhost:80"
+			hostPort    = fmt.Sprintf("localhost:%d", port)
 			serviceName = "walm"
 		)
 		recorder := zipkinot.NewRecorder(collector, debug, hostPort, serviceName)
