@@ -1,8 +1,7 @@
 package cluster
 
 import (
-	"strings"
-	"walm/router/api/v1/instance"
+	helm "walm/pkg/helm"
 )
 
 type DepInterface interface {
@@ -25,20 +24,18 @@ type Leaf struct {
 }
 
 type Application struct {
-	inst      *instance.Application
-	Depend    map[string]*instance.Application
-	Bedepend  []*Application
-	ClusterId int
+	inst     *helm.ReleaseRequest
+	Depend   map[string]*helm.ReleaseRequest
+	Bedepend []*Application
 }
 
-func getGraghForInstance(clusterid int, releaeMap map[string]string, inst *instance.Application) (err error, instList []instance.Application) {
+func getGraghForInstance(releaeMap map[string]string, inst *helm.ReleaseRequest) (err error, instList []helm.ReleaseRequest) {
 	a_left := []Leaf{}
 	leaf_1 := Leaf{
 		app: &Application{
-			inst:      inst,
-			ClusterId: clusterid,
-			Depend:    map[string]*instance.Application{},
-			Bedepend:  []*Application{},
+			inst:     inst,
+			Depend:   map[string]*helm.ReleaseRequest{},
+			Bedepend: []*Application{},
 		},
 		color: false,
 		level: 0,
@@ -59,13 +56,13 @@ color:
 				if curr.level < leaf_4.level {
 					curr.color = true
 					for _, cab := range curr.app.Bedepend {
-						cab.Depend[curr.app.inst.Chart] = leaf_4.app.inst
+						cab.Depend[curr.app.inst.ChartName] = leaf_4.app.inst
 					}
 					curr = leaf_4
 				} else {
 					a_left[index+1+index_1].color = true
 					for _, cab := range leaf_4.app.Bedepend {
-						cab.Depend[leaf_4.app.inst.Chart] = curr.app.inst
+						cab.Depend[leaf_4.app.inst.ChartName] = curr.app.inst
 					}
 				}
 			}
@@ -117,17 +114,16 @@ color:
 	return
 }
 
-func getGragh(clusterid int, name, namespace string, cluster *Cluster) (err error, instList []instance.Application) {
+func getGragh(name, namespace string, cluster *Cluster) (err error, instList []helm.ReleaseRequest) {
 	a_left := []Leaf{}
 
 	for _, app := range cluster.Apps {
 		appcopy := app
 		leaf_1 := Leaf{
 			app: &Application{
-				inst:      &appcopy,
-				ClusterId: clusterid,
-				Depend:    map[string]*instance.Application{},
-				Bedepend:  []*Application{},
+				inst:     &appcopy,
+				Depend:   map[string]*helm.ReleaseRequest{},
+				Bedepend: []*Application{},
 			},
 			color: false,
 			level: 0,
@@ -150,13 +146,13 @@ color:
 				if curr.level < leaf_4.level {
 					curr.color = true
 					for _, cab := range curr.app.Bedepend {
-						cab.Depend[curr.app.inst.Chart] = leaf_4.app.inst
+						cab.Depend[curr.app.inst.ChartName] = leaf_4.app.inst
 					}
 					curr = leaf_4
 				} else {
 					a_left[index+1+index_1].color = true
 					for _, cab := range leaf_4.app.Bedepend {
-						cab.Depend[leaf_4.app.inst.Chart] = curr.app.inst
+						cab.Depend[leaf_4.app.inst.ChartName] = curr.app.inst
 					}
 				}
 			}
@@ -189,11 +185,10 @@ color:
 
 //godoc
 //expand depend of instance
-func expandDep(leaf *Leaf) *instance.Application {
+func expandDep(leaf *Leaf) *helm.ReleaseRequest {
 
 	for name, dep := range leaf.app.Depend {
-		chartname := strings.Split(name, ":")[0]
-		leaf.app.inst.Links[chartname] = dep.Name
+		leaf.app.inst.Dependencies[name] = dep.Name
 	}
 	return leaf.app.inst
 }
@@ -207,7 +202,7 @@ func getDepArray(leaf *Leaf, a_leaf *[]Leaf) []Leaf {
 			if len(leaf_1.app.inst.Name) == 0 {
 				leaf_1.app.inst.Name = leaf_1.app.inst.Chart + "_" + strconv.Itoa(leaf.app.ClusterId)
 			}*/
-		leaf.app.Depend[leaf_1.app.inst.Chart] = leaf_1.app.inst
+		leaf.app.Depend[leaf_1.app.inst.ChartName] = leaf_1.app.inst
 		leaf_1.app.Bedepend = append(leaf_1.app.Bedepend, leaf.app)
 		*a_leaf = append(*a_leaf, leaf_1)
 		getDepArray(&leaf_1, a_leaf)
@@ -227,7 +222,7 @@ func isSameLeaf(a, b *Leaf) bool {
 	if b.color {
 		return false
 	}
-	if a.app.inst.Chart == b.app.inst.Chart && a.app.inst.Name == b.app.inst.Name {
+	if a.app.inst.ChartName == b.app.inst.ChartName && a.app.inst.Name == b.app.inst.Name {
 		return true
 	} else {
 		return false

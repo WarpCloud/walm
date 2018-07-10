@@ -1,29 +1,15 @@
 package instance
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"walm/pkg/helm"
+	"walm/router/api/util"
 	"walm/router/ex"
 
 	"github.com/gin-gonic/gin"
 )
-
-func GetPathParams(c *gin.Context, names []string) (values []string, err error) {
-	for _, name := range names {
-		values = append(values, c.Param(name))
-	}
-	for _, value := range values {
-		if len(value) == 0 {
-			err = errors.New("")
-			c.JSON(ex.ReturnBadRequest())
-			break
-		}
-	}
-	return
-}
 
 // DeleteInstance godoc
 // @Tags instance
@@ -40,7 +26,7 @@ func GetPathParams(c *gin.Context, names []string) (values []string, err error) 
 // @Router /instance/namespace/{namespace}/name/{appname} [delete]
 func DeleteInstance(c *gin.Context) {
 
-	if values, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
+	if values, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	} else {
 		if err := helm.DeleteRealese(values[0], values[1]); err != nil {
@@ -68,7 +54,7 @@ func DeleteInstance(c *gin.Context) {
 // @Router /instance/namespace/:namespace/name/:appname [post]
 func DeployInstance(c *gin.Context) {
 
-	if _, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
+	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	}
 	var postdata helm.ReleaseRequest
@@ -154,7 +140,7 @@ func ListInstances(c *gin.Context) {
 // @Router /instance/namespace/{namespace}/name/{appname}/info [get]
 func GetInstanceInfo(c *gin.Context) {
 
-	if values, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
+	if values, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	} else {
 		if release, err := helm.GetReleaseInfo(values[0], values[1]); err != nil {
@@ -181,7 +167,7 @@ func GetInstanceInfo(c *gin.Context) {
 // @Failure 500 {object} ex.ApiResponse "Server Error"
 // @Router /instance/namespace/{namespace}/name/{appname}/version/{version}/rollback [get]
 func RollBackInstance(c *gin.Context) {
-	if values, err := GetPathParams(c, []string{"namespace", "appname", "version"}); err != nil {
+	if values, err := util.GetPathParams(c, []string{"namespace", "appname", "version"}); err != nil {
 		return
 	} else {
 		if err := helm.RollbackRealese(values[0], values[1], values[2]); err != nil {
@@ -209,7 +195,7 @@ func RollBackInstance(c *gin.Context) {
 // @Router /instance/namespace/:namespace/name/:appname [put]
 func UpdateInstance(c *gin.Context) {
 
-	if _, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
+	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	}
 	var postdata helm.ReleaseRequest

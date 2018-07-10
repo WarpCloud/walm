@@ -1,10 +1,10 @@
 package cluster
 
 import (
-	"walm/router/api/v1/instance"
+	helm "walm/pkg/helm"
 )
 
 type Cluster struct {
-	Conf string                 `json:"config" description:"product config (json format)"`
-	Apps []instance.Application `json:"apps" description:"list of application of the cluster"`
+	ConfigValues map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	Apps         []helm.ReleaseRequest  `json:"apps" description:"list of application of the cluster"`
 }

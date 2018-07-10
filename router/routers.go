@@ -85,7 +85,7 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		cluster := apiv1.Group("/cluster")
 		{
 			cluster.POST("/namespace/:namespace/name/:name", clus.DeployCluster)
-			cluster.GET("/namespace/:namespace/name/:name", clus.StatusCluster)
+			cluster.GET("/namespace/:namespace/name/:name/list", clus.GetCluster)
 			cluster.DELETE("/namespace/:namespace/name/:name", clus.DeleteCluster)
 			cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
 		}
