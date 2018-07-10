@@ -157,7 +157,7 @@ func GetInstanceInfo(c *gin.Context) {
 	if values, err := GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		return
 	} else {
-		if release, err := helm.GetReleases(values[0], values[1]); err != nil {
+		if release, err := helm.GetReleaseInfo(values[0], values[1]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
 		} else {
 			c.JSON(http.StatusOK, release)
@@ -217,7 +217,7 @@ func UpdateInstance(c *gin.Context) {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	} else {
-		if err := helm.InstallUpgradeRealese(postdata); err != nil {
+		if err := helm.PatchUpgradeRealese(postdata); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
 			return
 		} else {

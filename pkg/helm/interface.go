@@ -34,7 +34,7 @@ func ListReleases() ([]ReleaseInfo, error) {
 	return releases, nil
 }
 
-func GetReleases(namespace, releasename string) (ReleaseInfo, error) {
+func GetReleaseInfo(namespace, releasename string) (ReleaseInfo, error) {
 
 	return ReleaseInfo{}, nil
 }
@@ -62,13 +62,10 @@ func RollbackRealese(namespace, releasename, version string) error {
 	return nil
 }
 
-func PatchUpgradeRealese() error {
+func PatchUpgradeRealese(releaserequest ReleaseRequest) error {
 	return nil
 }
-func GetReleaseInfo(namespace, releasename string) error {
-	//res, err := Helm.helmClient.ReleaseHistory()
-	return nil
-}
+
 
 func DeleteRealese(namespace, name string) error {
 	return nil
