@@ -135,7 +135,7 @@ func deployInstance(namespace, name string, conf map[string]interface{}, app hel
 // @Produce  json
 // @Param   namespace     path    string     true        "identifier of the namespace"
 // @Param   name     path    string     true        "the name of cluster"
-// @Success 200 {object} ex.ApiResponse "OK"
+// @Success 200 {array} helm.ReleaseInfo "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "cluster not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"

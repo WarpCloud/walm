@@ -44,13 +44,15 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 	} else {
 		Log.SetLevel(logrus.InfoLevel)
 		//add Prometheus Metric
-		p := middleware.NewPrometheus("Walm-gin")
+		p := middleware.NewPrometheus("Walm")
 		p.Use(r)
 		//add opentracing
-		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
-			return stdopentracing.ChildOf(spancontext)
+		if middleware.Tracer != nil {
+			psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
+				return stdopentracing.ChildOf(spancontext)
+			}
+			r.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false))
 		}
-		r.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false))
 
 	}
 

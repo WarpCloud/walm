@@ -1,120 +1,62 @@
 package setting
 
 import (
-	"fmt"
-	"time"
-	"walm/pkg/setting/homepath"
-
-	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"k8s.io/client-go/util/homedir"
 )
+
+var ConfigPath = "/home/hanbing/myworkspace/go/src/viper_demo"
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 
 type Config struct {
-	HTTPPort     int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
+	Home  string `yaml:"home"`
+	Debug bool   `yaml:"debug"`
 
-	PageSize  int
-	JwtSecret string
+	Http struct {
+		HTTPPort     int           `yaml:"port"`
+		ReadTimeout  time.Duration `yaml:"read_timeout"`
+		WriteTimeout time.Duration `yaml:"write_timeout"`
+	} `yaml:"http"`
 
-	TillerConnectionTimeout int64
-	// Home is the local path to the Helm home directory.
-	Home homepath.Home
-	// Debug indicates whether or not Helm is running in Debug mode.
-	Debug bool
-	// KubeContext is the name of the kubeconfig context.
-	KubeContext string
+	Secret struct {
+		Tls       bool   `yaml:"tls"`
+		TlsVerify bool   `yaml:"tls-verify"`
+		TlsKey    string `yaml:"tls-key"`
+		TlsCert   string `yaml:"tls-cert"`
+		TlsCaCert string `yaml:"tls-ca-cert"`
+	} `yaml:"secret"`
 
-	ZipkinUrl string
-}
+	Helm struct {
+		TillerConnectionTimeout time.Duration `yaml:"tiller_time_out"`
+		TillerHost              string        `yaml:"tillerHost"`
+	} `yaml:"helm"`
 
-var envMap = map[string]string{
-	"debug": DebugEnvVar,
-	"home":  HomeEnvVar,
-	"port":  PortEnvVar,
+	Kube struct {
+		KubeContext string `yaml:"config"`
+		KubeConfig  string `yaml:"context"`
+	} `yaml:"kube"`
 
-	"httpreadtimeout":  HTTPRTimeOutEnvVar,
-	"httpwritetimeout": HTTPWTimeOutEnvVar,
+	Trace struct {
+		ZipkinUrl string `yaml:"zipkin_url"`
+	} `yaml:"trace"`
 
-	"zipkinurl":                 ZipkinUrl,
-	"tiller-connection-timeout": TillerConnTimeOut,
-	"kube-context":              KubeContext,
-	"JwtSecret":                 JwtSecret,
-}
-
-// AddFlags binds flags to the given flagset.
-func (conf *Config) AddFlags(fs *pflag.FlagSet) {
-
-	fs.BoolVar(&conf.Debug, "debug", false, "enable verbose output")
-	fs.StringVar((*string)(&conf.Home), "home", DefaultWalmHome, "location of your Walm config. Overrides $WALM_HOME")
-	fs.IntVar(&conf.HTTPPort, "port", 8000, "api server port")
-
-	fs.StringVar(&conf.JwtSecret, "jwtsecret", "", "value of jwtsecrect")
-
-	fs.DurationVar(&conf.ReadTimeout, "httpreadtimeout", time.Duration(0), "httpreadtimeout")
-	fs.DurationVar(&conf.WriteTimeout, "httpwritetimeout", time.Duration(0), "httpwritetimeout")
-
-	fs.StringVar(&conf.ZipkinUrl, "zipkinurl", "", "zipkin url")
-	fs.Int64Var(&conf.TillerConnectionTimeout, "tiller-connection-timeout", int64(300), "the duration (in seconds) Helm will wait to establish a connection to tiller")
-	fs.StringVar(&conf.KubeContext, "kube-context", "", "name of the kubeconfig context to use")
+	Auth struct {
+		Enable    bool   `yaml:"enalbe"`
+		JwtSecret string `yaml:"jwtsecret"`
+	} `yaml:"auth"`
 }
 
 // Init sets values from the environment.
-func (conf *Config) Init(fs *pflag.FlagSet) {
-	for name, envar := range envMap {
-		conf.setFlagFromEnv(name, envar, fs)
-	}
-
-	{
-		ensureDirectories(conf.Home)
-	}
-}
-
-func (conf *Config) setFlagFromEnv(name, envar string, fs *pflag.FlagSet) {
-	if fs.Changed(name) {
-		return
-	}
-	if v, ok := os.LookupEnv(envar); ok {
-		fs.Set(name, v)
-	}
-}
-
-// Deprecated
-const (
-	HomeEnvVar  = "WALM_HOME"
-	PortEnvVar  = "WALM_HTTP_PORT"
-	DebugEnvVar = "WALM_DEBUG"
-
-	HTTPRTimeOutEnvVar = "HTTP_READ_TIMEOUT"
-	HTTPWTimeOutEnvVar = "HTTP_WRITE_TIMEOUT"
-
-	ZipkinUrl         = "ZIPKIN_URL"
-	TillerConnTimeOut = "TILLER_CONN_TIMEOUT"
-	KubeContext       = "KUBE_CONTEXT"
-	JwtSecret         = "WALM_JWTSECRET"
-)
-
-// envMap maps flag names to envvars
-
-func ensureDirectories(home homepath.Home) error {
-	configDirectories := []string{
-		home.String(),
-	}
-
-	for _, p := range configDirectories {
-		if fi, err := os.Stat(p); err != nil {
-			if err := os.MkdirAll(p, 0755); err != nil {
-				return fmt.Errorf("Could not create %s: %s", p, err)
-			}
-		} else if !fi.IsDir() {
-			return fmt.Errorf("%s must be a directory", p)
-		}
-	}
-
-	return nil
+func (conf *Config) Init() {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("conf")
+	viper.SetDefault("home", DefaultWalmHome)
+	viper.AddConfigPath(ConfigPath)
+	viper.ReadInConfig()
+	viper.Unmarshal(conf)
 }

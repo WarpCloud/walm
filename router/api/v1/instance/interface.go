@@ -51,7 +51,7 @@ func DeleteInstance(c *gin.Context) {
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/namespace/:namespace/name/:appname [post]
+// @Router /instance/namespace/{namespace}/name/{appname} [post]
 func DeployInstance(c *gin.Context) {
 
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
@@ -81,10 +81,10 @@ func DeployInstance(c *gin.Context) {
 // @Param   appname     path    string     true      "identifier of the appname"
 // @Param   max     query    int     false      "max num to display"
 // @Param   offset     query    int     false      "the offset of result"
-// @Success 200 {object} helm.ReleaseInfo	"ok"
+// @Success 200 {array} helm.ReleaseInfo	"ok"
 // @Failure 404 {object} ex.ApiResponse "Invalid status not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/namespace/:namespace/list [get]
+// @Router /instance/namespace/{namespace}/list [get]
 func ListInstances(c *gin.Context) {
 
 	name := c.Param("namespace")
@@ -132,7 +132,7 @@ func ListInstances(c *gin.Context) {
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   appname     path    string     true        "identifier of the application"
-// @Success 200 {object} helm.ReleaseInfo	"ok"
+// @Success 200 {array} helm.ReleaseInfo	"ok"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
@@ -192,7 +192,7 @@ func RollBackInstance(c *gin.Context) {
 // @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
-// @Router /instance/namespace/:namespace/name/:appname [put]
+// @Router /instance/namespace/{namespace}/name/{appname} [put]
 func UpdateInstance(c *gin.Context) {
 
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {

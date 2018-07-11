@@ -21,13 +21,15 @@ type Server struct {
 
 func (server *Server) StartServer() error {
 	go func() {
-		router := InitRouter(server.OauthEnable, server.RunMode)
+
 		if !server.RunMode {
 			//EndTrac will be called when close the server
 			//so the init need be placed here
 			middleware.InitTracer(server.ZipkinUrl, server.Port)
 			defer middleware.EndTrace()
 		}
+
+		router := InitRouter(server.OauthEnable, server.RunMode)
 
 		s := &http.Server{
 			Addr:           fmt.Sprintf(":%d", server.Port),

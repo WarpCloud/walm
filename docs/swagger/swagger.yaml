@@ -127,8 +127,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
+            items:
+              $ref: '#/definitions/helm.ReleaseInfo'
+            type: array
         "400":
           description: Invalid Name supplied!
           schema:
@@ -241,7 +242,7 @@ paths:
             type: object
       tags:
       - Cluster
-  /instance/namespace/:
+  /instance/namespace/{namespace}/list:
     get:
       consumes:
       - application/json
@@ -271,10 +272,52 @@ paths:
         "200":
           description: ok
           schema:
-            $ref: '#/definitions/helm.ReleaseInfo'
-            type: object
+            items:
+              $ref: '#/definitions/helm.ReleaseInfo'
+            type: array
         "404":
           description: Invalid status not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - instance
+  /instance/namespace/{namespace}/name/{appname}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an Appliation
+      parameters:
+      - description: identifier of the instance
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: identifier of the instance
+        in: path
+        name: appname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Instance not found
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object
@@ -384,47 +427,6 @@ paths:
             type: object
       tags:
       - instance
-  /instance/namespace/{namespace}/name/{appname}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an Appliation
-      parameters:
-      - description: identifier of the instance
-        in: path
-        name: namespace
-        required: true
-        type: string
-      - description: identifier of the instance
-        in: path
-        name: appname
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "400":
-          description: Invalid Name supplied!
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "404":
-          description: Instance not found
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-        "500":
-          description: Server Error
-          schema:
-            $ref: '#/definitions/ex.ApiResponse'
-            type: object
-      tags:
-      - instance
   /instance/namespace/{namespace}/name/{appname}/info:
     get:
       consumes:
@@ -447,8 +449,9 @@ paths:
         "200":
           description: ok
           schema:
-            $ref: '#/definitions/helm.ReleaseInfo'
-            type: object
+            items:
+              $ref: '#/definitions/helm.ReleaseInfo'
+            type: array
         "400":
           description: Invalid Name supplied!
           schema:

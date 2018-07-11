@@ -7,21 +7,9 @@ import (
 
 	"walm/pkg/setting"
 	. "walm/pkg/util/log"
-
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	tlsCaCertFile string // path to TLS CA certificate file
-	tlsCertFile   string // path to TLS certificate file
-	tlsKeyFile    string // path to TLS key file
-	tlsEnable     bool   // enable TLS
-
-	tlsCaCertDefault = "$WALM_HOME/ca.pem"
-	tlsCertDefault   = "$WALM_HOME/cert.pem"
-	tlsKeyDefault    = "$WALM_HOME/key.pem"
-
-	client   *kubernetes.Clientset
 	conf setting.Config
 )
 
@@ -41,27 +29,17 @@ func newRootCmd(args []string) *cobra.Command {
 		Short:        "The Warp application lifecycle manager.",
 		Long:         globalUsage,
 		SilenceUsage: true,
-		PersistentPreRunE: func(*cobra.Command, []string) error {
-			tlsCaCertFile = os.ExpandEnv(tlsCaCertFile)
-			tlsCertFile = os.ExpandEnv(tlsCertFile)
-			tlsKeyFile = os.ExpandEnv(tlsKeyFile)
-
-			return nil //setupConnection()
-		},
 	}
 	flags := cmd.PersistentFlags()
 
-	conf.AddFlags(flags)
-
 	cmd.AddCommand(
-		// chart commands
-		addFlagsTLS(newServCmd()),
+		addFlagsConfig(newServCmd()),
 		newVersionCmd(),
 	)
 
 	flags.Parse(args)
-	// set defaults from environment
-	conf.Init(flags)
+
+	conf.Init()
 
 	return cmd
 }
@@ -108,13 +86,8 @@ func getKubeClient(context string) (*rest.Config, *kubernetes.Clientset, error) 
 
 // addFlagsTLS adds the flags for supporting client side TLS to the
 // helm command (only those that invoke communicate to Tiller.)
-func addFlagsTLS(cmd *cobra.Command) *cobra.Command {
+func addFlagsConfig(cmd *cobra.Command) *cobra.Command {
 
-	// add flags
-	cmd.Flags().StringVar(&tlsCaCertFile, "tls-ca-cert", tlsCaCertDefault, "path to TLS CA certificate file")
-	cmd.Flags().StringVar(&tlsCertFile, "tls-cert", tlsCertDefault, "path to TLS certificate file")
-	cmd.Flags().StringVar(&tlsKeyFile, "tls-key", tlsKeyDefault, "path to TLS key file")
-	//cmd.Flags().BoolVar(&tlsVerify, "tls-verify", false, "enable TLS for request and verify remote")
-	cmd.Flags().BoolVar(&tlsEnable, "tls", false, "enable TLS for request")
+	cmd.Flags().StringVar(&setting.ConfigPath, "conf", "/etc/walm/conf", "path of the config file")
 	return cmd
 }

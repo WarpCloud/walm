@@ -49,8 +49,10 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/ex.ApiResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/helm.ReleaseInfo"
+                            }
                         }
                     },
                     "400": {
@@ -273,7 +275,7 @@
                 }
             }
         },
-        "/instance/namespace/": {
+        "/instance/namespace/{namespace}/list": {
             "get": {
                 "description": "find the aim instance status",
                 "consumes": [
@@ -317,8 +319,10 @@
                     "200": {
                         "description": "ok",
                         "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/helm.ReleaseInfo"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/helm.ReleaseInfo"
+                            }
                         }
                     },
                     "404": {
@@ -336,7 +340,9 @@
                         }
                     }
                 }
-            },
+            }
+        },
+        "/instance/namespace/{namespace}/name/{appname}": {
             "put": {
                 "description": "Update an Appliation",
                 "consumes": [
@@ -479,9 +485,7 @@
                         }
                     }
                 }
-            }
-        },
-        "/instance/namespace/{namespace}/name/{appname}": {
+            },
             "delete": {
                 "description": "Delete an Appliation",
                 "consumes": [
@@ -573,8 +577,10 @@
                     "200": {
                         "description": "ok",
                         "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/helm.ReleaseInfo"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/helm.ReleaseInfo"
+                            }
                         }
                     },
                     "400": {

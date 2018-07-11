@@ -33,13 +33,13 @@ func newServCmd() *cobra.Command {
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if conf.HTTPPort == 0 {
+			if conf.Http.HTTPPort == 0 {
 				Log.Errorln("start API server failed, please spec JwtSecret")
 				return errors.New("none port spec")
 			}
-			if inst.oauth {
-				if len(conf.JwtSecret) > 0 {
-					oauth.SetJwtSecret(conf.JwtSecret)
+			if conf.Auth.Enable {
+				if len(conf.Auth.JwtSecret) > 0 {
+					oauth.SetJwtSecret(conf.Auth.JwtSecret)
 				} else {
 					Log.Errorln("If enable oauth ,please set JwtSecret")
 					return errors.New("none JwtSecret")
@@ -50,9 +50,6 @@ func newServCmd() *cobra.Command {
 		},
 	}
 
-	f := cmd.Flags()
-	f.BoolVar(&inst.oauth, "oauth", false, "enable oauth or not")
-
 	return cmd
 }
 
@@ -61,15 +58,15 @@ func (sc *ServCmd) run() error {
 
 	server := &router.Server{
 		ApiErrCh:     apiErrCh,
-		Port:         conf.HTTPPort,
-		OauthEnable:  sc.oauth,
-		TlsEnable:    tlsEnable,
-		TlsCertFile:  tlsCertFile,
-		TlsKeyFile:   tlsKeyFile,
-		ReadTimeout:  conf.ReadTimeout,
-		WriteTimeout: conf.WriteTimeout,
+		Port:         conf.Http.HTTPPort,
+		OauthEnable:  conf.Auth.Enable,
+		TlsEnable:    conf.Secret.Tls,
+		TlsCertFile:  conf.Secret.TlsCert,
+		TlsKeyFile:   conf.Secret.TlsKey,
+		ReadTimeout:  conf.Http.ReadTimeout,
+		WriteTimeout: conf.Http.WriteTimeout,
 		RunMode:      conf.Debug,
-		ZipkinUrl:    conf.ZipkinUrl,
+		ZipkinUrl:    conf.Trace.ZipkinUrl,
 	}
 
 	if err := server.StartServer(); err != nil {
