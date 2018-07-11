@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	fakerest "k8s.io/client-go/rest/fake"
@@ -39,7 +40,7 @@ import (
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/client-go/restmapper"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	coretesting "k8s.io/client-go/testing"
 )
 
@@ -96,11 +97,11 @@ func fakeScaleClient(t *testing.T) (ScalesGetter, []schema.GroupResource) {
 		},
 	}
 
-	restMapperRes, err := restmapper.GetAPIGroupResources(fakeDiscoveryClient)
+	restMapperRes, err := discovery.GetAPIGroupResources(fakeDiscoveryClient)
 	if err != nil {
 		t.Fatalf("unexpected error while constructing resource list from fake discovery client: %v", err)
 	}
-	restMapper := restmapper.NewDiscoveryRESTMapper(restMapperRes)
+	restMapper := discovery.NewRESTMapper(restMapperRes, apimeta.InterfacesForUnstructured)
 
 	autoscalingScale := &autoscalingv1.Scale{
 		TypeMeta: metav1.TypeMeta{

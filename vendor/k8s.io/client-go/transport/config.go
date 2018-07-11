@@ -17,7 +17,6 @@ limitations under the License.
 package transport
 
 import (
-	"context"
 	"net"
 	"net/http"
 )
@@ -54,7 +53,7 @@ type Config struct {
 	WrapTransport func(rt http.RoundTripper) http.RoundTripper
 
 	// Dial specifies the dial function for creating unencrypted TCP connections.
-	Dial func(ctx context.Context, network, address string) (net.Conn, error)
+	Dial func(network, addr string) (net.Conn, error)
 }
 
 // ImpersonationConfig has all the available impersonation options
