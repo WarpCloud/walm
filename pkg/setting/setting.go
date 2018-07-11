@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-var ConfigPath = "/home/hanbing/myworkspace/go/src/viper_demo"
+var ConfigPath = ""
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 

@@ -87,8 +87,8 @@ func DeployInstance(c *gin.Context) {
 // @Router /instance/namespace/{namespace}/list [get]
 func ListInstances(c *gin.Context) {
 
-	name := c.Param("namespace")
-	if len(name) == 0 {
+	namespace := c.Param("namespace")
+	if len(namespace) == 0 {
 		c.JSON(ex.ReturnBadRequest())
 		return
 	}
@@ -111,7 +111,7 @@ func ListInstances(c *gin.Context) {
 		}
 	}
 
-	if releases, err := helm.ListReleases(); err != nil {
+	if releases, err := helm.ListReleases(namespace); err != nil {
 		c.JSON(ex.ReturnInternalServerError(err))
 	} else {
 		ilen := imax + ioffset

@@ -1,4 +1,6 @@
 package: walm
+ignore:
+- transwarp
 import:
 - package: github.com/dgrijalva/jwt-go
   version: ^3.2.0
@@ -39,8 +41,11 @@ import:
   - swaggerFiles
 - package: github.com/swaggo/swag
   version: ^1.1.1
-- package: gopkg.in/pipe.v2
-- package: k8s.io/client-go/kubernetes
-- package: k8s.io/client-go/util/homedir
+- package: k8s.io/client-go
+  version: 7.0.0
+- package: k8s.io/apiserver
+  version: release-1.10
+- package: k8s.io/helm
+  version: v2.10.0-rc.1
 testImport:
 - package: gopkg.in/check.v1
