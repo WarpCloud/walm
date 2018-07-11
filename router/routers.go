@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/swaggo/gin-swagger"
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 
@@ -11,7 +11,6 @@ import (
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
-	clus "walm/router/api/v1/cluster"
 	inst "walm/router/api/v1/instance"
 	"walm/router/ex"
 	"walm/router/middleware"
@@ -82,13 +81,13 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		//@Tags
 		//@Name cluster
 		//@Description cluster lifecycle manager
-		cluster := apiv1.Group("/cluster")
-		{
-			cluster.POST("/namespace/:namespace/name/:name", clus.DeployCluster)
-			cluster.GET("/namespace/:namespace/name/:name", clus.StatusCluster)
-			cluster.DELETE("/namespace/:namespace/name/:name", clus.DeleteCluster)
-			cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
-		}
+		//cluster := apiv1.Group("/cluster")
+		//{
+		//	cluster.POST("/namespace/:namespace/name/:name", clus.DeployCluster)
+		//	cluster.GET("/namespace/:namespace/name/:name", clus.StatusCluster)
+		//	cluster.DELETE("/namespace/:namespace/name/:name", clus.DeleteCluster)
+		//	cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
+		//}
 
 	}
 

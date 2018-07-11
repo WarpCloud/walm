@@ -60,8 +60,6 @@ func newRootCmd(args []string) *cobra.Command {
 	)
 
 	flags.Parse(args)
-	// set defaults from environment
-	conf.Init(flags)
 
 	return cmd
 }
@@ -109,7 +107,6 @@ func getKubeClient(context string) (*rest.Config, *kubernetes.Clientset, error) 
 // addFlagsTLS adds the flags for supporting client side TLS to the
 // helm command (only those that invoke communicate to Tiller.)
 func addFlagsTLS(cmd *cobra.Command) *cobra.Command {
-
 	// add flags
 	cmd.Flags().StringVar(&tlsCaCertFile, "tls-ca-cert", tlsCaCertDefault, "path to TLS CA certificate file")
 	cmd.Flags().StringVar(&tlsCertFile, "tls-cert", tlsCertDefault, "path to TLS certificate file")
