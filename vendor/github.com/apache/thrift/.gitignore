@@ -52,7 +52,6 @@ project.lock.json
 .vscode
 .vs
 
-/contrib/.vagrant/
 /aclocal/libtool.m4
 /aclocal/lt*.m4
 /autoscan.log
@@ -87,6 +86,7 @@ project.lock.json
 /configure
 /configure.lineno
 /configure.scan
+/contrib/.vagrant/
 /contrib/fb303/config.cache
 /contrib/fb303/config.log
 /contrib/fb303/config.status
@@ -104,6 +104,10 @@ project.lock.json
 /lib/cl/backport-update.zip
 /lib/cl/lib
 /lib/cl/run-tests
+/lib/cl/quicklisp.lisp
+/lib/cl/externals/
+/lib/cl/run-tests
+/lib/cl/quicklisp/
 /lib/cpp/Debug/
 /lib/cpp/Debug-mt/
 /lib/cpp/Release/
@@ -122,8 +126,9 @@ project.lock.json
 /lib/cpp/test/OptionalRequiredTest
 /lib/cpp/test/SecurityTest
 /lib/cpp/test/SpecializationTest
-/lib/cpp/test/ReflectionTest
 /lib/cpp/test/RecursiveTest
+/lib/cpp/test/ReflectionTest
+/lib/cpp/test/RenderedDoubleConstantsTest
 /lib/cpp/test/TFDTransportTest
 /lib/cpp/test/TFileTransportTest
 /lib/cpp/test/TInterruptTest
@@ -191,6 +196,8 @@ project.lock.json
 /lib/dart/**/packages
 /lib/dart/**/.pub/
 /lib/dart/**/pubspec.lock
+/lib/delphi/test/skip/*.request
+/lib/delphi/test/skip/*.response
 /lib/delphi/**/*.identcache
 /lib/delphi/**/*.local
 /lib/delphi/**/*.dcu
@@ -241,6 +248,7 @@ project.lock.json
 /lib/php/src/ext/thrift_protocol/build/
 /lib/php/src/ext/thrift_protocol/config.*
 /lib/php/src/ext/thrift_protocol/configure
+/lib/php/src/ext/thrift_protocol/configure.ac
 /lib/php/src/ext/thrift_protocol/configure.in
 /lib/php/src/ext/thrift_protocol/install-sh
 /lib/php/src/ext/thrift_protocol/libtool
@@ -371,8 +379,4 @@ project.lock.json
 /tutorial/rs/target
 /tutorial/rs/Cargo.lock
 /ylwrap
-/lib/cl/quicklisp.lisp
-/lib/cl/externals/
-/lib/cl/run-tests
-/lib/cl/quicklisp/
 

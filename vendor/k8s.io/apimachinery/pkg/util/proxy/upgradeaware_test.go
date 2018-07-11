@@ -19,7 +19,6 @@ package proxy
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -342,7 +341,6 @@ func TestProxyUpgrade(t *testing.T) {
 	if !localhostPool.AppendCertsFromPEM(localhostCert) {
 		t.Errorf("error setting up localhostCert pool")
 	}
-	var d net.Dialer
 
 	testcases := map[string]struct {
 		ServerFunc       func(http.Handler) *httptest.Server
@@ -397,7 +395,7 @@ func TestProxyUpgrade(t *testing.T) {
 				ts.StartTLS()
 				return ts
 			},
-			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 		},
 		"https (valid hostname + RootCAs + custom dialer + bearer token)": {
 			ServerFunc: func(h http.Handler) *httptest.Server {
@@ -412,9 +410,9 @@ func TestProxyUpgrade(t *testing.T) {
 				ts.StartTLS()
 				return ts
 			},
-			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 			UpgradeTransport: NewUpgradeRequestRoundTripper(
-				utilnet.SetOldTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+				utilnet.SetOldTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 				RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 					req = utilnet.CloneRequest(req)
 					req.Header.Set("Authorization", "Bearer 1234")
@@ -498,15 +496,9 @@ func TestProxyUpgradeErrorResponse(t *testing.T) {
 		expectedErr = errors.New("EXPECTED")
 	)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		transport := &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return &fakeConn{err: expectedErr}, nil
-			},
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
+		transport := http.DefaultTransport.(*http.Transport)
+		transport.Dial = func(network, addr string) (net.Conn, error) {
+			return &fakeConn{err: expectedErr}, nil
 		}
 		responder = &fakeResponder{t: t, w: w}
 		proxyHandler := NewUpgradeAwareHandler(
