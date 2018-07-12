@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"walm/pkg/setting"
 	"walm/router/middleware"
 )
 
@@ -17,6 +18,28 @@ type Server struct {
 	WriteTimeout            time.Duration
 	RunMode                 bool
 	ZipkinUrl               string
+	server                  *http.Server
+}
+
+func NewServer(errch chan error) *Server {
+	conf := setting.Config
+	return &Server{
+		ApiErrCh: errch,
+
+		OauthEnable: conf.Auth.Enable,
+		TlsEnable:   conf.Secret.Tls,
+		TlsCertFile: conf.Secret.TlsCert,
+		TlsKeyFile:  conf.Secret.TlsKey,
+
+		RunMode:   conf.Debug,
+		ZipkinUrl: conf.Trace.ZipkinUrl,
+		server: &http.Server{
+			Addr:           fmt.Sprintf(":%d", conf.Http.HTTPPort),
+			ReadTimeout:    conf.Http.ReadTimeout,
+			WriteTimeout:   conf.Http.WriteTimeout,
+			MaxHeaderBytes: 1 << 20,
+		},
+	}
 }
 
 func (server *Server) StartServer() error {
@@ -31,21 +54,15 @@ func (server *Server) StartServer() error {
 
 		router := InitRouter(server.OauthEnable, server.RunMode)
 
-		s := &http.Server{
-			Addr:           fmt.Sprintf(":%d", server.Port),
-			Handler:        router,
-			ReadTimeout:    server.ReadTimeout,
-			WriteTimeout:   server.WriteTimeout,
-			MaxHeaderBytes: 1 << 20,
-		}
+		server.server.Handler = router
 		//walm_api.AddPrometheusHandler(restful.DefaultContainer)
 
 		if server.TlsEnable {
-			if err := s.ListenAndServeTLS(server.TlsCertFile, server.TlsKeyFile); err != nil {
+			if err := server.server.ListenAndServeTLS(server.TlsCertFile, server.TlsKeyFile); err != nil {
 				server.ApiErrCh <- err
 			}
 		} else {
-			if err := s.ListenAndServe(); err != nil {
+			if err := server.server.ListenAndServe(); err != nil {
 				server.ApiErrCh <- err
 			}
 		}

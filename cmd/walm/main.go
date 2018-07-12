@@ -5,12 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"walm/pkg/setting"
 	. "walm/pkg/util/log"
-)
-
-var (
-	conf setting.Config
 )
 
 var globalUsage = `The Warp application lifecycle manager
@@ -33,16 +28,11 @@ func newRootCmd(args []string) *cobra.Command {
 	flags := cmd.PersistentFlags()
 
 	cmd.AddCommand(
-		addFlagsConfig(newServCmd()),
+		newServCmd(),
 		newVersionCmd(),
 	)
 
 	flags.Parse(args)
-<<<<<<< HEAD
-
-	conf.Init()
-=======
->>>>>>> 15578ef04ffc8e0ed32cf553af65ae41a01a10a8
 
 	return cmd
 }
@@ -53,44 +43,4 @@ func main() {
 		Log.Errorln(err)
 		os.Exit(1)
 	}
-}
-
-/*
-func setupConnection() error {
-
-	if config, client, err := getKubeClient(settings.KubeContext); err != nil {
-		Log.Errorf("get kubenetes config failed: %s", err)
-	}
-	return nil
-}
-
-// configForContext creates a Kubernetes REST client configuration for a given kubeconfig context.
-func configForContext(context string) (*rest.Config, error) {
-	config, err := kube.GetConfig(context).ClientConfig()
-	if err != nil {
-		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", context, err)
-	}
-	return config, nil
-}
-
-// getKubeClient creates a Kubernetes config and client for a given kubeconfig context.
-func getKubeClient(context string) (*rest.Config, *kubernetes.Clientset, error) {
-	config, err := configForContext(context)
-	if err != nil {
-		return nil, nil, err
-	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not get Kubernetes client: %s", err)
-	}
-	return config, client, nil
-}
-*/
-
-// addFlagsTLS adds the flags for supporting client side TLS to the
-// helm command (only those that invoke communicate to Tiller.)
-func addFlagsConfig(cmd *cobra.Command) *cobra.Command {
-
-	cmd.Flags().StringVar(&setting.ConfigPath, "conf", "/etc/walm/conf", "path of the config file")
-	return cmd
 }

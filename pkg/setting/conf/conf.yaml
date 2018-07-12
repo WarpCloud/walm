@@ -1,26 +1,24 @@
 home: ""
 debug: false
 http:
-  port: 8000
+  port: 9000
   read_timeout: 0
   write_timeout: 0
-
 secret:
   tls: false
   tls-verify: false
   tls-key: ""
   tls-cert: ""
   tls-ca-cert: ""
-
 helm:
   tiller_time_out: 0
   tillerHost: ""
+  repoUrl: ""
 kube:
-  config: ""
+  config: "default"
   context: ""
 trace:
   zipkin_url: ""
-
 auth: 
   enalbe: false
   jwtsecret: ""

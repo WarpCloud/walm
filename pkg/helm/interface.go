@@ -1,39 +1,41 @@
 package helm
 
 import (
-	"os"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	. "walm/pkg/util/log"
 
+	"walm/pkg/setting"
+
 	"github.com/ghodss/yaml"
-	"k8s.io/helm/pkg/getter"
-	"k8s.io/helm/pkg/downloader"
-	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/downloader"
+	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/helm/environment"
+	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/repo"
 )
 
 type Interface struct {
 	helmClient *helm.Client
-	repoURL string
+	repoURL    string
 }
 
 var Helm *Interface
 
 func init() {
-	tillerHost := "172.26.0.5:31221"
+	tillerHost := setting.Config.Helm.TillerHost
 	client := helm.NewClient(helm.Host(tillerHost))
 	Helm = &Interface{
 		helmClient: client,
-		repoURL: "http://172.16.1.41:8880",
+		repoURL:    setting.Config.Helm.RepoURL,
 	}
-	HelmHome := helmpath.Home("/tmp/helmhome")
+	HelmHome := helmpath.Home(setting.Config.Home)
 	ensureDirectories(HelmHome)
 }
 
@@ -106,7 +108,7 @@ func DeleteRealese(namespace, releaseName string) error {
 		helm.DeletePurge(true),
 	}
 	res, err := Helm.helmClient.DeleteRelease(
-		releaseName, opts...
+		releaseName, opts...,
 	)
 	if res != nil && res.Info != "" {
 		Log.Println(res.Info)
@@ -219,4 +221,3 @@ func ensureDirectories(home helmpath.Home) error {
 
 	return nil
 }
-

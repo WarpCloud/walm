@@ -1,62 +1,103 @@
 package setting
 
 import (
+	"os"
 	"path/filepath"
 	"time"
+	. "walm/pkg/util/log"
+	"walm/pkg/util/oauth"
 
 	"github.com/spf13/viper"
 
 	"k8s.io/client-go/util/homedir"
 )
 
-var ConfigPath = ""
+var confEnvName = "WALM_CONF_PATH"
+
+//var configPath = "/etc/walm/conf"
+var configPath = "/home/hanbing/myworkspace/go/src/walm/pkg/setting/conf"
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 
-type Config struct {
-	Home  string `yaml:"home"`
-	Debug bool   `yaml:"debug"`
+var Config config
+
+type config struct {
+	Home  string `mapstructure:"home"`
+	Debug bool   `mapstructure:"debug"`
 
 	Http struct {
-		HTTPPort     int           `yaml:"port"`
-		ReadTimeout  time.Duration `yaml:"read_timeout"`
-		WriteTimeout time.Duration `yaml:"write_timeout"`
-	} `yaml:"http"`
+		HTTPPort     int           `mapstructure:"port"`
+		ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+		WriteTimeout time.Duration `mapstructure:"write_timeout"`
+	} `mapstructure:"http"`
 
 	Secret struct {
-		Tls       bool   `yaml:"tls"`
-		TlsVerify bool   `yaml:"tls-verify"`
-		TlsKey    string `yaml:"tls-key"`
-		TlsCert   string `yaml:"tls-cert"`
-		TlsCaCert string `yaml:"tls-ca-cert"`
-	} `yaml:"secret"`
+		Tls       bool   `mapstructure:"tls"`
+		TlsVerify bool   `mapstructure:"tls-verify"`
+		TlsKey    string `mapstructure:"tls-key"`
+		TlsCert   string `mapstructure:"tls-cert"`
+		TlsCaCert string `mapstructure:"tls-ca-cert"`
+	} `mapstructure:"secret"`
 
 	Helm struct {
-		TillerConnectionTimeout time.Duration `yaml:"tiller_time_out"`
-		TillerHost              string        `yaml:"tillerHost"`
-	} `yaml:"helm"`
+		TillerConnectionTimeout time.Duration `mapstructure:"tiller_time_out"`
+		TillerHost              string        `mapstructure:"tillerHost"`
+		RepoURL                 string        `mapstructure:"repoUrl"`
+	} `mapstructure:"helm"`
 
 	Kube struct {
-		KubeContext string `yaml:"config"`
-		KubeConfig  string `yaml:"context"`
-	} `yaml:"kube"`
+		Context string `mapstructure:"config"`
+		Config  string `mapstructure:"context"`
+	} `mapstructure:"kube"`
 
 	Trace struct {
-		ZipkinUrl string `yaml:"zipkin_url"`
-	} `yaml:"trace"`
+		ZipkinUrl string `mapstructure:"zipkin_url"`
+	} `mapstructure:"trace"`
 
 	Auth struct {
-		Enable    bool   `yaml:"enalbe"`
-		JwtSecret string `yaml:"jwtsecret"`
-	} `yaml:"auth"`
+		Enable    bool   `mapstructure:"enalbe"`
+		JwtSecret string `mapstructure:"jwtsecret"`
+	} `mapstructure:"auth"`
 }
 
 // Init sets values from the environment.
-func (conf *Config) Init() {
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("conf")
-	viper.SetDefault("home", DefaultWalmHome)
-	viper.AddConfigPath(ConfigPath)
-	viper.ReadInConfig()
-	viper.Unmarshal(conf)
+func init() {
+	vp := viper.New()
+	vp.SetConfigType("yaml")
+	vp.SetConfigName("conf")
+	vp.SetDefault("home", DefaultWalmHome)
+	vp.SetDefault("http.port", 8000)
+	if str, have := getEnv(); have {
+		configPath = str
+	}
+	vp.AddConfigPath(configPath)
+	if err := vp.ReadInConfig(); err != nil {
+		Log.Fatalf("Read config file faild! %s\n", err.Error())
+	}
+	if err := vp.Unmarshal(&Config); err != nil {
+		Log.Fatalf("Unmarshal config file faild! %s\n", err.Error())
+	}
+	verifyConfig()
+}
+
+func getEnv() (string, bool) {
+	if str := os.Getenv(confEnvName); len(str) > 0 {
+		return str, true
+	} else {
+		return str, false
+	}
+}
+
+func verifyConfig() {
+	if Config.Http.HTTPPort == 0 {
+		Log.Fatalln("start API server failed, please spec Http port")
+	}
+	if Config.Auth.Enable {
+		if len(Config.Auth.JwtSecret) > 0 {
+			oauth.SetJwtSecret(Config.Auth.JwtSecret)
+		} else {
+			Log.Fatalln("If enable oauth ,please set JwtSecret")
+		}
+
+	}
 }
