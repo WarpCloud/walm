@@ -4,6 +4,7 @@ import (
 	"os"
 	"io/ioutil"
 	"fmt"
+	"strings"
 
 	. "walm/pkg/util/log"
 
@@ -15,26 +16,38 @@ import (
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/helm/environment"
+	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/helm/pkg/transwarp"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
 )
 
-type Interface struct {
+type Client struct {
 	helmClient *helm.Client
-	repoURL string
+	chartRepository *repo.ChartRepository
 }
 
-var Helm *Interface
+var Helm *Client
 
 func init() {
 	tillerHost := "172.26.0.5:31221"
 	client := helm.NewClient(helm.Host(tillerHost))
-	Helm = &Interface{
-		helmClient: client,
-		repoURL: "http://172.16.1.41:8880",
+	helmHome := helmpath.Home("/tmp/helmhome")
+	ensureDirectories(helmHome)
+	ensureDefaultRepos(helmHome)
+	cif := helmHome.CacheIndex("stable")
+	c := repo.Entry{
+		Name:     "stable",
+		Cache:    cif,
+		URL:      "http://172.16.1.41:8880",
 	}
-	HelmHome := helmpath.Home("/tmp/helmhome")
-	ensureDirectories(HelmHome)
+	r, _ := repo.NewChartRepository(&c, getter.All(environment.EnvSettings{
+		Home: helmpath.Home("/tmp/helmhome"),}))
+	r.DownloadIndexFile(helmHome.Cache())
+	Helm = &Client{
+		helmClient: client,
+		chartRepository: r,
+	}
 }
 
 func ListReleases(namespace string) ([]ReleaseInfo, error) {
@@ -79,7 +92,16 @@ func InstallUpgradeRealese(releaseRequest ReleaseRequest) error {
 	if err != nil {
 		return err
 	}
-	parseDependencies(chartRequested)
+	dependencies, err := parseDependencies(chartRequested)
+	if err != nil {
+		return err
+	}
+	Log.Printf("Dep %v\n", dependencies)
+	depLinks := make(map[string]interface{})
+	for k, v := range releaseRequest.Dependencies {
+		depLinks[k] = v
+	}
+	installChart(releaseRequest.Name, releaseRequest.Namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
 	return nil
 }
 
@@ -115,6 +137,99 @@ func DeleteRealese(namespace, releaseName string) error {
 	return err
 }
 
+func downloadChart(name, version string) (string, error) {
+	dl := downloader.ChartDownloader{
+		Out:      os.Stdout,
+		HelmHome: helmpath.Home("/tmp/helmhome"),
+		Getters:  getter.All(environment.EnvSettings{
+			Home: helmpath.Home("/tmp/helmhome"),
+		}),
+	}
+
+	chartURL, err := repo.FindChartInRepoURL(Helm.chartRepository.Config.URL, name, version,
+		"", "", "", getter.All(environment.EnvSettings{
+			Home: helmpath.Home("/tmp/helmhome"),
+		}))
+	if err != nil {
+		return "", err
+	}
+
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return "", err
+	}
+	filename, _, err := dl.DownloadTo(chartURL, version, tmpDir)
+	if err != nil {
+		Log.Printf("DownloadTo err %v", err)
+		return "", err
+	}
+
+	return filename, nil
+}
+
+func parseDependencies(chart *chart.Chart) ([]string, error) {
+	dependencies := make([]string, 1)
+	for _, chartFile := range chart.Files {
+		Log.Printf("Chartfile %s \n", chartFile.TypeUrl)
+		if chartFile.TypeUrl == "transwarp-app-yaml" {
+			app := &AppDependency{}
+			err := yaml.Unmarshal(chartFile.Value, &app)
+			if err != nil {
+				return dependencies, err
+			}
+			for _, dependency := range app.Dependencies {
+				dependencies = append(dependencies, dependency.Name)
+			}
+		}
+	}
+	return dependencies, nil
+}
+
+func installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) error {
+	rawVals, err := yaml.Marshal(configValues)
+	if err != nil {
+		Log.Printf("Marshal Error %v\n", err)
+		return err
+	}
+	err = transwarp.ProcessAppCharts(Helm.helmClient, chart, releaseName, namespace, string(rawVals[:]), depLinks)
+	if err != nil {
+		return err
+	}
+	releaseHistory, err := Helm.helmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
+	if err == nil {
+		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
+		if previousReleaseNamespace != namespace {
+			Log.Printf("WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
+				namespace, previousReleaseNamespace,
+			)
+		}
+	}
+	if err != nil && strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
+		resp, err := Helm.helmClient.InstallReleaseFromChart(
+			chart,
+			namespace,
+			helm.ValueOverrides(rawVals),
+			helm.ReleaseName(releaseName),
+		)
+		if err != nil {
+			return fmt.Errorf("INSTALL FAILED: %v", err)
+		}
+		Log.Printf("%+v\n", resp)
+	}
+	resp, err := Helm.helmClient.UpdateReleaseFromChart(
+		releaseName,
+		chart,
+		helm.UpdateValueOverrides(rawVals),
+		helm.ReuseValues(true),
+	)
+	if err != nil {
+		return fmt.Errorf("UPGRADE FAILED: %v", err)
+	}
+	Log.Printf("%+v\n", resp)
+
+	return nil
+}
+
 func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) []ReleaseInfo {
 	var releaseInfos []ReleaseInfo
 	depLinks := make(map[string]string)
@@ -148,54 +263,6 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) []Releas
 	return releaseInfos
 }
 
-func downloadChart(name, version string) (string, error) {
-	dl := downloader.ChartDownloader{
-		Out:      os.Stdout,
-		HelmHome: helmpath.Home("/tmp/helmhome"),
-		Getters:  getter.All(environment.EnvSettings{}),
-	}
-
-	repoURL := Helm.repoURL
-	if repoURL != "" {
-		chartURL, err := repo.FindChartInRepoURL(repoURL, name, version,
-			"", "", "", getter.All(environment.EnvSettings{
-				Home: helmpath.Home("/tmp/helmhome"),
-			}))
-		if err != nil {
-			return "", err
-		}
-		name = chartURL
-	}
-
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return "", err
-	}
-	filename, _, err := dl.DownloadTo(name, version, tmpDir)
-
-	return filename, nil
-}
-
-func parseDependencies(chart *chart.Chart) error {
-	Log.Printf("%v\n", chart)
-	return nil
-}
-
-func installChart(chart *chart.Chart) error {
-	resp, err := Helm.helmClient.UpdateReleaseFromChart(
-		"",
-		chart,
-		helm.UpdateValueOverrides([]byte("")),
-		helm.ReuseValues(true),
-	)
-	if err != nil {
-		return fmt.Errorf("UPGRADE FAILED: %v", err)
-	}
-	Log.Printf("%+v\n", resp)
-
-	return nil
-}
-
 func ensureDirectories(home helmpath.Home) error {
 	configDirectories := []string{
 		home.String(),
@@ -220,3 +287,17 @@ func ensureDirectories(home helmpath.Home) error {
 	return nil
 }
 
+func ensureDefaultRepos(home helmpath.Home) error {
+	repoFile := home.RepositoryFile()
+	if fi, err := os.Stat(repoFile); err != nil {
+		fmt.Printf("Creating %s \n", repoFile)
+		f := repo.NewRepoFile()
+		if err := f.WriteFile(repoFile, 0644); err != nil {
+			return err
+		}
+	} else if !fi.IsDir() {
+		return fmt.Errorf("%s must be a directory", repoFile)
+	}
+
+	return nil
+}

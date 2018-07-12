@@ -21,3 +21,16 @@ type ReleaseRequest struct {
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 	//ChartURL string
 }
+
+type DependencyDeclare struct {
+	// name of dependency declaration
+	Name string `json:"name,omitempty"`
+	// dependency variable mappings
+	Requires map[string]string `json:"requires,omitempty"`
+}
+
+type AppDependency struct {
+	Name string `json:"name,omitempty"`
+	Dependencies []*DependencyDeclare `json:"dependencies"`
+}
+

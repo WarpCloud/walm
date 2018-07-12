@@ -1,8 +1,6 @@
 package main
 
 import (
-	"walm/pkg/version"
-
 	"github.com/spf13/cobra"
 )
 
@@ -29,5 +27,5 @@ func newVersionCmd() *cobra.Command {
 }
 
 func (vc *vCmd) run() {
-	version.PrintVersionInfo()
+	//version.PrintVersionInfo()
 }
