@@ -8,6 +8,5 @@ bin/
 rootfs/helm
 rootfs/tiller
 rootfs/rudder
-vendor/
 *.exe
 .idea/

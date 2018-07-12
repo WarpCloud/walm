@@ -41,6 +41,7 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/release"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/strvals"
+	"k8s.io/helm/pkg/transwarp"
 )
 
 const installDesc = `
@@ -119,6 +120,7 @@ type installCmd struct {
 	out            io.Writer
 	client         helm.Interface
 	values         []string
+	links          []string
 	stringValues   []string
 	nameTemplate   string
 	version        string
@@ -194,6 +196,7 @@ func newInstallCmd(c helm.Interface, out io.Writer) *cobra.Command {
 	f.BoolVar(&inst.disableCRDHook, "no-crd-hook", false, "prevent CRD hooks from running, but run other hooks")
 	f.BoolVar(&inst.replace, "replace", false, "re-use the given name, even if that name is already used. This is unsafe in production")
 	f.StringArrayVar(&inst.values, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	f.StringArrayVar(&inst.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	f.StringArrayVar(&inst.stringValues, "set-string", []string{}, "set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	f.StringVar(&inst.nameTemplate, "name-template", "", "specify template used to name the release")
 	f.BoolVar(&inst.verify, "verify", false, "verify the package before installing it")
@@ -235,8 +238,24 @@ func (i *installCmd) run() error {
 		fmt.Printf("FINAL NAME: %s\n", i.name)
 	}
 
+	if i.name == "" {
+		return fmt.Errorf("Name must be set\n")
+	}
+
 	// Check chart requirements to make sure all dependencies are present in /charts
 	chartRequested, err := chartutil.Load(i.chartPath)
+	if err != nil {
+		return prettyError(err)
+	}
+
+	depLinks := map[string]interface{}{}
+	for _, value := range i.links {
+		if err := strvals.ParseInto(value, depLinks); err != nil {
+			return fmt.Errorf("failed parsing --set data: %s", err)
+		}
+	}
+
+	err = transwarp.ProcessAppCharts(i.client, chartRequested, i.name, i.namespace, string(rawVals[:]), depLinks)
 	if err != nil {
 		return prettyError(err)
 	}
@@ -408,7 +427,7 @@ func (i *installCmd) printRelease(rel *release.Release) {
 //
 // If 'verify' is true, this will attempt to also verify the chart.
 func locateChartPath(repoURL, username, password, name, version string, verify bool, keyring,
-	certFile, keyFile, caFile string) (string, error) {
+certFile, keyFile, caFile string) (string, error) {
 	name = strings.TrimSpace(name)
 	version = strings.TrimSpace(version)
 	if fi, err := os.Stat(name); err == nil {
@@ -435,24 +454,41 @@ func locateChartPath(repoURL, username, password, name, version string, verify b
 		return filepath.Abs(crepo)
 	}
 
-	dl := downloader.ChartDownloader{
-		HelmHome: settings.Home,
-		Out:      os.Stdout,
-		Keyring:  keyring,
-		Getters:  getter.All(settings),
-		Username: username,
-		Password: password,
-	}
-	if verify {
-		dl.Verify = downloader.VerifyAlways
-	}
-	if repoURL != "" {
-		chartURL, err := repo.FindChartInAuthRepoURL(repoURL, username, password, name, version,
-			certFile, keyFile, caFile, getter.All(settings))
-		if err != nil {
-			return "", err
+	var dl downloader.Downloader
+	parts := len(strings.Split(name, "/"))
+	if parts == 3 {
+		transwarpDownloader := downloader.TranswarpDownloader{
+			HelmHome: settings.Home,
+			Out:      os.Stdout,
+			Username: username,
+			Password: password,
+			Getters:  getter.All(settings),
 		}
-		name = chartURL
+
+		if verify {
+			transwarpDownloader.Verify = downloader.VerifyAlways
+		}
+		dl = &transwarpDownloader
+	} else {
+		originalDownloader := downloader.ChartDownloader{
+			HelmHome: settings.Home,
+			Out:      os.Stdout,
+			Keyring:  keyring,
+			Getters:  getter.All(settings),
+		}
+
+		if verify {
+			originalDownloader.Verify = downloader.VerifyAlways
+		}
+		if repoURL != "" {
+			chartURL, err := repo.FindChartInRepoURL(repoURL, name, version,
+				certFile, keyFile, caFile, getter.All(settings))
+			if err != nil {
+				return "", err
+			}
+			name = chartURL
+		}
+		dl = &originalDownloader
 	}
 
 	if _, err := os.Stat(settings.Home.Archive()); os.IsNotExist(err) {

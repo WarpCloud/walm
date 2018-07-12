@@ -167,7 +167,11 @@ func (l *listCmd) run() error {
 		return prettyError(err)
 	}
 
-	rels := filterList(res.Releases)
+	if res == nil {
+		return nil
+	}
+
+	rels := filterList(res.GetReleases())
 
 	result := getListResult(rels, res.Next)
 

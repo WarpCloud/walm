@@ -42,8 +42,12 @@ type config struct {
 	Helm struct {
 		TillerConnectionTimeout time.Duration `mapstructure:"tiller_time_out"`
 		TillerHost              string        `mapstructure:"tillerHost"`
-		RepoURL                 string        `mapstructure:"repoUrl"`
 	} `mapstructure:"helm"`
+
+	Repo struct {
+		Name string `mapstructure:"name"`
+		URL  string `mapstructure:"url"`
+	} `mapstructure:"repo"`
 
 	Kube struct {
 		Context string `mapstructure:"config"`

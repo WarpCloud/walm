@@ -32,7 +32,7 @@ var magicGzip = []byte{0x1f, 0x8b, 0x08}
 
 // encodeRelease encodes a release returning a base64 encoded
 // gzipped binary protobuf encoding representation, or error.
-func encodeRelease(rls *rspb.Release) (string, error) {
+func EncodeRelease(rls *rspb.Release) (string, error) {
 	b, err := proto.Marshal(rls)
 	if err != nil {
 		return "", err
@@ -54,7 +54,7 @@ func encodeRelease(rls *rspb.Release) (string, error) {
 // type. Data must contain a base64 encoded string of a
 // valid protobuf encoding of a release, otherwise
 // an error is returned.
-func decodeRelease(data string) (*rspb.Release, error) {
+func DecodeRelease(data string) (*rspb.Release, error) {
 	// base64 decode string
 	b, err := b64.DecodeString(data)
 	if err != nil {

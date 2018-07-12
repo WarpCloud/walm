@@ -13,7 +13,9 @@ secret:
 helm:
   tiller_time_out: 0
   tillerHost: ""
-  repoUrl: ""
+repo:
+  name: ""
+  url: ""
 kube:
   config: "default"
   context: ""
