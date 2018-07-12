@@ -24,8 +24,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/strvals"
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/helm/pkg/transwarp"
 )
 
 const upgradeDesc = `
@@ -64,6 +66,7 @@ type upgradeCmd struct {
 	disableHooks bool
 	valueFiles   valueFiles
 	values       []string
+	links        []string
 	stringValues []string
 	verify       bool
 	keyring      string
@@ -120,6 +123,7 @@ func newUpgradeCmd(client helm.Interface, out io.Writer) *cobra.Command {
 	f.BoolVar(&upgrade.recreate, "recreate-pods", false, "performs pods restart for the resource if applicable")
 	f.BoolVar(&upgrade.force, "force", false, "force resource update through delete/recreate if needed")
 	f.StringArrayVar(&upgrade.values, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	f.StringArrayVar(&upgrade.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	f.StringArrayVar(&upgrade.stringValues, "set-string", []string{}, "set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 	f.BoolVar(&upgrade.disableHooks, "disable-hooks", false, "disable pre/post upgrade hooks. DEPRECATED. Use no-hooks")
 	f.BoolVar(&upgrade.disableHooks, "no-hooks", false, "disable pre/post upgrade hooks")
@@ -185,6 +189,7 @@ func (u *upgradeCmd) run() error {
 				verify:       u.verify,
 				disableHooks: u.disableHooks,
 				keyring:      u.keyring,
+				links:        u.links,
 				values:       u.values,
 				stringValues: u.stringValues,
 				namespace:    u.namespace,
@@ -201,7 +206,8 @@ func (u *upgradeCmd) run() error {
 	}
 
 	// Check chart requirements to make sure all dependencies are present in /charts
-	if ch, err := chartutil.Load(chartPath); err == nil {
+	ch, err := chartutil.Load(chartPath)
+	if err == nil {
 		if req, err := chartutil.LoadRequirements(ch); err == nil {
 			if err := checkDependencies(ch, req); err != nil {
 				return err
@@ -209,13 +215,23 @@ func (u *upgradeCmd) run() error {
 		} else if err != chartutil.ErrRequirementsNotFound {
 			return fmt.Errorf("cannot load requirements: %v", err)
 		}
+		depLinks := map[string]interface{}{}
+		for _, value := range u.links {
+			if err := strvals.ParseInto(value, depLinks); err != nil {
+				return fmt.Errorf("failed parsing --set data: %s", err)
+			}
+		}
+		err = transwarp.ProcessAppCharts(u.client, ch, u.release, u.namespace, string(rawVals[:]), depLinks)
+		if err != nil {
+			return prettyError(err)
+		}
 	} else {
 		return prettyError(err)
 	}
 
-	resp, err := u.client.UpdateRelease(
+	resp, err := u.client.UpdateReleaseFromChart(
 		u.release,
-		chartPath,
+		ch,
 		helm.UpdateValueOverrides(rawVals),
 		helm.UpgradeDryRun(u.dryRun),
 		helm.UpgradeRecreate(u.recreate),

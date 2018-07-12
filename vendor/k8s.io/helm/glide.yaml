@@ -1,4 +1,6 @@
 package: k8s.io/helm
+ignore:
+- transwarp
 import:
 - package: golang.org/x/net
   subpackages:
@@ -60,6 +62,9 @@ import:
   version: release-1.10
 - package: github.com/cyphar/filepath-securejoin
   version: ^0.2.1
+- package: transwarp/application-instance
+  version: master
+  repo: http://172.16.1.41:10080/k8s/application-instance.git
 
 testImports:
 - package: github.com/stretchr/testify

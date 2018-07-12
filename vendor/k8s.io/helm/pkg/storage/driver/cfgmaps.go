@@ -72,7 +72,7 @@ func (cfgmaps *ConfigMaps) Get(key string) (*rspb.Release, error) {
 		return nil, err
 	}
 	// found the configmap, decode the base64 data string
-	r, err := decodeRelease(obj.Data["release"])
+	r, err := DecodeRelease(obj.Data["release"])
 	if err != nil {
 		cfgmaps.Log("get: failed to decode data %q: %s", key, err)
 		return nil, err
@@ -99,7 +99,7 @@ func (cfgmaps *ConfigMaps) List(filter func(*rspb.Release) bool) ([]*rspb.Releas
 	// iterate over the configmaps object list
 	// and decode each release
 	for _, item := range list.Items {
-		rls, err := decodeRelease(item.Data["release"])
+		rls, err := DecodeRelease(item.Data["release"])
 		if err != nil {
 			cfgmaps.Log("list: failed to decode release: %v: %s", item, err)
 			continue
@@ -136,7 +136,7 @@ func (cfgmaps *ConfigMaps) Query(labels map[string]string) ([]*rspb.Release, err
 
 	var results []*rspb.Release
 	for _, item := range list.Items {
-		rls, err := decodeRelease(item.Data["release"])
+		rls, err := DecodeRelease(item.Data["release"])
 		if err != nil {
 			cfgmaps.Log("query: failed to decode release: %s", err)
 			continue
@@ -232,7 +232,7 @@ func newConfigMapsObject(key string, rls *rspb.Release, lbs labels) (*core.Confi
 	const owner = "TILLER"
 
 	// encode the release
-	s, err := encodeRelease(rls)
+	s, err := EncodeRelease(rls)
 	if err != nil {
 		return nil, err
 	}

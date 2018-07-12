@@ -33,6 +33,8 @@ import (
 	"k8s.io/helm/pkg/ignore"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/sympath"
+	"k8s.io/helm/pkg/proto/hapi/release"
+	"k8s.io/helm/pkg/storage/driver"
 )
 
 // Load takes a string name, tries to resolve it to a file or directory, and then loads it.
@@ -123,6 +125,9 @@ func LoadArchive(in io.Reader) (*chart.Chart, error) {
 func LoadFiles(files []*BufferedFile) (*chart.Chart, error) {
 	c := &chart.Chart{}
 	subcharts := map[string][]*BufferedFile{}
+	appchart := &chart.Chart{}
+	rls := &release.Release{}
+	hasAppmanagerType := false
 
 	for _, f := range files {
 		if f.Name == "Chart.yaml" {
@@ -150,6 +155,14 @@ func LoadFiles(files []*BufferedFile) (*chart.Chart, error) {
 			parts := strings.SplitN(cname, "/", 2)
 			scname := parts[0]
 			subcharts[scname] = append(subcharts[scname], &BufferedFile{Name: cname, Data: f.Data})
+		} else if strings.HasPrefix(f.Name, "template-jsonnet/") {
+			hasAppmanagerType = true
+			cname := strings.TrimPrefix(f.Name, "template-jsonnet/")
+			if strings.IndexAny(cname, "._") == 0 {
+				// Ignore charts/ that start with . or _.
+				continue
+			}
+			appchart.Templates = append(appchart.Templates, &chart.Template{Name: fmt.Sprintf("templates/%s", cname), Data: f.Data})
 		} else {
 			c.Files = append(c.Files, &any.Any{TypeUrl: f.Name, Value: f.Data})
 		}
@@ -161,6 +174,39 @@ func LoadFiles(files []*BufferedFile) (*chart.Chart, error) {
 	}
 	if c.Metadata.Name == "" {
 		return c, errors.New("invalid chart (Chart.yaml): name must not be empty")
+	}
+
+	if hasAppmanagerType {
+		if c.Metadata.AppVersion == "" {
+			return c, errors.New("invalid chart (Chart.yaml): appVersion must not be empty in transwarp jsonnet mode")
+		}
+
+		appchart.Metadata = c.Metadata
+		appchart.Files = c.Files
+		appchart.Values = c.Values
+		rls.Chart = appchart
+		appChartCoding, err := driver.EncodeRelease(rls)
+		if err != nil {
+			return c, err
+		}
+		c.Files = append(c.Files, &any.Any{TypeUrl: "transwarp-configmap-reserved", Value: []byte(appChartCoding)})
+
+		if c.Metadata.AppVersion == "" {
+			return c, errors.New("invalid chart (Chart.yaml): appVersion must not be empty in transwarp jsonnet mode")
+		}
+
+		appYamlPath := fmt.Sprintf("templates/%s/%s/app.yaml", c.Metadata.Name, c.Metadata.AppVersion)
+		found := false
+		for _, appchartFile := range appchart.Templates {
+			if appchartFile.Name == appYamlPath {
+				found = true
+				c.Files = append(c.Files, &any.Any{TypeUrl: "transwarp-app-yaml", Value: appchartFile.Data})
+				break
+			}
+		}
+		if found == false {
+			return c, errors.New("invalid chart (app.yaml): transwarp jsonnet mode app.yaml can't found in " + appYamlPath)
+		}
 	}
 
 	for n, files := range subcharts {
@@ -286,3 +332,4 @@ func LoadDir(dir string) (*chart.Chart, error) {
 
 	return LoadFiles(files)
 }
+

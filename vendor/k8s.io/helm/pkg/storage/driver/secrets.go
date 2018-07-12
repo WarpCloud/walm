@@ -72,7 +72,7 @@ func (secrets *Secrets) Get(key string) (*rspb.Release, error) {
 		return nil, err
 	}
 	// found the secret, decode the base64 data string
-	r, err := decodeRelease(string(obj.Data["release"]))
+	r, err := DecodeRelease(string(obj.Data["release"]))
 	if err != nil {
 		secrets.Log("get: failed to decode data %q: %s", key, err)
 		return nil, err
@@ -99,7 +99,7 @@ func (secrets *Secrets) List(filter func(*rspb.Release) bool) ([]*rspb.Release, 
 	// iterate over the secrets object list
 	// and decode each release
 	for _, item := range list.Items {
-		rls, err := decodeRelease(string(item.Data["release"]))
+		rls, err := DecodeRelease(string(item.Data["release"]))
 		if err != nil {
 			secrets.Log("list: failed to decode release: %v: %s", item, err)
 			continue
@@ -136,7 +136,7 @@ func (secrets *Secrets) Query(labels map[string]string) ([]*rspb.Release, error)
 
 	var results []*rspb.Release
 	for _, item := range list.Items {
-		rls, err := decodeRelease(string(item.Data["release"]))
+		rls, err := DecodeRelease(string(item.Data["release"]))
 		if err != nil {
 			secrets.Log("query: failed to decode release: %s", err)
 			continue
@@ -232,7 +232,7 @@ func newSecretsObject(key string, rls *rspb.Release, lbs labels) (*core.Secret, 
 	const owner = "TILLER"
 
 	// encode the release
-	s, err := encodeRelease(rls)
+	s, err := EncodeRelease(rls)
 	if err != nil {
 		return nil, err
 	}
