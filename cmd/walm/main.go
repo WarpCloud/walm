@@ -38,11 +38,8 @@ func newRootCmd(args []string) *cobra.Command {
 	)
 
 	flags.Parse(args)
-<<<<<<< HEAD
 
 	conf.Init()
-=======
->>>>>>> 15578ef04ffc8e0ed32cf553af65ae41a01a10a8
 
 	return cmd
 }
