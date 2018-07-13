@@ -86,7 +86,6 @@ func DeployInstance(c *gin.Context) {
 // @Failure 500 {object} ex.ApiResponse "Server Error"
 // @Router /instance/namespace/{namespace}/list [get]
 func ListInstances(c *gin.Context) {
-
 	namespace := c.Param("namespace")
 	if len(namespace) == 0 {
 		c.JSON(ex.ReturnBadRequest())
