@@ -53,6 +53,7 @@ func init() {
 }
 
 func ListReleases(namespace string) ([]ReleaseInfo, error) {
+	Log.Debugf("Enter ListReleases %s\n", namespace)
 	res, err := Helm.helmClient.ListReleases(
 		helm.ReleaseListNamespace(namespace),
 	)
@@ -65,6 +66,7 @@ func ListReleases(namespace string) ([]ReleaseInfo, error) {
 }
 
 func GetReleaseInfo(namespace, releaseName string) (ReleaseInfo, error) {
+	Log.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
 	var release ReleaseInfo
 
 	res, err := Helm.helmClient.ListReleases(
@@ -82,10 +84,11 @@ func GetReleaseInfo(namespace, releaseName string) (ReleaseInfo, error) {
 			break
 		}
 	}
-	return ReleaseInfo{}, nil
+	return release, nil
 }
 
 func InstallUpgradeRealese(releaseRequest ReleaseRequest) error {
+	Log.Debugf("Enter InstallUpgradeRealese %v\n", releaseRequest)
 	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return err
@@ -116,6 +119,7 @@ func PatchUpgradeRealese(releaseRequest ReleaseRequest) error {
 }
 
 func DeleteRealese(namespace, releaseName string) error {
+	Log.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
 	release, err := GetReleaseInfo(namespace, releaseName)
 	if err != nil {
 		return err
