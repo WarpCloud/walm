@@ -156,8 +156,6 @@ imports:
   version: e2704e165165ec55d062f5919b4b29494e9fa790
 - name: github.com/Shopify/sarama
   version: f7df95cff1bc4d14a4194a5be4c88a86253afb98
-- name: github.com/Sirupsen/logrus
-  version: e54a77765aca7bbdd8e56c1c54f60579968b2dc9
 - name: github.com/sirupsen/logrus
   version: c155da19408a8799da419ed3eeb0cb5db0ad5dbc
 - name: github.com/spf13/afero
