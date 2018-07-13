@@ -45,7 +45,7 @@ func DeleteInstance(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the instance"
-// @Param   instance     path    string     true      "identifier of the instance"
+// @Param   appname     path    string     true      "identifier of the instance"
 // @Param   instance     body   helm.ReleaseRequest    true    "ReleaseRequest of instance"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
@@ -78,7 +78,6 @@ func DeployInstance(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the instance"
-// @Param   appname     path    string     true      "identifier of the appname"
 // @Param   max     query    int     false      "max num to display"
 // @Param   offset     query    int     false      "the offset of result"
 // @Success 200 {array} helm.ReleaseInfo	"ok"
@@ -132,7 +131,7 @@ func ListInstances(c *gin.Context) {
 // @Produce  json
 // @Param   namespace     path    string     true      "identifier of the instance"
 // @Param   appname     path    string     true        "identifier of the application"
-// @Success 200 {array} helm.ReleaseInfo	"ok"
+// @Success 200 {object} helm.ReleaseInfo	"ok"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "Instance not found"
 // @Failure 405 {object} ex.ApiResponse "Invalid input"

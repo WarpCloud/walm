@@ -14,7 +14,6 @@
         },
         "version": "1.0.0"
     },
-    "host": "localhost:8000",
     "basePath": "/walm/api/v1",
     "paths": {
         "/cluster/namespace/{namespace}/name/{name}": {
@@ -296,13 +295,6 @@
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "identifier of the appname",
-                        "name": "appname",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
                         "type": "integer",
                         "description": "max num to display",
                         "name": "max",
@@ -440,7 +432,7 @@
                     {
                         "type": "string",
                         "description": "identifier of the instance",
-                        "name": "instance",
+                        "name": "appname",
                         "in": "path",
                         "required": true
                     },
@@ -577,10 +569,8 @@
                     "200": {
                         "description": "ok",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/helm.ReleaseInfo"
-                            }
+                            "type": "object",
+                            "$ref": "#/definitions/helm.ReleaseInfo"
                         }
                     },
                     "400": {

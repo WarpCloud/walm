@@ -52,7 +52,6 @@ definitions:
       namespace:
         type: string
     type: object
-host: localhost:8000
 info:
   contact:
     email: bing.han@transwarp.io
@@ -253,11 +252,6 @@ paths:
         name: namespace
         required: true
         type: string
-      - description: identifier of the appname
-        in: path
-        name: appname
-        required: true
-        type: string
       - description: max num to display
         in: query
         name: max
@@ -340,7 +334,7 @@ paths:
         type: string
       - description: identifier of the instance
         in: path
-        name: instance
+        name: appname
         required: true
         type: string
       - description: ReleaseRequest of instance
@@ -449,9 +443,8 @@ paths:
         "200":
           description: ok
           schema:
-            items:
-              $ref: '#/definitions/helm.ReleaseInfo'
-            type: array
+            $ref: '#/definitions/helm.ReleaseInfo'
+            type: object
         "400":
           description: Invalid Name supplied!
           schema:

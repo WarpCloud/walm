@@ -147,7 +147,7 @@ func GetCluster(c *gin.Context) {
 	if values, err := util.GetPathParams(c, []string{"namespace", "name"}); err != nil {
 		return
 	} else {
-		if releases, err := helm.ListReleases(); err != nil {
+		if releases, err := helm.ListReleases(values[0]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
 			return
 		} else {
@@ -183,12 +183,12 @@ func DeleteCluster(c *gin.Context) {
 	if values, err := util.GetPathParams(c, []string{"namespace", "name"}); err != nil {
 		return
 	} else {
-		if releases, err := helm.ListReleases(); err != nil {
+		namespace, name = values[0], values[1]
+		if releases, err := helm.ListReleases(namespace); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
 			return
 		} else {
 
-			namespace, name = values[0], values[1]
 			for _, release := range releases {
 				if release.Namespace == namespace && release.Name[0:len(name)] == name {
 					clusterReleases = append(clusterReleases, release.Name)
@@ -211,7 +211,7 @@ func getReleasMap(namespace, name string) (error, map[string]string) {
 
 	releaeMap := map[string]string{}
 
-	if releases, err := helm.ListReleases(); err != nil {
+	if releases, err := helm.ListReleases(namespace); err != nil {
 		return err, nil
 	} else {
 
