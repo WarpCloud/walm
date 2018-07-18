@@ -2,6 +2,7 @@ package: walm
 ignore:
 - transwarp
 - k8s.io/helm
+- transwarp/application-instance
 import:
 - package: github.com/dgrijalva/jwt-go
   version: ^3.2.0
