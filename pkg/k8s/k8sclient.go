@@ -1,8 +1,9 @@
-package util
+package k8s
 
 import (
-	"github.com/golang/glog"
 	"time"
+	. "walm/pkg/util/log"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 	discovery "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
@@ -17,13 +18,14 @@ const (
 	// client code is overriding it.
 	defaultBurst = 1e6
 )
+
 // createApiserverClient creates new Kubernetes Apiserver client. When kubeconfig or apiserverHost param is empty
 // the function assumes that it is running inside a Kubernetes cluster and attempts to
 // discover the Apiserver. Otherwise, it connects to the Apiserver specified.
 //
 // apiserverHost param is in the format of protocol://address:port/pathPrefix, e.g.http://localhost:8001.
 // kubeConfig location of kubeconfig file
-func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
+func CreateApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
 	if err != nil {
 		return nil, err
@@ -33,7 +35,7 @@ func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 	cfg.Burst = defaultBurst
 	cfg.ContentType = "application/vnd.kubernetes.protobuf"
 
-	glog.Infof("Creating API client for %s", cfg.Host)
+	Log.Infof("Creating API client for %s", cfg.Host)
 
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -53,7 +55,7 @@ func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 
 	var lastErr error
 	retries := 0
-	glog.V(2).Info("trying to discover Kubernetes version")
+	Log.Info("trying to discover Kubernetes version")
 	err = wait.ExponentialBackoff(defaultRetry, func() (bool, error) {
 		v, err = client.Discovery().ServerVersion()
 
@@ -62,7 +64,7 @@ func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 		}
 
 		lastErr = err
-		glog.V(2).Infof("unexpected error discovering Kubernetes version (attempt %v): %v", err, retries)
+		Log.Infof("unexpected error discovering Kubernetes version (attempt %v): %v", err, retries)
 		retries++
 		return false, nil
 	})
@@ -74,10 +76,10 @@ func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 
 	// this should not happen, warn the user
 	if retries > 0 {
-		glog.Warningf("it was required to retry %v times before reaching the API server", retries)
+		Log.Warnf("it was required to retry %v times before reaching the API server", retries)
 	}
 
-	glog.Infof("Running in Kubernetes Cluster version v%v.%v (%v) - git (%v) commit %v - platform %v",
+	Log.Infof("Running in Kubernetes Cluster version v%v.%v (%v) - git (%v) commit %v - platform %v",
 		v.Major, v.Minor, v.GitVersion, v.GitTreeState, v.GitCommit, v.Platform)
 
 	return client, nil

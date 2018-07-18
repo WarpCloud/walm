@@ -50,8 +50,9 @@ type config struct {
 	} `mapstructure:"repo"`
 
 	Kube struct {
-		Context string `mapstructure:"config"`
-		Config  string `mapstructure:"context"`
+		MasterHost string `mapstructure:"master_host"`
+		Context    string `mapstructure:"config"`
+		Config     string `mapstructure:"context"`
 	} `mapstructure:"kube"`
 
 	Trace struct {

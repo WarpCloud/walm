@@ -3,6 +3,8 @@ package tenant
 import (
 	"errors"
 
+	. "walm/pkg/util/log"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,6 +82,10 @@ func createTiller(namespace, historyMax string, rbac, security bool, labels, ann
 				Name:     "tiller",
 			},
 		}
+
+		//add by bing han 2018/7/16 to pass build
+		Log.Infof("%v,%v,%v", serviceAccount, role, roleBinding)
+		//add end
 
 		// TODO: create these resources
 	}

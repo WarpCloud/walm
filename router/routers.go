@@ -11,7 +11,8 @@ import (
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
-	inst "walm/router/api/v1/instance"
+	instance "walm/router/api/v1/instance"
+	tenant "walm/router/api/v1/tenant"
 	"walm/router/ex"
 	"walm/router/middleware"
 )
@@ -44,14 +45,6 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		//add Prometheus Metric
 		p := middleware.NewPrometheus("Walm")
 		p.Use(r)
-		//add opentracing
-		if middleware.Tracer != nil {
-			psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
-				return stdopentracing.ChildOf(spancontext)
-			}
-			r.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false))
-		}
-
 	}
 
 	//enable swagger UI
@@ -66,18 +59,25 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 	if oauth {
 		apiv1.Use(middleware.JWT())
 	}
+	if !runmode && middleware.Tracer != nil {
+		//add opentracing
+		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
+			return stdopentracing.ChildOf(spancontext)
+		}
+		apiv1.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false), trace.InjectToHeaders(middleware.Tracer, false))
+	}
 	{
 		//@Tags
 		//@Name instance
 		//@Description instance lifecycle manager
-		instance := apiv1.Group("/instance")
+		instGroup := apiv1.Group("/instance")
 		{
-			instance.DELETE("/namespace/:namespace/name/:appname", inst.DeleteInstance)
-			instance.POST("/namespace/:namespace/name/:appname", inst.DeployInstance)
-			instance.GET("/namespace/:namespace/list", inst.ListInstances)
-			instance.GET("/namespace/:namespace/name/:appname/info", inst.GetInstanceInfo)
-			instance.GET("/namespace/:namespace/name/:appname/version/:version/rollback", inst.RollBackInstance)
-			instance.PUT("/namespace/:namespace/name/:appname", inst.UpdateInstance)
+			instGroup.DELETE("/namespace/:namespace/name/:appname", instance.DeleteInstance)
+			instGroup.POST("/namespace/:namespace/name/:appname", instance.DeployInstance)
+			instGroup.GET("/namespace/:namespace/list", instance.ListInstances)
+			instGroup.GET("/namespace/:namespace/name/:appname/info", instance.GetInstanceInfo)
+			instGroup.GET("/namespace/:namespace/name/:appname/version/:version/rollback", instance.RollBackInstance)
+			instGroup.PUT("/namespace/:namespace/name/:appname", instance.UpdateInstance)
 		}
 		//@Tags
 		//@Name cluster
@@ -90,6 +90,25 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		//	cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
 		//}
 
+		tenantGroup := apiv1.Group("tenant")
+		{
+			tenantGroup.POST("/", tenant.CreateTenant)
+			tenantGroup.GET("/:tenantname", tenant.GetTenant)
+			tenantGroup.DELETE("/:tenantname", tenant.DeleteTenant)
+			//tenantGroup.GET("/:tenant_name/services_for_tenant", tenant.GetServiceForTenant)
+			//tenantGroup.GET("/:tenant_name/services_for_development", tenant.GetServiceForDev)
+			//tenantGroup.GET("/:tenant_name/pods/:pod_name/events", tenant.GetEventForPod)
+			//tenantGroup.GET("/:tenant_name/pods/:pod_name/log", tenant.GetLogForPod)
+			tenantGroup.GET("/<tenantname>/quotas", tenant.GetQuotas)
+			tenantGroup.PUT("/<tenantname>/quotas", tenant.UpdateQuotas)
+			//tenantGroup.POST("/register_services_to_kong", tenant.RegisterServicesForTenantToKong)
+
+		}
+
+		podGroup := apiv1.Group("pod")
+		{
+			podGroup.GET("/:namespace/:pod/shell/:container")
+		}
 	}
 
 	return r

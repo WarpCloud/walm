@@ -27,14 +27,13 @@ import (
 func DeleteInstance(c *gin.Context) {
 
 	if values, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
-		return
+		c.JSON(ex.ReturnBadRequest())
 	} else {
 		if err := helm.DeleteRealese(values[0], values[1]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
-			return
 		}
+		c.JSON(ex.ReturnOK())
 	}
-	c.JSON(ex.ReturnOK())
 
 }
 
@@ -55,20 +54,20 @@ func DeleteInstance(c *gin.Context) {
 func DeployInstance(c *gin.Context) {
 
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
-		return
-	}
-	var postdata helm.ReleaseRequest
-	if err := c.Bind(&postdata); err != nil {
 		c.JSON(ex.ReturnBadRequest())
-		return
 	} else {
-		if err := helm.InstallUpgradeRealese(postdata); err != nil {
-			c.JSON(ex.ReturnInternalServerError(err))
-			return
+		var postdata helm.ReleaseRequest
+		if err := c.Bind(&postdata); err != nil {
+			c.JSON(ex.ReturnBadRequest())
 		} else {
-			c.JSON(ex.ReturnOK())
+			if err := helm.InstallUpgradeRealese(postdata); err != nil {
+				c.JSON(ex.ReturnInternalServerError(err))
+			} else {
+				c.JSON(ex.ReturnOK())
+			}
 		}
 	}
+
 }
 
 // FindInstancesStatus godoc
@@ -139,7 +138,7 @@ func ListInstances(c *gin.Context) {
 func GetInstanceInfo(c *gin.Context) {
 
 	if values, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
-		return
+		c.JSON(ex.ReturnBadRequest())
 	} else {
 		if release, err := helm.GetReleaseInfo(values[0], values[1]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
@@ -166,14 +165,15 @@ func GetInstanceInfo(c *gin.Context) {
 // @Router /instance/namespace/{namespace}/name/{appname}/version/{version}/rollback [get]
 func RollBackInstance(c *gin.Context) {
 	if values, err := util.GetPathParams(c, []string{"namespace", "appname", "version"}); err != nil {
-		return
+		c.JSON(ex.ReturnBadRequest())
 	} else {
 		if err := helm.RollbackRealese(values[0], values[1], values[2]); err != nil {
 			c.JSON(ex.ReturnInternalServerError(err))
-			return
+		} else {
+			c.JSON(ex.ReturnOK())
 		}
 	}
-	c.JSON(ex.ReturnOK())
+
 }
 
 // UpdateInstance godoc
@@ -194,18 +194,17 @@ func RollBackInstance(c *gin.Context) {
 func UpdateInstance(c *gin.Context) {
 
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
-		return
-	}
-	var postdata helm.ReleaseRequest
-	if err := c.Bind(&postdata); err != nil {
 		c.JSON(ex.ReturnBadRequest())
-		return
 	} else {
-		if err := helm.PatchUpgradeRealese(postdata); err != nil {
-			c.JSON(ex.ReturnInternalServerError(err))
-			return
+		var postdata helm.ReleaseRequest
+		if err := c.Bind(&postdata); err != nil {
+			c.JSON(ex.ReturnBadRequest())
 		} else {
-			c.JSON(ex.ReturnOK())
+			if err := helm.PatchUpgradeRealese(postdata); err != nil {
+				c.JSON(ex.ReturnInternalServerError(err))
+			} else {
+				c.JSON(ex.ReturnOK())
+			}
 		}
 	}
 
