@@ -9,6 +9,13 @@ definitions:
       configvalues:
         type: object
     type: object
+  cluster.ReleaseList:
+    properties:
+      apps:
+        items:
+          type: '&{helm ReleaseRequest}'
+        type: array
+    type: object
   ex.ApiResponse:
     properties:
       code:
@@ -50,6 +57,19 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+    type: object
+  tenant.TenantInfo:
+    properties:
+      tenant_creation_time:
+        type: string
+      tenant_labels:
+        type: string
+      tenant_name:
+        type: string
+      tenant_status:
+        type: string
+      tenant_uid:
         type: string
     type: object
 info:
@@ -215,6 +235,54 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/helm.ReleaseRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: namespace not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Cluster
+  /cluster/namespace/{namespace}/name/{name}/list:
+    post:
+      consumes:
+      - application/json
+      description: Deploy an Instance list into Cluster
+      parameters:
+      - description: identifier of the namespace
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: the name of cluster
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Apps list of Cluster
+        in: body
+        name: apps
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.ReleaseList'
           type: object
       produces:
       - application/json
@@ -518,4 +586,184 @@ paths:
             type: object
       tags:
       - instance
+  /pod/{namespace}/{pod}/shell/{container}:
+    get:
+      consumes:
+      - application/json
+      description: exec shell to prompt with container
+      parameters:
+      - description: namespace of the pod
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: name of the pod
+        in: path
+        name: pod
+        required: true
+        type: string
+      - description: container of the pod
+        in: path
+        name: container
+        required: true
+        type: string
+      - description: shell type to exec
+        in: query
+        name: shell
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/TerminalResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Instance not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - tenant
+  /tenant:
+    post:
+      consumes:
+      - application/json
+      description: Create an Tenant with spec info
+      parameters:
+      - description: Request Info of tenant
+        in: body
+        name: tenant
+        required: true
+        schema:
+          $ref: '#/definitions/helm.ReleaseRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Instance not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - tenant
+  /tenant/{tenantname}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an Tenant by name
+      parameters:
+      - description: identifier of the tenant
+        in: path
+        name: tenantname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/tenant.TenantInfo'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Instance not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - tenant
+    get:
+      consumes:
+      - application/json
+      description: Get an Tenant by name
+      parameters:
+      - description: identifier of the tenant
+        in: path
+        name: tenantname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/tenant.TenantInfo'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: Instance not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - tenant
 swagger: "2.0"

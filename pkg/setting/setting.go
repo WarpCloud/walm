@@ -14,8 +14,10 @@ import (
 
 var confEnvName = "WALM_CONF_PATH"
 
-//var configPath = "/etc/walm/conf"
-var configPath = "conf"
+var configPath = "/etc/walm/conf"
+
+//for test
+//var configPath = "/home/hanbing/myworkspace/go/src/walm/pkg/setting/conf"
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 

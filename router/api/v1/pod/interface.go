@@ -6,9 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/tools/remotecommand"
 
+	"walm/pkg/k8s"
 	"walm/router/api/util"
 	"walm/router/ex"
-	"walm/pkg/k8s"
 )
 
 // ExecShell godoc
@@ -31,16 +31,14 @@ func ExecShell(c *gin.Context) {
 	if values, err := util.GetPathParams(c, []string{"namespace", "pod", "container"}); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 	} else {
-		var 
 		namespace, podName, containerName := values[0], values[1], values[2]
 		shell := c.Query("shell")
 
-	
 		request := map[string]string{
-			"namespace":values[0],
-			"pod":values[1],
-			"container":values[2],
-			"shell":shell,
+			"namespace": values[0],
+			"pod":       values[1],
+			"container": values[2],
+			"shell":     shell,
 		}
 
 		sessionId, err := genTerminalSessionId()
@@ -53,8 +51,8 @@ func ExecShell(c *gin.Context) {
 				bound:    make(chan error),
 				sizeChan: make(chan remotecommand.TerminalSize),
 			}
-			
-			go WaitForTerminal(k8s.GetDefaultClient(), k8s.GetDefaultRestConfig,request, sessionId)
+
+			go WaitForTerminal(k8s.GetDefaultClient(), k8s.GetDefaultRestConfig, request, sessionId)
 			//return success
 			c.JSON(http.StatusOK, TerminalResponse{Id: sessionId})
 		}

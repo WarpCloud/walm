@@ -173,6 +173,10 @@ func downloadChart(name, version string) (string, error) {
 	return filename, nil
 }
 
+func GetDependencies(chartName, chartVersion string) ([]string, []string, error) {
+	return []string{}, []string{}, nil
+}
+
 func parseDependencies(chart *chart.Chart) ([]string, error) {
 	dependencies := make([]string, 1)
 	for _, chartFile := range chart.Files {

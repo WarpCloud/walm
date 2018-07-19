@@ -1,4 +1,4 @@
-home: "/home/hanbing"
+home: ""
 debug: false
 http:
   port: 9000

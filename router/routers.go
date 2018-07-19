@@ -11,6 +11,7 @@ import (
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
+	cluster "walm/router/api/v1/cluster"
 	instance "walm/router/api/v1/instance"
 	tenant "walm/router/api/v1/tenant"
 	"walm/router/ex"
@@ -79,16 +80,18 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 			instGroup.GET("/namespace/:namespace/name/:appname/version/:version/rollback", instance.RollBackInstance)
 			instGroup.PUT("/namespace/:namespace/name/:appname", instance.UpdateInstance)
 		}
+
 		//@Tags
 		//@Name cluster
 		//@Description cluster lifecycle manager
-		//cluster := apiv1.Group("/cluster")
-		//{
-		//	cluster.POST("/namespace/:namespace/name/:name", clus.DeployCluster)
-		//	cluster.GET("/namespace/:namespace/name/:name", clus.StatusCluster)
-		//	cluster.DELETE("/namespace/:namespace/name/:name", clus.DeleteCluster)
-		//	cluster.POST("/namespace/:namespace/name/:name/instance", clus.DeployInstanceInCluster)
-		//}
+		clusterGroup := apiv1.Group("/cluster")
+		{
+			clusterGroup.POST("/namespace/:namespace/name/:name", cluster.DeployCluster)
+			clusterGroup.GET("/namespace/:namespace/name/:name", cluster.GetCluster)
+			clusterGroup.DELETE("/namespace/:namespace/name/:name", cluster.DeleteCluster)
+			clusterGroup.POST("/namespace/:namespace/name/:name/instance", cluster.DeployInstanceInCluster)
+			clusterGroup.POST("/namespace/:namespace/name/:name/list", cluster.DeployListInCluster)
+		}
 
 		tenantGroup := apiv1.Group("tenant")
 		{

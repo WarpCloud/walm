@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -45,7 +44,7 @@ func DeployInstanceInCluster(c *gin.Context) {
 			c.JSON(ex.ReturnInternalServerError(err))
 			return
 		} else {
-			if err, apps := getGraghForInstance(releaseMap, &postdata); err != nil {
+			if err, apps := getGraghForInstance(namespace, name, releaseMap, &postdata); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 				return
 			} else {
@@ -60,6 +59,49 @@ func DeployInstanceInCluster(c *gin.Context) {
 	}
 }
 
+// DeployListInCluster godoc
+// @Tags Cluster
+// @Description Deploy an Instance list into Cluster
+// @OperationId DeployListInCluster
+// @Accept  json
+// @Produce  json
+// @Param   namespace     path    string     true        "identifier of the namespace"
+// @Param   name     path    string     true        "the name of cluster"
+// @Param   apps     body   cluster.ReleaseList   true    "Apps list of Cluster"
+// @Success 200 {object} ex.ApiResponse "OK"
+// @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
+// @Failure 404 {object} ex.ApiResponse "namespace not found"
+// @Failure 500 {object} ex.ApiResponse "Server Error"
+// @Router /cluster/namespace/{namespace}/name/{name}/list [post]
+func DeployListInCluster(c *gin.Context) {
+	var namespace, name string
+	if values, err := util.GetPathParams(c, []string{"namespace", "name"}); err != nil {
+		return
+	} else {
+		namespace, name = values[0], values[1]
+	}
+
+	var postdata ReleaseList
+	if err := c.BindJSON(&postdata); err != nil {
+		c.JSON(ex.ReturnBadRequest())
+
+	} else {
+
+		if len(postdata.Apps) > 0 {
+			for _, app := range postdata.Apps {
+				if err := deployInstance(namespace, name, map[string]interface{}{}, app); err != nil {
+					c.JSON(ex.ReturnInternalServerError(err))
+				}
+			}
+			c.JSON(ex.ReturnOK())
+		} else {
+			c.JSON(ex.ReturnBadRequest())
+
+		}
+	}
+
+}
+
 // DeployCluster godoc
 // @Tags Cluster
 // @Description Deploy an Cluster
@@ -68,7 +110,7 @@ func DeployInstanceInCluster(c *gin.Context) {
 // @Produce  json
 // @Param   namespace     path    string     true        "identifier of the namespace"
 // @Param   name     path    string     true        "the name of cluster"
-// @Param   apps     body   cluster.Cluster    true    "Apps of Cluster"
+// @Param   apps     body    cluster.Cluster    true    "Apps of Cluster"
 // @Success 200 {object} ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "namespace not found"
@@ -109,16 +151,25 @@ func DeployCluster(c *gin.Context) {
 }
 
 func mergeConf(conf1, conf2 map[string]interface{}) map[string]interface{} {
-	return map[string]interface{}{}
+	if len(conf1) == 0 {
+		return conf2
+	}
+	result := conf2
+	for k, v := range conf1 {
+		//if value,ok:=conf1[k];ok{}
+		result[k] = v
+	}
+	return result
 }
 
 func deployInstance(namespace, name string, conf map[string]interface{}, app helm.ReleaseRequest) error {
 
-	if len(app.Name) == 0 {
-		app.Name = fmt.Sprintf("%s-%s-%s", name, app.ChartName, app.ChartVersion)
+	/*
+		if len(app.Name) == 0 {
+			app.Name = fmt.Sprintf("%s-%s-%s", name, app.ChartName, app.ChartVersion)
+		}
 		app.Namespace = namespace
-	}
-
+	*/
 	app.ConfigValues = mergeConf(conf, app.ConfigValues)
 
 	if err := helm.InstallUpgradeRealese(app); err != nil {

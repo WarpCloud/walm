@@ -1,8 +1,12 @@
 package cluster
 
 import (
+	"fmt"
+	"sync/atomic"
 	helm "walm/pkg/helm"
 )
+
+var id uint64
 
 type DepInterface interface {
 	getDeps(leaf *Leaf) []Leaf
@@ -29,7 +33,7 @@ type Application struct {
 	Bedepend []*Application
 }
 
-func getGraghForInstance(releaeMap map[string]string, inst *helm.ReleaseRequest) (err error, instList []helm.ReleaseRequest) {
+func getGraghForInstance(name, namespace string, releaeMap map[string]string, inst *helm.ReleaseRequest) (err error, instList []helm.ReleaseRequest) {
 	a_left := []Leaf{}
 	leaf_1 := Leaf{
 		app: &Application{
@@ -42,7 +46,7 @@ func getGraghForInstance(releaeMap map[string]string, inst *helm.ReleaseRequest)
 		next:  nil,
 	}
 	a_left = append(a_left, leaf_1)
-	getDepArray(&leaf_1, &a_left)
+	getDepArray(name, namespace, &leaf_1, &a_left)
 
 	root := &Leaf{level: -1}
 color:
@@ -130,7 +134,7 @@ func getGragh(name, namespace string, cluster *Cluster) (err error, instList []h
 			next:  nil,
 		}
 		a_left = append(a_left, leaf_1)
-		getDepArray(&leaf_1, &a_left)
+		getDepArray(name, namespace, &leaf_1, &a_left)
 	}
 
 	root := &Leaf{level: -1}
@@ -195,17 +199,19 @@ func expandDep(leaf *Leaf) *helm.ReleaseRequest {
 
 //godoc
 //get all the depences from leaf, will go through to the end
-func getDepArray(leaf *Leaf, a_leaf *[]Leaf) []Leaf {
+func getDepArray(name, namespace string, leaf *Leaf, a_leaf *[]Leaf) []Leaf {
 	for _, leaf_1 := range depInst.getDeps(leaf) {
 		leaf_1.level = leaf.level + 1
-		/*
-			if len(leaf_1.app.inst.Name) == 0 {
-				leaf_1.app.inst.Name = leaf_1.app.inst.Chart + "_" + strconv.Itoa(leaf.app.ClusterId)
-			}*/
+
+		if len(leaf_1.app.inst.Name) == 0 {
+			leaf_1.app.inst.Name = fmt.Sprintf("%s-%s-%s-%010d", namespace, name, leaf_1.app.inst.ChartName, atomic.AddUint64(&id, 1))
+			leaf_1.app.inst.Namespace = namespace
+		}
+		//consider there is nome chart (same chart type and not same chart version in the same cluster)
 		leaf.app.Depend[leaf_1.app.inst.ChartName] = leaf_1.app.inst
 		leaf_1.app.Bedepend = append(leaf_1.app.Bedepend, leaf.app)
 		*a_leaf = append(*a_leaf, leaf_1)
-		getDepArray(&leaf_1, a_leaf)
+		getDepArray(name, namespace, &leaf_1, a_leaf)
 	}
 	return *a_leaf
 }
@@ -213,7 +219,25 @@ func getDepArray(leaf *Leaf, a_leaf *[]Leaf) []Leaf {
 //godoc
 //get depences from leaf, only one level
 func (di *DepInst) getDeps(leaf *Leaf) []Leaf {
-	return []Leaf{}
+	var leafArray []Leaf
+	chartName, chartVersion := leaf.app.inst.ChartName, leaf.app.inst.ChartVersion
+	if nameList, versionList, err := helm.GetDependencies(chartName, chartVersion); err != nil {
+		return []Leaf{}
+	} else {
+		for index, name := range nameList {
+			version := versionList[index]
+			leafArray = append(leafArray, Leaf{
+				app: &Application{
+					inst: &helm.ReleaseRequest{
+						ChartName:    name,
+						ChartVersion: version,
+					},
+				},
+			})
+		}
+		return leafArray
+	}
+
 }
 
 //godoc
@@ -222,7 +246,7 @@ func isSameLeaf(a, b *Leaf) bool {
 	if b.color {
 		return false
 	}
-	if a.app.inst.ChartName == b.app.inst.ChartName && a.app.inst.Name == b.app.inst.Name {
+	if a.app.inst.ChartName == b.app.inst.ChartName && a.app.inst.Name == b.app.inst.Name && a.app.inst.ChartVersion == b.app.inst.ChartVersion {
 		return true
 	} else {
 		return false
