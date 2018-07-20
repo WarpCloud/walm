@@ -173,7 +173,7 @@ func downloadChart(name, version string) (string, error) {
 	return filename, nil
 }
 
-func GetDependencies(chartName, chartVersion string) ([]string, []string, error) {
+func GetDependencies(chartName, chartVersion string) (chartNames, chartVersions []string, err error) {
 	return []string{}, []string{}, nil
 }
 

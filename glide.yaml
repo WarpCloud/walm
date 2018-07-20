@@ -39,5 +39,6 @@ import:
   version: 7.0.0
 - package: k8s.io/apiserver
   version: release-1.10
+- package: github.com/docker/spdystream
 testImport:
 - package: gopkg.in/check.v1

@@ -267,7 +267,8 @@ func getReleasMap(namespace, name string) (error, map[string]string) {
 	} else {
 
 		for _, release := range releases {
-			if release.Namespace == namespace && release.Name[0:len(name)] == name {
+			begin, end := len(namespace)+1, len(namespace)+1+len(name)
+			if release.Namespace == namespace && release.Name[begin:end] == name {
 				releaeMap[release.ChartName] = release.Name
 			}
 		}
