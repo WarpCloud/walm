@@ -9,7 +9,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
-	"github.com/golang/glog"
 )
 
 const (
@@ -88,7 +87,7 @@ func CreateApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 }
 
 // k8s client to deal with instance, only for k8s 1.9+
-func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
+func CreateApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
 	if err != nil {
 		return nil, err
@@ -98,7 +97,7 @@ func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientse
 	cfg.Burst = defaultBurst
 	cfg.ContentType = "application/vnd.kubernetes.protobuf"
 
-	glog.Infof("Creating API client for %s", cfg.Host)
+	Log.Infof("Creating API client for %s", cfg.Host)
 
 	client, err := clientsetex.NewForConfig(cfg)
 	if err != nil {
