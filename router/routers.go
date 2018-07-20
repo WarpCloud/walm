@@ -102,8 +102,8 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 			//tenantGroup.GET("/:tenant_name/services_for_development", tenant.GetServiceForDev)
 			//tenantGroup.GET("/:tenant_name/pods/:pod_name/events", tenant.GetEventForPod)
 			//tenantGroup.GET("/:tenant_name/pods/:pod_name/log", tenant.GetLogForPod)
-			tenantGroup.GET("/<tenantname>/quotas", tenant.GetQuotas)
-			tenantGroup.PUT("/<tenantname>/quotas", tenant.UpdateQuotas)
+			tenantGroup.GET("/:tenantname/quotas", tenant.GetQuotas)
+			tenantGroup.PUT("/:tenantname/quotas", tenant.UpdateQuotas)
 			//tenantGroup.POST("/register_services_to_kong", tenant.RegisterServicesForTenantToKong)
 
 		}
