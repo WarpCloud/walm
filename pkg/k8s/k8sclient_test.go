@@ -19,3 +19,15 @@ func Test(t *testing.T) {
 	}
 
 }
+
+func TestEx(t *testing.T) {
+	clientEx, err := CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
+	//client, err := createApiserverClient("", "C:/kubernetes/kubeconfig")
+	if err == nil {
+		inst, err := clientEx.TranswarpV1beta1().ApplicationInstances("hnnxst1").Get("guardian-hnnxst1", v1.GetOptions{})
+		if err == nil {
+			println(inst.Name)
+		}
+	}
+
+}
