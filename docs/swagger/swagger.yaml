@@ -4,7 +4,7 @@ definitions:
     properties:
       apps:
         items:
-          type: '&{helm ReleaseRequest}'
+          $ref: '#/definitions/helm.ReleaseRequest'
         type: array
       configvalues:
         type: object
@@ -13,7 +13,7 @@ definitions:
     properties:
       apps:
         items:
-          type: '&{helm ReleaseRequest}'
+          $ref: '#/definitions/helm.ReleaseRequest'
         type: array
     type: object
   ex.ApiResponse:
