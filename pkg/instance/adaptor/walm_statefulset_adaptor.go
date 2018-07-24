@@ -33,11 +33,8 @@ func (adaptor WalmStatefulSetAdaptor) BuildWalmStatefulSet(statefulSet *appsv1be
 	walmStatefulSet = WalmStatefulSet{
 		WalmMeta: WalmMeta{Name: statefulSet.Name, Namespace: statefulSet.Namespace},
 	}
-	selector, err := metav1.LabelSelectorAsSelector(statefulSet.Spec.Selector)
-	if err != nil {
-		return walmStatefulSet, err
-	}
-	walmStatefulSet.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(statefulSet.Namespace, selector.String())
+
+	walmStatefulSet.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(statefulSet.Namespace, statefulSet.Spec.Selector)
 
 	return walmStatefulSet, err
 }

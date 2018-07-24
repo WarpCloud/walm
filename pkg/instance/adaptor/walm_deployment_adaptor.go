@@ -4,7 +4,6 @@ import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"walm/pkg/instance/lister"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type WalmDeploymentAdaptor struct{
@@ -33,11 +32,8 @@ func (adaptor WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.
 	walmDeployment = WalmDeployment{
 		WalmMeta: WalmMeta{Name: deployment.Name, Namespace: deployment.Namespace},
 	}
-	selector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
-	if err != nil {
-		return walmDeployment, err
-	}
-	walmDeployment.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(deployment.Namespace, selector.String())
+
+	walmDeployment.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(deployment.Namespace, deployment.Spec.Selector)
 
 	return walmDeployment, err
 }

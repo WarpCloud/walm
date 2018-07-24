@@ -7,6 +7,8 @@ import (
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	"walm/pkg/k8s/handler"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sutils "walm/pkg/k8s/utils"
 )
 
 type K8sResourceLister struct {
@@ -17,8 +19,12 @@ func (lister K8sResourceLister) GetDeployment(namespace string, name string) (*v
 	return handler.NewDeploymentHandler(lister.Client).GetDeployment(namespace, name)
 }
 
-func (lister K8sResourceLister)GetPods(namespace string, labelSelectorStr string) (*corev1.PodList, error) {
-	return handler.NewPodHandler(lister.Client).ListPods(namespace, labelSelectorStr)
+func (lister K8sResourceLister)GetPods(namespace string, labelSelector *metav1.LabelSelector) (*corev1.PodList, error) {
+	selectorStr, err := k8sutils.ConvertLabelSelectorToStr(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	return handler.NewPodHandler(lister.Client).ListPods(namespace, selectorStr)
 }
 
 func (lister K8sResourceLister)GetService(namespace string, name string) (*corev1.Service, error) {
