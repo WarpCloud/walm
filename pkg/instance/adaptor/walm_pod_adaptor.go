@@ -2,11 +2,11 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/instance/lister"
 )
 
 type WalmPodAdaptor struct{
-	Lister walmlister.K8sResourceLister
+	Lister lister.K8sResourceLister
 }
 
 func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelectorStr string) ([]WalmPod, error) {

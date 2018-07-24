@@ -2,13 +2,13 @@ package tenant
 
 import (
 	"fmt"
-	"walm/pkg/k8s"
+	"walm/pkg/k8s/client"
 
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func GetTenantInfo(name string) (TenantInfo, error) {
-	if namespace, err := k8s.GetDefaultClient().CoreV1().Namespaces().Get(name, metaV1.GetOptions{}); err != nil {
+	if namespace, err := client.GetDefaultClient().CoreV1().Namespaces().Get(name, metaV1.GetOptions{}); err != nil {
 		return TenantInfo{}, err
 	} else {
 
@@ -24,7 +24,7 @@ func GetTenantInfo(name string) (TenantInfo, error) {
 }
 
 func DeleteTenant(name string) error {
-	return k8s.GetDefaultClient().CoreV1().Namespaces().Delete(name, &metaV1.DeleteOptions{})
+	return client.GetDefaultClient().CoreV1().Namespaces().Delete(name, &metaV1.DeleteOptions{})
 }
 
 /*
@@ -35,7 +35,7 @@ func CreateTenant(info *TenantInfo) error {
 			Name: spec.Name,
 		},
 	}
-	if _, err := k8s.GetDefaultClient().CoreV1().Namespaces().Create(ns); err != nil {
+	if _, err := client.GetDefaultClient().CoreV1().Namespaces().Create(ns); err != nil {
 		return err
 	} else {
 		return nil

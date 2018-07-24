@@ -3,11 +3,11 @@ package instance
 import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	"walm/pkg/instance/adaptor"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/instance/lister"
 )
 
 type InstanceManager struct {
-	lister walmlister.K8sResourceLister
+	lister lister.K8sResourceLister
 }
 
 func (instManager InstanceManager)BuildWalmApplicationInstance(inst v1beta1.ApplicationInstance) (walmInst adaptor.WalmApplicationInstance, err error) {

@@ -3,12 +3,12 @@ package adaptor
 import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/instance/lister"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type WalmDeploymentAdaptor struct{
-	Lister walmlister.K8sResourceLister
+	Lister lister.K8sResourceLister
 }
 
 func(adaptor WalmDeploymentAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {

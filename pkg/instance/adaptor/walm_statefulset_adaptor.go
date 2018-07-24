@@ -2,13 +2,13 @@ package adaptor
 
 import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/instance/lister"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 )
 
 type WalmStatefulSetAdaptor struct{
-	Lister walmlister.K8sResourceLister
+	Lister lister.K8sResourceLister
 }
 
 func(adaptor WalmStatefulSetAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {

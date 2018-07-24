@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"walm/pkg/k8s"
+	"walm/pkg/k8s/client"
 	"walm/router/api/util"
 	"walm/router/ex"
 )
@@ -52,7 +52,7 @@ func ExecShell(c *gin.Context) {
 				sizeChan: make(chan remotecommand.TerminalSize),
 			}
 
-			go WaitForTerminal(k8s.GetDefaultClient(), k8s.GetDefaultRestConfig, request, sessionId)
+			go WaitForTerminal(client.GetDefaultClient(), client.GetDefaultRestConfig, request, sessionId)
 			//return success
 			c.JSON(http.StatusOK, TerminalResponse{Id: sessionId})
 		}
