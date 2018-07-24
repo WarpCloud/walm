@@ -2,15 +2,16 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/instance/lister"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type WalmPodAdaptor struct{
-	Lister walmlister.K8sResourceLister
+	Lister lister.K8sResourceLister
 }
 
-func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelectorStr string) ([]WalmPod, error) {
-	podList, err := adaptor.Lister.GetPods(namespace, labelSelectorStr)
+func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *metav1.LabelSelector) ([]WalmPod, error) {
+	podList, err := adaptor.Lister.GetPods(namespace, labelSelector)
 	if err != nil {
 		return nil, err
 	}
