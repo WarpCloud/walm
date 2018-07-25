@@ -25,6 +25,7 @@ type WalmApplicationInstanceStatus struct {
 	v1beta1.ApplicationInstanceStatus
 
 	WalmModules []WalmModule `json:"walmModules,omitempty" protobuf:"bytes,8,rep,name=walmModules"`
+	Events []corev1.Event
 }
 
 type WalmModule struct{
