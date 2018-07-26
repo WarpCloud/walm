@@ -14,10 +14,10 @@ import (
 
 var confEnvName = "WALM_CONF_PATH"
 
-var configPath = "/etc/walm/conf"
+//var configPath = "/etc/walm/conf"
 
 //for test
-//var configPath = "/home/hanbing/myworkspace/go/src/walm/pkg/setting/conf"
+var configPath = "/home/qls/GoProject/src/walm/pkg/setting/conf"
 
 var DefaultWalmHome = filepath.Join(homedir.HomeDir(), ".walm")
 
@@ -53,8 +53,8 @@ type config struct {
 
 	Kube struct {
 		MasterHost string `mapstructure:"master_host"`
-		Context    string `mapstructure:"config"`
-		Config     string `mapstructure:"context"`
+		Context    string `mapstructure:"context"`
+		Config     string `mapstructure:"config"`
 	} `mapstructure:"kube"`
 
 	Trace struct {

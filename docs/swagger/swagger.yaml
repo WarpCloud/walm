@@ -4,7 +4,7 @@ definitions:
     properties:
       apps:
         items:
-          $ref: '#/definitions/helm.ReleaseRequest'
+          type: '&{helm ReleaseRequest}'
         type: array
       configvalues:
         type: object
@@ -13,7 +13,7 @@ definitions:
     properties:
       apps:
         items:
-          $ref: '#/definitions/helm.ReleaseRequest'
+          type: '&{helm ReleaseRequest}'
         type: array
     type: object
   ex.ApiResponse:
@@ -57,6 +57,17 @@ definitions:
       name:
         type: string
       namespace:
+        type: string
+    type: object
+  node.NodeInfo:
+    properties:
+      node_ip:
+        type: string
+      node_labels:
+        type: object
+      node_name:
+        type: string
+      node_status:
         type: string
     type: object
   tenant.TenantInfo:
@@ -586,6 +597,35 @@ paths:
             type: object
       tags:
       - instance
+  /node:
+    get:
+      description: Get Node Info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/node.NodeInfo'
+            type: array
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: node not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Node
   /pod/{namespace}/{pod}/shell/{container}:
     get:
       consumes:

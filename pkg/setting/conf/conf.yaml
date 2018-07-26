@@ -14,12 +14,12 @@ helm:
   tiller_time_out: 0
   tillerHost: "172.26.0.5:31221"
 repo:
-  name: "stable"
-  url: "http://172.16.1.41:8880"
+  name: "test"
+  url: "http://172.16.1.41:8880/"
 kube:
-  config: "default"
+  config: ""
   context: ""
-  master_host: "http://172.16.1.70:8080"
+  master_host: ""
 trace:
   zipkin_url: "http://localhost:9411/api/v1/spans"
 auth: 
