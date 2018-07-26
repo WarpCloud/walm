@@ -217,6 +217,7 @@ func newInstallCmd(c helm.Interface, out io.Writer) *cobra.Command {
 }
 
 func (i *installCmd) run() error {
+
 	debug("CHART PATH: %s\n", i.chartPath)
 
 	if i.namespace == "" {

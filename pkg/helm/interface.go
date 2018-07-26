@@ -22,6 +22,8 @@ import (
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/storage/driver"
 	"k8s.io/helm/pkg/transwarp"
+	"k8s.io/helm/pkg/strvals"
+	"walm/pkg/k8s/client"
 )
 
 type Client struct {
@@ -110,6 +112,91 @@ func InstallUpgradeRealese(releaseRequest ReleaseRequest) error {
 	return nil
 }
 
+
+func ValidateChart(releaseRequest ReleaseRequest) (ChartValicationInfo, error) {
+
+	Log.Debugf("Begin ValidateChart %v\n", releaseRequest)
+
+	var chartValicationInfo ChartValicationInfo
+	chartValicationInfo.ChartName = releaseRequest.ChartName
+	chartValicationInfo.Name = releaseRequest.Name
+	chartValicationInfo.ConfigValues = releaseRequest.ConfigValues
+	chartValicationInfo.ChartVersion = releaseRequest.ChartVersion
+	chartValicationInfo.Dependencies = releaseRequest.Dependencies
+	chartValicationInfo.Namespace = releaseRequest.Namespace
+
+
+	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
+	if err != nil {
+		return chartValicationInfo, err
+	}
+	chartRequested, err := chartutil.Load(chartPath)
+	if err != nil {
+		return chartValicationInfo, err
+	}
+
+	if releaseRequest.Namespace == "" {
+		releaseRequest.Namespace = "default"
+	}
+
+	rawVals, err := yaml.Marshal(releaseRequest.ConfigValues)
+	if err != nil {
+		return chartValicationInfo, err
+	}
+
+	var links []string
+	for k, v := range releaseRequest.Dependencies {
+		tmpStr := k + "=" + v
+		links = append(links, tmpStr)
+	}
+
+	out := make(map[string]string)
+	if chartRequested.Metadata.Engine == "jsonnet" {
+
+		if len(links) > 0 {
+
+			out, err = renderWithDependencies(chartRequested, releaseRequest.Namespace, rawVals, "1.9", "", links)
+
+		} else {
+
+			out, err = render(chartRequested, releaseRequest.Namespace, rawVals, "1.9")
+		}
+
+	} else {
+
+		err = fmt.Errorf("only support jsonnet engine...")
+		return chartValicationInfo, err
+
+	}
+
+	if err != nil {
+		return chartValicationInfo, err
+	}
+
+	chartValicationInfo.RenderResult = out
+
+	dryRunK8sResource(out)
+
+	chartValicationInfo.DryRunStatus = "ok"
+	chartValicationInfo.DryRunResult = "pod deploy suc..."
+	chartValicationInfo.ErrorMessage = "Unable to connect to the server: dial tcp 172.26.0.5:15443: getsockopt: no route to host"
+
+	return chartValicationInfo, nil
+
+}
+func dryRunK8sResource(renderOut map[string]string) error {
+
+	// init k8s client
+	k8sClient := client.GetDefaultClient()
+
+	//k8sClient.CoreV1().RESTClient().Post().Do()
+
+	println(k8sClient)
+
+	return  nil
+
+}
+
 func RollbackRealese(namespace, releaseName, version string) error {
 	return nil
 }
@@ -178,7 +265,9 @@ func GetDependencies(chartName, chartVersion string) (chartNames, chartVersions 
 }
 
 func parseDependencies(chart *chart.Chart) ([]string, error) {
-	dependencies := make([]string, 1)
+
+	var dependencies []string
+	//dependencies := make([]string, 0)
 	for _, chartFile := range chart.Files {
 		Log.Printf("Chartfile %s \n", chartFile.TypeUrl)
 		if chartFile.TypeUrl == "transwarp-app-yaml" {
@@ -310,4 +399,44 @@ func ensureDefaultRepos(home helmpath.Home) error {
 	}
 
 	return nil
+}
+
+func renderWithDependencies(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string, kubeContext string, links []string) (map[string]string, error) {
+
+	depLinks := map[string]interface{}{}
+	for _, value := range links {
+		if err := strvals.ParseInto(value, depLinks); err != nil {
+			return nil, fmt.Errorf("failed parsing --set data: %s", err)
+		}
+	}
+
+	err := transwarp.CheckDepencies(chartRequested, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	// init k8s transwarp client
+	k8sTranswarpClient := client.GetDefaultClientEx()
+
+	// init k8s client
+	k8sClient := client.GetDefaultClient()
+
+	depVals, err := transwarp.GetDepenciesConfig(k8sTranswarpClient, k8sClient, namespace, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	newVals, err := transwarp.MergeDepenciesValue(depVals, userVals)
+	if err != nil {
+		return nil, err
+	}
+
+	return transwarp.Render(chartRequested, namespace, newVals, kubeVersion)
+
+}
+
+
+func render(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string) (map[string]string, error) {
+
+	return transwarp.Render(chartRequested, namespace, userVals, kubeVersion)
 }

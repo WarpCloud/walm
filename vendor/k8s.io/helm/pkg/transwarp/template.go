@@ -8,6 +8,7 @@ import (
 	yaml2 "gopkg.in/yaml.v2"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/helm/pkg/strvals"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -269,5 +270,63 @@ func changeResultStrToMap(resultStr string, resultMap *map[string]string) error 
 	}
 
 	return nil
+
+}
+
+func MergeDepenciesValue(dest map[string]interface{}, src []byte) ([]byte, error) {
+
+	resourcesMap := make(map[string]interface{})
+	err := yaml2.Unmarshal([]byte(src), &resourcesMap)
+	if err != nil {
+		return nil, err
+	}
+
+	result := mergeValues(dest, resourcesMap)
+	resultByte, err := yaml2.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return resultByte, nil
+
+}
+
+func RenderWithDepencies(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string, kubeContext string, links []string) (map[string]string, error) {
+
+	depLinks := map[string]interface{}{}
+	for _, value := range links {
+		if err := strvals.ParseInto(value, depLinks); err != nil {
+			return nil, fmt.Errorf("failed parsing --set data: %s", err)
+		}
+	}
+
+	err := CheckDepencies(chartRequested, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	// init k8s transwarp client
+	k8sTranswarpClient, err := GetTranswarpKubeClient(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// init k8s client
+	k8sClient, err := GetK8sKubeClient(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+
+	depVals, err := GetDepenciesConfig(k8sTranswarpClient, k8sClient, namespace, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	newVals, err := MergeDepenciesValue(depVals, userVals)
+	if err != nil {
+		return nil, err
+	}
+
+	return Render(chartRequested, namespace, newVals, kubeVersion)
 
 }

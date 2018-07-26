@@ -17,6 +17,7 @@ import (
 	"walm/router/api/v1/node"
 	"walm/router/ex"
 	"walm/router/middleware"
+	"walm/router/api/v1/chart"
 )
 
 // @title Walm
@@ -117,12 +118,15 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		nodeGroup := apiv1.Group("/node")
 		{
 			nodeGroup.GET("/", node.GetNode)
-			//edgeGroup.POST("/server/:server/app", edge.DeployEdgeServerApp)
-			//edgeGroup.GET("/server/:server/app", edge.GetEdgeServerApp)
-			//edgeGroup.PUT("/server/:server/app", edge.UpdateEdgeServerApp)
-			////edgeGroup.POST("/edge/:namespace/name/:name/list", cluster.DeployListInCluster)
-			//edgeGroup.GET("/app", edge.GetEdgeServer)
-			//edgeGroup.POST("/app/:app", edge.DeployEdgeServerApp)
+			nodeGroup.GET("/:nodename/labels", node.GetNodeLabels)
+			nodeGroup.PUT("/:nodename/labels", node.UpdateNodeLabels)
+			nodeGroup.POST("/:nodename/labels", node.AddNodeLabels)
+			nodeGroup.DELETE("/:nodename/labels", node.DelNodeLabels)
+		}
+
+		chartGroup := apiv1.Group("/chart")
+		{
+			chartGroup.POST("/:chartname/version/:chartversion/validation", chart.ValidateChart)
 		}
 
 	}
