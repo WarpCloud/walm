@@ -748,6 +748,49 @@
                 }
             }
         },
+        "/node": {
+            "get": {
+                "description": "Get Node Info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Node"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/node.NodeInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Name supplied!",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "node not found",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/ex.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/pod/{namespace}/{pod}/shell/{container}": {
             "get": {
                 "description": "exec shell to prompt with container",
@@ -1018,7 +1061,7 @@
                 "apps": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/helm.ReleaseRequest"
+                        "type": "\u0026{helm ReleaseRequest}"
                     }
                 },
                 "configvalues": {
@@ -1032,7 +1075,7 @@
                 "apps": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/helm.ReleaseRequest"
+                        "type": "\u0026{helm ReleaseRequest}"
                     }
                 }
             }
@@ -1099,6 +1142,23 @@
                     "type": "string"
                 },
                 "namespace": {
+                    "type": "string"
+                }
+            }
+        },
+        "node.NodeInfo": {
+            "type": "object",
+            "properties": {
+                "node_ip": {
+                    "type": "string"
+                },
+                "node_labels": {
+                    "type": "object"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "node_status": {
                     "type": "string"
                 }
             }
