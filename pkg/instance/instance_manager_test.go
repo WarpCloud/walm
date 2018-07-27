@@ -2,21 +2,17 @@ package instance
 
 import (
 	"testing"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"walm/pkg/k8s/client"
 	"encoding/json"
 	"fmt"
 	"walm/pkg/instance/lister"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/k8s/informer"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func Test(t *testing.T) {
 	clientEx, err := client.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
-	if err != nil {
-		println(err.Error())
-		return
-	}
-
-	inst, err := clientEx.TranswarpV1beta1().ApplicationInstances("txsql3").Get("txsql-txsql3", v1.GetOptions{})
 	if err != nil {
 		println(err.Error())
 		return
@@ -28,7 +24,17 @@ func Test(t *testing.T) {
 		return
 	}
 
-	lister := lister.K8sResourceLister{client}
+	factory := informer.NewInformerFactory(client, clientEx, 0)
+	factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+
+	inst, err := handler.NewInstanceHandler(clientEx, factory.InstanceLister).GetInstance("txsql3","txsql-txsql3")
+	if err != nil {
+		println(err.Error())
+		return
+	}
+
+	lister := lister.K8sResourceLister{factory, client}
 	instManager := InstanceManager{lister}
 	walmInst, err := instManager.BuildWalmApplicationInstance(*inst)
 	if err != nil {

@@ -2,19 +2,31 @@ package handler
 
 import (
 	"testing"
-	"walm/pkg/k8s/client"
+	k8sclient "walm/pkg/k8s/client"
 	"fmt"
 	"encoding/json"
+	"walm/pkg/k8s/informer"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func Test(t *testing.T) {
-	client, err := client.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	client, err := k8sclient.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	nodeHandler := NewNodeHandler(client)
+	clientEx, err := k8sclient.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
+	if err != nil {
+		println(err.Error())
+		return
+	}
+
+	factory := informer.NewInformerFactory(client, clientEx, 0)
+	factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+
+	nodeHandler := NewNodeHandler(client, factory.NodeLister)
 
 	nodeList, err := nodeHandler.ListNodes(nil)
 	if err != nil {

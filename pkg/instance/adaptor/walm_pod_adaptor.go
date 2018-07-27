@@ -18,8 +18,8 @@ func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *metav
 
 	walmPods := []WalmPod{}
 	if podList != nil {
-		for _, pod := range podList.Items {
-			walmPod := BuildWalmPod(pod)
+		for _, pod := range podList {
+			walmPod := BuildWalmPod(*pod)
 			walmPods = append(walmPods, walmPod)
 		}
 	}
