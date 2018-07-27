@@ -4,14 +4,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	listv1beta1 "k8s.io/client-go/listers/extensions/v1beta1"
 )
 
 type DeploymentHandler struct {
 	client *kubernetes.Clientset
+	lister listv1beta1.DeploymentLister
 }
 
 func (handler DeploymentHandler) GetDeployment(namespace string, name string) (*v1beta1.Deployment, error) {
-	return handler.client.ExtensionsV1beta1().Deployments(namespace).Get(name, v1.GetOptions{})
+	return handler.lister.Deployments(namespace).Get(name)
 }
 
 func (handler DeploymentHandler) CreateDeployment(namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
@@ -34,6 +36,6 @@ func (handler DeploymentHandler) RollbackDeployment(namespace string, name strin
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).Rollback(&v1beta1.DeploymentRollback{Name: name, RollbackTo:v1beta1.RollbackConfig{Revision:revision}})
 }
 
-func NewDeploymentHandler(client *kubernetes.Clientset) (DeploymentHandler) {
-	return DeploymentHandler{client:client}
+func NewDeploymentHandler(client *kubernetes.Clientset, lister listv1beta1.DeploymentLister) (DeploymentHandler) {
+	return DeploymentHandler{client:client, lister: lister}
 }

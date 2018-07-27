@@ -14,6 +14,8 @@ import (
 
 var confEnvName = "WALM_CONF_PATH"
 
+var kubeConfigEnvKey = "KUBE_CONFIG_PATH"
+
 //var configPath = "/etc/walm/conf"
 
 //for test
@@ -84,6 +86,11 @@ func init() {
 	if err := vp.Unmarshal(&Config); err != nil {
 		Log.Fatalf("Unmarshal config file faild! %s\n", err.Error())
 	}
+
+	if kubeConfigPath := os.Getenv(kubeConfigEnvKey); len(kubeConfigPath) > 0 {
+		Config.Kube.Config = kubeConfigPath
+	}
+
 	verifyConfig()
 }
 

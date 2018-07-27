@@ -4,8 +4,6 @@ import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	"walm/pkg/instance/adaptor"
 	"walm/pkg/instance/lister"
-	"k8s.io/api/core/v1"
-	"walm/pkg/k8s/handler"
 )
 
 type InstanceManager struct {
@@ -21,7 +19,7 @@ func (instManager InstanceManager)BuildWalmApplicationInstance(inst v1beta1.Appl
 	if err != nil {
 		return
 	}
-	walmInst.Status.Events, err = instManager.buildEvents(inst)
+	walmInst.Status.Events, err = instManager.lister.GetInstanceEvents(inst)
 	return
 }
 
@@ -35,23 +33,6 @@ func (instManager InstanceManager)buildWalmModules(modules []v1beta1.ResourceRef
 		walmModules = append(walmModules, walmModule)
 	}
 	return
-}
-
-func (instManager InstanceManager) buildEvents(inst v1beta1.ApplicationInstance) ([]v1.Event, error) {
-	handler := handler.NewEventHandler(instManager.lister.Client)
-	ref := v1.ObjectReference{
-		Namespace: inst.Namespace,
-		Name: inst.Name,
-		Kind: inst.Kind,
-		ResourceVersion: inst.ResourceVersion,
-		UID: inst.UID,
-		APIVersion: inst.APIVersion,
-	}
-	events, err := handler.SearchEvents("txsql3", &ref)
-	if err != nil {
-		return nil , err
-	}
-	return events.Items, nil
 }
 
 func (instManager InstanceManager)buildWalmModule(module v1beta1.ResourceReference) (adaptor.WalmModule, error) {
