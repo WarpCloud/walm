@@ -1061,7 +1061,7 @@
                 "apps": {
                     "type": "array",
                     "items": {
-                        "type": "\u0026{helm ReleaseRequest}"
+                        "$ref": "#/definitions/helm.ReleaseRequest"
                     }
                 },
                 "configvalues": {
@@ -1075,7 +1075,7 @@
                 "apps": {
                     "type": "array",
                     "items": {
-                        "type": "\u0026{helm ReleaseRequest}"
+                        "$ref": "#/definitions/helm.ReleaseRequest"
                     }
                 }
             }
