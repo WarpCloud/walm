@@ -34,7 +34,7 @@ import:
 - package: github.com/swaggo/gin-swagger
   subpackages:
   - swaggerFiles
-- package: github.com/swaggo/swag
+- package: github.com/hohice/swag
   version: ^1.1.1
 - package: k8s.io/client-go
   version: 7.0.0
