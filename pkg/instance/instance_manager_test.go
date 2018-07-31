@@ -1,35 +1,40 @@
 package instance
 
-
 import (
 	"testing"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/k8s"
-	"walm/pkg/instance/walmlister"
+	"walm/pkg/k8s/client"
 	"encoding/json"
 	"fmt"
+	"walm/pkg/instance/lister"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/k8s/informer"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func Test(t *testing.T) {
-	clientEx, err := k8s.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
+	clientEx, err := client.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	inst, err := clientEx.TranswarpV1beta1().ApplicationInstances("guardian").Get("guardian-guardian", v1.GetOptions{})
+	client, err := client.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	client, err := k8s.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	factory := informer.NewInformerFactory(client, clientEx, 0)
+	factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+
+	inst, err := handler.NewInstanceHandler(clientEx, factory.InstanceLister).GetInstance("txsql3","txsql-txsql3")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	lister := walmlister.K8sClientLister{client}
+	lister := lister.K8sResourceLister{factory, client}
 	instManager := InstanceManager{lister}
 	walmInst, err := instManager.BuildWalmApplicationInstance(*inst)
 	if err != nil {
@@ -38,6 +43,13 @@ func Test(t *testing.T) {
 	}
 
 	e, err := json.Marshal(walmInst.Status.WalmModules)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(e))
+
+	e, err = json.Marshal(walmInst.Status.Events)
 	if err != nil {
 		fmt.Println(err)
 		return

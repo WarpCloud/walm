@@ -2,13 +2,12 @@ package adaptor
 
 import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
-	"walm/pkg/instance/walmlister"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"walm/pkg/instance/lister"
 	batchv1 "k8s.io/api/batch/v1"
 )
 
 type WalmJobAdaptor struct{
-	Lister walmlister.K8sResourceLister
+	Lister lister.K8sResourceLister
 }
 
 func(adaptor WalmJobAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {
@@ -33,11 +32,8 @@ func (adaptor WalmJobAdaptor) BuildWalmJob(job *batchv1.Job) (walmJob WalmJob, e
 	walmJob = WalmJob{
 		WalmMeta: WalmMeta{Name: job.Name, Namespace: job.Namespace},
 	}
-	selector, err := metav1.LabelSelectorAsSelector(job.Spec.Selector)
-	if err != nil {
-		return walmJob, err
-	}
-	walmJob.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(job.Namespace, selector.String())
+
+	walmJob.Pods, err = WalmPodAdaptor{adaptor.Lister}.GetWalmPods(job.Namespace, job.Spec.Selector)
 
 	return walmJob, err
 }

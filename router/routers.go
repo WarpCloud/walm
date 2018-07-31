@@ -11,9 +11,10 @@ import (
 
 	_ "walm/docs"
 	. "walm/pkg/util/log"
-	cluster "walm/router/api/v1/cluster"
-	instance "walm/router/api/v1/instance"
-	tenant "walm/router/api/v1/tenant"
+	"walm/router/api/v1/cluster"
+	"walm/router/api/v1/instance"
+	"walm/router/api/v1/tenant"
+	"walm/router/api/v1/node"
 	"walm/router/ex"
 	"walm/router/middleware"
 )
@@ -112,6 +113,18 @@ func InitRouter(oauth, runmode bool) *gin.Engine {
 		{
 			podGroup.GET("/:namespace/:pod/shell/:container")
 		}
+
+		nodeGroup := apiv1.Group("/node")
+		{
+			nodeGroup.GET("/", node.GetNode)
+			//edgeGroup.POST("/server/:server/app", edge.DeployEdgeServerApp)
+			//edgeGroup.GET("/server/:server/app", edge.GetEdgeServerApp)
+			//edgeGroup.PUT("/server/:server/app", edge.UpdateEdgeServerApp)
+			////edgeGroup.POST("/edge/:namespace/name/:name/list", cluster.DeployListInCluster)
+			//edgeGroup.GET("/app", edge.GetEdgeServer)
+			//edgeGroup.POST("/app/:app", edge.DeployEdgeServerApp)
+		}
+
 	}
 
 	return r
