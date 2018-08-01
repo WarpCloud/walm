@@ -114,6 +114,8 @@ func ListInstances(c *gin.Context) {
 		ilen := imax + ioffset
 		if ilen > ioffset && ilen < len(releases) {
 			c.JSON(http.StatusOK, releases[ioffset:ilen])
+		} else if len(releases) == 0 {
+			c.JSON(http.StatusOK, []helm.ReleaseInfo{})
 		} else {
 			c.JSON(http.StatusOK, releases[ioffset:])
 		}
