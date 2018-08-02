@@ -13,10 +13,13 @@ type WalmIngressAdaptor struct{
 func(adaptor WalmIngressAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {
 	ingress, err := adaptor.GetWalmIngress(module.ResourceRef.Namespace, module.ResourceRef.Name)
 	if err != nil {
+		if isNotFoundErr(err) {
+			return buildNotFoundWalmModule(module), nil
+		}
 		return WalmModule{}, err
 	}
 
-	return WalmModule{Kind: module.ResourceRef.Kind, Object: ingress}, nil
+	return WalmModule{Kind: module.ResourceRef.Kind, Resource: ingress, ModuleState: WalmState{State: "Ready"}}, nil
 }
 
 func (adaptor WalmIngressAdaptor) GetWalmIngress(namespace string, name string) (WalmIngress, error) {

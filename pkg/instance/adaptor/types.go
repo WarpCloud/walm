@@ -26,11 +26,18 @@ type WalmApplicationInstanceStatus struct {
 
 	WalmModules []WalmModule `json:"walmModules,omitempty" protobuf:"bytes,8,rep,name=walmModules"`
 	Events []corev1.Event
+	InstanceState WalmState
 }
 
 type WalmModule struct{
-	Kind string
-	Object interface{}
+	Kind        string
+	Resource    WalmResource
+	ModuleState WalmState
+}
+
+type WalmResource interface {
+	GetName() string
+	GetNamespace() string
 }
 
 type WalmMeta struct {
@@ -38,14 +45,30 @@ type WalmMeta struct {
 	Namespace string
 }
 
+func(meta WalmMeta) GetName() string {
+	return meta.Name
+}
+
+func(meta WalmMeta) GetNamespace() string {
+	return meta.Namespace
+}
+
 type WalmDeployment struct {
 	WalmMeta
-	Pods []WalmPod
+	Pods []*WalmPod
+	DeploymentState WalmState
 }
 
 type WalmPod struct {
 	WalmMeta
 	PodIp string
+	PodState WalmState
+}
+
+type WalmState struct {
+	State string
+	Reason string
+	Message string
 }
 
 type WalmService struct {
@@ -55,17 +78,20 @@ type WalmService struct {
 
 type WalmStatefulSet struct {
 	WalmMeta
-	Pods []WalmPod
+	Pods []*WalmPod
+	StatefulSetState WalmState
 }
 
 type WalmDaemonSet struct {
 	WalmMeta
-	Pods []WalmPod
+	Pods []*WalmPod
+	DaemonSetState WalmState
 }
 
 type WalmJob struct {
 	WalmMeta
-	Pods []WalmPod
+	Pods []*WalmPod
+	JobState WalmState
 }
 
 type WalmConfigMap struct {

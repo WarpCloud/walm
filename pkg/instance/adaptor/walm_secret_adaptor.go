@@ -13,10 +13,13 @@ type WalmSecretAdaptor struct{
 func(adaptor WalmSecretAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {
 	secret, err := adaptor.GetWalmSecret(module.ResourceRef.Namespace, module.ResourceRef.Name)
 	if err != nil {
+		if isNotFoundErr(err) {
+			return buildNotFoundWalmModule(module), nil
+		}
 		return WalmModule{}, err
 	}
 
-	return WalmModule{Kind: module.ResourceRef.Kind, Object: secret}, nil
+	return WalmModule{Kind: module.ResourceRef.Kind, Resource: secret, ModuleState: WalmState{State: "Ready"}}, nil
 }
 
 func (adaptor WalmSecretAdaptor) GetWalmSecret(namespace string, name string) (WalmSecret, error) {

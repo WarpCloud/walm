@@ -64,7 +64,7 @@ func (lister K8sResourceLister)GetInstanceEvents(inst tranv1beta1.ApplicationIns
 		UID: inst.UID,
 		APIVersion: inst.APIVersion,
 	}
-	events, err := handler.SearchEvents("txsql3", &ref)
+	events, err := handler.SearchEvents(inst.Namespace, &ref)
 	if err != nil {
 		return nil , err
 	}
