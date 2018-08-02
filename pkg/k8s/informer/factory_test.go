@@ -23,6 +23,7 @@ func Test(t *testing.T) {
 
 	factory := NewInformerFactory(client1, clientEx, 0)
 	factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
 
 	factory.Factory.WaitForCacheSync(wait.NeverStop)
 	factory.FactoryEx.WaitForCacheSync(wait.NeverStop)

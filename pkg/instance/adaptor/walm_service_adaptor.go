@@ -13,10 +13,13 @@ type WalmServiceAdaptor struct{
 func(adaptor WalmServiceAdaptor) GetWalmModule(module v1beta1.ResourceReference) (WalmModule, error) {
 	service, err := adaptor.GetWalmService(module.ResourceRef.Namespace, module.ResourceRef.Name)
 	if err != nil {
+		if isNotFoundErr(err) {
+			return buildNotFoundWalmModule(module), nil
+		}
 		return WalmModule{}, err
 	}
 
-	return WalmModule{Kind: module.ResourceRef.Kind, Object: service}, nil
+	return WalmModule{Kind: module.ResourceRef.Kind, Resource: service, ModuleState: WalmState{State: "Ready"}}, nil
 }
 
 func (adaptor WalmServiceAdaptor) GetWalmService(namespace string, name string) (WalmService, error) {
