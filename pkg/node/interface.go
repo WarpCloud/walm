@@ -1,10 +1,8 @@
 package node
 
 import (
-	"walm/pkg/k8s/client"
 	"fmt"
 	"walm/pkg/k8s/handler"
-	"walm/pkg/k8s/informer"
 )
 
 
@@ -12,9 +10,7 @@ func GetNode() ([]NodeInfo, error){
 
 	var nodeInfos []NodeInfo
 
-	client := client.GetDefaultClient()
-
-	nodeHandler := handler.NewNodeHandler(client, informer.Factory.NodeLister)
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
 
 	items, err := nodeHandler.ListNodes(nil)
 	if err != nil {

@@ -12,22 +12,18 @@ type JobHandler struct {
 	lister listv1.JobLister
 }
 
-func (handler JobHandler) GetJob(namespace string, name string) (*v1.Job, error) {
+func (handler *JobHandler) GetJob(namespace string, name string) (*v1.Job, error) {
 	return handler.lister.Jobs(namespace).Get(name)
 }
 
-func (handler JobHandler) CreateJob(namespace string, job *v1.Job) (*v1.Job, error) {
+func (handler *JobHandler) CreateJob(namespace string, job *v1.Job) (*v1.Job, error) {
 	return handler.client.BatchV1().Jobs(namespace).Create(job)
 }
 
-func (handler JobHandler) UpdateJob(namespace string, job *v1.Job) (*v1.Job, error) {
+func (handler *JobHandler) UpdateJob(namespace string, job *v1.Job) (*v1.Job, error) {
 	return handler.client.BatchV1().Jobs(namespace).Update(job)
 }
 
-func (handler JobHandler) DeleteJob(namespace string, name string) (error) {
+func (handler *JobHandler) DeleteJob(namespace string, name string) (error) {
 	return handler.client.BatchV1().Jobs(namespace).Delete(name, &metav1.DeleteOptions{})
-}
-
-func NewJobHandler(client *kubernetes.Clientset, lister listv1.JobLister) (JobHandler) {
-	return JobHandler{client: client, lister: lister}
 }

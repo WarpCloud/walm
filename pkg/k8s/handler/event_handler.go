@@ -12,7 +12,7 @@ type EventHandler struct {
 	client *kubernetes.Clientset
 }
 
-func (handler EventHandler) ListEvents(namespace string, labelSelector *metav1.LabelSelector) (*v1.EventList, error) {
+func (handler *EventHandler) ListEvents(namespace string, labelSelector *metav1.LabelSelector) (*v1.EventList, error) {
 	selectorStr, err := k8sutils.ConvertLabelSelectorToStr(labelSelector)
 	if err != nil {
 		return nil, err
@@ -20,10 +20,7 @@ func (handler EventHandler) ListEvents(namespace string, labelSelector *metav1.L
 	return handler.client.CoreV1().Events(namespace).List(metav1.ListOptions{LabelSelector:selectorStr})
 }
 
-func (handler EventHandler) SearchEvents(namespace string,objOrRef runtime.Object)(*v1.EventList, error) {
+func (handler *EventHandler) SearchEvents(namespace string,objOrRef runtime.Object)(*v1.EventList, error) {
 	return handler.client.CoreV1().Events(namespace).Search(runtime.NewScheme(), objOrRef)
 }
 
-func NewEventHandler(client *kubernetes.Clientset) (EventHandler) {
-	return EventHandler{client:client}
-}

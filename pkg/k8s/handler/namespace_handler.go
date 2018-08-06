@@ -13,11 +13,11 @@ type NamespaceHandler struct {
 	lister listv1.NamespaceLister
 }
 
-func (handler NamespaceHandler) GetNamespace(name string) (*v1.Namespace, error) {
+func (handler *NamespaceHandler) GetNamespace(name string) (*v1.Namespace, error) {
 	return handler.lister.Get(name)
 }
 
-func (handler NamespaceHandler) ListNamespaces(labelSelector *metav1.LabelSelector) ([]*v1.Namespace, error) {
+func (handler *NamespaceHandler) ListNamespaces(labelSelector *metav1.LabelSelector) ([]*v1.Namespace, error) {
 	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {
 		return nil, err
@@ -25,18 +25,15 @@ func (handler NamespaceHandler) ListNamespaces(labelSelector *metav1.LabelSelect
 	return handler.lister.List(selector)
 }
 
-func (handler NamespaceHandler) CreateNamespace(Namespace *v1.Namespace) (*v1.Namespace, error) {
+func (handler *NamespaceHandler) CreateNamespace(Namespace *v1.Namespace) (*v1.Namespace, error) {
 	return handler.client.CoreV1().Namespaces().Create(Namespace)
 }
 
-func (handler NamespaceHandler) UpdateNamespace(Namespace *v1.Namespace) (*v1.Namespace, error) {
+func (handler *NamespaceHandler) UpdateNamespace(Namespace *v1.Namespace) (*v1.Namespace, error) {
 	return handler.client.CoreV1().Namespaces().Update(Namespace)
 }
 
-func (handler NamespaceHandler) DeleteNamespace(name string) (error) {
+func (handler *NamespaceHandler) DeleteNamespace(name string) (error) {
 	return handler.client.CoreV1().Namespaces().Delete(name, &metav1.DeleteOptions{})
 }
 
-func NewNamespaceHandler(client *kubernetes.Clientset, lister listv1.NamespaceLister) (NamespaceHandler) {
-	return NamespaceHandler{client: client, lister: lister}
-}

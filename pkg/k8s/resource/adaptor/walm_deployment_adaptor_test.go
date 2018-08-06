@@ -10,13 +10,13 @@ import (
 )
 
 func TestDeploymentAdaptor(t *testing.T) {
-	client, err := client.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	client, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	deployment, err := client.ExtensionsV1beta1().Deployments("default").Get("default-http-backend", v1.GetOptions{})
+	deployment, err := client.ExtensionsV1beta1().Deployments("default").Get("hello", v1.GetOptions{})
 	if err != nil {
 		println(err.Error())
 		return
@@ -66,9 +66,6 @@ func TestParsePod(t *testing.T) {
 
 func buildWalmPod(name string, state string) *WalmPod {
 	return &WalmPod{
-		WalmMeta: WalmMeta{Name: name},
-		PodState: WalmState{
-			State: state,
-		},
+		WalmMeta: WalmMeta{Name: name, State: WalmState{Status: state}},
 	}
 }

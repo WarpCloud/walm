@@ -10,23 +10,23 @@ import (
 )
 
 func Test(t *testing.T) {
-	client, err := k8sclient.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	client, err := k8sclient.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	clientEx, err := k8sclient.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
+	clientEx, err := k8sclient.CreateFakeApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return
 	}
 
-	factory := informer.NewInformerFactory(client, clientEx, 0)
+	factory := informer.NewFakeInformerFactory(client, clientEx, 0)
 	factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
 
-	nodeHandler := NewNodeHandler(client, factory.NodeLister)
+	nodeHandler := NodeHandler{client, factory.NodeLister}
 
 	nodeList, err := nodeHandler.ListNodes(nil)
 	if err != nil {

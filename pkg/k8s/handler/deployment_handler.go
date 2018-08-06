@@ -12,23 +12,23 @@ type DeploymentHandler struct {
 	lister listv1beta1.DeploymentLister
 }
 
-func (handler DeploymentHandler) GetDeployment(namespace string, name string) (*v1beta1.Deployment, error) {
+func (handler *DeploymentHandler) GetDeployment(namespace string, name string) (*v1beta1.Deployment, error) {
 	return handler.lister.Deployments(namespace).Get(name)
 }
 
-func (handler DeploymentHandler) CreateDeployment(namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
+func (handler *DeploymentHandler) CreateDeployment(namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 }
 
-func (handler DeploymentHandler) UpdateDeployment(namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
+func (handler *DeploymentHandler) UpdateDeployment(namespace string, deployment *v1beta1.Deployment) (*v1beta1.Deployment, error) {
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 }
 
-func (handler DeploymentHandler) DeleteDeployment(namespace string, name string) (error) {
+func (handler *DeploymentHandler) DeleteDeployment(namespace string, name string) (error) {
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).Delete(name, &v1.DeleteOptions{})
 }
 
-func (handler DeploymentHandler) ScaleDeployment(namespace string, name string, replicas int32) (*v1beta1.Scale, error) {
+func (handler *DeploymentHandler) ScaleDeployment(namespace string, name string, replicas int32) (*v1beta1.Scale, error) {
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).UpdateScale(name, &v1beta1.Scale{Spec: v1beta1.ScaleSpec{Replicas: replicas}})
 }
 
@@ -36,6 +36,3 @@ func (handler DeploymentHandler) RollbackDeployment(namespace string, name strin
 	return handler.client.ExtensionsV1beta1().Deployments(namespace).Rollback(&v1beta1.DeploymentRollback{Name: name, RollbackTo:v1beta1.RollbackConfig{Revision:revision}})
 }
 
-func NewDeploymentHandler(client *kubernetes.Clientset, lister listv1beta1.DeploymentLister) (DeploymentHandler) {
-	return DeploymentHandler{client:client, lister: lister}
-}

@@ -9,7 +9,7 @@ import (
 )
 
 func Test(t *testing.T) {
-	client, err := client.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	client, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())
 		return

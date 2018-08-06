@@ -11,22 +11,22 @@ import (
 
 func Test(t *testing.T) {
 
-	client1, err := client.CreateApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	client1, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
-	clientEx, err := client.CreateApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
+	clientEx, err := client.CreateFakeApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
-	factory := NewInformerFactory(client1, clientEx, 0)
+	factory := newInformerFactory(client1, clientEx, 0)
 	factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
 
-	factory.Factory.WaitForCacheSync(wait.NeverStop)
-	factory.FactoryEx.WaitForCacheSync(wait.NeverStop)
+	factory.factory.WaitForCacheSync(wait.NeverStop)
+	factory.factoryEx.WaitForCacheSync(wait.NeverStop)
 
 	inst, err := factory.InstanceLister.ApplicationInstances("txsql3").Get("txsql-txsql3")
 	e, err := json.Marshal(inst)
