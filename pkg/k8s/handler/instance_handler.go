@@ -14,12 +14,12 @@ type InstanceHandler struct {
 	lister listv1beta1.ApplicationInstanceLister
 }
 
-func (handler InstanceHandler) GetInstance(namespace string, name string) (*v1beta1.ApplicationInstance, error) {
+func (handler *InstanceHandler) GetInstance(namespace string, name string) (*v1beta1.ApplicationInstance, error) {
 	return handler.client.TranswarpV1beta1().ApplicationInstances(namespace).Get(name, metav1.GetOptions{})
 	//return handler.lister.ApplicationInstances(namespace).Get(name)
 }
 
-func (handler InstanceHandler) ListInstances(namespace string, labelSelector *metav1.LabelSelector) (*v1beta1.ApplicationInstanceList, error) {
+func (handler *InstanceHandler) ListInstances(namespace string, labelSelector *metav1.LabelSelector) (*v1beta1.ApplicationInstanceList, error) {
 	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {
 		return nil, err
@@ -32,6 +32,3 @@ func (handler InstanceHandler) ListInstances(namespace string, labelSelector *me
 	//return handler.lister.ApplicationInstances(namespace).List(selector)
 }
 
-func NewInstanceHandler(client *clientsetex.Clientset, lister listv1beta1.ApplicationInstanceLister) InstanceHandler {
-	return InstanceHandler{client: client, lister: lister}
-}

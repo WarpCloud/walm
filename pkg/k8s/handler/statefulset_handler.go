@@ -12,22 +12,18 @@ type StatefulSetHandler struct {
 	lister listv1beta1.StatefulSetLister
 }
 
-func (handler StatefulSetHandler) GetStatefulSet(namespace string, name string) (*v1beta1.StatefulSet, error) {
+func (handler *StatefulSetHandler) GetStatefulSet(namespace string, name string) (*v1beta1.StatefulSet, error) {
 	return handler.lister.StatefulSets(namespace).Get(name)
 }
 
-func (handler StatefulSetHandler) CreateStatefulSet(namespace string, statefulSet *v1beta1.StatefulSet) (*v1beta1.StatefulSet, error) {
+func (handler *StatefulSetHandler) CreateStatefulSet(namespace string, statefulSet *v1beta1.StatefulSet) (*v1beta1.StatefulSet, error) {
 	return handler.client.AppsV1beta1().StatefulSets(namespace).Create(statefulSet)
 }
 
-func (handler StatefulSetHandler) UpdateStatefulSet(namespace string, statefulSet *v1beta1.StatefulSet) (*v1beta1.StatefulSet, error) {
+func (handler *StatefulSetHandler) UpdateStatefulSet(namespace string, statefulSet *v1beta1.StatefulSet) (*v1beta1.StatefulSet, error) {
 	return handler.client.AppsV1beta1().StatefulSets(namespace).Update(statefulSet)
 }
 
-func (handler StatefulSetHandler) DeleteStatefulSet(namespace string, name string) (error) {
+func (handler *StatefulSetHandler) DeleteStatefulSet(namespace string, name string) (error) {
 	return handler.client.AppsV1beta1().StatefulSets(namespace).Delete(name, &metav1.DeleteOptions{})
-}
-
-func NewStatefulSetHandler(client *kubernetes.Clientset, lister listv1beta1.StatefulSetLister) (StatefulSetHandler) {
-	return StatefulSetHandler{client: client, lister: lister}
 }

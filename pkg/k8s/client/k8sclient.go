@@ -26,7 +26,7 @@ const (
 //
 // apiserverHost param is in the format of protocol://address:port/pathPrefix, e.g.http://localhost:8001.
 // kubeConfig location of kubeconfig file
-func CreateApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
+func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func CreateApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 }
 
 // k8s client to deal with instance, only for k8s 1.9+
-func CreateApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
+func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
 	if err != nil {
 		return nil, err
@@ -105,4 +105,14 @@ func CreateApiserverClientEx(apiserverHost string, kubeConfig string) (*clientse
 	}
 
 	return client, nil
+}
+
+// for test
+func CreateFakeApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
+	return createApiserverClient(apiserverHost, kubeConfig)
+}
+
+// for test
+func CreateFakeApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
+	return createApiserverClientEx(apiserverHost, kubeConfig)
 }

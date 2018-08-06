@@ -17,7 +17,7 @@ var DefaultApiserverClientEx *clientsetex.Clientset
 func GetDefaultClient() *kubernetes.Clientset {
 	var err error
 	if DefaultApiserverClient == nil {
-		DefaultApiserverClient, err = CreateApiserverClient(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
+		DefaultApiserverClient, err = createApiserverClient(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
 	}
 	if err != nil {
 		Log.Fatalf("create apiserver client failed:%v", err)
@@ -28,7 +28,7 @@ func GetDefaultClient() *kubernetes.Clientset {
 func GetDefaultClientEx() *clientsetex.Clientset {
 	if DefaultApiserverClientEx == nil {
 		var err error
-		DefaultApiserverClientEx, err = CreateApiserverClientEx(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
+		DefaultApiserverClientEx, err = createApiserverClientEx(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
 		if err != nil {
 			Log.Fatalf("create apiserver client failed:%v", err)
 		}

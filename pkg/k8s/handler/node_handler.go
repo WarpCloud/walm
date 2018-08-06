@@ -14,11 +14,11 @@ type NodeHandler struct {
 	lister listv1.NodeLister
 }
 
-func (handler NodeHandler) GetNode(name string) (*v1.Node, error){
+func (handler *NodeHandler) GetNode(name string) (*v1.Node, error){
 	return handler.lister.Get(name)
 }
 
-func (handler NodeHandler) ListNodes(labelSelector *metav1.LabelSelector) ([]*v1.Node, error){
+func (handler *NodeHandler) ListNodes(labelSelector *metav1.LabelSelector) ([]*v1.Node, error){
 	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func (handler NodeHandler) ListNodes(labelSelector *metav1.LabelSelector) ([]*v1
 	return handler.lister.List(selector)
 }
 
-func (handler NodeHandler) LabelNode(name string, labels map[string]string) (*v1.Node, error){
+func (handler *NodeHandler) LabelNode(name string, labels map[string]string) (*v1.Node, error){
 	oldNode, err := handler.client.CoreV1().Nodes().Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (handler NodeHandler) LabelNode(name string, labels map[string]string) (*v1
 	return handler.client.CoreV1().Nodes().Update(newNode)
 }
 
-func (handler NodeHandler) GetPodsOnNode(nodeName string, labelSelector *metav1.LabelSelector) (*v1.PodList, error) {
+func (handler *NodeHandler) GetPodsOnNode(nodeName string, labelSelector *metav1.LabelSelector) (*v1.PodList, error) {
 	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName + ",status.phase!=" + string(v1.PodSucceeded) + ",status.phase!=" + string(v1.PodFailed))
 	if err != nil {
 		return nil, err
@@ -55,9 +55,6 @@ func (handler NodeHandler) GetPodsOnNode(nodeName string, labelSelector *metav1.
 	return handler.client.CoreV1().Pods(metav1.NamespaceAll).List(listOptions)
 }
 
-func NewNodeHandler(client *kubernetes.Clientset, lister listv1.NodeLister) NodeHandler {
-	return NodeHandler{client: client, lister: lister}
-}
 
 
 

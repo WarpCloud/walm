@@ -2,16 +2,16 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"walm/pkg/instance/lister"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"walm/pkg/k8s/handler"
 )
 
 type WalmPodAdaptor struct{
-	Lister lister.K8sResourceLister
+	handler *handler.PodHandler
 }
 
 func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *metav1.LabelSelector) ([]*WalmPod, error) {
-	podList, err := adaptor.Lister.GetPods(namespace, labelSelector)
+	podList, err := adaptor.handler.ListPods(namespace, labelSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -29,9 +29,8 @@ func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *metav
 
 func BuildWalmPod(pod corev1.Pod) *WalmPod {
 	walmPod := WalmPod{
-		WalmMeta: WalmMeta{pod.Name, pod.Namespace},
+		WalmMeta: buildWalmMeta("Pod", pod.Namespace, pod.Name, BuildWalmPodState(pod)),
 		PodIp:    pod.Status.PodIP,
-		PodState: BuildWalmPodState(pod),
 	}
 	return &walmPod
 }
@@ -39,25 +38,25 @@ func BuildWalmPod(pod corev1.Pod) *WalmPod {
 // Pending, Running, Ready, Succeeded, Failed, Terminating, Unknown
 func BuildWalmPodState(pod corev1.Pod) WalmState {
 	podState := WalmState{}
-	podState.State = string(pod.Status.Phase)
+	podState.Status = string(pod.Status.Phase)
 	if pod.DeletionTimestamp != nil {
-		podState.State = "Terminating"
+		podState.Status = "Terminating"
 	}
 
-	if podState.State == "Pending" {
+	if podState.Status == "Pending" {
 		podState.Reason, podState.Message = getPendingReason(pod)
 	}
 
-	if podState.State == "Running" {
+	if podState.Status == "Running" {
 		if ready, reason, message := isPodReady(pod); ready {
-			podState.State = "Ready"
+			podState.Status = "Ready"
 		} else {
 			podState.Reason = reason
 			podState.Message = message
 		}
 	}
 
-	if podState.State == "Failed" {
+	if podState.Status == "Failed" {
 		podState.Reason, podState.Message = getFailedReason(pod)
 	}
 
