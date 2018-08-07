@@ -36,9 +36,13 @@ import:
   - swaggerFiles
 - package: github.com/hohice/swag
   version: ^1.1.1
+- package: k8s.io/kubernetes
+  version: release-1.10
 - package: k8s.io/client-go
   version: 7.0.0
 - package: k8s.io/apiserver
+  version: release-1.10
+- package: k8s.io/apiextensions-apiserver
   version: release-1.10
 - package: github.com/docker/spdystream
 testImport:

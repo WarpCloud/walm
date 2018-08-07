@@ -47,7 +47,88 @@ func GetNode() ([]NodeInfo, error){
 
 	}
 
-	return  nodeInfos, nil
+	return nodeInfos, nil
 }
 
+func GetNodeLabels(nodeName string) (NodeLabelsInfo, error) {
 
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
+
+	nodeInfo, err := nodeHandler.GetNode(nodeName)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	nodeLabelsInfo := NodeLabelsInfo{
+		NodeLabels: nodeInfo.ObjectMeta.Labels,
+	}
+
+	return nodeLabelsInfo, nil
+}
+
+func UpdateNodeLabels(nodeName string, newLabels map[string]string) error {
+
+	if newLabels == nil || len(newLabels) == 0 {
+		return nil
+	}
+
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
+
+	nodeInfo, err := nodeHandler.GetNode(nodeName)
+	if err != nil {
+		return err
+	}
+
+	nodeLables := nodeInfo.ObjectMeta.Labels
+	if nodeLables == nil || len(nodeLables) == 0 {
+		nodeLables = newLabels
+	} else {
+
+		for key, value := range newLabels {
+			nodeLables[key] = value
+		}
+
+	}
+	_, err = nodeHandler.LabelNode(nodeName, nodeLables)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddNodeLabels(nodeName string, newLabels map[string]string) error {
+
+	return UpdateNodeLabels(nodeName, newLabels)
+}
+
+func DelNodeLabels(nodeName string, newLabels map[string]string) error {
+
+	if newLabels == nil || len(newLabels) == 0 {
+		return nil
+	}
+
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
+
+	nodeInfo, err := nodeHandler.GetNode(nodeName)
+	if err != nil {
+		return err
+	}
+
+	nodeLables := nodeInfo.ObjectMeta.Labels
+	if nodeLables == nil || len(nodeLables) == 0 {
+		nodeLables = newLabels
+	} else {
+
+		for key, _ := range newLabels {
+			delete(nodeLables, key)
+		}
+
+	}
+	_, err = nodeHandler.LabelNode(nodeName, nodeLables)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

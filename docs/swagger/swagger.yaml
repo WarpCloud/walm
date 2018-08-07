@@ -4,7 +4,7 @@ definitions:
     properties:
       apps:
         items:
-          $ref: '#/definitions/helm.ReleaseRequest'
+          type: '&{helm ReleaseRequest}'
         type: array
       configvalues:
         type: object
@@ -13,7 +13,7 @@ definitions:
     properties:
       apps:
         items:
-          $ref: '#/definitions/helm.ReleaseRequest'
+          type: '&{helm ReleaseRequest}'
         type: array
     type: object
   ex.ApiResponse:
@@ -22,6 +22,33 @@ definitions:
         type: integer
       message:
         type: string
+    type: object
+  helm.ChartValicationInfo:
+    properties:
+      chartname:
+        type: string
+      chartversion:
+        type: string
+      configvalues:
+        type: object
+      dependencies:
+        type: object
+      dryrun_result:
+        type: string
+      dryrun_status:
+        type: string
+      error_message:
+        type: string
+      name:
+        type: string
+      namespace:
+        type: string
+      render_result:
+        type: object
+      render_status:
+        type: string
+      version:
+        type: integer
     type: object
   helm.ReleaseInfo:
     properties:
@@ -70,6 +97,11 @@ definitions:
       node_status:
         type: string
     type: object
+  node.NodeLabelsInfo:
+    properties:
+      node_labels:
+        type: object
+    type: object
   tenant.TenantInfo:
     properties:
       tenant_creation_time:
@@ -95,6 +127,53 @@ info:
   title: Walm
   version: 1.0.0
 paths:
+  /chart/{chartname}/version/{chartversion}/validation:
+    post:
+      consumes:
+      - application/json
+      description: ValidateChart
+      parameters:
+      - description: 'chart name, eg: stable/mysql'
+        in: path
+        name: chartname
+        required: true
+        type: string
+      - description: 'chart version, default latest version, eg: 5.2.0'
+        in: path
+        name: chartversion
+        type: string
+      - description: ReleaseRequest of instance
+        in: body
+        name: values
+        required: true
+        schema:
+          $ref: '#/definitions/helm.ReleaseRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/helm.ChartValicationInfo'
+            type: object
+        "400":
+          description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "405":
+          description: Invalid input
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Chart
   /cluster/namespace/{namespace}/name/{name}:
     delete:
       consumes:
@@ -611,6 +690,169 @@ paths:
             type: array
         "400":
           description: Invalid Name supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: node not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Node
+  /node/{nodename}/labels:
+    delete:
+      consumes:
+      - application/json
+      description: DelNodeLabels
+      parameters:
+      - description: the name of node
+        in: path
+        name: nodename
+        required: true
+        type: string
+      - description: ReleaseRequest of instance
+        in: body
+        name: labels
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ex.ApiResponse'
+            type: array
+        "400":
+          description: Invalid NodeName supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: node not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Node
+    get:
+      consumes:
+      - application/json
+      description: GetNodeLabels
+      parameters:
+      - description: the name of node
+        in: path
+        name: nodename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/node.NodeLabelsInfo'
+            type: array
+        "400":
+          description: Invalid NodeName supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: node not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Node
+    post:
+      consumes:
+      - application/json
+      description: AddNodeLabels
+      parameters:
+      - description: the name of node
+        in: path
+        name: nodename
+        required: true
+        type: string
+      - description: ReleaseRequest of instance
+        in: body
+        name: labels
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ex.ApiResponse'
+            type: array
+        "400":
+          description: Invalid NodeName supplied!
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "404":
+          description: node not found
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/ex.ApiResponse'
+            type: object
+      tags:
+      - Node
+    put:
+      consumes:
+      - application/json
+      description: UpdateNodeLabels
+      parameters:
+      - description: the name of node
+        in: path
+        name: nodename
+        required: true
+        type: string
+      - description: ReleaseRequest of instance
+        in: body
+        name: labels
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ex.ApiResponse'
+            type: array
+        "400":
+          description: Invalid NodeName supplied!
           schema:
             $ref: '#/definitions/ex.ApiResponse'
             type: object

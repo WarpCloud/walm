@@ -34,3 +34,18 @@ type AppDependency struct {
 	Dependencies []*DependencyDeclare `json:"dependencies"`
 }
 
+
+type ChartValicationInfo struct {
+	Name            string                 `json:"name" description:"name of the release"`
+	ConfigValues    map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	Version         int32                  `json:"version" description:"version of the release"`
+	Namespace       string                 `json:"namespace" description:"namespace of release"`
+	Dependencies    map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
+	ChartName       string                 `json:"chartname" description:"chart name"`
+	ChartVersion    string                 `json:"chartversion" description:"chart version"`
+	RenderStatus    string           	   `json:"render_status" description:"status of rending "`
+	RenderResult    map[string]string	   `json:"render_result" description:"result of rending "`
+	DryRunStatus    string				   `json:"dryrun_status" description:"status of dry run "`
+	DryRunResult    map[string]string	   `json:"dryrun_result" description:"result of dry run "`
+	ErrorMessage    string                 `json:"error_message" description:" error msg "`
+}

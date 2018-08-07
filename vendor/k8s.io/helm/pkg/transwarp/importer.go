@@ -11,6 +11,7 @@ type MemoryImporter struct {
 }
 
 func (importer *MemoryImporter) Import(dir, importedPath string) (*jsonnet.ImportedData, error) {
+
 	path := filepath.Join(dir, importedPath)
 	if content, ok := importer.Data[path]; ok {
 		return &jsonnet.ImportedData{Content: content, FoundHere: path}, nil

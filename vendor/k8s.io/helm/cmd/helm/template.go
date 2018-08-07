@@ -78,6 +78,7 @@ type templateCmd struct {
 	renderFiles      []string
 	kubeVersion      string
 	outputDir        string
+	links            []string
 }
 
 func newTemplateCmd(out io.Writer) *cobra.Command {
@@ -105,6 +106,7 @@ func newTemplateCmd(out io.Writer) *cobra.Command {
 	f.StringVar(&t.nameTemplate, "name-template", "", "specify template used to name the release")
 	f.StringVar(&t.kubeVersion, "kube-version", defaultKubeVersion, "kubernetes version used as Capabilities.KubeVersion.Major/Minor")
 	f.StringVar(&t.outputDir, "output-dir", "", "writes the executed templates to files in output-dir instead of stdout")
+	f.StringArrayVar(&t.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
 	return cmd
 }
@@ -158,7 +160,15 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 	out := make(map[string]string)
 	if c.Metadata.Engine == "jsonnet" {
 
-		out, err = transwarp.Render(c, t.namespace, rawVals, t.kubeVersion)
+		if len(t.links) > 0 {
+
+			out, err = transwarp.RenderWithDependencies(c, t.namespace, rawVals, t.kubeVersion, settings.KubeContext, t.links)
+
+		} else {
+
+			out, err = transwarp.Render(c, t.namespace, rawVals, t.kubeVersion)
+		}
+
 		if err != nil {
 			return prettyError(err)
 		}
