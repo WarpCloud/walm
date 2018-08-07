@@ -10,6 +10,20 @@ type WalmPodAdaptor struct{
 	handler *handler.PodHandler
 }
 
+func (adaptor WalmPodAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+	pod, err := adaptor.handler.GetPod(namespace, name)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return WalmPod{
+				WalmMeta: buildNotFoundWalmMeta("Pod", namespace, name),
+			}, nil
+		}
+		return WalmPod{}, err
+	}
+
+	return BuildWalmPod(*pod), nil
+}
+
 func (adaptor WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *metav1.LabelSelector) ([]*WalmPod, error) {
 	podList, err := adaptor.handler.ListPods(namespace, labelSelector)
 	if err != nil {

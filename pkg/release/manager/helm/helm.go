@@ -27,6 +27,9 @@ import (
 	"bytes"
 	"k8s.io/helm/pkg/timeconv"
 	"k8s.io/helm/pkg/engine"
+	"walm/pkg/release"
+	hapi_release5 "k8s.io/helm/pkg/proto/hapi/release"
+	"walm/pkg/k8s/adaptor"
 )
 
 type Client struct {
@@ -57,7 +60,7 @@ func init() {
 	}
 }
 
-func ListReleases(namespace string) ([]ReleaseInfo, error) {
+func ListReleases(namespace string) ([]release.ReleaseInfo, error) {
 	Log.Debugf("Enter ListReleases %s\n", namespace)
 	res, err := Helm.helmClient.ListReleases(
 		helm.ReleaseListNamespace(namespace),
@@ -66,13 +69,16 @@ func ListReleases(namespace string) ([]ReleaseInfo, error) {
 		return nil, err
 	}
 
-	releases := fillReleaseInfo(res)
+	releases, err := fillReleaseInfo(res)
+	if err != nil {
+		return nil, err
+	}
 	return releases, nil
 }
 
-func GetReleaseInfo(namespace, releaseName string) (ReleaseInfo, error) {
+func GetReleaseInfo(namespace, releaseName string) (release.ReleaseInfo, error) {
 	Log.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
-	var release ReleaseInfo
+	var release release.ReleaseInfo
 
 	res, err := Helm.helmClient.ListReleases(
 		helm.ReleaseListFilter(releaseName),
@@ -82,7 +88,10 @@ func GetReleaseInfo(namespace, releaseName string) (ReleaseInfo, error) {
 		return release, err
 	}
 
-	releases := fillReleaseInfo(res)
+	releases, err := fillReleaseInfo(res)
+	if err != nil {
+		return release, err
+	}
 	for _, rel := range releases {
 		if rel.Name == releaseName {
 			release = rel
@@ -92,7 +101,7 @@ func GetReleaseInfo(namespace, releaseName string) (ReleaseInfo, error) {
 	return release, nil
 }
 
-func InstallUpgradeRealese(releaseRequest ReleaseRequest) error {
+func InstallUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 	Log.Debugf("Enter InstallUpgradeRealese %v\n", releaseRequest)
 	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
@@ -116,11 +125,11 @@ func InstallUpgradeRealese(releaseRequest ReleaseRequest) error {
 }
 
 
-func ValidateChart(releaseRequest ReleaseRequest) (ChartValicationInfo, error) {
+func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
 
 	Log.Debugf("Begin ValidateChart %v\n", releaseRequest)
 
-	var chartValicationInfo ChartValicationInfo
+	var chartValicationInfo release.ChartValicationInfo
 	chartValicationInfo.ChartName = releaseRequest.ChartName
 	chartValicationInfo.Name = releaseRequest.Name
 	chartValicationInfo.ConfigValues = releaseRequest.ConfigValues
@@ -266,7 +275,7 @@ func RollbackRealese(namespace, releaseName, version string) error {
 	return nil
 }
 
-func PatchUpgradeRealese(releaseRequest ReleaseRequest) error {
+func PatchUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 	return nil
 }
 
@@ -336,7 +345,7 @@ func parseDependencies(chart *chart.Chart) ([]string, error) {
 	for _, chartFile := range chart.Files {
 		Log.Printf("Chartfile %s \n", chartFile.TypeUrl)
 		if chartFile.TypeUrl == "transwarp-app-yaml" {
-			app := &AppDependency{}
+			app := &release.AppDependency{}
 			err := yaml.Unmarshal(chartFile.Value, &app)
 			if err != nil {
 				return dependencies, err
@@ -394,12 +403,12 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 	return nil
 }
 
-func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) []ReleaseInfo {
-	var releaseInfos []ReleaseInfo
+func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]release.ReleaseInfo, error) {
+	var releaseInfos []release.ReleaseInfo
 	depLinks := make(map[string]string)
 
 	for _, helmRelease := range helmListReleaseResponse.GetReleases() {
-		release := ReleaseInfo{}
+		release := release.ReleaseInfo{}
 		emptyChart := chart.Chart{}
 
 		release.Name = helmRelease.Name
@@ -421,10 +430,40 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) []Releas
 			release.Dependencies = depLinks
 		}
 
+		release.Status, err = buildReleaseStatus(helmRelease)
+		if err != nil {
+			Log.Errorf(fmt.Sprintf("Failed to build the status of release: %s", release.Name))
+			return releaseInfos, err
+		}
+
 		releaseInfos = append(releaseInfos, release)
 	}
 
-	return releaseInfos
+	return releaseInfos, nil
+}
+
+func buildReleaseStatus(helmRelease *hapi_release5.Release) (release.ReleaseStatus, error) {
+	status := release.ReleaseStatus{[]release.ReleaseResource{}}
+	for _, resourceMeta := range getReleaseResourceMetas(helmRelease) {
+		resource, err := adaptor.GetDefaultAdaptorSet().GetAdaptor(resourceMeta.Kind).GetResource(resourceMeta.Namespace, resourceMeta.Name)
+		if err != nil {
+			return status, err
+		}
+
+		status.Resources = append(status.Resources, release.ReleaseResource{Kind: resource.GetKind(), Resource: resource})
+	}
+	return status, nil
+}
+
+// TODO
+func getReleaseResourceMetas(helmRelease *hapi_release5.Release) []release.ReleaseResourceMeta {
+	return []release.ReleaseResourceMeta{
+		release.ReleaseResourceMeta{
+			Kind: "ApplicationInstance",
+			Namespace: helmRelease.Namespace,
+			Name: helmRelease.Name,
+		},
+	}
 }
 
 func ensureDirectories(home helmpath.Home) error {

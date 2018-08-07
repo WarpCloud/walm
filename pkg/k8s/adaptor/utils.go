@@ -2,7 +2,6 @@ package adaptor
 
 import (
 	"k8s.io/apimachinery/pkg/api/errors"
-	"walm/pkg/k8s/handler"
 )
 
 func buildWalmState(state string, reason string, message string) WalmState {
@@ -58,28 +57,4 @@ func buildNotFoundWalmMeta(kind string, namespace string, name string) WalmMeta 
 	return buildWalmMeta(kind, namespace, name, buildWalmState("NotFound", "", ""))
 }
 
-func GetAdaptor(kind string, handlerSet *handler.HandlerSet) (resourceAdaptor ResourceAdaptor) {
-	switch kind {
-	case "ApplicationInstance":
-		resourceAdaptor = WalmInstanceAdaptor{handlerSet}
-	case "Deployment":
-		resourceAdaptor = WalmDeploymentAdaptor{handlerSet.GetDeploymentHandler(), handlerSet.GetPodHandler()}
-	case "Service":
-		resourceAdaptor = WalmServiceAdaptor{handlerSet.GetServiceHandler()}
-	case "StatefulSet":
-		resourceAdaptor = WalmStatefulSetAdaptor{handlerSet.GetStatefulSetHandler(),handlerSet.GetPodHandler()}
-	case "DaemonSet":
-		resourceAdaptor = WalmDaemonSetAdaptor{handlerSet.GetDaemonSetHandler(), handlerSet.GetPodHandler()}
-	case "Job":
-		resourceAdaptor = WalmJobAdaptor{handlerSet.GetJobHandler(),handlerSet.GetPodHandler()}
-	case "ConfigMap":
-		resourceAdaptor = WalmConfigMapAdaptor{handlerSet.GetConfigMapHandler()}
-	case "Ingress":
-		resourceAdaptor = WalmIngressAdaptor{handlerSet.GetIngressHandler()}
-	case "Secret":
-		resourceAdaptor = WalmSecretAdaptor{handlerSet.GetSecretHandler()}
-	default:
-		resourceAdaptor = WalmDefaultAdaptor{kind}
-	}
-	return
-}
+

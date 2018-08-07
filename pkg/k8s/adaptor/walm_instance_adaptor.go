@@ -1,18 +1,17 @@
 package adaptor
 
 import (
-	"walm/pkg/k8s/handler"
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	"fmt"
 	"k8s.io/api/core/v1"
 )
 
 type WalmInstanceAdaptor struct {
-	handlerSet      *handler.HandlerSet
+	adaptorSet      *AdaptorSet
 }
 
 func (adaptor WalmInstanceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
-	instance, err := adaptor.handlerSet.GetInstanceHandler().GetInstance(namespace, name)
+	instance, err := adaptor.adaptorSet.GetHandlerSet().GetInstanceHandler().GetInstance(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return WalmApplicationInstance{
@@ -42,7 +41,7 @@ func (adaptor WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.Applicati
 func (adaptor WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.ApplicationInstance) ([]WalmModule, error) {
 	walmModules := []WalmModule{}
 	for _, module := range instance.Status.Modules {
-		resource, err := GetAdaptor(module.ResourceRef.Kind, adaptor.handlerSet).
+		resource, err := adaptor.adaptorSet.GetAdaptor(module.ResourceRef.Kind).
 			GetResource(module.ResourceRef.Namespace, module.ResourceRef.Name)
 		if err != nil {
 			return walmModules, err
@@ -71,7 +70,7 @@ func (adaptor WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationIn
 		UID:             inst.UID,
 		APIVersion:      inst.APIVersion,
 	}
-	events, err := adaptor.handlerSet.GetEventHandler().SearchEvents(inst.Namespace, &ref)
+	events, err := adaptor.adaptorSet.GetHandlerSet().GetEventHandler().SearchEvents(inst.Namespace, &ref)
 	if err != nil {
 		return nil, err
 	}

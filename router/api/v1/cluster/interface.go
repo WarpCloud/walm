@@ -5,11 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	helm "walm/pkg/helm"
-
 	"walm/router/api/util"
 
 	"walm/router/ex"
+	"walm/pkg/release"
+	"walm/pkg/release/manager/helm"
 )
 
 // DeployInstanceInCluster godoc
@@ -34,7 +34,7 @@ func DeployInstanceInCluster(c *gin.Context) {
 		namespace, name = values[0], values[1]
 	}
 
-	var postdata helm.ReleaseRequest
+	var postdata release.ReleaseRequest
 	if err := c.BindJSON(&postdata); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 		return
@@ -162,7 +162,7 @@ func mergeConf(conf1, conf2 map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-func deployInstance(namespace, name string, conf map[string]interface{}, app helm.ReleaseRequest) error {
+func deployInstance(namespace, name string, conf map[string]interface{}, app release.ReleaseRequest) error {
 
 	/*
 		if len(app.Name) == 0 {
@@ -193,7 +193,7 @@ func deployInstance(namespace, name string, conf map[string]interface{}, app hel
 // @Router /cluster/namespace/{namespace}/name/{name} [get]
 func GetCluster(c *gin.Context) {
 
-	var clusterReleases []helm.ReleaseInfo
+	var clusterReleases []release.ReleaseInfo
 	var namespace, name string
 	if values, err := util.GetPathParams(c, []string{"namespace", "name"}); err != nil {
 		return

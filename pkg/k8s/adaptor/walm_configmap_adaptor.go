@@ -6,11 +6,11 @@ import (
 )
 
 type WalmConfigMapAdaptor struct {
-	Handler *handler.ConfigMapHandler
+	handler *handler.ConfigMapHandler
 }
 
 func (adaptor WalmConfigMapAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
-	configMap, err := adaptor.Handler.GetConfigMap(namespace, name)
+	configMap, err := adaptor.handler.GetConfigMap(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return WalmConfigMap{
