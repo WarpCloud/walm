@@ -444,7 +444,11 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]relea
 
 func buildReleaseStatus(helmRelease *hapi_release5.Release) (release.ReleaseStatus, error) {
 	status := release.ReleaseStatus{[]release.ReleaseResource{}}
-	for _, resourceMeta := range getReleaseResourceMetas(helmRelease) {
+	resourceMetas, err := getReleaseResourceMetas(helmRelease)
+	if err != nil {
+		return status, err
+	}
+	for _, resourceMeta := range resourceMetas {
 		resource, err := adaptor.GetDefaultAdaptorSet().GetAdaptor(resourceMeta.Kind).GetResource(resourceMeta.Namespace, resourceMeta.Name)
 		if err != nil {
 			return status, err
@@ -455,15 +459,21 @@ func buildReleaseStatus(helmRelease *hapi_release5.Release) (release.ReleaseStat
 	return status, nil
 }
 
-// TODO
-func getReleaseResourceMetas(helmRelease *hapi_release5.Release) []release.ReleaseResourceMeta {
-	return []release.ReleaseResourceMeta{
-		release.ReleaseResourceMeta{
-			Kind: "ApplicationInstance",
-			Namespace: helmRelease.Namespace,
-			Name: helmRelease.Name,
-		},
+func getReleaseResourceMetas(helmRelease *hapi_release5.Release) (resources []release.ReleaseResourceMeta, err error ){
+	resources = []release.ReleaseResourceMeta{}
+	results, err := client.GetKubeClient().BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
+	if err != nil {
+		return resources, err
 	}
+	for _, result := range results {
+		resource := release.ReleaseResourceMeta{
+			Kind: result.Object.GetObjectKind().GroupVersionKind().Kind,
+			Namespace: result.Namespace,
+			Name: result.Name,
+		}
+		resources = append(resources, resource)
+	}
+	return
 }
 
 func ensureDirectories(home helmpath.Home) error {
