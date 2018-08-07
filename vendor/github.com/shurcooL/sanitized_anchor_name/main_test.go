@@ -1,4 +1,4 @@
-package sanitized_anchor_name_test
+package sanitized_anchor_name
 
 import (
 	"fmt"

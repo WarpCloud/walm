@@ -1,4 +1,4 @@
-package diskv_test
+package diskv
 
 import (
 	"bytes"

@@ -3,9 +3,10 @@ package chart
 import (
 	"walm/router/api/util"
 	"walm/router/ex"
-	helm "walm/pkg/helm"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"walm/pkg/release/manager/helm"
+	"walm/pkg/release"
 )
 
 // Deploy godoc
@@ -27,13 +28,13 @@ func ValidateChart(c *gin.Context) {
 	if _, err := util.GetPathParams(c, []string{"chartname", "chartversion"}); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 	} else {
-		var postdata helm.ReleaseRequest
+		var postdata release.ReleaseRequest
 		if err := c.Bind(&postdata); err != nil {
 			c.JSON(ex.ReturnBadRequest())
 
 		} else {
 
-			var chartValicationInfo helm.ChartValicationInfo
+			var chartValicationInfo release.ChartValicationInfo
 
 			if chartValicationInfo, err = helm.ValidateChart(postdata); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
