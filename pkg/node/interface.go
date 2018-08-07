@@ -52,9 +52,7 @@ func GetNode() ([]NodeInfo, error){
 
 func GetNodeLabels(nodeName string) (NodeLabelsInfo, error) {
 
-	client := client.GetDefaultClient()
-
-	nodeHandler := handler.NewNodeHandler(client, informer.Factory.NodeLister)
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
 
 	nodeInfo, err := nodeHandler.GetNode(nodeName)
 	if err != nil {
@@ -74,9 +72,7 @@ func UpdateNodeLabels(nodeName string, newLabels map[string]string) error {
 		return nil
 	}
 
-	client := client.GetDefaultClient()
-
-	nodeHandler := handler.NewNodeHandler(client, informer.Factory.NodeLister)
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
 
 	nodeInfo, err := nodeHandler.GetNode(nodeName)
 	if err != nil {
@@ -112,9 +108,7 @@ func DelNodeLabels(nodeName string, newLabels map[string]string) error {
 		return nil
 	}
 
-	client := client.GetDefaultClient()
-
-	nodeHandler := handler.NewNodeHandler(client, informer.Factory.NodeLister)
+	nodeHandler := handler.GetDefaultHandlerSet().GetNodeHandler()
 
 	nodeInfo, err := nodeHandler.GetNode(nodeName)
 	if err != nil {

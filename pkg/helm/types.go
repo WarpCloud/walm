@@ -44,8 +44,8 @@ type ChartValicationInfo struct {
 	ChartName       string                 `json:"chartname" description:"chart name"`
 	ChartVersion    string                 `json:"chartversion" description:"chart version"`
 	RenderStatus    string           	   `json:"render_status" description:"status of rending "`
-	RenderResult    map[string]string				   `json:"render_result" description:"result of rending "`
+	RenderResult    map[string]string	   `json:"render_result" description:"result of rending "`
 	DryRunStatus    string				   `json:"dryrun_status" description:"status of dry run "`
-	DryRunResult    string				   `json:"dryrun_result" description:"result of dry run "`
+	DryRunResult    map[string]string	   `json:"dryrun_result" description:"result of dry run "`
 	ErrorMessage    string                 `json:"error_message" description:" error msg "`
 }

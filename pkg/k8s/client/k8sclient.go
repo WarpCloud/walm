@@ -9,6 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
+	"k8s.io/helm/pkg/kube"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -115,4 +117,27 @@ func CreateFakeApiserverClient(apiserverHost string, kubeConfig string) (*kubern
 // for test
 func CreateFakeApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
 	return createApiserverClientEx(apiserverHost, kubeConfig)
+}
+
+// k8s client to deal with instance, only for k8s 1.9+
+func CreateKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
+
+	//cfg := kube.GetConfig(kubeConfig)
+	cfg := GetKubeConfig(apiserverHost, kubeConfig)
+	client := kube.New(cfg)
+
+	return client
+}
+
+func GetKubeConfig(apiserverHost string, kubeConfig string) clientcmd.ClientConfig {
+
+	if kubeConfig == "" && apiserverHost == "" {
+		cfg := kube.GetConfig("")
+		return cfg
+	}
+
+	rules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig}
+	overrides := &clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: apiserverHost}}
+
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
 }

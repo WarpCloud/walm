@@ -24,6 +24,9 @@ import (
 	"k8s.io/helm/pkg/transwarp"
 	"k8s.io/helm/pkg/strvals"
 	"walm/pkg/k8s/client"
+	"bytes"
+	"k8s.io/helm/pkg/timeconv"
+	"k8s.io/helm/pkg/engine"
 )
 
 type Client struct {
@@ -143,6 +146,7 @@ func ValidateChart(releaseRequest ReleaseRequest) (ChartValicationInfo, error) {
 	if err != nil {
 		return chartValicationInfo, err
 	}
+	config := &chart.Config{Raw: string(rawVals), Values: map[string]*chart.Value{}}
 
 	var links []string
 	for k, v := range releaseRequest.Dependencies {
@@ -164,8 +168,50 @@ func ValidateChart(releaseRequest ReleaseRequest) (ChartValicationInfo, error) {
 
 	} else {
 
-		err = fmt.Errorf("only support jsonnet engine...")
-		return chartValicationInfo, err
+		if req, err := chartutil.LoadRequirements(chartRequested); err == nil {
+
+			if err := checkDependencies(chartRequested, req); err != nil {
+				return chartValicationInfo, fmt.Errorf("checkDependencies: %v", err)
+			}
+
+		} else if err != chartutil.ErrRequirementsNotFound {
+			return  chartValicationInfo, fmt.Errorf("checkDependencies: %v", err)
+		}
+
+		options := chartutil.ReleaseOptions{
+			Name:      releaseRequest.Name,
+			IsInstall: false,
+			IsUpgrade: false,
+			Time:      timeconv.Now(),
+			Namespace: releaseRequest.Namespace,
+		}
+
+		err = chartutil.ProcessRequirementsEnabled(chartRequested, config)
+		if err != nil {
+			return chartValicationInfo, err
+		}
+		err = chartutil.ProcessRequirementsImportValues(chartRequested)
+		if err != nil {
+			return chartValicationInfo, err
+		}
+
+		// Set up engine.
+		renderer := engine.New()
+
+		caps := &chartutil.Capabilities{
+			APIVersions:   chartutil.DefaultVersionSet,
+			KubeVersion:   chartutil.DefaultKubeVersion,
+		}
+
+		vals, err := chartutil.ToRenderValuesCaps(chartRequested, config, options, caps)
+		if err != nil {
+			return chartValicationInfo, err
+		}
+
+		out, err = renderer.Render(chartRequested, vals)
+		if err != nil {
+			return chartValicationInfo, err
+		}
 
 	}
 
@@ -173,27 +219,46 @@ func ValidateChart(releaseRequest ReleaseRequest) (ChartValicationInfo, error) {
 		return chartValicationInfo, err
 	}
 
+	chartValicationInfo.RenderStatus = "ok"
 	chartValicationInfo.RenderResult = out
 
-	dryRunK8sResource(out)
+	resultMap, errFlag := dryRunK8sResource(out, releaseRequest.Namespace)
+	if errFlag {
+		chartValicationInfo.DryRunStatus = "failed"
+		chartValicationInfo.ErrorMessage = "dry run check fail"
+	}else {
+		chartValicationInfo.DryRunStatus = "ok"
+		chartValicationInfo.ErrorMessage = " test pass "
+	}
 
-	chartValicationInfo.DryRunStatus = "ok"
-	chartValicationInfo.DryRunResult = "pod deploy suc..."
-	chartValicationInfo.ErrorMessage = "Unable to connect to the server: dial tcp 172.26.0.5:15443: getsockopt: no route to host"
-
+	chartValicationInfo.DryRunResult = resultMap
 	return chartValicationInfo, nil
 
 }
-func dryRunK8sResource(renderOut map[string]string) error {
 
-	// init k8s client
-	k8sClient := client.GetDefaultClient()
+func dryRunK8sResource(out map[string]string, namespace string) (map[string]string, bool) {
 
-	//k8sClient.CoreV1().RESTClient().Post().Do()
+	resultMap := make(map[string]string)
+	errFlag := false
+	kubeClient := client.GetKubeClient()
+	for name, content := range out {
 
-	println(k8sClient)
+		if strings.HasSuffix(name, "NOTES.txt") {
+			continue
+		}
 
-	return  nil
+		r := bytes.NewReader([]byte(content))
+		_, err := kubeClient.BuildUnstructured(namespace, r)
+		if err != nil {
+			resultMap[name] = err.Error()
+			errFlag = true
+		}else {
+			resultMap[name] = " dry run suc"
+		}
+
+	}
+
+	return  resultMap, errFlag
 
 }
 
@@ -439,4 +504,28 @@ func renderWithDependencies(chartRequested *chart.Chart, namespace string, userV
 func render(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string) (map[string]string, error) {
 
 	return transwarp.Render(chartRequested, namespace, userVals, kubeVersion)
+}
+
+
+func checkDependencies(ch *chart.Chart, reqs *chartutil.Requirements) error {
+	missing := []string{}
+
+	deps := ch.GetDependencies()
+	for _, r := range reqs.Dependencies {
+		found := false
+		for _, d := range deps {
+			if d.Metadata.Name == r.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, r.Name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("found in requirements.yaml, but missing in charts/ directory: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
