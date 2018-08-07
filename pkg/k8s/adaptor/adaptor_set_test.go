@@ -1,4 +1,4 @@
-package resource
+package adaptor
 
 import (
 	"testing"
@@ -29,9 +29,9 @@ func Test(t *testing.T) {
 
 	handlerSet := handler.NewFakeHandlerSet(client, clientEx, factory)
 
-	manager := ResourceSet{handlerSet}
+	adaptorSet := AdaptorSet{handlerSet: handlerSet}
 
-	instanceAdaptor := manager.GetResourceAdaptor("ApplicationInstance")
+	instanceAdaptor := adaptorSet.GetAdaptor("ApplicationInstance")
 
 	inst, err := instanceAdaptor.GetResource("nosecurity", "zookeeper-nosecurity")
 

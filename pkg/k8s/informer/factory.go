@@ -45,12 +45,12 @@ type InformerFactory struct {
 	InstanceLister tranv1beta1.ApplicationInstanceLister
 }
 
-func (factory InformerFactory) Start(stopCh <-chan struct{}) {
+func (factory *InformerFactory) Start(stopCh <-chan struct{}) {
 	factory.factory.Start(stopCh)
 	factory.factoryEx.Start(stopCh)
 }
 
-func (factory InformerFactory) WaitForCacheSync(stopCh <-chan struct{}) {
+func (factory *InformerFactory) WaitForCacheSync(stopCh <-chan struct{}) {
 	factory.factory.WaitForCacheSync(stopCh)
 	factory.factoryEx.WaitForCacheSync(stopCh)
 }

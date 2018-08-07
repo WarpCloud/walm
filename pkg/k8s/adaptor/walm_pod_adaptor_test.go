@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Test(t *testing.T) {
+func TestPodAdaptor(t *testing.T) {
 	client, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	if err != nil {
 		println(err.Error())

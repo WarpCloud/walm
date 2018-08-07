@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"walm/pkg/helm"
+	"walm/pkg/release/manager/helm"
 	"walm/router/api/util"
 	"walm/router/ex"
 
 	"github.com/gin-gonic/gin"
+	"walm/pkg/release"
 )
 
 // DeleteInstance godoc
@@ -56,7 +57,7 @@ func DeployInstance(c *gin.Context) {
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 	} else {
-		var postdata helm.ReleaseRequest
+		var postdata release.ReleaseRequest
 		if err := c.Bind(&postdata); err != nil {
 			c.JSON(ex.ReturnBadRequest())
 		} else {
@@ -115,7 +116,7 @@ func ListInstances(c *gin.Context) {
 		if ilen > ioffset && ilen < len(releases) {
 			c.JSON(http.StatusOK, releases[ioffset:ilen])
 		} else if len(releases) == 0 {
-			c.JSON(http.StatusOK, []helm.ReleaseInfo{})
+			c.JSON(http.StatusOK, []release.ReleaseInfo{})
 		} else {
 			c.JSON(http.StatusOK, releases[ioffset:])
 		}
@@ -198,7 +199,7 @@ func UpdateInstance(c *gin.Context) {
 	if _, err := util.GetPathParams(c, []string{"namespace", "appname"}); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 	} else {
-		var postdata helm.ReleaseRequest
+		var postdata release.ReleaseRequest
 		if err := c.Bind(&postdata); err != nil {
 			c.JSON(ex.ReturnBadRequest())
 		} else {

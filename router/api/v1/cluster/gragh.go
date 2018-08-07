@@ -3,7 +3,8 @@ package cluster
 import (
 	"fmt"
 	"sync/atomic"
-	helm "walm/pkg/helm"
+	"walm/pkg/release"
+	"walm/pkg/release/manager/helm"
 )
 
 var id uint64
@@ -28,17 +29,17 @@ type Leaf struct {
 }
 
 type Application struct {
-	inst     *helm.ReleaseRequest
-	Depend   map[string]*helm.ReleaseRequest
+	inst     *release.ReleaseRequest
+	Depend   map[string]*release.ReleaseRequest
 	Bedepend []*Application
 }
 
-func getGraghForInstance(name, namespace string, releaeMap map[string]string, inst *helm.ReleaseRequest) (err error, instList []helm.ReleaseRequest) {
+func getGraghForInstance(name, namespace string, releaeMap map[string]string, inst *release.ReleaseRequest) (err error, instList []release.ReleaseRequest) {
 	a_left := []Leaf{}
 	leaf_1 := Leaf{
 		app: &Application{
 			inst:     inst,
-			Depend:   map[string]*helm.ReleaseRequest{},
+			Depend:   map[string]*release.ReleaseRequest{},
 			Bedepend: []*Application{},
 		},
 		color: false,
@@ -118,7 +119,7 @@ color:
 	return
 }
 
-func getGragh(name, namespace string, cluster *Cluster) (err error, instList []helm.ReleaseRequest) {
+func getGragh(name, namespace string, cluster *Cluster) (err error, instList []release.ReleaseRequest) {
 	a_left := []Leaf{}
 
 	for _, app := range cluster.Apps {
@@ -126,7 +127,7 @@ func getGragh(name, namespace string, cluster *Cluster) (err error, instList []h
 		leaf_1 := Leaf{
 			app: &Application{
 				inst:     &appcopy,
-				Depend:   map[string]*helm.ReleaseRequest{},
+				Depend:   map[string]*release.ReleaseRequest{},
 				Bedepend: []*Application{},
 			},
 			color: false,
@@ -189,7 +190,7 @@ color:
 
 //godoc
 //expand depend of instance
-func expandDep(leaf *Leaf) *helm.ReleaseRequest {
+func expandDep(leaf *Leaf) *release.ReleaseRequest {
 
 	for name, dep := range leaf.app.Depend {
 		leaf.app.inst.Dependencies[name] = dep.Name
@@ -228,7 +229,7 @@ func (di *DepInst) getDeps(leaf *Leaf) []Leaf {
 			version := versionList[index]
 			leafArray = append(leafArray, Leaf{
 				app: &Application{
-					inst: &helm.ReleaseRequest{
+					inst: &release.ReleaseRequest{
 						ChartName:    name,
 						ChartVersion: version,
 					},

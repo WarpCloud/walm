@@ -5,7 +5,7 @@ import (
 
 	"gopkg.in/check.v1"
 
-	"walm/pkg/helm"
+	"walm/pkg/release"
 )
 
 func Test(t *testing.T) { check.TestingT(t) }
@@ -17,10 +17,10 @@ var _ = check.Suite(&clusterSuite{})
 func (cs *clusterSuite) Test_expandDep(c *check.C) {
 	leaf := &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test", Dependencies: map[string]string{}},
-			Depend: map[string]*helm.ReleaseRequest{
-				"test_chart_1:1.0.0": &helm.ReleaseRequest{Name: "test_1"},
-				"test_chart_2":       &helm.ReleaseRequest{Name: "test_2"},
+			inst: &release.ReleaseRequest{Name: "test", Dependencies: map[string]string{}},
+			Depend: map[string]*release.ReleaseRequest{
+				"test_chart_1:1.0.0": &release.ReleaseRequest{Name: "test_1"},
+				"test_chart_2":       &release.ReleaseRequest{Name: "test_2"},
 			},
 		},
 	}
@@ -32,12 +32,12 @@ func (cs *clusterSuite) Test_expandDep(c *check.C) {
 func (cs *clusterSuite) Test_isSameLeaf(c *check.C) {
 	a := &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
+			inst: &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
 		},
 	}
 	b := &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
+			inst: &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
 		},
 		color: true,
 	}
@@ -47,7 +47,7 @@ func (cs *clusterSuite) Test_isSameLeaf(c *check.C) {
 
 	b = &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
+			inst: &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
 		},
 		color: false,
 	}
@@ -57,7 +57,7 @@ func (cs *clusterSuite) Test_isSameLeaf(c *check.C) {
 
 	b = &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test_2", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
+			inst: &release.ReleaseRequest{Name: "test_2", ChartName: "test_chart_1", ChartVersion: "1.0.0"},
 		},
 		color: false,
 	}
@@ -67,7 +67,7 @@ func (cs *clusterSuite) Test_isSameLeaf(c *check.C) {
 
 	b = &Leaf{
 		app: &Application{
-			inst: &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.1"},
+			inst: &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.1"},
 		},
 		color: false,
 	}
@@ -84,15 +84,15 @@ func (mdi *mockDepInst) getDeps(leaf *Leaf) []Leaf {
 		return []Leaf{
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_1_1", ChartName: "test_chart_1_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_1_1", ChartName: "test_chart_1_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_1_2", ChartName: "test_chart_1_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_1_2", ChartName: "test_chart_1_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
@@ -103,15 +103,15 @@ func (mdi *mockDepInst) getDeps(leaf *Leaf) []Leaf {
 		return []Leaf{
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_2_1", ChartName: "test_chart_2_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_2_1", ChartName: "test_chart_2_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_1_2", ChartName: "test_chart_1_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_1_2", ChartName: "test_chart_1_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
@@ -121,15 +121,15 @@ func (mdi *mockDepInst) getDeps(leaf *Leaf) []Leaf {
 		return []Leaf{
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
 			Leaf{
 				app: &Application{
-					inst:     &helm.ReleaseRequest{Name: "test_2", ChartName: "test_chart_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-					Depend:   map[string]*helm.ReleaseRequest{},
+					inst:     &release.ReleaseRequest{Name: "test_2", ChartName: "test_chart_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+					Depend:   map[string]*release.ReleaseRequest{},
 					Bedepend: []*Application{},
 				},
 			},
@@ -147,8 +147,8 @@ func (cs *clusterSuite) Test_getDepArray(c *check.C) {
 	a_leaf := &[]Leaf{}
 	leaf := &Leaf{
 		app: &Application{
-			inst:     &helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-			Depend:   map[string]*helm.ReleaseRequest{},
+			inst:     &release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+			Depend:   map[string]*release.ReleaseRequest{},
 			Bedepend: []*Application{},
 		},
 		color: false,
@@ -178,9 +178,9 @@ func (cu *clusterSuite) Test_getGragh(c *check.C) {
 	}()
 
 	cluster := &Cluster{
-		Apps: []helm.ReleaseRequest{
-			helm.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
-			helm.ReleaseRequest{Name: "test_2", ChartName: "test_chart_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+		Apps: []release.ReleaseRequest{
+			release.ReleaseRequest{Name: "test_1", ChartName: "test_chart_1", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
+			release.ReleaseRequest{Name: "test_2", ChartName: "test_chart_2", ChartVersion: "1.0.0", Dependencies: map[string]string{}},
 		},
 	}
 	err, instList := getGragh("test", "test", cluster)
@@ -206,7 +206,7 @@ func (cu *clusterSuite) Test_getGraghForInstance(c *check.C) {
 	releaeMap := map[string]string{
 		"test_chart_1": "test_1",
 		"test_chart_2": "test_2"}
-	inst := &helm.ReleaseRequest{
+	inst := &release.ReleaseRequest{
 		Name:         "test_3_1",
 		ChartName:    "test_chart_3_1",
 		ChartVersion: "1.0.0",
