@@ -18,14 +18,21 @@ import (
 // @Description Get Node Info
 // @OperationId GetNode
 // @Produce  json
+// @Param   labelselector     query    string     false   "label selector of node"
 // @Success 200 {array} node.NodeInfo "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid Name supplied!"
 // @Failure 404 {object} ex.ApiResponse "node not found"
 // @Failure 500 {object} ex.ApiResponse "Server Error"
 // @Router /node [get]
 func GetNode(c *gin.Context) {
+	labelSelectorStr, _ := c.GetQuery("labelselector")
+	labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errors.New("failed to parse label selector"))
+		return
+	}
 	if nodeAdaptor, ok := adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor); ok {
-		nodes, err := nodeAdaptor.GetWalmNodes("", &metav1.LabelSelector{})
+		nodes, err := nodeAdaptor.GetWalmNodes("", labelSelector)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, err)
 			return
