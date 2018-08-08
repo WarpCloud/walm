@@ -25,6 +25,7 @@ type AdaptorSet struct {
 	walmSecretAdaptor *WalmSecretAdaptor
 	walmServiceAdaptor *WalmServiceAdaptor
 	walmStatefulSetAdaptor *WalmStatefulSetAdaptor
+	walmNodeAdaptor *WalmNodeAdaptor
 }
 
 func(set *AdaptorSet) GetHandlerSet() *handler.HandlerSet{
@@ -41,7 +42,7 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 		resourceAdaptor = set.walmInstanceAdaptor
 	case "Deployment":
 		if set.walmDeploymentAdaptor == nil {
-			set.walmDeploymentAdaptor = &WalmDeploymentAdaptor{set.handlerSet.GetDeploymentHandler(), set.handlerSet.GetPodHandler()}
+			set.walmDeploymentAdaptor = &WalmDeploymentAdaptor{set.handlerSet.GetDeploymentHandler(), set.GetAdaptor("Pod").(*WalmPodAdaptor)}
 		}
 		resourceAdaptor = set.walmDeploymentAdaptor
 	case "Service":
@@ -51,17 +52,17 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 		resourceAdaptor = set.walmServiceAdaptor
 	case "StatefulSet":
 		if set.walmStatefulSetAdaptor == nil {
-			set.walmStatefulSetAdaptor = &WalmStatefulSetAdaptor{set.handlerSet.GetStatefulSetHandler(),set.handlerSet.GetPodHandler()}
+			set.walmStatefulSetAdaptor = &WalmStatefulSetAdaptor{set.handlerSet.GetStatefulSetHandler(),set.GetAdaptor("Pod").(*WalmPodAdaptor)}
 		}
 		resourceAdaptor = set.walmStatefulSetAdaptor
 	case "DaemonSet":
 		if set.walmDaemonSetAdaptor == nil {
-			set.walmDaemonSetAdaptor = &WalmDaemonSetAdaptor{set.handlerSet.GetDaemonSetHandler(), set.handlerSet.GetPodHandler()}
+			set.walmDaemonSetAdaptor = &WalmDaemonSetAdaptor{set.handlerSet.GetDaemonSetHandler(), set.GetAdaptor("Pod").(*WalmPodAdaptor)}
 		}
 		resourceAdaptor = set.walmDaemonSetAdaptor
 	case "Job":
 		if set.walmJobAdaptor == nil {
-			set.walmJobAdaptor = &WalmJobAdaptor{set.handlerSet.GetJobHandler(),set.handlerSet.GetPodHandler()}
+			set.walmJobAdaptor = &WalmJobAdaptor{set.handlerSet.GetJobHandler(),set.GetAdaptor("Pod").(*WalmPodAdaptor)}
 		}
 		resourceAdaptor = set.walmJobAdaptor
 	case "ConfigMap":
@@ -84,8 +85,13 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 			set.walmPodAdaptor = &WalmPodAdaptor{set.handlerSet.GetPodHandler()}
 		}
 		resourceAdaptor = set.walmPodAdaptor
+	case "Node":
+		if set.walmNodeAdaptor == nil {
+			set.walmNodeAdaptor = &WalmNodeAdaptor{set.handlerSet.GetNodeHandler()}
+		}
+		resourceAdaptor = set.walmNodeAdaptor
 	default:
-		resourceAdaptor = WalmDefaultAdaptor{kind}
+		resourceAdaptor = &WalmDefaultAdaptor{kind}
 	}
 	return
 

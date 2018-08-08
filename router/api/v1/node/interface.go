@@ -5,9 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"walm/pkg/node"
 	"walm/router/api/util"
 	"walm/router/ex"
+	"walm/pkg/k8s/adaptor"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"errors"
+	"walm/pkg/k8s/handler"
 )
 
 // GetEdgeServer godoc
@@ -21,16 +24,17 @@ import (
 // @Failure 500 {object} ex.ApiResponse "Server Error"
 // @Router /node [get]
 func GetNode(c *gin.Context) {
-
-	nodes, err := node.GetNode()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+	if nodeAdaptor, ok := adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor); ok {
+		nodes, err := nodeAdaptor.GetWalmNodes("", &metav1.LabelSelector{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, err)
+			return
+		}
+		c.JSON(http.StatusOK, nodes)
+		return
 	}
-
-	c.JSON(http.StatusOK, nodes)
-
+	c.JSON(http.StatusInternalServerError, errors.New("failed to get node adaptor"))
 }
-
 
 // GetCluster godoc
 // @Tags Node
@@ -49,17 +53,24 @@ func GetNodeLabels(c *gin.Context) {
 	if values, err := util.GetPathParams(c, []string{"nodename"}); err != nil {
 		c.JSON(ex.ReturnBadRequest())
 	} else {
-		nodename := values[0]
-		nodeLabels, err := node.GetNodeLabels(nodename)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, err)
+		nodeName := values[0]
+		if nodeAdaptor, ok := adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor); ok {
+			node, err := nodeAdaptor.GetResource("", nodeName)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, err)
+				return
+			}
+			if walmNode, ok := node.(*adaptor.WalmNode); ok {
+				c.JSON(http.StatusOK, walmNode.Labels)
+				return
+			}
+			c.JSON(http.StatusInternalServerError, errors.New("failed to get walm node"))
+			return
 		}
-
-		c.JSON(http.StatusOK, nodeLabels)
+		c.JSON(http.StatusInternalServerError, errors.New("failed to get node adaptor"))
 	}
 
 }
-
 
 // GetNodeLabels godoc
 // @Tags Node
@@ -86,7 +97,7 @@ func UpdateNodeLabels(c *gin.Context) {
 		} else {
 
 			nodename := values[0]
-			if err := node.UpdateNodeLabels(nodename, postdata); err != nil {
+			if _, err := handler.GetDefaultHandlerSet().GetNodeHandler().LabelNode(nodename, postdata, nil); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 			} else {
 				c.JSON(ex.ReturnOK())
@@ -96,7 +107,6 @@ func UpdateNodeLabels(c *gin.Context) {
 	}
 
 }
-
 
 // GetNodeLabels godoc
 // @Tags Node
@@ -124,7 +134,7 @@ func AddNodeLabels(c *gin.Context) {
 		} else {
 
 			nodename := values[0]
-			if err := node.AddNodeLabels(nodename, postdata); err != nil {
+			if _, err := handler.GetDefaultHandlerSet().GetNodeHandler().LabelNode(nodename, postdata, nil); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 			} else {
 				c.JSON(ex.ReturnOK())
@@ -135,7 +145,6 @@ func AddNodeLabels(c *gin.Context) {
 
 }
 
-
 // DelNodeLabels godoc
 // @Tags Node
 // @Description DelNodeLabels
@@ -143,7 +152,7 @@ func AddNodeLabels(c *gin.Context) {
 // @Accept  json
 // @Produce  json
 // @Param   nodename     path    string     true   "the name of node"
-// @Param   labels     body   map[string]string    true    "ReleaseRequest of instance"
+// @Param   labels     body   []string    true    "ReleaseRequest of instance"
 // @Success 200 {array}  ex.ApiResponse "OK"
 // @Failure 400 {object} ex.ApiResponse "Invalid NodeName supplied!"
 // @Failure 404 {object} ex.ApiResponse "node not found"
@@ -155,14 +164,14 @@ func DelNodeLabels(c *gin.Context) {
 		c.JSON(ex.ReturnBadRequest())
 
 	} else {
-		var postdata map[string]string
+		var postdata []string
 
 		if err := c.Bind(&postdata); err != nil {
 			c.JSON(ex.ReturnBadRequest())
 		} else {
 
 			nodename := values[0]
-			if err := node.DelNodeLabels(nodename, postdata); err != nil {
+			if _, err := handler.GetDefaultHandlerSet().GetNodeHandler().LabelNode(nodename, nil, postdata); err != nil {
 				c.JSON(ex.ReturnInternalServerError(err))
 			} else {
 				c.JSON(ex.ReturnOK())

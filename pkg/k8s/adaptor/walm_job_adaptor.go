@@ -8,10 +8,10 @@ import (
 
 type WalmJobAdaptor struct {
 	jobHandler *handler.JobHandler
-	podHandler *handler.PodHandler
+	podAdaptor *WalmPodAdaptor
 }
 
-func (adaptor WalmJobAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmJobAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	job, err := adaptor.jobHandler.GetJob(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -25,12 +25,12 @@ func (adaptor WalmJobAdaptor) GetResource(namespace string, name string) (WalmRe
 	return adaptor.BuildWalmJob(job)
 }
 
-func (adaptor WalmJobAdaptor) BuildWalmJob(job *batchv1.Job) (walmJob WalmJob, err error) {
+func (adaptor *WalmJobAdaptor) BuildWalmJob(job *batchv1.Job) (walmJob WalmJob, err error) {
 	walmJob = WalmJob{
 		WalmMeta: buildWalmMetaWithoutState("Job", job.Namespace, job.Name),
 	}
 
-	walmJob.Pods, err = WalmPodAdaptor{adaptor.podHandler}.GetWalmPods(job.Namespace, job.Spec.Selector)
+	walmJob.Pods, err = adaptor.podAdaptor.GetWalmPods(job.Namespace, job.Spec.Selector)
 	walmJob.State = BuildWalmJobState(job)
 	return walmJob, err
 }

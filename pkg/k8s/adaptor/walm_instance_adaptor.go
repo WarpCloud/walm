@@ -10,7 +10,7 @@ type WalmInstanceAdaptor struct {
 	adaptorSet      *AdaptorSet
 }
 
-func (adaptor WalmInstanceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmInstanceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	instance, err := adaptor.adaptorSet.GetHandlerSet().GetInstanceHandler().GetInstance(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -24,7 +24,7 @@ func (adaptor WalmInstanceAdaptor) GetResource(namespace string, name string) (W
 	return adaptor.BuildWalmInstance(instance)
 }
 
-func (adaptor WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.ApplicationInstance) (walmInstance WalmApplicationInstance, err error) {
+func (adaptor *WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.ApplicationInstance) (walmInstance WalmApplicationInstance, err error) {
 	walmInstance = WalmApplicationInstance{
 		WalmMeta: buildWalmMetaWithoutState("ApplicationInstance", instance.Namespace, instance.Name),
 	}
@@ -38,7 +38,7 @@ func (adaptor WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.Applicati
 	return
 }
 
-func (adaptor WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.ApplicationInstance) ([]WalmModule, error) {
+func (adaptor *WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.ApplicationInstance) ([]WalmModule, error) {
 	walmModules := []WalmModule{}
 	for _, module := range instance.Status.Modules {
 		resource, err := adaptor.adaptorSet.GetAdaptor(module.ResourceRef.Kind).
@@ -50,7 +50,7 @@ func (adaptor WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.Appl
 	}
 	return walmModules, nil
 }
-func (adaptor WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule) (instanceState WalmState) {
+func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule) (instanceState WalmState) {
 	instanceState = buildWalmState("Ready", "", "")
 	for _, module := range modules {
 		if module.Resource.GetState().Status != "Ready" {
@@ -61,7 +61,7 @@ func (adaptor WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule) 
 
 	return
 }
-func (adaptor WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationInstance) ([]v1.Event, error) {
+func (adaptor *WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationInstance) ([]v1.Event, error) {
 	ref := v1.ObjectReference{
 		Namespace:       inst.Namespace,
 		Name:            inst.Name,
