@@ -8,10 +8,10 @@ import (
 
 type WalmDeploymentAdaptor struct{
 	deploymentHandler *handler.DeploymentHandler
-	podHandler *handler.PodHandler
+	podAdaptor *WalmPodAdaptor
 }
 
-func (adaptor WalmDeploymentAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmDeploymentAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	deployment, err := adaptor.deploymentHandler.GetDeployment(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -25,12 +25,12 @@ func (adaptor WalmDeploymentAdaptor) GetResource(namespace string, name string) 
 	return adaptor.BuildWalmDeployment(deployment)
 }
 
-func (adaptor WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.Deployment) (walmDeployment WalmDeployment, err error){
+func (adaptor *WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.Deployment) (walmDeployment WalmDeployment, err error){
 	walmDeployment = WalmDeployment{
 		WalmMeta: buildWalmMetaWithoutState("Deployment", deployment.Namespace, deployment.Name),
 	}
 
-	walmDeployment.Pods, err = WalmPodAdaptor{adaptor.podHandler}.GetWalmPods(deployment.Namespace, deployment.Spec.Selector)
+	walmDeployment.Pods, err = adaptor.podAdaptor.GetWalmPods(deployment.Namespace, deployment.Spec.Selector)
 	walmDeployment.State = BuildWalmDeploymentState(deployment, walmDeployment.Pods)
 	return walmDeployment, err
 }
