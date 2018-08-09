@@ -4,6 +4,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type TenantInfoList struct {
+	Items *[]TenantInfo `json:"items" description:"tenant list"`
+}
+
 //Tenant Info
 type TenantInfo struct {
 	TenantName         string  `json:"tenant_name" description:"name of the tenant"`
@@ -11,26 +15,24 @@ type TenantInfo struct {
 	TenantCreationTime v1.Time `json:"tenant_creation_time" description:"create time of the tenant"`
 	TenantLabels       string  `json:"tenant_labels"  description:"labels of the tenant"`
 	TenantStatus       string  `json:"tenant_status" description:"status of the tenant"`
+	TenantQuotas *[]TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
+}
+
+//Tenant Params Info
+type TenantParams struct {
+	TenantName         string  `json:"tenant_name" description:"name of the tenant"`
+	TenantLabels       string  `json:"tenant_labels"  description:"labels of the tenant"`
+	TenantQuotas *[]TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
 }
 
 //Quota Info
-type TosQuotaInfo struct {
+type TenantQuotaInfo struct {
 	LimitCpu        float64 `json:"limit_cpu"  description:"requests of the CPU"`
 	LimitMemory     float64 `json:"limit_memory"  description:"limit of the memory"`
 	RequestsCPU     float64 `json:"requests_cpu"  description:"requests of the CPU"`
 	RequestsMemory  float64 `json:"requests_memory"  description:"requests of the memory"`
 	RequestsStorage float64 `json:"requests_storage"  description:"requests of the storage"`
 	Pods            int     `json:"pods" description:"num of the pods"`
-}
-
-//quota status Info
-type TenantQuotaInfo struct {
-	Allocatable      []TosQuotaInfo `json:"allocatable" description:"allocatable of quota"`
-	Allocated        []TosQuotaInfo `json:"allocated" description:"allocated of quota"`
-	TCUAllocatable   float64        `json:"tcu_allocatable" description:"tcu_allocatable of quota"`
-	TCUAllocated     float64        `json:"tcu_allocated" description:"tcu_allocated of quota"`
-	ReservationRatio float64        `json:"reservation_ratio" description:"reservation_ratio of quota"`
-	TcuUnit          string         `json:"tcu_unit" description:"tcu_unit of quota"`
 }
 
 /*

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/emicklei/go-restful"
 	"github.com/thoas/stats"
 )
 

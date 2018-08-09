@@ -4,6 +4,9 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
+func ListTenants(request *restful.Request, response *restful.Response) {
+}
+
 func CreateTenant(request *restful.Request, response *restful.Response) {
 }
 

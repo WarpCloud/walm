@@ -5,11 +5,11 @@ import "fmt"
 var (
 	Version   = "0.0.1"
 	GitSha1Version = ""
-	BuildTime = "0000-00-00"
+	BuildDate	 = "0000-00-00"
 )
 
 func PrintVersionInfo() {
 	fmt.Println("Release Version: ", Version)
 	fmt.Println("Git Commit Hash: ", GitSha1Version)
-	fmt.Println("Build Time: ", BuildTime)
+	fmt.Println("Build Date: ", BuildDate)
 }

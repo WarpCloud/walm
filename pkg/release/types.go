@@ -1,5 +1,9 @@
 package release
 
+type ReleaseInfoList struct {
+	Items *[]ReleaseInfo `json:"items" description:"releases list"`
+}
+
 type ReleaseInfo struct {
 	Name            string                 `json:"name" description:"name of the release"`
 	ConfigValues    map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
