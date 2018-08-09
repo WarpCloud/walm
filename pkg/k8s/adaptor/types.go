@@ -103,3 +103,9 @@ type WalmSecret struct {
 	Data map[string][]byte
 	Type corev1.SecretType
 }
+
+type WalmNode struct {
+	WalmMeta
+	Labels map[string]string
+	NodeIp string
+}

@@ -8,10 +8,10 @@ import (
 
 type WalmDaemonSetAdaptor struct {
 	daemonSetHandler *handler.DaemonSetHandler
-	podHandler       *handler.PodHandler
+	podAdaptor      *WalmPodAdaptor
 }
 
-func (adaptor WalmDaemonSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmDaemonSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	daemonSet, err := adaptor.daemonSetHandler.GetDaemonSet(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -25,12 +25,12 @@ func (adaptor WalmDaemonSetAdaptor) GetResource(namespace string, name string) (
 	return adaptor.BuildWalmDaemonSet(daemonSet)
 }
 
-func (adaptor WalmDaemonSetAdaptor) BuildWalmDaemonSet(daemonSet *extv1beta1.DaemonSet) (walmDaemonSet WalmDaemonSet, err error) {
+func (adaptor *WalmDaemonSetAdaptor) BuildWalmDaemonSet(daemonSet *extv1beta1.DaemonSet) (walmDaemonSet WalmDaemonSet, err error) {
 	walmDaemonSet = WalmDaemonSet{
 		WalmMeta: buildWalmMetaWithoutState("DaemonSet", daemonSet.Namespace, daemonSet.Name),
 	}
 
-	walmDaemonSet.Pods, err = WalmPodAdaptor{adaptor.podHandler}.GetWalmPods(daemonSet.Namespace, daemonSet.Spec.Selector)
+	walmDaemonSet.Pods, err = adaptor.podAdaptor.GetWalmPods(daemonSet.Namespace, daemonSet.Spec.Selector)
 	walmDaemonSet.State = BuildWalmDaemonSetState(daemonSet, walmDaemonSet.Pods)
 	return walmDaemonSet, err
 }

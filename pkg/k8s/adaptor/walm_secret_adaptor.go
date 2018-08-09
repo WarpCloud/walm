@@ -9,7 +9,7 @@ type WalmSecretAdaptor struct {
 	handler *handler.SecretHandler
 }
 
-func (adaptor WalmSecretAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmSecretAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	secret, err := adaptor.handler.GetSecret(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -23,7 +23,7 @@ func (adaptor WalmSecretAdaptor) GetResource(namespace string, name string) (Wal
 	return adaptor.BuildWalmSecret(secret)
 }
 
-func (adaptor WalmSecretAdaptor) BuildWalmSecret(secret *corev1.Secret) (walmSecret WalmSecret, err error) {
+func (adaptor *WalmSecretAdaptor) BuildWalmSecret(secret *corev1.Secret) (walmSecret WalmSecret, err error) {
 	walmSecret = WalmSecret{
 		WalmMeta: buildWalmMeta("Secret", secret.Namespace, secret.Name, buildWalmState("Ready", "", "")),
 		Data:     secret.Data,

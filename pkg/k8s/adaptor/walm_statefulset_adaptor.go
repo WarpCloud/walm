@@ -9,10 +9,10 @@ import (
 
 type WalmStatefulSetAdaptor struct {
 	statefulSetHandler *handler.StatefulSetHandler
-	podHandler         *handler.PodHandler
+	podAdaptor         *WalmPodAdaptor
 }
 
-func (adaptor WalmStatefulSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmStatefulSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	statefulSet, err := adaptor.statefulSetHandler.GetStatefulSet(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -26,12 +26,12 @@ func (adaptor WalmStatefulSetAdaptor) GetResource(namespace string, name string)
 	return adaptor.buildWalmStatefulSet(statefulSet)
 }
 
-func (adaptor WalmStatefulSetAdaptor) buildWalmStatefulSet(statefulSet *appsv1beta1.StatefulSet) (walmStatefulSet WalmStatefulSet, err error) {
+func (adaptor *WalmStatefulSetAdaptor) buildWalmStatefulSet(statefulSet *appsv1beta1.StatefulSet) (walmStatefulSet WalmStatefulSet, err error) {
 	walmStatefulSet = WalmStatefulSet{
 		WalmMeta: buildWalmMetaWithoutState("StatefulSet", statefulSet.Namespace, statefulSet.Name),
 	}
 
-	walmStatefulSet.Pods, err = WalmPodAdaptor{adaptor.podHandler}.GetWalmPods(statefulSet.Namespace, statefulSet.Spec.Selector)
+	walmStatefulSet.Pods, err = adaptor.podAdaptor.GetWalmPods(statefulSet.Namespace, statefulSet.Spec.Selector)
 	walmStatefulSet.State = buildWalmStatefulSetState(statefulSet, walmStatefulSet.Pods)
 	return walmStatefulSet, err
 }

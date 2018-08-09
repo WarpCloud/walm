@@ -9,7 +9,7 @@ type WalmIngressAdaptor struct {
 	handler *handler.IngressHandler
 }
 
-func (adaptor WalmIngressAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
+func (adaptor *WalmIngressAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	ingress, err := adaptor.handler.GetIngress(namespace, name)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -23,7 +23,7 @@ func (adaptor WalmIngressAdaptor) GetResource(namespace string, name string) (Wa
 	return adaptor.BuildWalmIngress(ingress)
 }
 
-func (adaptor WalmIngressAdaptor) BuildWalmIngress(ingress *extv1beta1.Ingress) (walmIngress WalmIngress, err error) {
+func (adaptor *WalmIngressAdaptor) BuildWalmIngress(ingress *extv1beta1.Ingress) (walmIngress WalmIngress, err error) {
 	walmIngress = WalmIngress{
 		WalmMeta: buildWalmMeta("Ingress", ingress.Namespace, ingress.Name, buildWalmState("Ready", "", "")),
 	}
