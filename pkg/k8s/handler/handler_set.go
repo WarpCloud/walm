@@ -23,6 +23,7 @@ type HandlerSet struct {
 	secretHandler *SecretHandler
 	serviceHandler *ServiceHandler
 	statefulSetHandler *StatefulSetHandler
+	resourceQuotaHandler *ResourceQuotaHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -114,4 +115,11 @@ func (set *HandlerSet)GetStatefulSetHandler() *StatefulSetHandler {
 		set.statefulSetHandler = &StatefulSetHandler{client: set.client, lister: set.factory.StatefulSetLister}
 	}
 	return set.statefulSetHandler
+}
+
+func (set *HandlerSet)GetResourceQuotaHandler() *ResourceQuotaHandler {
+	if set.resourceQuotaHandler == nil {
+		set.resourceQuotaHandler = &ResourceQuotaHandler{client: set.client, lister: set.factory.ResourceQuotaLister}
+	}
+	return set.resourceQuotaHandler
 }

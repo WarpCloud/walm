@@ -40,6 +40,7 @@ type InformerFactory struct {
 	StatefulSetLister v1beta1.StatefulSetLister
 	NodeLister        v1.NodeLister
 	NamespaceLister   v1.NamespaceLister
+	ResourceQuotaLister v1.ResourceQuotaLister
 
 	factoryEx      externalversions.SharedInformerFactory
 	InstanceLister tranv1beta1.ApplicationInstanceLister
@@ -69,6 +70,7 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 	factory.StatefulSetLister = factory.factory.Apps().V1beta1().StatefulSets().Lister()
 	factory.NodeLister = factory.factory.Core().V1().Nodes().Lister()
 	factory.NamespaceLister = factory.factory.Core().V1().Namespaces().Lister()
+	factory.ResourceQuotaLister = factory.factory.Core().V1().ResourceQuotas().Lister()
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()
