@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 
-	"walm/vendor/k8s.io/helm/vendor/github.com/stretchr/testify/assert"
-	"walm/vendor/k8s.io/helm/vendor/github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPathActionSingleMatch(t *testing.T) {

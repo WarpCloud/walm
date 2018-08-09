@@ -65,8 +65,6 @@ import:
 - package: transwarp/application-instance
   version: master
   repo: http://172.16.1.41:10080/k8s/application-instance.git
-- package: github.com/google/go-jsonnet
-  version: 0.10.0
 
 testImports:
 - package: github.com/stretchr/testify

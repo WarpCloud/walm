@@ -30,4 +30,3 @@ func GetConfig(context string) clientcmd.ClientConfig {
 	}
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
 }
-

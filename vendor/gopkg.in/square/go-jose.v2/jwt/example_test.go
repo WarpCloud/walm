@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package jwt
+package jwt_test
 
 import (
 	"fmt"
