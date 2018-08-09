@@ -1,143 +1,257 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
-	"github.com/swaggo/gin-swagger"
-	"github.com/swaggo/gin-swagger/swaggerFiles"
-
-	trace "github.com/gin-contrib/tracing"
-	stdopentracing "github.com/opentracing/opentracing-go"
-
-	_ "walm/docs"
-	. "walm/pkg/util/log"
-	"walm/router/api/v1/cluster"
-	"walm/router/api/v1/instance"
-	"walm/router/api/v1/tenant"
-	"walm/router/api/v1/node"
-	"walm/router/ex"
-	"walm/router/middleware"
-	"walm/router/api/v1/chart"
+	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful-openapi"
 )
 
-// @title Walm
-// @version 1.0.0
-// @description Warp application lifecycle manager.
+var APIPATH = "/walm/api/v1"
 
-// @contact.name bing.han
-// @contact.url http://transwarp.io
-// @contact.email bing.han@transwarp.io
+func InitRootRouter() *restful.WebService {
+	ws := new(restful.WebService)
 
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+	ws.Path("/").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-// @BasePath /walm/api/v1
+	tags := []string{"root"}
 
-func InitRouter(oauth, runmode bool) *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
+	ws.Route(ws.GET("/readiness").To(readinessProbe).
+		Doc("服务Ready状态检查").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
 
-	//r.Use(gin.RecoveryWithWriter(Log.Out))
+	ws.Route(ws.GET("/liveniess").To(livenessProbe).
+		Doc("服务Live状态检查").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
 
-	if runmode {
-		gin.SetMode(gin.DebugMode)
-		Log.SetLevel(logrus.DebugLevel)
-		r.Use(gin.LoggerWithWriter(Log.Out))
-	} else {
-		Log.SetLevel(logrus.InfoLevel)
-		//add Prometheus Metric
-		p := middleware.NewPrometheus("Walm")
-		p.Use(r)
-	}
-
-	//enable swagger UI
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	//add Probe for readiness and liveness
-	r.GET("/readiness", readinessProbe)
-	r.GET("/liveness", livenessProbe)
-
-	//define api group
-	apiv1 := r.Group("/walm/api/v1")
-	if oauth {
-		apiv1.Use(middleware.JWT())
-	}
-	if !runmode && middleware.Tracer != nil {
-		//add opentracing
-		psr := func(spancontext stdopentracing.SpanContext) stdopentracing.StartSpanOption {
-			return stdopentracing.ChildOf(spancontext)
-		}
-		apiv1.Use(trace.SpanFromHeaders(middleware.Tracer, "Walm", psr, false), trace.InjectToHeaders(middleware.Tracer, false))
-	}
-	{
-		//@Tags
-		//@Name instance
-		//@Description instance lifecycle manager
-		instGroup := apiv1.Group("/instance")
-		{
-			instGroup.DELETE("/namespace/:namespace/name/:appname", instance.DeleteInstance)
-			instGroup.POST("/namespace/:namespace/name/:appname", instance.DeployInstance)
-			instGroup.GET("/namespace/:namespace/list", instance.ListInstances)
-			instGroup.GET("/namespace/:namespace/name/:appname/info", instance.GetInstanceInfo)
-			instGroup.GET("/namespace/:namespace/name/:appname/version/:version/rollback", instance.RollBackInstance)
-			instGroup.PUT("/namespace/:namespace/name/:appname", instance.UpdateInstance)
-		}
-
-		//@Tags
-		//@Name cluster
-		//@Description cluster lifecycle manager
-		clusterGroup := apiv1.Group("/cluster")
-		{
-			clusterGroup.POST("/namespace/:namespace/name/:name", cluster.DeployCluster)
-			clusterGroup.GET("/namespace/:namespace/name/:name", cluster.GetCluster)
-			clusterGroup.DELETE("/namespace/:namespace/name/:name", cluster.DeleteCluster)
-			clusterGroup.POST("/namespace/:namespace/name/:name/instance", cluster.DeployInstanceInCluster)
-			clusterGroup.POST("/namespace/:namespace/name/:name/list", cluster.DeployListInCluster)
-		}
-
-		tenantGroup := apiv1.Group("tenant")
-		{
-			tenantGroup.POST("/", tenant.CreateTenant)
-			tenantGroup.GET("/:tenantname", tenant.GetTenant)
-			tenantGroup.DELETE("/:tenantname", tenant.DeleteTenant)
-			//tenantGroup.GET("/:tenant_name/services_for_tenant", tenant.GetServiceForTenant)
-			//tenantGroup.GET("/:tenant_name/services_for_development", tenant.GetServiceForDev)
-			//tenantGroup.GET("/:tenant_name/pods/:pod_name/events", tenant.GetEventForPod)
-			//tenantGroup.GET("/:tenant_name/pods/:pod_name/log", tenant.GetLogForPod)
-			tenantGroup.GET("/:tenantname/quotas", tenant.GetQuotas)
-			tenantGroup.PUT("/:tenantname/quotas", tenant.UpdateQuotas)
-			//tenantGroup.POST("/register_services_to_kong", tenant.RegisterServicesForTenantToKong)
-
-		}
-
-		podGroup := apiv1.Group("pod")
-		{
-			podGroup.GET("/:namespace/:pod/shell/:container")
-		}
-
-		nodeGroup := apiv1.Group("/node")
-		{
-			nodeGroup.GET("/", node.GetNode)
-			nodeGroup.GET("/:nodename/labels", node.GetNodeLabels)
-			nodeGroup.PUT("/:nodename/labels", node.UpdateNodeLabels)
-			nodeGroup.POST("/:nodename/labels", node.AddNodeLabels)
-			nodeGroup.DELETE("/:nodename/labels", node.DelNodeLabels)
-		}
-
-		chartGroup := apiv1.Group("/chart")
-		{
-			chartGroup.POST("/:chartname/version/:chartversion/validation", chart.ValidateChart)
-		}
-
-	}
-
-	return r
+	return ws
 }
 
-func readinessProbe(c *gin.Context) {
-	c.JSON(ex.ReturnOK())
+func InitTenantRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/tenant").
+		Doc("租户相关操作").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"tenant"}
+
+	ws.Route(ws.GET("/").To(readinessProbe).
+		Doc("获取租户列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.GET("/{tenantName}").To(readinessProbe).
+		Doc("获取租户状态").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(400, "Invalid Name", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.DELETE("/{tenantName}").To(readinessProbe).
+		Doc("删除租户").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.GET("/{tenantName}/quotas").To(readinessProbe).
+		Doc("获取租户配额").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.PUT("/{tenantName}/quotas").To(readinessProbe).
+		Doc("更新租户配额").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	return ws
 }
 
-func livenessProbe(c *gin.Context) {
-	c.JSON(ex.ReturnOK())
+func InitNodeRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/node").
+		Doc("Kubernetes节点相关操作").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"node"}
+
+	ws.Route(ws.GET("/").To(readinessProbe).
+		Doc("获取节点列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.PUT("/{node}/labels").To(readinessProbe).
+		Doc("修改节点Labels").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	return ws
 }
+
+func InitInstanceRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/instance").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"instance"}
+
+	ws.Route(ws.GET("/").To(readinessProbe).
+		Doc("获取所有Release列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.GET("/{namespace}").To(readinessProbe).
+		Doc("获取Namepaces下的所有Release列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.GET("/{namespace}/name/{appname}").To(readinessProbe).
+		Doc("获取对应Release的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.PUT("/{namespace}/name/{appname}").To(readinessProbe).
+		Doc("更改一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{appname}").To(readinessProbe).
+		Doc("删除一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.POST("/{namespace}/name/{appname}").To(readinessProbe).
+		Doc("创建一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.POST("/{namespace}/name/{appname}/version/{version}/rollback").To(readinessProbe).
+		Doc("RollBack　Release版本").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	return ws
+}
+
+func InitClusterRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/cluster").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"cluster"}
+
+	ws.Route(ws.GET("/").To(readinessProbe).
+		Doc("获取所有Cluster列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.GET("/{namespace}/name/{cluster}").To(readinessProbe).
+		Doc("获取对应Cluster的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.POST("/{namespace}/name/{cluster}").To(readinessProbe).
+		Doc("新创建一个Cluster的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{cluster}").To(readinessProbe).
+		Doc("删除一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.POST("/{namespace}/name/{cluster}/instance").To(readinessProbe).
+		Doc("新添加一个Release组件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	ws.Route(ws.POST("/{namespace}/name/{cluster}/list").To(readinessProbe).
+		Doc("新添加一组Release组件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	return ws
+}
+
+func InitPodRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/pod").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"pod"}
+
+	ws.Route(ws.GET("/{namespace}/{pod}/shell/{container}").To(readinessProbe).
+		Doc("登录Pod对应的Shell").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes("").
+		Returns(200, "OK", nil).
+		Returns(500, "Server Error", ""))
+
+	return ws
+}
+
+func readinessProbe(request *restful.Request, response *restful.Response) {
+	response.WriteEntity("OK")
+}
+
+func livenessProbe(request *restful.Request, response *restful.Response) {
+	response.WriteEntity("OK")
+}
+

@@ -38,8 +38,6 @@ import (
 	"k8s.io/helm/pkg/tiller"
 	"k8s.io/helm/pkg/timeconv"
 	tversion "k8s.io/helm/pkg/version"
-
-	"k8s.io/helm/pkg/transwarp"
 )
 
 const defaultDirectoryPermission = 0755
@@ -78,7 +76,6 @@ type templateCmd struct {
 	renderFiles      []string
 	kubeVersion      string
 	outputDir        string
-	links            []string
 }
 
 func newTemplateCmd(out io.Writer) *cobra.Command {
@@ -106,7 +103,6 @@ func newTemplateCmd(out io.Writer) *cobra.Command {
 	f.StringVar(&t.nameTemplate, "name-template", "", "specify template used to name the release")
 	f.StringVar(&t.kubeVersion, "kube-version", defaultKubeVersion, "kubernetes version used as Capabilities.KubeVersion.Major/Minor")
 	f.StringVar(&t.outputDir, "output-dir", "", "writes the executed templates to files in output-dir instead of stdout")
-	f.StringArrayVar(&t.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
 	return cmd
 }
@@ -135,7 +131,6 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 	if t.namespace == "" {
 		t.namespace = defaultNamespace()
 	}
-
 	// get combined values and create config
 	rawVals, err := vals(t.valueFiles, t.values, t.stringValues, "", "", "")
 	if err != nil {
@@ -157,79 +152,58 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 		return prettyError(err)
 	}
 
-	out := make(map[string]string)
-	if c.Metadata.Engine == "jsonnet" {
-
-		if len(t.links) > 0 {
-
-			out, err = transwarp.RenderWithDependencies(c, t.namespace, rawVals, t.kubeVersion, settings.KubeContext, t.links)
-
-		} else {
-
-			out, err = transwarp.Render(c, t.namespace, rawVals, t.kubeVersion)
-		}
-
-		if err != nil {
+	if req, err := chartutil.LoadRequirements(c); err == nil {
+		if err := checkDependencies(c, req); err != nil {
 			return prettyError(err)
 		}
-
-	} else {
-
-		if req, err := chartutil.LoadRequirements(c); err == nil {
-			if err := checkDependencies(c, req); err != nil {
-				return prettyError(err)
-			}
-		} else if err != chartutil.ErrRequirementsNotFound {
-			return fmt.Errorf("cannot load requirements: %v", err)
-		}
-		options := chartutil.ReleaseOptions{
-			Name:      t.releaseName,
-			IsInstall: !t.releaseIsUpgrade,
-			IsUpgrade: t.releaseIsUpgrade,
-			Time:      timeconv.Now(),
-			Namespace: t.namespace,
-		}
-
-		err = chartutil.ProcessRequirementsEnabled(c, config)
-		if err != nil {
-			return err
-		}
-		err = chartutil.ProcessRequirementsImportValues(c)
-		if err != nil {
-			return err
-		}
-
-		// Set up engine.
-		renderer := engine.New()
-
-		caps := &chartutil.Capabilities{
-			APIVersions:   chartutil.DefaultVersionSet,
-			KubeVersion:   chartutil.DefaultKubeVersion,
-			TillerVersion: tversion.GetVersionProto(),
-		}
-
-		// kubernetes version
-		kv, err := semver.NewVersion(t.kubeVersion)
-		if err != nil {
-			return fmt.Errorf("could not parse a kubernetes version: %v", err)
-		}
-		caps.KubeVersion.Major = fmt.Sprint(kv.Major())
-		caps.KubeVersion.Minor = fmt.Sprint(kv.Minor())
-		caps.KubeVersion.GitVersion = fmt.Sprintf("v%d.%d.0", kv.Major(), kv.Minor())
-
-		vals, err := chartutil.ToRenderValuesCaps(c, config, options, caps)
-		if err != nil {
-			return err
-		}
-
-		out, err = renderer.Render(c, vals)
-		if err != nil {
-			return err
-		}
-
+	} else if err != chartutil.ErrRequirementsNotFound {
+		return fmt.Errorf("cannot load requirements: %v", err)
+	}
+	options := chartutil.ReleaseOptions{
+		Name:      t.releaseName,
+		IsInstall: !t.releaseIsUpgrade,
+		IsUpgrade: t.releaseIsUpgrade,
+		Time:      timeconv.Now(),
+		Namespace: t.namespace,
 	}
 
+	err = chartutil.ProcessRequirementsEnabled(c, config)
+	if err != nil {
+		return err
+	}
+	err = chartutil.ProcessRequirementsImportValues(c)
+	if err != nil {
+		return err
+	}
+
+	// Set up engine.
+	renderer := engine.New()
+
+	caps := &chartutil.Capabilities{
+		APIVersions:   chartutil.DefaultVersionSet,
+		KubeVersion:   chartutil.DefaultKubeVersion,
+		TillerVersion: tversion.GetVersionProto(),
+	}
+
+	// kubernetes version
+	kv, err := semver.NewVersion(t.kubeVersion)
+	if err != nil {
+		return fmt.Errorf("could not parse a kubernetes version: %v", err)
+	}
+	caps.KubeVersion.Major = fmt.Sprint(kv.Major())
+	caps.KubeVersion.Minor = fmt.Sprint(kv.Minor())
+	caps.KubeVersion.GitVersion = fmt.Sprintf("v%d.%d.0", kv.Major(), kv.Minor())
+
+	vals, err := chartutil.ToRenderValuesCaps(c, config, options, caps)
+	if err != nil {
+		return err
+	}
+
+	out, err := renderer.Render(c, vals)
 	listManifests := []tiller.Manifest{}
+	if err != nil {
+		return err
+	}
 	// extract kind and name
 	re := regexp.MustCompile("kind:(.*)\n")
 	for k, v := range out {

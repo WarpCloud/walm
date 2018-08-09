@@ -6,9 +6,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	. "walm/pkg/util/log"
 	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
 	"k8s.io/helm/pkg/kube"
+	"github.com/sirupsen/logrus"
 )
 
 var DefaultApiserverClient *kubernetes.Clientset
@@ -19,10 +19,10 @@ var DefaultKubeClient *kube.Client
 func GetDefaultClient() *kubernetes.Clientset {
 	var err error
 	if DefaultApiserverClient == nil {
-		DefaultApiserverClient, err = createApiserverClient(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
+		DefaultApiserverClient, err = createApiserverClient("", setting.Config.KubeConfig.Config)
 	}
 	if err != nil {
-		Log.Fatalf("create apiserver client failed:%v", err)
+		logrus.Fatalf("create apiserver client failed:%v", err)
 	}
 	return DefaultApiserverClient
 }
@@ -30,9 +30,9 @@ func GetDefaultClient() *kubernetes.Clientset {
 func GetDefaultClientEx() *clientsetex.Clientset {
 	if DefaultApiserverClientEx == nil {
 		var err error
-		DefaultApiserverClientEx, err = createApiserverClientEx(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
+		DefaultApiserverClientEx, err = createApiserverClientEx("", setting.Config.KubeConfig.Config)
 		if err != nil {
-			Log.Fatalf("create apiserver client failed:%v", err)
+			logrus.Fatalf("create apiserver client failed:%v", err)
 		}
 	}
 
@@ -42,10 +42,10 @@ func GetDefaultClientEx() *clientsetex.Clientset {
 func GetDefaultRestConfig() *restclient.Config {
 	var err error
 	if DefaultRestConfig == nil {
-		DefaultRestConfig, err = clientcmd.BuildConfigFromFlags(setting.Config.Kube.MasterHost, setting.Config.Kube.Config)
+		DefaultRestConfig, err = clientcmd.BuildConfigFromFlags("", setting.Config.KubeConfig.Config)
 	}
 	if err != nil {
-		Log.Fatalf("get default rest config= failed:%v", err)
+		logrus.Fatalf("get default rest config= failed:%v", err)
 	}
 	return DefaultRestConfig
 }
@@ -54,7 +54,7 @@ func GetDefaultRestConfig() *restclient.Config {
 func GetKubeClient() *kube.Client {
 
 	if DefaultKubeClient == nil {
-		DefaultKubeClient = CreateKubeClient(setting.Config.Kube.MasterHost,  setting.Config.Kube.Config)
+		DefaultKubeClient = CreateKubeClient("", setting.Config.KubeConfig.Config)
 	}
 
 	return  DefaultKubeClient

@@ -1,4 +1,0 @@
-appVersion: 2.X.A
-description: A Helm chart for Kubernetes
-name: foo
-version: 0.1.0-beta.1

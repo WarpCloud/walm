@@ -1,4 +1,4 @@
-package diskv
+package diskv_test
 
 import (
 	"reflect"

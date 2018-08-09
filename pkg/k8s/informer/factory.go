@@ -17,7 +17,7 @@ import (
 
 var defaultFactory *InformerFactory
 
-func init() {
+func InitInformer() {
 	defaultFactory = newInformerFactory(client.GetDefaultClient(), client.GetDefaultClientEx(), 0)
 	defaultFactory.Start(wait.NeverStop)
 	defaultFactory.WaitForCacheSync(wait.NeverStop)

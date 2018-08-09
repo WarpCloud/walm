@@ -15,7 +15,7 @@
 // +build ignore
 
 // This binary compares memory usage between btree and gollrb.
-package btree
+package main
 
 import (
 	"flag"

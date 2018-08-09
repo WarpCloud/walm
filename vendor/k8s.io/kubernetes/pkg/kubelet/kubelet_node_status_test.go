@@ -139,77 +139,160 @@ func TestNodeStatusWithCloudProviderNodeIP(t *testing.T) {
 	kubelet.kubeClient = nil // ensure only the heartbeat client is used
 	kubelet.hostname = testKubeletHostname
 
-	existingNode := v1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: testKubeletHostname, Annotations: make(map[string]string)},
-		Spec:       v1.NodeSpec{},
+	cases := []struct {
+		name              string
+		nodeIP            net.IP
+		nodeAddresses     []v1.NodeAddress
+		expectedAddresses []v1.NodeAddress
+		shouldError       bool
+	}{
+		{
+			name:   "A single InternalIP",
+			nodeIP: net.ParseIP("10.1.1.1"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			shouldError: false,
+		},
+		{
+			name:   "NodeIP is external",
+			nodeIP: net.ParseIP("55.55.55.55"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			shouldError: false,
+		},
+		{
+			// Accommodating #45201 and #49202
+			name:   "InternalIP and ExternalIP are the same",
+			nodeIP: net.ParseIP("55.55.55.55"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			shouldError: false,
+		},
+		{
+			name:   "An Internal/ExternalIP, an Internal/ExternalDNS",
+			nodeIP: net.ParseIP("10.1.1.1"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeInternalDNS, Address: "ip-10-1-1-1.us-west-2.compute.internal"},
+				{Type: v1.NodeExternalDNS, Address: "ec2-55-55-55-55.us-west-2.compute.amazonaws.com"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeInternalDNS, Address: "ip-10-1-1-1.us-west-2.compute.internal"},
+				{Type: v1.NodeExternalDNS, Address: "ec2-55-55-55-55.us-west-2.compute.amazonaws.com"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			shouldError: false,
+		},
+		{
+			name:   "An Internal with multiple internal IPs",
+			nodeIP: net.ParseIP("10.1.1.1"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeInternalIP, Address: "10.2.2.2"},
+				{Type: v1.NodeInternalIP, Address: "10.3.3.3"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			shouldError: false,
+		},
+		{
+			name:   "An InternalIP that isn't valid: should error",
+			nodeIP: net.ParseIP("10.2.2.2"),
+			nodeAddresses: []v1.NodeAddress{
+				{Type: v1.NodeInternalIP, Address: "10.1.1.1"},
+				{Type: v1.NodeExternalIP, Address: "55.55.55.55"},
+				{Type: v1.NodeHostName, Address: testKubeletHostname},
+			},
+			expectedAddresses: nil,
+			shouldError:       true,
+		},
 	}
-
-	// TODO : is it possible to mock validateNodeIP() to avoid relying on the host interface addresses ?
-	addrs, err := net.InterfaceAddrs()
-	assert.NoError(t, err)
-	for _, addr := range addrs {
-		var ip net.IP
-		switch v := addr.(type) {
-		case *net.IPNet:
-			ip = v.IP
-		case *net.IPAddr:
-			ip = v.IP
+	for _, testCase := range cases {
+		// testCase setup
+		existingNode := v1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: testKubeletHostname, Annotations: make(map[string]string)},
+			Spec:       v1.NodeSpec{},
 		}
-		if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
-			kubelet.nodeIP = ip
-			break
+
+		kubelet.nodeIP = testCase.nodeIP
+
+		fakeCloud := &fakecloud.FakeCloud{
+			Addresses: testCase.nodeAddresses,
+			Err:       nil,
 		}
-	}
-	assert.NotNil(t, kubelet.nodeIP)
+		kubelet.cloud = fakeCloud
+		kubelet.nodeIPValidator = func(nodeIP net.IP) error {
+			return nil
+		}
 
-	fakeCloud := &fakecloud.FakeCloud{
-		Addresses: []v1.NodeAddress{
-			{
-				Type:    v1.NodeExternalIP,
-				Address: "132.143.154.163",
-			},
-			{
-				Type:    v1.NodeExternalIP,
-				Address: kubelet.nodeIP.String(),
-			},
-			{
-				Type:    v1.NodeInternalIP,
-				Address: "132.143.154.164",
-			},
-			{
-				Type:    v1.NodeInternalIP,
-				Address: kubelet.nodeIP.String(),
-			},
-			{
-				Type:    v1.NodeInternalIP,
-				Address: "132.143.154.165",
-			},
-			{
-				Type:    v1.NodeHostName,
-				Address: testKubeletHostname,
-			},
-		},
-		Err: nil,
-	}
-	kubelet.cloud = fakeCloud
+		// execute method
+		err := kubelet.setNodeAddress(&existingNode)
+		if err != nil && !testCase.shouldError {
+			t.Errorf("Unexpected error for test %s: %q", testCase.name, err)
+			continue
+		} else if err != nil && testCase.shouldError {
+			// expected an error
+			continue
+		}
 
-	kubelet.setNodeAddress(&existingNode)
+		// Sort both sets for consistent equality
+		sortNodeAddresses(testCase.expectedAddresses)
+		sortNodeAddresses(existingNode.Status.Addresses)
 
-	expectedAddresses := []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: kubelet.nodeIP.String(),
-		},
-		{
-			Type:    v1.NodeInternalIP,
-			Address: kubelet.nodeIP.String(),
-		},
-		{
-			Type:    v1.NodeHostName,
-			Address: testKubeletHostname,
-		},
+		assert.True(
+			t,
+			apiequality.Semantic.DeepEqual(
+				testCase.expectedAddresses,
+				existingNode.Status.Addresses,
+			),
+			fmt.Sprintf("Test %s failed %%s", testCase.name),
+			diff.ObjectDiff(testCase.expectedAddresses, existingNode.Status.Addresses),
+		)
 	}
-	assert.True(t, apiequality.Semantic.DeepEqual(expectedAddresses, existingNode.Status.Addresses), "%s", diff.ObjectDiff(expectedAddresses, existingNode.Status.Addresses))
+}
+
+// sortableNodeAddress is a type for sorting []v1.NodeAddress
+type sortableNodeAddress []v1.NodeAddress
+
+func (s sortableNodeAddress) Len() int { return len(s) }
+func (s sortableNodeAddress) Less(i, j int) bool {
+	return (string(s[i].Type) + s[i].Address) < (string(s[j].Type) + s[j].Address)
+}
+func (s sortableNodeAddress) Swap(i, j int) { s[j], s[i] = s[i], s[j] }
+
+func sortNodeAddresses(addrs sortableNodeAddress) {
+	sort.Sort(addrs)
 }
 
 func TestUpdateNewNodeStatus(t *testing.T) {
@@ -1423,4 +1506,102 @@ func TestUpdateDefaultLabels(t *testing.T) {
 		assert.Equal(t, tc.needsUpdate, needsUpdate, tc.name)
 		assert.Equal(t, tc.finalLabels, tc.existingNode.Labels, tc.name)
 	}
+}
+
+func TestReconcileExtendedResource(t *testing.T) {
+	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
+	testKubelet.kubelet.kubeClient = nil // ensure only the heartbeat client is used
+	extendedResourceName1 := v1.ResourceName("test.com/resource1")
+	extendedResourceName2 := v1.ResourceName("test.com/resource2")
+
+	cases := []struct {
+		name         string
+		existingNode *v1.Node
+		expectedNode *v1.Node
+		needsUpdate  bool
+	}{
+		{
+			name: "no update needed without extended resource",
+			existingNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+					},
+				},
+			},
+			expectedNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+					},
+				},
+			},
+			needsUpdate: false,
+		},
+		{
+			name: "extended resource capacity is zeroed",
+			existingNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+						extendedResourceName1:       *resource.NewQuantity(int64(2), resource.DecimalSI),
+						extendedResourceName2:       *resource.NewQuantity(int64(10), resource.DecimalSI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+						extendedResourceName1:       *resource.NewQuantity(int64(2), resource.DecimalSI),
+						extendedResourceName2:       *resource.NewQuantity(int64(10), resource.DecimalSI),
+					},
+				},
+			},
+			expectedNode: &v1.Node{
+				Status: v1.NodeStatus{
+					Capacity: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+						extendedResourceName1:       *resource.NewQuantity(int64(0), resource.DecimalSI),
+						extendedResourceName2:       *resource.NewQuantity(int64(0), resource.DecimalSI),
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourceCPU:              *resource.NewMilliQuantity(2000, resource.DecimalSI),
+						v1.ResourceMemory:           *resource.NewQuantity(10E9, resource.BinarySI),
+						v1.ResourceEphemeralStorage: *resource.NewQuantity(5000, resource.BinarySI),
+						extendedResourceName1:       *resource.NewQuantity(int64(0), resource.DecimalSI),
+						extendedResourceName2:       *resource.NewQuantity(int64(0), resource.DecimalSI),
+					},
+				},
+			},
+			needsUpdate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		defer testKubelet.Cleanup()
+		kubelet := testKubelet.kubelet
+		initialNode := &v1.Node{}
+
+		needsUpdate := kubelet.reconcileExtendedResource(initialNode, tc.existingNode)
+		assert.Equal(t, tc.needsUpdate, needsUpdate, tc.name)
+		assert.Equal(t, tc.expectedNode, tc.existingNode, tc.name)
+	}
+
 }
