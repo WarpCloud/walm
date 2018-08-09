@@ -1,7 +1,9 @@
-package main
+package cmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"walm/pkg/version"
 )
 
 const versionDesc = `
@@ -10,7 +12,7 @@ This command print version of walm.`
 type vCmd struct {
 }
 
-func newVersionCmd() *cobra.Command {
+func NewVersionCmd() *cobra.Command {
 	vc := &vCmd{}
 
 	cmd := &cobra.Command{
@@ -27,5 +29,5 @@ func newVersionCmd() *cobra.Command {
 }
 
 func (vc *vCmd) run() {
-	//version.PrintVersionInfo()
+	version.PrintVersionInfo()
 }

@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
-	. "walm/pkg/util/log"
-
 	"walm/pkg/setting"
 
 	"github.com/ghodss/yaml"
+	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
@@ -22,8 +21,7 @@ import (
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/storage/driver"
 	"k8s.io/helm/pkg/transwarp"
-	"k8s.io/helm/pkg/strvals"
-	"walm/pkg/k8s/client"
+		"walm/pkg/k8s/client"
 	"bytes"
 	"k8s.io/helm/pkg/timeconv"
 	"k8s.io/helm/pkg/engine"
@@ -39,29 +37,29 @@ type Client struct {
 
 var Helm *Client
 
-func init() {
-	tillerHost := setting.Config.Helm.TillerHost
-	client := helm.NewClient(helm.Host(tillerHost))
+func InitHelm() {
+	tillerHost := setting.Config.SysHelm.TillerHost
+	helmClient := helm.NewClient(helm.Host(tillerHost))
 	helmHome := helmpath.Home("/tmp/helmhome")
 	ensureDirectories(helmHome)
 	ensureDefaultRepos(helmHome)
 	cif := helmHome.CacheIndex("stable")
 	c := repo.Entry{
-		Name:  setting.Config.Repo.Name,
+		Name:  (*setting.Config.RepoList)[0].Name,
 		Cache: cif,
-		URL:   setting.Config.Repo.URL,
+		URL:   (*setting.Config.RepoList)[0].URL,
 	}
 	r, _ := repo.NewChartRepository(&c, getter.All(environment.EnvSettings{
 		Home: helmpath.Home("/tmp/helmhome")}))
 	r.DownloadIndexFile(helmHome.Cache())
 	Helm = &Client{
-		helmClient:      client,
+		helmClient:      helmClient,
 		chartRepository: r,
 	}
 }
 
 func ListReleases(namespace string) ([]release.ReleaseInfo, error) {
-	Log.Debugf("Enter ListReleases %s\n", namespace)
+	logrus.Debugf("Enter ListReleases %s\n", namespace)
 	res, err := Helm.helmClient.ListReleases(
 		helm.ReleaseListNamespace(namespace),
 	)
@@ -77,7 +75,7 @@ func ListReleases(namespace string) ([]release.ReleaseInfo, error) {
 }
 
 func GetReleaseInfo(namespace, releaseName string) (release.ReleaseInfo, error) {
-	Log.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
+	logrus.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
 	var release release.ReleaseInfo
 
 	res, err := Helm.helmClient.ListReleases(
@@ -102,7 +100,7 @@ func GetReleaseInfo(namespace, releaseName string) (release.ReleaseInfo, error) 
 }
 
 func InstallUpgradeRealese(releaseRequest release.ReleaseRequest) error {
-	Log.Debugf("Enter InstallUpgradeRealese %v\n", releaseRequest)
+	logrus.Debugf("Enter InstallUpgradeRealese %v\n", releaseRequest)
 	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return err
@@ -115,7 +113,7 @@ func InstallUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 	if err != nil {
 		return err
 	}
-	Log.Printf("Dep %v\n", dependencies)
+	logrus.Printf("Dep %v\n", dependencies)
 	depLinks := make(map[string]interface{})
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
@@ -127,7 +125,7 @@ func InstallUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 
 func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
 
-	Log.Debugf("Begin ValidateChart %v\n", releaseRequest)
+	logrus.Debugf("Begin ValidateChart %v\n", releaseRequest)
 
 	var chartValicationInfo release.ChartValicationInfo
 	chartValicationInfo.ChartName = releaseRequest.ChartName
@@ -280,14 +278,14 @@ func PatchUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 }
 
 func DeleteRealese(namespace, releaseName string) error {
-	Log.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
+	logrus.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
 	release, err := GetReleaseInfo(namespace, releaseName)
 	if err != nil {
 		return err
 	}
 
 	if release.Name == "" {
-		Log.Printf("Can't found %s in ns %s\n", releaseName, namespace)
+		logrus.Printf("Can't found %s in ns %s\n", releaseName, namespace)
 		return nil
 	}
 
@@ -298,7 +296,7 @@ func DeleteRealese(namespace, releaseName string) error {
 		releaseName, opts...,
 	)
 	if res != nil && res.Info != "" {
-		Log.Println(res.Info)
+		logrus.Println(res.Info)
 	}
 
 	return err
@@ -327,7 +325,7 @@ func downloadChart(name, version string) (string, error) {
 	}
 	filename, _, err := dl.DownloadTo(chartURL, version, tmpDir)
 	if err != nil {
-		Log.Printf("DownloadTo err %v", err)
+		logrus.Printf("DownloadTo err %v", err)
 		return "", err
 	}
 
@@ -343,7 +341,7 @@ func parseDependencies(chart *chart.Chart) ([]string, error) {
 	var dependencies []string
 	//dependencies := make([]string, 0)
 	for _, chartFile := range chart.Files {
-		Log.Printf("Chartfile %s \n", chartFile.TypeUrl)
+		logrus.Printf("Chartfile %s \n", chartFile.TypeUrl)
 		if chartFile.TypeUrl == "transwarp-app-yaml" {
 			app := &release.AppDependency{}
 			err := yaml.Unmarshal(chartFile.Value, &app)
@@ -361,7 +359,7 @@ func parseDependencies(chart *chart.Chart) ([]string, error) {
 func installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) error {
 	rawVals, err := yaml.Marshal(configValues)
 	if err != nil {
-		Log.Printf("Marshal Error %v\n", err)
+		logrus.Printf("Marshal Error %v\n", err)
 		return err
 	}
 	err = transwarp.ProcessAppCharts(Helm.helmClient, chart, releaseName, namespace, string(rawVals[:]), depLinks)
@@ -372,7 +370,7 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 	if err == nil {
 		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
 		if previousReleaseNamespace != namespace {
-			Log.Printf("WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
+			logrus.Printf("WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
 				namespace, previousReleaseNamespace,
 			)
 		}
@@ -387,7 +385,7 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 		if err != nil {
 			return fmt.Errorf("INSTALL FAILED: %v", err)
 		}
-		Log.Printf("%+v\n", resp)
+		logrus.Printf("%+v\n", resp)
 	}
 	resp, err := Helm.helmClient.UpdateReleaseFromChart(
 		releaseName,
@@ -398,7 +396,7 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 	if err != nil {
 		return fmt.Errorf("UPGRADE FAILED: %v", err)
 	}
-	Log.Printf("%+v\n", resp)
+	logrus.Printf("%+v\n", resp)
 
 	return nil
 }
@@ -419,7 +417,7 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]relea
 		release.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
 		cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
 		if err != nil {
-			Log.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
+			logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
 			continue
 		}
 		release.ConfigValues = cvals
@@ -432,7 +430,7 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]relea
 
 		release.Status, err = buildReleaseStatus(helmRelease)
 		if err != nil {
-			Log.Errorf(fmt.Sprintf("Failed to build the status of release: %s", release.Name))
+			logrus.Errorf(fmt.Sprintf("Failed to build the status of release: %s", release.Name))
 			return releaseInfos, err
 		}
 
@@ -506,43 +504,42 @@ func ensureDefaultRepos(home helmpath.Home) error {
 }
 
 func renderWithDependencies(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string, kubeContext string, links []string) (map[string]string, error) {
-
-	depLinks := map[string]interface{}{}
-	for _, value := range links {
-		if err := strvals.ParseInto(value, depLinks); err != nil {
-			return nil, fmt.Errorf("failed parsing --set data: %s", err)
-		}
-	}
-
-	err := transwarp.CheckDepencies(chartRequested, depLinks)
-	if err != nil {
-		return nil, err
-	}
-
-	// init k8s transwarp client
-	k8sTranswarpClient := client.GetDefaultClientEx()
-
-	// init k8s client
-	k8sClient := client.GetDefaultClient()
-
-	depVals, err := transwarp.GetDepenciesConfig(k8sTranswarpClient, k8sClient, namespace, depLinks)
-	if err != nil {
-		return nil, err
-	}
-
-	newVals, err := transwarp.MergeDepenciesValue(depVals, userVals)
-	if err != nil {
-		return nil, err
-	}
-
-	return transwarp.Render(chartRequested, namespace, newVals, kubeVersion)
-
+	//
+	//depLinks := map[string]interface{}{}
+	//for _, value := range links {
+	//	if err := strvals.ParseInto(value, depLinks); err != nil {
+	//		return nil, fmt.Errorf("failed parsing --set data: %s", err)
+	//	}
+	//}
+	//
+	//err := transwarp.CheckDepencies(chartRequested, depLinks)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//// init k8s transwarp client
+	//k8sTranswarpClient := client.GetDefaultClientEx()
+	//
+	//// init k8s client
+	//k8sClient := client.GetDefaultClient()
+	//
+	//depVals, err := transwarp.GetDepenciesConfig(k8sTranswarpClient, k8sClient, namespace, depLinks)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//newVals, err := transwarp.MergeDepenciesValue(depVals, userVals)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return transwarp.Render(chartRequested, namespace, newVals, kubeVersion)
+	return nil, nil
 }
 
 
 func render(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string) (map[string]string, error) {
-
-	return transwarp.Render(chartRequested, namespace, userVals, kubeVersion)
+	return nil, nil
 }
 
 

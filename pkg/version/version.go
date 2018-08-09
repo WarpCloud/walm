@@ -1,14 +1,15 @@
-// Copyright 2017 The OpenPitrix Authors. All rights reserved.
-// Use of this source code is governed by a Apache license
-// that can be found in the LICENSE file.
-
-//go:generate go run gen_helper.go
-//go:generate go fmt
-
 package version
 
+import "fmt"
+
 var (
-	ShortVersion   = "dev"
-	GitSha1Version = "git-sha1"
-	BuildDate      = "2017-01-01"
+	Version   = "0.0.1"
+	GitSha1Version = ""
+	BuildTime = "0000-00-00"
 )
+
+func PrintVersionInfo() {
+	fmt.Println("Release Version: ", Version)
+	fmt.Println("Git Commit Hash: ", GitSha1Version)
+	fmt.Println("Build Time: ", BuildTime)
+}
