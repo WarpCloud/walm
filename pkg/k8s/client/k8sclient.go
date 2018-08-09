@@ -132,7 +132,7 @@ func CreateKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
 func GetKubeConfig(apiserverHost string, kubeConfig string) clientcmd.ClientConfig {
 
 	if kubeConfig == "" && apiserverHost == "" {
-		cfg := kube.GetConfig("")
+		cfg := kube.GetConfig("", "")
 		return cfg
 	}
 

@@ -30,6 +30,19 @@ type AppDependency struct {
 	Dependencies []*DependencyDeclare `json:"dependencies"`
 }
 
+type HelmNativeValues struct {
+	ChartName string `json:"chartName"`
+	ChartVersion string `json:"chartVersion"`
+	AppVersion string `json:"appVersion"`
+	ReleaseName string `json:"releaseName"`
+	ReleaseNamespace string `json:"releaseNamespace"`
+}
+
+type AppHelmValues struct {
+	Dependencies []*DependencyDeclare `json:"dependencies"`
+	NativeValues HelmNativeValues `json:"HelmNativeValues"`
+}
+
 func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, namespace, config string, depLinks map[string]interface{}) error {
 	var dependencies []v1beta1.Dependency
 	var appConfigMapName string
@@ -37,6 +50,7 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 	appManagerType := false
 	annotations := make(map[string]string)
 	labels := make(map[string]string)
+	app := &AppDependency{}
 	dep := make([]string, 0)
 	depValuesLinks := make(map[string]string)
 	removeIdx := -1
@@ -67,7 +81,6 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 			removeIdx = idx
 			appManagerType = true
 		} else if file.TypeUrl == "transwarp-app-yaml" {
-			app := &AppDependency{}
 			err := yaml.Unmarshal(file.Value, &app)
 			if err != nil {
 				return err
@@ -81,7 +94,31 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 		return nil
 	}
 
-	instanceConfigBytes, err := yaml.YAMLToJSON([]byte(config))
+	// Merge Values.yaml and rawVals and helm Native Charts Values
+	rawValsBase := map[string]interface{}{}
+	if err := yaml.Unmarshal([]byte(config), &rawValsBase); err != nil {
+		return fmt.Errorf("failed to parse rawValues: %s", err)
+	}
+	chartRawBase := map[string]interface{}{}
+	if err := yaml.Unmarshal([]byte(chartRequested.Values.Raw), &chartRawBase); err != nil {
+		return fmt.Errorf("failed to parse rawValues: %s", err)
+	}
+	helmVals := AppHelmValues{}
+	helmVals.Dependencies = app.Dependencies
+	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Name
+	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Version
+	helmVals.NativeValues.AppVersion = chartRequested.Metadata.AppVersion
+	helmVals.NativeValues.ReleaseName = name
+	helmVals.NativeValues.ReleaseNamespace = namespace
+	chartRawBase["HelmAdditionalValues"] = &helmVals
+
+	rawValsBase = mergeValues(chartRawBase, rawValsBase)
+	rawVals, rawErr := yaml.Marshal(rawValsBase)
+	if rawErr != nil {
+		return fmt.Errorf("failed marshal merge values: %s", rawErr)
+	}
+
+	instanceConfigBytes, err := yaml.YAMLToJSON(rawVals)
 	if err != nil {
 		return err
 	}
