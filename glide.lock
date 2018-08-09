@@ -1,5 +1,5 @@
-hash: 444ef6bc50b2fe8cff5c77fc04a31815b834d63a972727f02c14fc4109177646
-updated: 2018-08-09T10:30:09.792697653+08:00
+hash: 37c194073d045fd0d2b0ff0bdf3b0687c4b619133ca87b3dc85b6d253309246c
+updated: 2018-08-09T21:04:28.313923774+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -92,6 +92,14 @@ imports:
   version: f3f9494671f93fcff853e3c6e9e948b3eb71e590
 - name: github.com/go-redis/redis
   version: 480db94d33e6088e08d628833b6c0705451d24bb
+  subpackages:
+  - internal
+  - internal/consistenthash
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
+  - internal/singleflight
+  - internal/util
 - name: github.com/gobwas/glob
   version: 5ccd90ef52e1e632236f7326478d4faa74f99438
   subpackages:
@@ -123,6 +131,11 @@ imports:
   - ptypes/timestamp
 - name: github.com/google/btree
   version: 7d79101e329e5a3adf994758c578dab82b90c017
+- name: github.com/google/go-jsonnet
+  version: dfddf2b4e3aec377b0dcdf247ff92e7d078b8179
+  subpackages:
+  - ast
+  - parser
 - name: github.com/google/go-querystring
   version: 53e6ce116135b80d037921a7fdd5138cf32d7a8a
   subpackages:
@@ -563,8 +576,8 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: cf5021b540c9141d0929b42fbea8e19326b1e1ad
-  repo: ssh://git@172.16.1.41:10022/bianyu/helm.git
+  version: 0d25a1c872a5f9e75fa82a90edd8f4994fbc273c
+  repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/chartutil
   - pkg/downloader
@@ -584,7 +597,6 @@ imports:
   - pkg/repo
   - pkg/resolver
   - pkg/storage/driver
-  - pkg/strvals
   - pkg/sympath
   - pkg/timeconv
   - pkg/tlsutil
@@ -768,7 +780,7 @@ imports:
   - exec
   - exec/testing
 - name: transwarp/application-instance
-  version: 18993a7b6561457f70f1c1f93fdc2793fe225dd4
+  version: aca0ba398585ccad851f7ab287ee0d3e6cceb835
   repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
   subpackages:
   - pkg/apis/transwarp

@@ -1,7 +1,8 @@
 package: k8s.io/helm
-ignore:
-- transwarp
 import:
+- package: transwarp/application-instance
+  repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
+  version: release-1.10
 - package: golang.org/x/net
   subpackages:
   - context
@@ -62,9 +63,10 @@ import:
   version: release-1.10
 - package: github.com/cyphar/filepath-securejoin
   version: ^0.2.1
-- package: transwarp/application-instance
-  version: master
-  repo: http://172.16.1.41:10080/k8s/application-instance.git
+- package: github.com/google/go-jsonnet
+  version: 0.10.0
+- package: github.com/cpuguy83/go-md2man
+  version: 626bd0ac0fb1abc03000f07e7385aa7103087623
 
 testImports:
 - package: github.com/stretchr/testify

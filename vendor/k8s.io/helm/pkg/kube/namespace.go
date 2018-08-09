@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ func createNamespace(client internalclientset.Interface, namespace string) error
 	ns := &core.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
+			Labels: map[string]string{
+				"name": namespace,
+			},
 		},
 	}
 	_, err := client.Core().Namespaces().Create(ns)
