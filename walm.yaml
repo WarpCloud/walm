@@ -21,5 +21,5 @@ repoList:
   - name: "test"
     url: "http://172.16.1.41:8880/"
 kubeConfig:
-  config: ""
+  config: "test/k8sconfig/kubeconfig"
   context: ""

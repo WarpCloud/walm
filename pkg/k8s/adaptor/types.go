@@ -106,6 +106,10 @@ type WalmSecret struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels map[string]string
-	NodeIp string
+	Labels map[string]string `json:"labels" description:"node labels"`
+	NodeIp string `json:"nodeip" description:"ip of node"`
+}
+
+type WalmNodeList struct {
+	Items *[]WalmNode `json:"items" description:"node list info"`
 }

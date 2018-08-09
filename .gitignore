@@ -18,3 +18,5 @@ bin/
 tmp/
 
 *.iml
+.vimrc
+*.swp

@@ -11,6 +11,7 @@ import (
 	"github.com/emicklei/go-restful-openapi"
 
 	"walm/router"
+	"walm/router/middleware"
 	"walm/pkg/setting"
 	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
@@ -69,6 +70,8 @@ func (sc *ServCmd) run() error {
 	restful.DefaultContainer.EnableContentEncoding(true)
 	// faster router
 	restful.DefaultContainer.Router(restful.CurlyRouter{})
+	restful.Filter(middleware.ServerStatsFilter)
+	restful.Filter(middleware.RouteLogging)
 
 	logrus.Infoln("Adding Route...")
 	restful.Add(router.InitRootRouter())

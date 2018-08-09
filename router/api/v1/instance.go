@@ -10,7 +10,7 @@ func DeleteInstance(request *restful.Request, response *restful.Response) {
 func DeployInstance(request *restful.Request, response *restful.Response) {
 }
 
-func ListInstance(request *restful.Request, response *restful.Response) {
+func ListInstanceByNamespace(request *restful.Request, response *restful.Response) {
 }
 
 func ListInstanceAllNamespaces(request *restful.Request, response *restful.Response) {
