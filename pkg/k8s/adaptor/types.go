@@ -113,3 +113,8 @@ type WalmNode struct {
 type WalmNodeList struct {
 	Items *[]WalmNode `json:"items" description:"node list info"`
 }
+
+type WalmResourceQuota struct {
+	WalmMeta
+	ResourceLimits map[corev1.ResourceName]string
+}

@@ -30,25 +30,25 @@ func (handler *ResourceQuotaHandler) DeleteResourceQuota(namespace string, name 
 }
 
 type ResourceQuotaBuilder struct {
-	name string
-	namespace string
-	labels map[string]string
+	name        string
+	namespace   string
+	labels      map[string]string
 	annotations map[string]string
-	hard v1.ResourceList
-	scopes []v1.ResourceQuotaScope
+	hard        v1.ResourceList
+	scopes      []v1.ResourceQuotaScope
 }
 
-func (builder ResourceQuotaBuilder) Namespace(namespace string) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) Namespace(namespace string) *ResourceQuotaBuilder {
 	builder.namespace = namespace
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) Name(name string) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) Name(name string) *ResourceQuotaBuilder {
 	builder.name = name
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) AddLabel(key string, value string) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) AddLabel(key string, value string) *ResourceQuotaBuilder {
 	if builder.labels == nil {
 		builder.labels = map[string]string{}
 	}
@@ -56,7 +56,7 @@ func (builder ResourceQuotaBuilder) AddLabel(key string, value string) ResourceQ
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) AddAnnotations(key string, value string) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) AddAnnotations(key string, value string) *ResourceQuotaBuilder {
 	if builder.annotations == nil {
 		builder.annotations = map[string]string{}
 	}
@@ -64,7 +64,7 @@ func (builder ResourceQuotaBuilder) AddAnnotations(key string, value string) Res
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) AddHardResourceLimit(resourceName v1.ResourceName, quantity k8sresource.Quantity) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) AddHardResourceLimit(resourceName v1.ResourceName, quantity k8sresource.Quantity) *ResourceQuotaBuilder {
 	if builder.hard == nil {
 		builder.hard = map[v1.ResourceName]k8sresource.Quantity{}
 	}
@@ -72,7 +72,7 @@ func (builder ResourceQuotaBuilder) AddHardResourceLimit(resourceName v1.Resourc
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) AddResourceQuotaScope(scope v1.ResourceQuotaScope) ResourceQuotaBuilder{
+func (builder *ResourceQuotaBuilder) AddResourceQuotaScope(scope v1.ResourceQuotaScope) *ResourceQuotaBuilder {
 	if builder.scopes == nil {
 		builder.scopes = []v1.ResourceQuotaScope{}
 	}
@@ -80,22 +80,26 @@ func (builder ResourceQuotaBuilder) AddResourceQuotaScope(scope v1.ResourceQuota
 	return builder
 }
 
-func (builder ResourceQuotaBuilder) Build() *v1.ResourceQuota{
+func (builder *ResourceQuotaBuilder) Build() *v1.ResourceQuota {
 	meta := metav1.ObjectMeta{
-		Namespace: builder.namespace,
-		Name: builder.name,
-		Labels: builder.labels,
+		Namespace:   builder.namespace,
+		Name:        builder.name,
+		Labels:      builder.labels,
 		Annotations: builder.annotations,
 	}
 
 	spec := v1.ResourceQuotaSpec{
-		Hard: builder.hard,
+		Hard:   builder.hard,
 		Scopes: builder.scopes,
 	}
 
 	return &v1.ResourceQuota{
 		ObjectMeta: meta,
-		Spec: spec,
+		Spec:       spec,
 	}
 }
 
+func NewFakeResourceQuotaHandler(client *kubernetes.Clientset,
+	lister listv1.ResourceQuotaLister) *ResourceQuotaHandler {
+	return &ResourceQuotaHandler{client, lister}
+}
