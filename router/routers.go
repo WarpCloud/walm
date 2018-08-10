@@ -110,23 +110,24 @@ func InitNodeRouter() *restful.WebService {
 	ws.Route(ws.GET("/").To(v1.GetNodes).
 		Doc("获取节点列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.QueryParameter("labelselector", "节点标签过滤").DataType("string")).
 		Writes(k8stypes.WalmNodeList{}).
 		Returns(200, "OK", k8stypes.WalmNodeList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{node}").To(v1.GetNode).
+	ws.Route(ws.GET("/{nodename}").To(v1.GetNode).
 		Doc("获取节点详细信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("node", "节点名字").DataType("string")).
+		Param(ws.PathParameter("nodename", "节点名字").DataType("string")).
 		Writes(k8stypes.WalmNode{}).
-		Returns(200, "OK", nil).
+		Returns(200, "OK", k8stypes.WalmNode{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{node}/labels").To(v1.PatchNodeLabels).
+	ws.Route(ws.POST("/{nodename}/labels").To(v1.LabelNode).
 		Doc("修改节点Labels").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("node", "节点名字").DataType("string")).
-		Writes(k8stypes.WalmNode{}).
+		Param(ws.PathParameter("nodename", "节点名字").DataType("string")).
+		Reads(walmtypes.LabelNodeRequestBody{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
