@@ -206,56 +206,52 @@ func InitInstanceRouter() *restful.WebService {
 	return ws
 }
 
-func InitClusterRouter() *restful.WebService {
+func InitProjectRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/cluster").
+	ws.Path(APIPATH + "/project").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-	tags := []string{"cluster"}
+	tags := []string{"Project"}
 
-	ws.Route(ws.GET("/").To(readinessProbe).
-		Doc("获取所有Cluster列表").
+	ws.Route(ws.GET("/").To(v1.GetProjectAllNamespaces).
+		Doc("获取所有Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
-		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Writes(releasetypes.ProjectInfoList{}).
+		Returns(200, "OK", releasetypes.ProjectInfoList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/{namespace}/name/{cluster}").To(readinessProbe).
-		Doc("获取对应Cluster的详细信息").
+	ws.Route(ws.GET("/{namespace}").To(v1.GetProjectByNamespace).
+		Doc("获取对应租户的Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
-		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Writes(releasetypes.ProjectInfoList{}).
+		Returns(200, "OK", releasetypes.ProjectInfoList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.POST("/{namespace}/name/{cluster}").To(readinessProbe).
-		Doc("新创建一个Cluster的详细信息").
+	ws.Route(ws.POST("/{namespace}/name/{project}").To(v1.DeployProject).
+		Doc("新创建一个Project的详细信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
-		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Reads(releasetypes.ProjectParams{}).
+		Returns(200, "OK", releasetypes.ProjectParams{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.DELETE("/{namespace}/name/{cluster}").To(readinessProbe).
-		Doc("删除一个Release").
+	ws.Route(ws.DELETE("/{namespace}/name/{project}").To(v1.DeleteProject).
+		Doc("删除一个Project").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.POST("/{namespace}/name/{cluster}/instance").To(readinessProbe).
-		Doc("新添加一个Release组件").
+	ws.Route(ws.POST("/{namespace}/name/{project}/instance").To(v1.DeployInstanceInProject).
+		Doc("新添加一个Project组件").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
-
-	ws.Route(ws.POST("/{namespace}/name/{cluster}/list").To(readinessProbe).
-		Doc("新添加一组Release组件").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes("").
-		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws
 }
@@ -274,7 +270,7 @@ func InitPodRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes("").
 		Returns(200, "OK", nil).
-		Returns(500, "Server Error", ""))
+		Returns(500, "Internal Error", ""))
 
 	return ws
 }

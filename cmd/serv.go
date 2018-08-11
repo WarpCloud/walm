@@ -15,6 +15,7 @@ import (
 	"walm/pkg/setting"
 	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
+	"walm/pkg/release/manager/project"
 )
 
 const servDesc = `
@@ -35,6 +36,7 @@ type ServCmd struct {
 func initService() error {
 	informer.InitInformer()
 	helm.InitHelm()
+	project.InitProject()
 
 	return nil
 }
@@ -78,7 +80,7 @@ func (sc *ServCmd) run() error {
 	restful.Add(router.InitNodeRouter())
 	restful.Add(router.InitTenantRouter())
 	restful.Add(router.InitInstanceRouter())
-	restful.Add(router.InitClusterRouter())
+	restful.Add(router.InitProjectRouter())
 	restful.Add(router.InitPodRouter())
 	logrus.Infoln("Add Route Success")
 

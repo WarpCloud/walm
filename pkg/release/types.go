@@ -1,7 +1,7 @@
 package release
 
 type ReleaseInfoList struct {
-	Items *[]ReleaseInfo `json:"items" description:"releases list"`
+	Items []*ReleaseInfo `json:"items" description:"releases list"`
 }
 
 type ReleaseInfo struct {
@@ -69,3 +69,40 @@ type AppDependency struct {
 	Dependencies []*DependencyDeclare `json:"dependencies"`
 }
 
+type HelmNativeValues struct {
+	ChartName string `json:"chartName"`
+	ChartVersion string `json:"chartVersion"`
+	AppVersion string `json:"appVersion"`
+	ReleaseName string `json:"releaseName"`
+	ReleaseNamespace string `json:"releaseNamespace"`
+}
+
+type AppHelmValues struct {
+	Dependencies []*DependencyDeclare `json:"dependencies"`
+	NativeValues HelmNativeValues `json:"HelmNativeValues"`
+}
+
+type ProjectParams struct {
+	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
+	Releases []*ReleaseRequest `json:"releases" description:"list of release of the project"`
+}
+
+type ProjectInfo struct {
+	Name string `json:"name" description:"project name"`
+	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
+	Releases []*ReleaseInfo `json:"releases" description:"list of release of the project"`
+}
+
+type ProjectInfoList struct {
+	Items []*ProjectInfo `json:"items" description:"project info list"`
+}
+
+type HelmExtraLabels struct {
+	ProjectName string `json:"projectname" description:"project name which belongs to"`
+	HelmLabels map[string]interface{} `json:"helmlabels"`
+}
+
+type HelmValues struct {
+	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
+	AppHelmValues *AppHelmValues `json:"HelmAdditionalValues"`
+}
