@@ -134,23 +134,23 @@ func InitNodeRouter() *restful.WebService {
 	return ws
 }
 
-func InitInstanceRouter() *restful.WebService {
+func InitReleaseRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/instance").
+	ws.Path(APIPATH + "/release").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-	tags := []string{"instance"}
+	tags := []string{"release"}
 
-	ws.Route(ws.GET("/").To(v1.ListInstanceAllNamespaces).
+	ws.Route(ws.GET("/").To(v1.ListRelease).
 		Doc("获取所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(releasetypes.ReleaseInfoList{}).
 		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/{namespace}").To(v1.ListInstanceByNamespace).
+	ws.Route(ws.GET("/{namespace}").To(v1.ListReleaseByNamespace).
 		Doc("获取Namepaces下的所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -158,7 +158,7 @@ func InitInstanceRouter() *restful.WebService {
 		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/{namespace}/name/{release}").To(v1.GetInstanceInfo).
+	ws.Route(ws.GET("/{namespace}/name/{release}").To(v1.GetRelease).
 		Doc("获取对应Release的详细信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -167,7 +167,7 @@ func InitInstanceRouter() *restful.WebService {
 		Returns(200, "OK", releasetypes.ReleaseInfo{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{namespace}/name/{release}").To(v1.UpdateInstance).
+	ws.Route(ws.PUT("/{namespace}/name/{release}").To(v1.UpdateRelease).
 		Doc("更改一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -177,7 +177,7 @@ func InitInstanceRouter() *restful.WebService {
 		Returns(200, "OK", releasetypes.ReleaseInfo{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteInstance).
+	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteRelease).
 		Doc("删除一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -186,7 +186,7 @@ func InitInstanceRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.POST("/{namespace}/name/{release}").To(v1.DeployInstance).
+	ws.Route(ws.POST("/{namespace}/name/{release}").To(v1.DeployRelease).
 		Doc("创建一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -195,7 +195,7 @@ func InitInstanceRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackInstance).
+	ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackRelease).
 		Doc("RollBack　Release版本").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
