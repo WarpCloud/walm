@@ -16,43 +16,43 @@ type WalmResource interface {
 }
 
 type WalmMeta struct {
-	Name string
-	Namespace string
-	Kind string
-	State WalmState
+	Name      string    `json:"name" description:"resource name"`
+	Namespace string    `json:"namespace" description:"resource namespace"`
+	Kind      string    `json:"kind" description:"resource kind"`
+	State     WalmState `json:"state" description:"resource state"`
 }
 
-func(meta WalmMeta) GetName() string {
+func (meta WalmMeta) GetName() string {
 	return meta.Name
 }
 
-func(meta WalmMeta) GetNamespace() string {
+func (meta WalmMeta) GetNamespace() string {
 	return meta.Namespace
 }
 
-func(meta WalmMeta) GetKind() string {
+func (meta WalmMeta) GetKind() string {
 	return meta.Kind
 }
 
-func(meta WalmMeta) GetState() WalmState {
+func (meta WalmMeta) GetState() WalmState {
 	return meta.State
 }
 
 type WalmState struct {
-	Status  string
-	Reason  string
-	Message string
+	Status  string `json:"status" description:"resource state status"`
+	Reason  string `json:"reason" description:"resource state reason"`
+	Message string `json:"message" description:"resource state message"`
 }
 
 type WalmApplicationInstance struct {
 	WalmMeta
 	Modules []WalmModule `json:"walmModules" protobuf:"bytes,8,rep,name=walmModules"`
-	Events []corev1.Event
+	Events  []corev1.Event
 }
 
-type WalmModule struct{
-	Kind        string
-	Resource    WalmResource
+type WalmModule struct {
+	Kind     string
+	Resource WalmResource
 }
 
 type WalmDeployment struct {
@@ -92,8 +92,8 @@ type WalmConfigMap struct {
 
 type WalmIngress struct {
 	WalmMeta
-	Host string
-	Path string
+	Host        string
+	Path        string
 	ServiceName string
 	ServicePort string
 }
@@ -107,9 +107,14 @@ type WalmSecret struct {
 type WalmNode struct {
 	WalmMeta
 	Labels map[string]string `json:"labels" description:"node labels"`
-	NodeIp string `json:"nodeip" description:"ip of node"`
+	NodeIp string            `json:"node_ip" description:"ip of node"`
 }
 
 type WalmNodeList struct {
-	Items *[]WalmNode `json:"items" description:"node list info"`
+	Items []*WalmNode `json:"items" description:"node list info"`
+}
+
+type WalmResourceQuota struct {
+	WalmMeta
+	ResourceLimits map[corev1.ResourceName]string
 }
