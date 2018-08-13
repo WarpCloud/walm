@@ -6,7 +6,8 @@ import (
 	"walm/pkg/k8s/client"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"encoding/json"
+	"time"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func Test(t *testing.T) {
@@ -25,22 +26,23 @@ func Test(t *testing.T) {
 	factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
 
-	factory.factory.WaitForCacheSync(wait.NeverStop)
-	factory.factoryEx.WaitForCacheSync(wait.NeverStop)
-
-	inst, err := factory.InstanceLister.ApplicationInstances("txsql3").Get("txsql-txsql3")
-	e, err := json.Marshal(inst)
-	if err != nil {
-		fmt.Println(err)
-		return
+	for {
+		insts, _ := factory.InstanceLister.ApplicationInstances("default").List(labels.NewSelector())
+		fmt.Println(len(insts))
+		//e, err := json.Marshal(insts)
+		//if err != nil {
+		//	fmt.Println(err)
+		//	return
+		//}
+		//fmt.Println(string(e))
+		time.Sleep(2 * time.Second)
 	}
-	fmt.Println(string(e))
 
-	deployment, err := factory.DeploymentLister.Deployments("walm").Get("walm-server")
-	e, err = json.Marshal(deployment)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(string(e))
+	//deployment, err := factory.DeploymentLister.Deployments("walm").Get("walm-server")
+	//e, err = json.Marshal(deployment)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
+	//fmt.Println(string(e))
 }

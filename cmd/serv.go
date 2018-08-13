@@ -79,8 +79,8 @@ func (sc *ServCmd) run() error {
 	restful.Add(router.InitRootRouter())
 	restful.Add(router.InitNodeRouter())
 	restful.Add(router.InitTenantRouter())
-	restful.Add(router.InitInstanceRouter())
 	restful.Add(router.InitProjectRouter())
+	restful.Add(router.InitReleaseRouter())
 	restful.Add(router.InitPodRouter())
 	logrus.Infoln("Add Route Success")
 
