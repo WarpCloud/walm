@@ -1,5 +1,5 @@
-hash: 37c194073d045fd0d2b0ff0bdf3b0687c4b619133ca87b3dc85b6d253309246c
-updated: 2018-08-09T21:04:28.313923774+08:00
+hash: 5b7e9c2c799322ea9c8c7c97409769ca509e824264e15fa66b6a2c929cbb5f0e
+updated: 2018-08-10T13:41:11.97665162+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -234,11 +234,16 @@ imports:
 - name: github.com/spf13/cobra
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/pflag
-  version: 583c0c0531f06d5278b7d917446061adc344b5cd
+  version: 9a97c102cda95a86cec2345a6f09f55a939babf5
 - name: github.com/swaggo/swag
   version: db2ee6c14a35e4fca95b0d75054296ef2b699050
 - name: github.com/thoas/stats
   version: 772d6bc584ef4367a73ec981604c0c3010ba07b6
+- name: github.com/twmb/algoimpl
+  version: 076353e90b94cccf4fe7cc41790d46f421da2d97
+  subpackages:
+  - go/graph
+  - go/graph/lite
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:

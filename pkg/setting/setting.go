@@ -8,7 +8,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-var Config config
+var Config WalmConfig
 
 type HttpConfig struct {
 	HTTPPort int `json:"port,default=9999"`
@@ -35,17 +35,23 @@ type ChartRepo struct {
 }
 
 type KubeConfig struct {
-	Context string `json:"context"`
 	Config string `json:"config"`
 }
 
-type config struct {
+type RedisConfig struct {
+	Addr string `json:"addr"`
+	Password string `json:"password"`
+	DB int `json:"db"`
+}
+
+type WalmConfig struct {
 	Debug bool `json:"debug"`
 
 	HttpConfig *HttpConfig `json:"serverConfig"`
 	SysHelm *HelmConfig `json:"sysHelmConfig"`
 	RepoList *[]ChartRepo `json:"repoList"`
 	KubeConfig *KubeConfig `json:"kubeConfig"`
+	RedisConfig *RedisConfig `json:"redisConfig"`
 }
 
 // Init sets values from the environment.
