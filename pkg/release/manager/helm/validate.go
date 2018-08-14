@@ -198,3 +198,27 @@ func renderWithDependencies(chartRequested *chart.Chart, namespace string, userV
 func render(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string) (map[string]string, error) {
 	return nil, nil
 }
+
+
+func checkDependencies(ch *chart.Chart, reqs *chartutil.Requirements) error {
+	missing := []string{}
+
+	deps := ch.GetDependencies()
+	for _, r := range reqs.Dependencies {
+		found := false
+		for _, d := range deps {
+			if d.Metadata.Name == r.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, r.Name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("found in requirements.yaml, but missing in charts/ directory: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}

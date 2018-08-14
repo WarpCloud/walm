@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"github.com/twmb/algoimpl/go/graph"
 	"testing"
+	"walm/pkg/release"
+	"github.com/ghodss/yaml"
+	"walm/pkg/release/manager/helm"
+	"os"
 )
 
-func ExampleGraph_TopologicalSort() {
+func Test_ExampleGraph_TopologicalSort(t *testing.T) {
 	g := graph.New(graph.Directed)
 
 	clothes := make(map[string]graph.Node, 0)
@@ -52,6 +56,50 @@ func ExampleGraph_TopologicalSort() {
 	// hat
 }
 
-func Test(t *testing.T) {
-	ExampleGraph_TopologicalSort()
+func Test_ProjectGraph_Dependency(t *testing.T) {
+	chartRepoMap := make(map[string]*helm.ChartRepository)
+	chartRepository := helm.ChartRepository{
+		Name: "stable",
+		URL: "http://172.16.1.41:8882/stable/",
+		Username: "",
+		Password: "",
+	}
+	chartRepoMap["stable"] = &chartRepository
+	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap)
+
+	commonValuesVal := map[string]interface{}{}
+	chartList := []string{ "zookeeper", "hdfs", "hyperbase", "inceptor" }
+
+	yaml.Unmarshal([]byte(testCommonValuesStr), &commonValuesVal)
+	projectParams := release.ProjectParams{
+		CommonValues: commonValuesVal,
+	}
+	for _, chartName := range chartList {
+		releaseInfo := release.ReleaseRequest{
+			Name: fmt.Sprintf("%s-%s", chartName, "test"),
+			ChartName: chartName,
+		}
+		releaseInfo.ConfigValues = make(map[string]interface{})
+		releaseInfo.Dependencies = make(map[string]string)
+		projectParams.Releases = append(projectParams.Releases, &releaseInfo)
+	}
+	err := CreateProject("project-test", "test-one", &projectParams)
+	fmt.Printf("%v\n", err)
 }
+
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
+}
+
+const testCommonValuesStr = `
+Transwarp_License_Address: 172.16.3.231:2191
+Transwarp_Cni_Network: overlay
+Transwarp_Config:
+  Transwarp_Auto_Injected_Volumes:
+  - name: "keytab"
+    volumeName: "keytab"
+    secretname: all-keytab
+  security:
+    auth_type: "kerberos"
+    guardian_plugin_enable: "true"
+`

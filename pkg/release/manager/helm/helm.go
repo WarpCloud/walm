@@ -15,10 +15,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/downloader"
-	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
@@ -28,9 +25,17 @@ import (
 	hapi_release5 "k8s.io/helm/pkg/proto/hapi/release"
 )
 
+type ChartRepository struct {
+	Name string
+	URL string
+	Username string
+	Password string
+}
+
 type Client struct {
 	helmClient      *helm.Client
-	chartRepository *repo.ChartRepository
+	chartRepoMap map[string]*ChartRepository
+	DryRun bool
 }
 
 var Helm *Client
@@ -38,21 +43,32 @@ var Helm *Client
 func InitHelm() {
 	tillerHost := setting.Config.SysHelm.TillerHost
 	helmClient := helm.NewClient(helm.Host(tillerHost))
-	helmHome := helmpath.Home("/tmp/helmhome")
-	ensureDirectories(helmHome)
-	ensureDefaultRepos(helmHome)
-	cif := helmHome.CacheIndex("stable")
-	c := repo.Entry{
-		Name:  (*setting.Config.RepoList)[0].Name,
-		Cache: cif,
-		URL:   (*setting.Config.RepoList)[0].URL,
+	chartRepoMap := make(map[string]*ChartRepository)
+
+	for _, chartRepo := range setting.Config.RepoList {
+		chartRepository := ChartRepository{
+			Name: chartRepo.Name,
+			URL: chartRepo.URL,
+			Username: "",
+			Password: "",
+		}
+		chartRepoMap[chartRepo.Name] = &chartRepository
 	}
-	r, _ := repo.NewChartRepository(&c, getter.All(environment.EnvSettings{
-		Home: helmpath.Home("/tmp/helmhome")}))
-	r.DownloadIndexFile(helmHome.Cache())
+
 	Helm = &Client{
-		helmClient:      helmClient,
-		chartRepository: r,
+		helmClient: helmClient,
+		chartRepoMap: chartRepoMap,
+		DryRun: false,
+	}
+}
+
+func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepository) {
+	helmClient := helm.NewClient(helm.Host(tillerHost))
+
+	Helm = &Client{
+		helmClient: helmClient,
+		chartRepoMap: chartRepoMap,
+		DryRun: true,
 	}
 }
 
@@ -74,49 +90,48 @@ func ListReleases(namespace string) ([]release.ReleaseInfo, error) {
 
 func GetReleaseInfo(namespace, releaseName string) (release.ReleaseInfo, error) {
 	logrus.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
-	var release release.ReleaseInfo
+	var releaseInfo release.ReleaseInfo
 
 	res, err := Helm.helmClient.ListReleases(
 		helm.ReleaseListFilter(releaseName),
 		helm.ReleaseListNamespace(namespace),
 	)
 	if err != nil {
-		return release, err
+		return releaseInfo, err
 	}
 
 	releases, err := fillReleaseInfo(res)
 	if err != nil {
-		return release, err
+		return releaseInfo, err
 	}
 	for _, rel := range releases {
 		if rel.Name == releaseName {
-			release = rel
+			releaseInfo = rel
 			break
 		}
 	}
-	return release, nil
+	return releaseInfo, nil
 }
 
 func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
-	logrus.Debugf("Enter InstallUpgradeRealese %v\n", releaseRequest)
-	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
+	logrus.Infof("Enter InstallUpgradeRealese %v\n", releaseRequest)
+	chartRequested, err := getChartRequest(releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return err
 	}
-	chartRequested, err := chartutil.Load(chartPath)
+	dependencies, err := parseChartDependencies(chartRequested)
 	if err != nil {
 		return err
 	}
-	dependencies, err := parseDependencies(chartRequested)
-	if err != nil {
-		return err
-	}
-	logrus.Printf("Dep %v\n", dependencies)
+	logrus.Printf("InstallUpgradeRealese Dependency %v\n", dependencies)
 	depLinks := make(map[string]interface{})
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
 	}
-	installChart(releaseRequest.Name, releaseRequest.Namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	err = installChart(releaseRequest.Name, releaseRequest.Namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -132,12 +147,12 @@ func PatchUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 
 func DeleteRealese(namespace, releaseName string) error {
 	logrus.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
-	release, err := GetReleaseInfo(namespace, releaseName)
+	releaseInfo, err := GetReleaseInfo(namespace, releaseName)
 	if err != nil {
 		return err
 	}
 
-	if release.Name == "" {
+	if releaseInfo.Name == "" {
 		logrus.Printf("Can't found %s in ns %s\n", releaseName, namespace)
 		return nil
 	}
@@ -155,19 +170,22 @@ func DeleteRealese(namespace, releaseName string) error {
 	return err
 }
 
-func downloadChart(name, version string) (string, error) {
-	dl := downloader.ChartDownloader{
-		Out:      os.Stdout,
-		HelmHome: helmpath.Home("/tmp/helmhome"),
-		Getters: getter.All(environment.EnvSettings{
-			Home: helmpath.Home("/tmp/helmhome"),
-		}),
-	}
 
-	chartURL, err := repo.FindChartInRepoURL(Helm.chartRepository.Config.URL, name, version,
-		"", "", "", getter.All(environment.EnvSettings{
-			Home: helmpath.Home("/tmp/helmhome"),
-		}))
+func GetDependencies(chartName, chartVersion string) (subChartNames []string, err error) {
+	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
+	chartRequested, err := getChartRequest(chartName, chartVersion)
+	if err != nil {
+		return nil, err
+	}
+	dependencies, err := parseChartDependencies(chartRequested)
+	if err != nil {
+		return nil, err
+	}
+	return dependencies, nil
+}
+
+func downloadChart(name, version string) (string, error) {
+	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(Helm.chartRepoMap["stable"].URL, "", "", name, version)
 	if err != nil {
 		return "", err
 	}
@@ -176,7 +194,7 @@ func downloadChart(name, version string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	filename, _, err := dl.DownloadTo(chartURL, version, tmpDir)
+	filename, err := ChartMuseumDownloadTo(chartURL, tmpDir, httpGetter)
 	if err != nil {
 		logrus.Printf("DownloadTo err %v", err)
 		return "", err
@@ -185,11 +203,20 @@ func downloadChart(name, version string) (string, error) {
 	return filename, nil
 }
 
-func GetDependencies(chartName, chartVersion string) (subChartNames []string, err error) {
-	return []string{}, nil
+func getChartRequest(chartName, chartVersion string) (*chart.Chart, error) {
+	chartPath, err := downloadChart(chartName, chartVersion)
+	if err != nil {
+		return nil, err
+	}
+	chartRequested, err := chartutil.Load(chartPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return chartRequested, nil
 }
 
-func parseDependencies(chart *chart.Chart) ([]string, error) {
+func parseChartDependencies(chart *chart.Chart) ([]string, error) {
 	var dependencies []string
 
 	for _, chartFile := range chart.Files {
@@ -212,7 +239,7 @@ func parseDependencies(chart *chart.Chart) ([]string, error) {
 func installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) error {
 	rawVals, err := yaml.Marshal(configValues)
 	if err != nil {
-		logrus.Printf("Marshal Error %v\n", err)
+		logrus.Printf("installChart Marshal Error %v\n", err)
 		return err
 	}
 	err = transwarp.ProcessAppCharts(Helm.helmClient, chart, releaseName, namespace, string(rawVals[:]), depLinks)
@@ -234,22 +261,25 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 			namespace,
 			helm.ValueOverrides(rawVals),
 			helm.ReleaseName(releaseName),
+			helm.InstallDryRun(Helm.DryRun),
 		)
 		if err != nil {
-			return fmt.Errorf("INSTALL FAILED: %v", err)
+			return fmt.Errorf("installChart INSTALL FAILED: %v", err)
 		}
-		logrus.Printf("%+v\n", resp)
+		logrus.Infof("installChart Response %+v\n", resp)
+	} else {
+		resp, err := Helm.helmClient.UpdateReleaseFromChart(
+			releaseName,
+			chart,
+			helm.UpdateValueOverrides(rawVals),
+			helm.ReuseValues(true),
+			helm.UpgradeDryRun(Helm.DryRun),
+		)
+		if err != nil {
+			return fmt.Errorf("installChart UPGRADE FAILED: %v", err)
+		}
+		logrus.Infof("installChart Response %+v\n", resp)
 	}
-	resp, err := Helm.helmClient.UpdateReleaseFromChart(
-		releaseName,
-		chart,
-		helm.UpdateValueOverrides(rawVals),
-		helm.ReuseValues(true),
-	)
-	if err != nil {
-		return fmt.Errorf("UPGRADE FAILED: %v", err)
-	}
-	logrus.Printf("%+v\n", resp)
 
 	return nil
 }
@@ -259,35 +289,35 @@ func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]relea
 	depLinks := make(map[string]string)
 
 	for _, helmRelease := range helmListReleaseResponse.GetReleases() {
-		release := release.ReleaseInfo{}
+		releaseInfo := release.ReleaseInfo{}
 		emptyChart := chart.Chart{}
 
-		release.Name = helmRelease.Name
-		release.Namespace = helmRelease.Namespace
-		release.Version = helmRelease.Version
-		release.ChartVersion = helmRelease.Chart.Metadata.Version
-		release.ChartName = helmRelease.Chart.Metadata.Name
-		release.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
+		releaseInfo.Name = helmRelease.Name
+		releaseInfo.Namespace = helmRelease.Namespace
+		releaseInfo.Version = helmRelease.Version
+		releaseInfo.ChartVersion = helmRelease.Chart.Metadata.Version
+		releaseInfo.ChartName = helmRelease.Chart.Metadata.Name
+		releaseInfo.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
 		cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
 		if err != nil {
 			logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
 			continue
 		}
-		release.ConfigValues = cvals
-		release.Statuscode = int32(helmRelease.Info.Status.Code)
+		releaseInfo.ConfigValues = cvals
+		releaseInfo.Statuscode = int32(helmRelease.Info.Status.Code)
 		depValue, ok := helmRelease.Config.Values["dependencies"]
 		if ok {
 			yaml.Unmarshal([]byte(depValue.Value), &depLinks)
-			release.Dependencies = depLinks
+			releaseInfo.Dependencies = depLinks
 		}
 
-		release.Status, err = buildReleaseStatus(helmRelease)
+		releaseInfo.Status, err = buildReleaseStatus(helmRelease)
 		if err != nil {
-			logrus.Errorf(fmt.Sprintf("Failed to build the status of release: %s", release.Name))
+			logrus.Errorf(fmt.Sprintf("Failed to build the status of release: %s", releaseInfo.Name))
 			return releaseInfos, err
 		}
 
-		releaseInfos = append(releaseInfos, release)
+		releaseInfos = append(releaseInfos, releaseInfo)
 	}
 
 	return releaseInfos, nil
@@ -363,28 +393,5 @@ func ensureDefaultRepos(home helmpath.Home) error {
 		return fmt.Errorf("%s must be a directory", repoFile)
 	}
 
-	return nil
-}
-
-func checkDependencies(ch *chart.Chart, reqs *chartutil.Requirements) error {
-	missing := []string{}
-
-	deps := ch.GetDependencies()
-	for _, r := range reqs.Dependencies {
-		found := false
-		for _, d := range deps {
-			if d.Metadata.Name == r.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			missing = append(missing, r.Name)
-		}
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("found in requirements.yaml, but missing in charts/ directory: %s", strings.Join(missing, ", "))
-	}
 	return nil
 }
