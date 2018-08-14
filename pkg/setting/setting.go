@@ -49,7 +49,7 @@ type WalmConfig struct {
 
 	HttpConfig *HttpConfig `json:"serverConfig"`
 	SysHelm *HelmConfig `json:"sysHelmConfig"`
-	RepoList *[]ChartRepo `json:"repoList"`
+	RepoList []*ChartRepo `json:"repoList"`
 	KubeConfig *KubeConfig `json:"kubeConfig"`
 	RedisConfig *RedisConfig `json:"redisConfig"`
 }

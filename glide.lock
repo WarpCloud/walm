@@ -1,5 +1,5 @@
-hash: 5b7e9c2c799322ea9c8c7c97409769ca509e824264e15fa66b6a2c929cbb5f0e
-updated: 2018-08-10T13:41:11.97665162+08:00
+hash: 41307d2e47357c30e24204c416fe47222a38f1669e1c7756f690868fe780ab4a
+updated: 2018-08-13T00:32:02.473845873+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -154,10 +154,17 @@ imports:
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
   - diskcache
+- name: github.com/hashicorp/go-multierror
+  version: 3d5d8f294aa03d8e98859feac328afbdf1ae0703
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
   - simplelru
+- name: github.com/hashicorp/terraform
+  version: bb37637a139151be0ff9bf00c85c448538e5b3d2
+  subpackages:
+  - ./dag
+  - dag
 - name: github.com/howeyc/gopass
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/huandu/xstrings
@@ -803,6 +810,8 @@ imports:
   subpackages:
   - sortorder
 testImports:
+- name: github.com/hashicorp/errwrap
+  version: d6c0cd88035724dd42e0f335ae30161c20575ecc
 - name: github.com/kr/pretty
   version: f31442d60e51465c69811e2107ae978868dbea5c
 - name: github.com/kr/text

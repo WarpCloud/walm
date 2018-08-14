@@ -4,7 +4,9 @@ import (
 	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
 	"github.com/twmb/algoimpl/go/graph"
-	)
+	"fmt"
+	"github.com/sirupsen/logrus"
+)
 
 func InitProject() {
 	InitRedisClient()
@@ -24,14 +26,20 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 	rawValsBase = mergeValues(rawValsBase, projectParams.CommonValues)
 	rawValsBase = mergeValues(helmExtraLabelsBase, rawValsBase)
 
+	for _, releaseParams := range projectParams.Releases {
+		releaseParams.Name = fmt.Sprintf("%s--%s", project, releaseParams.Name)
+		fmt.Printf("%v\n", releaseParams.ConfigValues)
+		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
+	}
+
 	releaseList, err := brainFuckChartDepParse(projectParams)
 	if err != nil {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
 		err = helm.InstallUpgradeRealese(releaseParams)
 		if err != nil {
+			logrus.Errorf("CreateProject install release %s error %v\n", releaseParams.Name, err)
 			return err
 		}
 	}
@@ -53,7 +61,7 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 	projectParamsMap := make(map[string]interface{})
 	g := graph.New(graph.Directed)
 	projectDepGraph := make(map[string]graph.Node, 0)
-	releaseParsed := make([]*release.ReleaseRequest, 1)
+	releaseParsed := make([]*release.ReleaseRequest, 0)
 
 	for _, releaseInfo := range projectParams.Releases {
 		projectParamsMap[releaseInfo.ChartName] = &releaseInfo
@@ -62,6 +70,7 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 	// init node
 	for _, helmRelease := range projectParams.Releases {
 		projectDepGraph[helmRelease.ChartName] = g.MakeNode()
+		*projectDepGraph[helmRelease.ChartName].Value = helmRelease
 	}
 
 	// init edge
@@ -79,21 +88,19 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 	sortedChartList := g.TopologicalSort()
 
 	for i := range sortedChartList {
-		newReleaseRequest := release.ReleaseRequest{}
-		releaseRequest := projectParamsMap[(*sortedChartList[i].Value).(string)]
-		newReleaseRequest.Name = releaseRequest.(release.ReleaseInfo).Name
-		newReleaseRequest.Namespace = releaseRequest.(release.ReleaseInfo).Namespace
-		newReleaseRequest.ChartName = releaseRequest.(release.ReleaseInfo).ChartName
-		newReleaseRequest.ChartVersion = releaseRequest.(release.ReleaseInfo).ChartVersion
-		newReleaseRequest.ConfigValues = releaseRequest.(release.ReleaseInfo).ConfigValues
-		newReleaseRequest.Dependencies = releaseRequest.(release.ReleaseInfo).Dependencies
-		if len(newReleaseRequest.Dependencies) == 0 {
+		releaseRequest := *(*sortedChartList[i].Value).(*release.ReleaseRequest)
+		if len(releaseRequest.Dependencies) == 0 {
 			chartsNeighbors := g.Neighbors(sortedChartList[i])
 			for _, chartNeighbor := range chartsNeighbors {
-				newReleaseRequest.Dependencies[(*chartNeighbor.Value).(string)] = releaseRequest.(release.ReleaseInfo).Name
+				releaseRequest.Dependencies[(*chartNeighbor.Value).(*release.ReleaseRequest).ChartName] =
+					releaseRequest.Name
 			}
 		}
-		releaseParsed = append(releaseParsed, &newReleaseRequest)
+		releaseParsed = append(releaseParsed, &releaseRequest)
+	}
+
+	for i, j := 0, len(releaseParsed)-1; i < j; i, j = i+1, j-1 {
+		releaseParsed[i], releaseParsed[j] = releaseParsed[j], releaseParsed[i]
 	}
 
 	return releaseParsed, nil
