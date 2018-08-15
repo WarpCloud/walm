@@ -110,6 +110,7 @@ type ProjectParams struct {
 
 type ProjectInfo struct {
 	Name         string                 `json:"name" description:"project name"`
+	Namespace    string                 `json:"namespace" description:"project namespace"`
 	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
 	Releases     []*ReleaseInfo         `json:"releases" description:"list of release of the project"`
 }
@@ -119,8 +120,7 @@ type ProjectInfoList struct {
 }
 
 type HelmExtraLabels struct {
-	ProjectName string                 `json:"projectname" description:"project name which belongs to"`
-	HelmLabels  map[string]interface{} `json:"helmlabels"`
+	HelmLabels map[string]interface{} `json:"helmlabels"`
 }
 
 type HelmValues struct {

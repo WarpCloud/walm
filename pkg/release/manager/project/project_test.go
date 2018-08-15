@@ -1,13 +1,17 @@
 package project
 
 import (
-	"fmt"
-	"github.com/twmb/algoimpl/go/graph"
-	"testing"
-	"walm/pkg/release"
-	"github.com/ghodss/yaml"
-	"walm/pkg/release/manager/helm"
 	"os"
+	"fmt"
+	"testing"
+
+	"github.com/twmb/algoimpl/go/graph"
+	"github.com/ghodss/yaml"
+
+		"walm/pkg/release"
+	"walm/pkg/release/manager/helm"
+	"walm/pkg/setting"
+	"walm/pkg/k8s/informer"
 )
 
 func Test_ExampleGraph_TopologicalSort(t *testing.T) {
@@ -56,21 +60,11 @@ func Test_ExampleGraph_TopologicalSort(t *testing.T) {
 	// hat
 }
 
-func Test_ProjectGraph_Dependency(t *testing.T) {
-	chartRepoMap := make(map[string]*helm.ChartRepository)
-	chartRepository := helm.ChartRepository{
-		Name: "stable",
-		URL: "http://172.16.1.41:8882/stable/",
-		Username: "",
-		Password: "",
-	}
-	chartRepoMap["stable"] = &chartRepository
-	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap)
-
+func Test_Project_Create(t *testing.T) {
 	commonValuesVal := map[string]interface{}{}
 	chartList := []string{ "zookeeper", "hdfs", "hyperbase", "inceptor" }
 
-	yaml.Unmarshal([]byte(testCommonValuesStr), &commonValuesVal)
+	yaml.Unmarshal([]byte(testSimpleCommonValuesStr), &commonValuesVal)
 	projectParams := release.ProjectParams{
 		CommonValues: commonValuesVal,
 	}
@@ -87,12 +81,48 @@ func Test_ProjectGraph_Dependency(t *testing.T) {
 	fmt.Printf("%v\n", err)
 }
 
+func Test_Project_List(t *testing.T) {
+	projectInfoList, err := ListProjects("project-test")
+	for _, projectInfo := range projectInfoList.Items {
+		fmt.Printf("%+v %v\n", *projectInfo, err)
+		for _, releaseInfo := range projectInfo.Releases {
+			fmt.Printf("ReleaseInfo Name: %s\n", releaseInfo.Name)
+			fmt.Printf("ReleaseInfo Chart: %s\n", releaseInfo.ChartName)
+			fmt.Printf("ReleaseInfo ChartVersion: %s\n", releaseInfo.ChartVersion)
+			fmt.Printf("ReleaseInfo Ready: %v\n", releaseInfo.Ready)
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
+	chartRepoMap := make(map[string]*helm.ChartRepository)
+	chartRepository := helm.ChartRepository{
+		Name: "stable",
+		URL: "http://172.16.1.41:8882/stable/",
+		Username: "",
+		Password: "",
+	}
+	chartRepoMap["stable"] = &chartRepository
+	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap)
+	helm.Helm.DryRun = false
+
+	setting.Config.KubeConfig = &setting.KubeConfig{
+		Config: "/home/bianyu/user/code/opensource/goproject/src/walm/test/k8sconfig/kubeconfig",
+	}
+	informer.InitInformer()
 	os.Exit(m.Run())
 }
 
-const testCommonValuesStr = `
-Transwarp_License_Address: 172.16.3.231:2191
+const testSimpleCommonValuesStr = `
+Transwarp_License_Address: 172.16.1.41:2181
+Transwarp_Cni_Network: overlay
+Transwarp_Config:
+  security:
+    auth_type: "none"
+`
+
+const testGuardianCommonValuesStr = `
+Transwarp_License_Address: 172.16.1.41:2181
 Transwarp_Cni_Network: overlay
 Transwarp_Config:
   Transwarp_Auto_Injected_Volumes:

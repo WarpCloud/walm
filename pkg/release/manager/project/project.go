@@ -1,11 +1,14 @@
 package project
 
 import (
+	"fmt"
+
+	"github.com/twmb/algoimpl/go/graph"
+	"github.com/sirupsen/logrus"
+
 	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
-	"github.com/twmb/algoimpl/go/graph"
-	"fmt"
-	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 func InitProject() {
@@ -13,14 +16,67 @@ func InitProject() {
 }
 
 func ListProjects(namespace string) (*release.ProjectInfoList, error) {
+	projectMap := make(map[string]*release.ProjectInfo)
+	projectList := new(release.ProjectInfoList)
+
+	option := &release.ReleaseListOption{}
+	releaseList, err := helm.ListReleases(option)
+	if err != nil {
+		return nil, err
+	}
+	for _, releaseInfo := range releaseList {
+		projectNameArray := strings.Split(releaseInfo.Name, "--")
+		if len(projectNameArray) == 2 {
+			projectName := projectNameArray[0]
+			projectInfo, ok := projectMap[projectName]
+			if ok {
+				releaseInfo.Name = projectNameArray[1]
+				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
+			} else {
+				projectMap[projectName] = new(release.ProjectInfo)
+				projectMap[projectName].Name = projectName
+				projectMap[projectName].Namespace = namespace
+				releaseInfo.Name = projectNameArray[1]
+				projectMap[projectName].Releases = append(projectMap[projectName].Releases, releaseInfo)
+				projectList.Items = append(projectList.Items, projectMap[projectName])
+			}
+		}
+	}
+	return projectList, nil
+}
+
+func GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
+	found := false
+	option := &release.ReleaseListOption{}
+	projectInfo := new(release.ProjectInfo)
+	releaseList, err := helm.ListReleases(option)
+	if err != nil {
+		return nil, err
+	}
+	for _, releaseInfo := range releaseList {
+		projectNameArray := strings.Split(releaseInfo.Name, "--")
+		if len(projectNameArray) == 2 {
+			if projectName == projectNameArray[0] {
+				found = true
+				projectInfo.Name = projectName
+				projectInfo.Namespace = namespace
+				releaseInfo.Name = projectNameArray[1]
+				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
+			}
+		}
+	}
+	if found {
+		return projectInfo, nil
+	}
 	return nil, nil
 }
 
 func CreateProject(namespace string, project string, projectParams *release.ProjectParams) error {
 	helmExtraLabelsBase := map[string]interface{}{}
 	helmExtraLabelsVals := release.HelmExtraLabels{}
-	helmExtraLabelsVals.ProjectName = project
-	helmExtraLabelsBase["HelmExtraLabels"] = &helmExtraLabelsVals
+	helmExtraLabelsVals.HelmLabels = make(map[string]interface{})
+	helmExtraLabelsVals.HelmLabels["project_name"] = project
+	helmExtraLabelsBase["HelmExtraLabels"] = helmExtraLabelsVals
 
 	rawValsBase := map[string]interface{}{}
 	rawValsBase = mergeValues(rawValsBase, projectParams.CommonValues)
@@ -28,6 +84,7 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 
 	for _, releaseParams := range projectParams.Releases {
 		releaseParams.Name = fmt.Sprintf("%s--%s", project, releaseParams.Name)
+		releaseParams.Namespace = namespace
 		fmt.Printf("%v\n", releaseParams.ConfigValues)
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
 	}
@@ -46,15 +103,54 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 	return nil
 }
 
-func DeleteProject() {
-}
-
-func AddReleaseInProject(namespace string, project string, releaseParams *release.ReleaseRequest) error {
+func DeleteProject(namespace string, project string) error {
 	return nil
 }
 
-func RemoveReleaseInProject(namespace string, project string, releaseParams *release.ReleaseRequest) error {
+func AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
+	projectInfo, err := GetProjectInfo(namespace, projectName)
+	if err != nil {
+		return err
+	}
+	if projectInfo == nil {
+		err = helm.InstallUpgradeRealese(releaseParams)
+		if err != nil {
+			logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
+			return err
+		}
+	}
 	return nil
+}
+
+func RemoveReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
+	return nil
+}
+
+func brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *release.ReleaseRequest) ([]*release.ReleaseRequest, error) {
+	subCharts, err := helm.GetDependencies(releaseParams.ChartName, releaseParams.ChartVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find Upstream Release
+	for _, chartName := range subCharts {
+		for _, releaseInfo := range projectInfo.Releases {
+			releaseSubCharts, err := helm.GetDependencies(releaseInfo.ChartName, releaseInfo.ChartVersion)
+			if err != nil {
+				return nil, err
+			}
+			logrus.Infof("%s %v", chartName, releaseSubCharts)
+		}
+	}
+	//projectParams := {
+		
+	//}
+	// Find Downstream Release
+	//for _, chartName := range subCharts {
+
+	//}
+
+	return nil, nil
 }
 
 func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
@@ -93,7 +189,7 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 			chartsNeighbors := g.Neighbors(sortedChartList[i])
 			for _, chartNeighbor := range chartsNeighbors {
 				releaseRequest.Dependencies[(*chartNeighbor.Value).(*release.ReleaseRequest).ChartName] =
-					releaseRequest.Name
+					(*chartNeighbor.Value).(*release.ReleaseRequest).Name
 			}
 		}
 		releaseParsed = append(releaseParsed, &releaseRequest)
