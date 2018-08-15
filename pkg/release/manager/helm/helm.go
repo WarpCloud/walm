@@ -18,11 +18,12 @@ import (
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/proto/hapi/chart"
-	rls "k8s.io/helm/pkg/proto/hapi/services"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/storage/driver"
 	"k8s.io/helm/pkg/transwarp"
-	hapi_release5 "k8s.io/helm/pkg/proto/hapi/release"
+	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
+	"sync"
+	"errors"
 )
 
 type ChartRepository struct {
@@ -72,45 +73,101 @@ func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepositor
 	}
 }
 
-func ListReleases(namespace string) ([]release.ReleaseInfo, error) {
-	logrus.Debugf("Enter ListReleases %s\n", namespace)
-	res, err := Helm.helmClient.ListReleases(
-		helm.ReleaseListNamespace(namespace),
-	)
+func ListReleases(option *release.ReleaseListOption) ([]*release.ReleaseInfo, error) {
+	logrus.Debugf("Enter ListReleases %v\n", option)
+	options := BuildReleaseListOptions(option)
+	resp, err := Helm.helmClient.ListReleases(options...)
 	if err != nil {
+		logrus.Errorf("failed to list release: %s\n", err.Error())
 		return nil, err
 	}
 
-	releases, err := fillReleaseInfo(res)
+	releaseInfos := []*release.ReleaseInfo{}
+	mux := &sync.Mutex{}
+	var wg sync.WaitGroup
+	for _, helmRelease := range resp.GetReleases() {
+		wg.Add(1)
+		go func(helmRelease *hapiRelease.Release) {
+			defer wg.Done()
+			info, err1 := BuildReleaseInfo(helmRelease)
+			if err1 != nil {
+				err = errors.New(fmt.Sprintf("failed to build release info: %s\n", err1.Error()))
+				logrus.Error(err.Error())
+				return
+			}
+			mux.Lock()
+			releaseInfos = append(releaseInfos, info)
+			mux.Unlock()
+		}(helmRelease)
+	}
+	wg.Wait()
 	if err != nil {
 		return nil, err
 	}
-	return releases, nil
+	return releaseInfos, nil
 }
 
-func GetReleaseInfo(namespace, releaseName string) (release.ReleaseInfo, error) {
-	logrus.Debugf("Enter GetReleaseInfo %s %s\n", namespace, releaseName)
-	var releaseInfo release.ReleaseInfo
-
-	res, err := Helm.helmClient.ListReleases(
-		helm.ReleaseListFilter(releaseName),
-		helm.ReleaseListNamespace(namespace),
-	)
+func BuildReleaseInfo(helmRelease *hapiRelease.Release) (releaseInfo *release.ReleaseInfo, err error) {
+	emptyChart := chart.Chart{}
+	depLinks := make(map[string]string)
+	releaseInfo = &release.ReleaseInfo{}
+	releaseInfo.Name = helmRelease.Name
+	releaseInfo.Namespace = helmRelease.Namespace
+	releaseInfo.Version = helmRelease.Version
+	releaseInfo.ChartVersion = helmRelease.Chart.Metadata.Version
+	releaseInfo.ChartName = helmRelease.Chart.Metadata.Name
+	releaseInfo.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
+	cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
 	if err != nil {
-		return releaseInfo, err
+		logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
+		return
+	}
+	releaseInfo.ConfigValues = cvals
+	depValue, ok := helmRelease.Config.Values["dependencies"]
+	if ok {
+		yaml.Unmarshal([]byte(depValue.Value), &depLinks)
+		releaseInfo.Dependencies = depLinks
 	}
 
-	releases, err := fillReleaseInfo(res)
-	if err != nil {
-		return releaseInfo, err
+	if helmRelease.Info.Status.Code == hapiRelease.Status_DEPLOYED {
+		releaseInfo.Status, err = buildReleaseStatus(helmRelease)
+		if err != nil {
+			logrus.Errorf(fmt.Sprintf("Failed to build the status of releaseInfo: %s", releaseInfo.Name))
+			return
+		}
+		releaseInfo.Ready = isReleaseReady(releaseInfo.Status)
 	}
-	for _, rel := range releases {
-		if rel.Name == releaseName {
-			releaseInfo = rel
+
+	return
+}
+func isReleaseReady(status *release.ReleaseStatus) bool {
+	ready := true
+	for _, resource := range status.Resources {
+		if resource.Resource.GetState().Status != "Ready" {
+			ready = false
 			break
 		}
 	}
-	return releaseInfo, nil
+	return ready
+}
+
+func GetRelease(namespace, releaseName string) (*release.ReleaseInfo, error) {
+	logrus.Debugf("Enter GetRelease %s %s\n", namespace, releaseName)
+	var release *release.ReleaseInfo
+
+	res, err := Helm.helmClient.ReleaseContent(releaseName)
+	if err != nil {
+		logrus.Errorf(fmt.Sprintf("Failed to get release %s", releaseName))
+		return release, err
+	}
+
+	release, err = BuildReleaseInfo(res.Release)
+	if err != nil {
+		logrus.Errorf("Failed to build release info: %s\n", err.Error())
+		return release, err
+	}
+
+	return release, nil
 }
 
 func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
@@ -135,8 +192,6 @@ func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
 	return nil
 }
 
-
-
 func RollbackRealese(namespace, releaseName, version string) error {
 	return nil
 }
@@ -147,7 +202,8 @@ func PatchUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 
 func DeleteRealese(namespace, releaseName string) error {
 	logrus.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
-	releaseInfo, err := GetReleaseInfo(namespace, releaseName)
+
+	releaseInfo, err := GetRelease(namespace, releaseName)
 	if err != nil {
 		return err
 	}
@@ -284,47 +340,8 @@ func installChart(releaseName, namespace string, configValues map[string]interfa
 	return nil
 }
 
-func fillReleaseInfo(helmListReleaseResponse *rls.ListReleasesResponse) ([]release.ReleaseInfo, error) {
-	var releaseInfos []release.ReleaseInfo
-	depLinks := make(map[string]string)
-
-	for _, helmRelease := range helmListReleaseResponse.GetReleases() {
-		releaseInfo := release.ReleaseInfo{}
-		emptyChart := chart.Chart{}
-
-		releaseInfo.Name = helmRelease.Name
-		releaseInfo.Namespace = helmRelease.Namespace
-		releaseInfo.Version = helmRelease.Version
-		releaseInfo.ChartVersion = helmRelease.Chart.Metadata.Version
-		releaseInfo.ChartName = helmRelease.Chart.Metadata.Name
-		releaseInfo.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
-		cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
-		if err != nil {
-			logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
-			continue
-		}
-		releaseInfo.ConfigValues = cvals
-		releaseInfo.Statuscode = int32(helmRelease.Info.Status.Code)
-		depValue, ok := helmRelease.Config.Values["dependencies"]
-		if ok {
-			yaml.Unmarshal([]byte(depValue.Value), &depLinks)
-			releaseInfo.Dependencies = depLinks
-		}
-
-		releaseInfo.Status, err = buildReleaseStatus(helmRelease)
-		if err != nil {
-			logrus.Errorf(fmt.Sprintf("Failed to build the status of release: %s", releaseInfo.Name))
-			return releaseInfos, err
-		}
-
-		releaseInfos = append(releaseInfos, releaseInfo)
-	}
-
-	return releaseInfos, nil
-}
-
-func buildReleaseStatus(helmRelease *hapi_release5.Release) (release.ReleaseStatus, error) {
-	status := release.ReleaseStatus{[]release.ReleaseResource{}}
+func buildReleaseStatus(helmRelease *hapiRelease.Release) (*release.ReleaseStatus, error) {
+	status := &release.ReleaseStatus{[]release.ReleaseResource{}}
 	resourceMetas, err := getReleaseResourceMetas(helmRelease)
 	if err != nil {
 		return status, err
@@ -334,13 +351,15 @@ func buildReleaseStatus(helmRelease *hapi_release5.Release) (release.ReleaseStat
 		if err != nil {
 			return status, err
 		}
-
+		if resource.GetState().Status == "Unknown" && resource.GetState().Reason == "NotSupportedKind" {
+			continue
+		}
 		status.Resources = append(status.Resources, release.ReleaseResource{Kind: resource.GetKind(), Resource: resource})
 	}
 	return status, nil
 }
 
-func getReleaseResourceMetas(helmRelease *hapi_release5.Release) (resources []release.ReleaseResourceMeta, err error ){
+func getReleaseResourceMetas(helmRelease *hapiRelease.Release) (resources []release.ReleaseResourceMeta, err error) {
 	resources = []release.ReleaseResourceMeta{}
 	results, err := client.GetKubeClient().BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
 	if err != nil {
@@ -348,9 +367,9 @@ func getReleaseResourceMetas(helmRelease *hapi_release5.Release) (resources []re
 	}
 	for _, result := range results {
 		resource := release.ReleaseResourceMeta{
-			Kind: result.Object.GetObjectKind().GroupVersionKind().Kind,
+			Kind:      result.Object.GetObjectKind().GroupVersionKind().Kind,
 			Namespace: result.Namespace,
-			Name: result.Name,
+			Name:      result.Name,
 		}
 		resources = append(resources, resource)
 	}
@@ -395,3 +414,4 @@ func ensureDefaultRepos(home helmpath.Home) error {
 
 	return nil
 }
+

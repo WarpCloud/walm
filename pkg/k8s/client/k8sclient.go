@@ -97,7 +97,8 @@ func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientse
 
 	cfg.QPS = defaultQPS
 	cfg.Burst = defaultBurst
-	cfg.ContentType = "application/vnd.kubernetes.protobuf"
+	//TODO to investigate protobuf
+	//cfg.ContentType = "application/vnd.kubernetes.protobuf"
 
 	Log.Infof("Creating API client for %s", cfg.Host)
 
