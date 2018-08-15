@@ -37,7 +37,7 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = helm.InstallUpgradeRealese(releaseParams)
+		err = helm.InstallUpgradeRealese(namespace, releaseParams)
 		if err != nil {
 			logrus.Errorf("CreateProject install release %s error %v\n", releaseParams.Name, err)
 			return err
@@ -75,7 +75,7 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 
 	// init edge
 	for _, helmRelease := range projectParams.Releases {
-		subCharts, err := helm.GetDependencies(helmRelease.ChartName, helmRelease.ChartVersion)
+		subCharts, err := helm.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 		if err != nil {
 			return nil, err
 		}

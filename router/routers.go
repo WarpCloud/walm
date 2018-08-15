@@ -171,14 +171,12 @@ func InitReleaseRouter() *restful.WebService {
 		Returns(200, "OK", releasetypes.ReleaseInfo{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{namespace}/name/{release}").To(v1.UpdateRelease).
-		Doc("更改一个Release").
+	ws.Route(ws.PUT("/{namespace}").To(v1.UpgradeRelease).
+		Doc("升级一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Reads(releasetypes.ReleaseRequest{}).
-		Writes(releasetypes.ReleaseInfo{}).
-		Returns(200, "OK", releasetypes.ReleaseInfo{}).
+		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteRelease).
@@ -186,15 +184,13 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Reads(releasetypes.ReleaseRequest{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.POST("/{namespace}/name/{release}").To(v1.DeployRelease).
-		Doc("创建一个Release").
+	ws.Route(ws.POST("/{namespace}").To(v1.InstallRelease).
+		Doc("安装一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Reads(releasetypes.ReleaseRequest{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))

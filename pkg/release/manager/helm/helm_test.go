@@ -29,7 +29,7 @@ func Test_GetDependencies(t *testing.T) {
 	chartRepoMap["stable"] = &chartRepository
 	InitHelmByParams("172.26.0.5:31221", chartRepoMap)
 
-	subCharts, _ := GetDependencies("inceptor", "")
+	subCharts, _ := GetDependencies("stable", "inceptor", "")
 	fmt.Printf("%v\n", subCharts)
 }
 

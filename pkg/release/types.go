@@ -70,10 +70,10 @@ type ReleaseListOption struct {
 
 type ReleaseRequest struct {
 	Name         string                 `json:"name" description:"name of the release"`
-	Namespace    string                 `json:"namespace" description:"namespace of release"`
-	ChartName    string                 `json:"chartname" description:"chart name"`
-	ChartVersion string                 `json:"chartversion" description:"chart repo"`
-	ConfigValues map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	RepoName    string                 `json:"repo_name" description:"chart name"`
+	ChartName    string                 `json:"chart_name" description:"chart name"`
+	ChartVersion string                 `json:"chart_version" description:"chart repo"`
+	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 	//ChartURL string
 }
