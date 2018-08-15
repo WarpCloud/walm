@@ -9,9 +9,27 @@ import (
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("release")
+	err := helm.DeleteRelease(namespace, name)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release: %s", err.Error()))
+		return
+	}
 }
 
-func DeployRelease(request *restful.Request, response *restful.Response) {
+func InstallRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	releaseRequest := &release.ReleaseRequest{}
+	err := request.ReadEntity(releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	err = helm.InstallUpgradeRealese(namespace, releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
+	}
 }
 
 func ListReleaseByNamespace(request *restful.Request, response *restful.Response) {
@@ -72,5 +90,6 @@ func GetRelease(request *restful.Request, response *restful.Response) {
 func RollBackRelease(request *restful.Request, response *restful.Response) {
 }
 
-func UpdateRelease(request *restful.Request, response *restful.Response) {
+func UpgradeRelease(request *restful.Request, response *restful.Response) {
+	InstallRelease(request, response)
 }

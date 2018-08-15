@@ -16,7 +16,7 @@ import (
 	"k8s.io/helm/pkg/engine"
 )
 
-func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
+func ValidateChart(namespace string, releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
 
 	logrus.Debugf("Begin ValidateChart %v\n", releaseRequest)
 
@@ -26,10 +26,10 @@ func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicati
 	chartValicationInfo.ConfigValues = releaseRequest.ConfigValues
 	chartValicationInfo.ChartVersion = releaseRequest.ChartVersion
 	chartValicationInfo.Dependencies = releaseRequest.Dependencies
-	chartValicationInfo.Namespace = releaseRequest.Namespace
+	chartValicationInfo.Namespace = namespace
 
 
-	chartPath, err := downloadChart(releaseRequest.ChartName, releaseRequest.ChartVersion)
+	chartPath, err := downloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return chartValicationInfo, err
 	}
@@ -38,8 +38,8 @@ func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicati
 		return chartValicationInfo, err
 	}
 
-	if releaseRequest.Namespace == "" {
-		releaseRequest.Namespace = "default"
+	if namespace == "" {
+		namespace = "default"
 	}
 
 	rawVals, err := yaml.Marshal(releaseRequest.ConfigValues)
@@ -59,11 +59,11 @@ func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicati
 
 		if len(links) > 0 {
 
-			out, err = renderWithDependencies(chartRequested, releaseRequest.Namespace, rawVals, "1.9", "", links)
+			out, err = renderWithDependencies(chartRequested, namespace, rawVals, "1.9", "", links)
 
 		} else {
 
-			out, err = render(chartRequested, releaseRequest.Namespace, rawVals, "1.9")
+			out, err = render(chartRequested, namespace, rawVals, "1.9")
 		}
 
 	} else {
@@ -83,7 +83,7 @@ func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicati
 			IsInstall: false,
 			IsUpgrade: false,
 			Time:      timeconv.Now(),
-			Namespace: releaseRequest.Namespace,
+			Namespace: namespace,
 		}
 
 		err = chartutil.ProcessRequirementsEnabled(chartRequested, config)
@@ -122,7 +122,7 @@ func ValidateChart(releaseRequest release.ReleaseRequest) (release.ChartValicati
 	chartValicationInfo.RenderStatus = "ok"
 	chartValicationInfo.RenderResult = out
 
-	resultMap, errFlag := dryRunK8sResource(out, releaseRequest.Namespace)
+	resultMap, errFlag := dryRunK8sResource(out, namespace)
 	if errFlag {
 		chartValicationInfo.DryRunStatus = "failed"
 		chartValicationInfo.ErrorMessage = "dry run check fail"

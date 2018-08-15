@@ -36,7 +36,7 @@ type ChartRepository struct {
 type Client struct {
 	helmClient      *helm.Client
 	chartRepoMap map[string]*ChartRepository
-	DryRun bool
+	 DryRun bool
 }
 
 var Helm *Client
@@ -170,9 +170,15 @@ func GetRelease(namespace, releaseName string) (*release.ReleaseInfo, error) {
 	return release, nil
 }
 
-func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
+func InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest) error {
 	logrus.Infof("Enter InstallUpgradeRealese %v\n", releaseRequest)
-	chartRequested, err := getChartRequest(releaseRequest.ChartName, releaseRequest.ChartVersion)
+	if releaseRequest.ConfigValues == nil {
+		releaseRequest.ConfigValues = map[string]interface{}{}
+	}
+	if releaseRequest.Dependencies == nil {
+		releaseRequest.Dependencies = map[string]string{}
+	}
+	chartRequested, err := getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return err
 	}
@@ -185,7 +191,7 @@ func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
 	}
-	err = installChart(releaseRequest.Name, releaseRequest.Namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	err = installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
 	if err != nil {
 		return err
 	}
@@ -200,8 +206,8 @@ func PatchUpgradeRealese(releaseRequest release.ReleaseRequest) error {
 	return nil
 }
 
-func DeleteRealese(namespace, releaseName string) error {
-	logrus.Debugf("Enter DeleteRealese %s %s\n", namespace, releaseName)
+func DeleteRelease(namespace, releaseName string) error {
+	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
 
 	releaseInfo, err := GetRelease(namespace, releaseName)
 	if err != nil {
@@ -226,10 +232,9 @@ func DeleteRealese(namespace, releaseName string) error {
 	return err
 }
 
-
-func GetDependencies(chartName, chartVersion string) (subChartNames []string, err error) {
+func GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
 	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
-	chartRequested, err := getChartRequest(chartName, chartVersion)
+	chartRequested, err := getChartRequest(repoName, chartName, chartVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +245,15 @@ func GetDependencies(chartName, chartVersion string) (subChartNames []string, er
 	return dependencies, nil
 }
 
-func downloadChart(name, version string) (string, error) {
-	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(Helm.chartRepoMap["stable"].URL, "", "", name, version)
+func downloadChart(repoName, charName, version string) (string, error) {
+	if repoName == "" {
+		repoName = "stable"
+	}
+	repo, ok := Helm.chartRepoMap[repoName]
+	if !ok {
+		return "", fmt.Errorf("can not find repo name: %s", repoName)
+	}
+	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(repo.URL, "", "", charName, version)
 	if err != nil {
 		return "", err
 	}
@@ -259,8 +271,8 @@ func downloadChart(name, version string) (string, error) {
 	return filename, nil
 }
 
-func getChartRequest(chartName, chartVersion string) (*chart.Chart, error) {
-	chartPath, err := downloadChart(chartName, chartVersion)
+func getChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
+	chartPath, err := downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		return nil, err
 	}

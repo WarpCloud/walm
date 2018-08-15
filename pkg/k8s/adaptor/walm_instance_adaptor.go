@@ -41,7 +41,7 @@ func (adaptor *WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.Applicat
 		return
 	}
 
-	walmInstance.State = adaptor.buildWalmInstanceState(walmInstance.Modules)
+	walmInstance.State = adaptor.buildWalmInstanceState(walmInstance.Modules, instance.Status.Ready)
 	wg.Wait()
 	return
 }
@@ -61,8 +61,13 @@ func (adaptor *WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.App
 	}
 	return walmModules, nil
 }
-func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule) (instanceState WalmState) {
-	instanceState = buildWalmState("Ready", "", "")
+func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule, ready bool) (instanceState WalmState) {
+	if ready {
+		instanceState = buildWalmState("Ready", "", "")
+	} else {
+		instanceState = buildWalmState("Pending", "ModuleNotEnough", "there is module still not created")
+	}
+
 	for _, module := range modules {
 		if module.Resource.GetState().Status != "Ready" {
 			instanceState = buildWalmState("Pending", "ModulePending", fmt.Sprintf("%s %s/%s is in state %s", module.Kind, module.Resource.GetNamespace(), module.Resource.GetName(), module.Resource.GetState().Status))
