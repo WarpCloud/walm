@@ -4,6 +4,7 @@ import (
 	"transwarp/application-instance/pkg/apis/transwarp/v1beta1"
 	"fmt"
 	"k8s.io/api/core/v1"
+	"sync"
 )
 
 type WalmInstanceAdaptor struct {
@@ -28,13 +29,20 @@ func (adaptor *WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.Applicat
 	walmInstance = WalmApplicationInstance{
 		WalmMeta: buildWalmMetaWithoutState("ApplicationInstance", instance.Namespace, instance.Name),
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		walmInstance.Events, err = adaptor.getInstanceEvents(instance)
+	}()
 
 	walmInstance.Modules, err = adaptor.getWalmInstanceModules(instance)
 	if err != nil {
 		return
 	}
+
 	walmInstance.State = adaptor.buildWalmInstanceState(walmInstance.Modules)
-	walmInstance.Events, err = adaptor.getInstanceEvents(instance)
+	wg.Wait()
 	return
 }
 
@@ -45,6 +53,9 @@ func (adaptor *WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.App
 			GetResource(module.ResourceRef.Namespace, module.ResourceRef.Name)
 		if err != nil {
 			return walmModules, err
+		}
+		if resource.GetState().Status == "Unknown" && resource.GetState().Reason == "NotSupportedKind" {
+			continue
 		}
 		walmModules = append(walmModules, WalmModule{module.ResourceRef.Kind, resource})
 	}
