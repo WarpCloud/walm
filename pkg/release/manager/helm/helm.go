@@ -176,11 +176,6 @@ func InstallUpgradeRealese(releaseRequest *release.ReleaseRequest) error {
 	if err != nil {
 		return err
 	}
-	dependencies, err := parseChartDependencies(chartRequested)
-	if err != nil {
-		return err
-	}
-	logrus.Printf("InstallUpgradeRealese Dependency %v\n", dependencies)
 	depLinks := make(map[string]interface{})
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
@@ -295,18 +290,20 @@ func parseChartDependencies(chart *chart.Chart) ([]string, error) {
 func installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) error {
 	rawVals, err := yaml.Marshal(configValues)
 	if err != nil {
-		logrus.Printf("installChart Marshal Error %v\n", err)
+		logrus.Infof("installChart Marshal Error %v\n", err)
 		return err
 	}
+	logrus.Infof("installChart dependency %+v\n", depLinks)
 	err = transwarp.ProcessAppCharts(Helm.helmClient, chart, releaseName, namespace, string(rawVals[:]), depLinks)
 	if err != nil {
+		logrus.Infof("installChart ProcessAppCharts error %+v\n", err)
 		return err
 	}
 	releaseHistory, err := Helm.helmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
 	if err == nil {
 		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
 		if previousReleaseNamespace != namespace {
-			logrus.Printf("WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
+			logrus.Infof("WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
 				namespace, previousReleaseNamespace,
 			)
 		}
