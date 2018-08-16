@@ -77,12 +77,12 @@ func Test_Project_Create(t *testing.T) {
 		releaseInfo.Dependencies = make(map[string]string)
 		projectParams.Releases = append(projectParams.Releases, &releaseInfo)
 	}
-	err := CreateProject("project-test", "test-one", &projectParams)
+	err := GetDefaultProjectManager().CreateProject("project-test", "test-one", &projectParams)
 	fmt.Printf("%v\n", err)
 }
 
 func Test_Project_List(t *testing.T) {
-	projectInfoList, err := ListProjects("project-test")
+	projectInfoList, err := GetDefaultProjectManager().ListProjects("project-test")
 	for _, projectInfo := range projectInfoList.Items {
 		fmt.Printf("%+v %v\n", *projectInfo, err)
 		for _, releaseInfo := range projectInfo.Releases {
@@ -103,8 +103,7 @@ func TestMain(m *testing.M) {
 		Password: "",
 	}
 	chartRepoMap["stable"] = &chartRepository
-	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap)
-	helm.Helm.DryRun = false
+	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap, false)
 
 	setting.Config.KubeConfig = &setting.KubeConfig{
 		Config: "/home/bianyu/user/code/opensource/goproject/src/walm/test/k8sconfig/kubeconfig",

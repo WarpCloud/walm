@@ -12,15 +12,15 @@ type ReleaseInfoList struct {
 
 type ReleaseInfo struct {
 	Name            string                 `json:"name" description:"name of the release"`
-	ConfigValues    map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	ConfigValues    map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
 	Namespace       string                 `json:"namespace" description:"namespace of release"`
 	Ready           bool                   `json:"ready" description:"whether release is ready"`
 	Dependencies    map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ChartName       string                 `json:"chartname" description:"chart name"`
-	ChartVersion    string                 `json:"chartversion" description:"chart version"`
-	ChartAppVersion string                 `json:"chartappversion" description:"jsonnet app version"`
-	Status          *ReleaseStatus         `json:"releasestatus" description:"status of release"`
+	ChartName       string                 `json:"chart_name" description:"chart name"`
+	ChartVersion    string                 `json:"chart_version" description:"chart version"`
+	ChartAppVersion string                 `json:"chart_app_version" description:"jsonnet app version"`
+	Status          *ReleaseStatus         `json:"release_status" description:"status of release"`
 }
 
 type ReleaseResource struct {
@@ -54,23 +54,23 @@ type ReleaseStatus struct {
 }
 
 type ReleaseListOption struct {
-	Namespace *string
-	Filter    *string
-	Limit     *int
+	Namespace string
+	Filter    string
+	Limit     int
 	// 0: "ASC",
 	// 1: "DESC",
-	Order *int32
+	Order int32
 	//  0: "UNKNOWN",
 	//	1: "NAME",
 	//	2: "LAST_RELEASED",
-	Sort     *int32
-	Offset   *string
+	Sort     int32
+	Offset   string
 	Statuses []hapiRelease.Status_Code
 }
 
 type ReleaseRequest struct {
 	Name         string                 `json:"name" description:"name of the release"`
-	RepoName    string                 `json:"repo_name" description:"chart name"`
+	RepoName     string                 `json:"repo_name" description:"chart name"`
 	ChartName    string                 `json:"chart_name" description:"chart name"`
 	ChartVersion string                 `json:"chart_version" description:"chart repo"`
 	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`

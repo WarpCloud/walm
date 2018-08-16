@@ -24,7 +24,7 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
-	err = project.CreateProject(tenantName, projectName, projectParams)
+	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}

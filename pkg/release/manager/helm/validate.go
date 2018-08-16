@@ -16,7 +16,7 @@ import (
 	"k8s.io/helm/pkg/engine"
 )
 
-func ValidateChart(namespace string, releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
+func (client *HelmClient)ValidateChart(namespace string, releaseRequest release.ReleaseRequest) (release.ChartValicationInfo, error) {
 
 	logrus.Debugf("Begin ValidateChart %v\n", releaseRequest)
 
@@ -29,7 +29,7 @@ func ValidateChart(namespace string, releaseRequest release.ReleaseRequest) (rel
 	chartValicationInfo.Namespace = namespace
 
 
-	chartPath, err := downloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	chartPath, err := client.downloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		return chartValicationInfo, err
 	}

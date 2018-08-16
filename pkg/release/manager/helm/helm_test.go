@@ -27,9 +27,9 @@ func Test_GetDependencies(t *testing.T) {
 		Password: "",
 	}
 	chartRepoMap["stable"] = &chartRepository
-	InitHelmByParams("172.26.0.5:31221", chartRepoMap)
+	InitHelmByParams("172.26.0.5:31221", chartRepoMap, true)
 
-	subCharts, _ := GetDependencies("stable", "inceptor", "")
+	subCharts, _ := GetDefaultHelmClient().GetDependencies("stable", "inceptor", "")
 	fmt.Printf("%v\n", subCharts)
 }
 

@@ -1,4 +1,4 @@
-package project
+package redis
 
 import (
 	"time"
@@ -8,10 +8,18 @@ import (
 	"github.com/go-redis/redis"
 )
 
-var redisClient *redis.Client
+type RedisClient struct {
+	client *redis.Client
+}
+
+var redisClient *RedisClient
+
+func GetDefaultRedisClient() *RedisClient {
+	return redisClient
+}
 
 func InitRedisClient() {
-	redisClient = redis.NewClient(&redis.Options{
+	client := redis.NewClient(&redis.Options{
 		Addr:         setting.Config.RedisConfig.Addr,
 		Password:	  setting.Config.RedisConfig.Password,
 		DB:	          setting.Config.RedisConfig.DB,
@@ -21,5 +29,6 @@ func InitRedisClient() {
 		PoolSize:     10,
 		PoolTimeout:  30 * time.Second,
 	})
-	redisClient.FlushDB()
+	client.FlushDB()
+	redisClient = &RedisClient{client: client}
 }
