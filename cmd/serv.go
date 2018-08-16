@@ -16,6 +16,7 @@ import (
 	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release/manager/project"
+	"walm/pkg/redis"
 )
 
 const servDesc = `
@@ -34,6 +35,7 @@ type ServCmd struct {
 }
 
 func initService() error {
+	redis.InitRedisClient()
 	informer.InitInformer()
 	helm.InitHelm()
 	project.InitProject()

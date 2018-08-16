@@ -9,18 +9,33 @@ import (
 	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
 	"strings"
+	"walm/pkg/redis"
 )
 
-func InitProject() {
-	InitRedisClient()
+type ProjectManager struct {
+	helmClient *helm.HelmClient
+	redisClient *redis.RedisClient
 }
 
-func ListProjects(namespace string) (*release.ProjectInfoList, error) {
+var projectManager *ProjectManager
+
+func GetDefaultProjectManager() *ProjectManager {
+	return projectManager
+}
+
+func InitProject() {
+	projectManager = &ProjectManager{
+		helmClient: helm.GetDefaultHelmClient(),
+		redisClient: redis.GetDefaultRedisClient(),
+	}
+}
+
+func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectInfoList, error) {
 	projectMap := make(map[string]*release.ProjectInfo)
 	projectList := new(release.ProjectInfoList)
 
 	option := &release.ReleaseListOption{}
-	releaseList, err := helm.ListReleases(option)
+	releaseList, err := manager.helmClient.ListReleases(option)
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +60,11 @@ func ListProjects(namespace string) (*release.ProjectInfoList, error) {
 	return projectList, nil
 }
 
-func GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
+func (manager *ProjectManager)GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
 	found := false
 	option := &release.ReleaseListOption{}
 	projectInfo := new(release.ProjectInfo)
-	releaseList, err := helm.ListReleases(option)
+	releaseList, err := manager.helmClient.ListReleases(option)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +86,7 @@ func GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error)
 	return nil, nil
 }
 
-func CreateProject(namespace string, project string, projectParams *release.ProjectParams) error {
+func (manager *ProjectManager)CreateProject(namespace string, project string, projectParams *release.ProjectParams) error {
 	helmExtraLabelsBase := map[string]interface{}{}
 	helmExtraLabelsVals := release.HelmExtraLabels{}
 	helmExtraLabelsVals.HelmLabels = make(map[string]interface{})
@@ -84,17 +99,16 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 
 	for _, releaseParams := range projectParams.Releases {
 		releaseParams.Name = fmt.Sprintf("%s--%s", project, releaseParams.Name)
-		releaseParams.Namespace = namespace
 		fmt.Printf("%v\n", releaseParams.ConfigValues)
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
 	}
 
-	releaseList, err := brainFuckChartDepParse(projectParams)
+	releaseList, err := manager.brainFuckChartDepParse(projectParams)
 	if err != nil {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = helm.InstallUpgradeRealese(namespace, releaseParams)
+		err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
 		if err != nil {
 			logrus.Errorf("CreateProject install release %s error %v\n", releaseParams.Name, err)
 			return err
@@ -103,17 +117,17 @@ func CreateProject(namespace string, project string, projectParams *release.Proj
 	return nil
 }
 
-func DeleteProject(namespace string, project string) error {
+func (manager *ProjectManager)DeleteProject(namespace string, project string) error {
 	return nil
 }
 
-func AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
-	projectInfo, err := GetProjectInfo(namespace, projectName)
+func (manager *ProjectManager)AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
+	projectInfo, err := manager.GetProjectInfo(namespace, projectName)
 	if err != nil {
 		return err
 	}
 	if projectInfo == nil {
-		err = helm.InstallUpgradeRealese(releaseParams)
+		err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
 		if err != nil {
 			logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 			return err
@@ -122,26 +136,26 @@ func AddReleaseInProject(namespace string, projectName string, releaseParams *re
 	return nil
 }
 
-func RemoveReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
+func (manager *ProjectManager)RemoveReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
 	return nil
 }
 
 func brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *release.ReleaseRequest) ([]*release.ReleaseRequest, error) {
-	subCharts, err := helm.GetDependencies(releaseParams.ChartName, releaseParams.ChartVersion)
-	if err != nil {
-		return nil, err
-	}
+	//subCharts, err := helm.GetDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	// Find Upstream Release
-	for _, chartName := range subCharts {
-		for _, releaseInfo := range projectInfo.Releases {
-			releaseSubCharts, err := helm.GetDependencies(releaseInfo.ChartName, releaseInfo.ChartVersion)
-			if err != nil {
-				return nil, err
-			}
-			logrus.Infof("%s %v", chartName, releaseSubCharts)
-		}
-	}
+	//for _, chartName := range subCharts {
+	//	for _, releaseInfo := range projectInfo.Releases {
+	//		releaseSubCharts, err := helm.GetDependencies(releaseInfo.ChartName, releaseInfo.ChartVersion)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		logrus.Infof("%s %v", chartName, releaseSubCharts)
+	//	}
+	//}
 	//projectParams := {
 		
 	//}
@@ -153,7 +167,7 @@ func brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *r
 	return nil, nil
 }
 
-func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
+func (manager *ProjectManager)brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
 	projectParamsMap := make(map[string]interface{})
 	g := graph.New(graph.Directed)
 	projectDepGraph := make(map[string]graph.Node, 0)
@@ -171,7 +185,7 @@ func brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.Re
 
 	// init edge
 	for _, helmRelease := range projectParams.Releases {
-		subCharts, err := helm.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+		subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 		if err != nil {
 			return nil, err
 		}
