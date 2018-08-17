@@ -24,8 +24,8 @@ type ReleaseInfo struct {
 }
 
 type ReleaseResource struct {
-	Kind     string
-	Resource adaptor.WalmResource
+	Kind     string `json:"kind" description:"resource kind"`
+	Resource adaptor.WalmResource `json:"resource" description:"resource object"`
 }
 
 type ReleaseResourceMeta struct {
@@ -50,7 +50,7 @@ type ChartValicationInfo struct {
 }
 
 type ReleaseStatus struct {
-	Resources []ReleaseResource
+	Resources []ReleaseResource `json:"resources" description:" release resources "`
 }
 
 type ReleaseListOption struct {

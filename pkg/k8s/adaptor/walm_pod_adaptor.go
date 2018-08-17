@@ -6,7 +6,7 @@ import (
 	"walm/pkg/k8s/handler"
 )
 
-type WalmPodAdaptor struct{
+type WalmPodAdaptor struct {
 	handler *handler.PodHandler
 }
 
@@ -45,6 +45,7 @@ func BuildWalmPod(pod corev1.Pod) *WalmPod {
 	walmPod := WalmPod{
 		WalmMeta: buildWalmMeta("Pod", pod.Namespace, pod.Name, BuildWalmPodState(pod)),
 		PodIp:    pod.Status.PodIP,
+		HostIp:   pod.Status.HostIP,
 	}
 	return &walmPod
 }
@@ -79,14 +80,14 @@ func BuildWalmPodState(pod corev1.Pod) WalmState {
 
 func getFailedReason(pod corev1.Pod) (reason string, message string) {
 	for _, containerState := range getContainerStates(pod) {
-		if containerState.Terminated != nil && containerState.Terminated.ExitCode != 0{
+		if containerState.Terminated != nil && containerState.Terminated.ExitCode != 0 {
 			return containerState.Terminated.Reason, containerState.Terminated.Message
 		}
 	}
 
 	return
 }
-func isPodReady(pod corev1.Pod) (ready bool, reason string, message string){
+func isPodReady(pod corev1.Pod) (ready bool, reason string, message string) {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == "Ready" {
 			if condition.Status == "True" {
@@ -125,5 +126,3 @@ func getContainerStates(pod corev1.Pod) []corev1.ContainerState {
 	}
 	return containerStates
 }
-
-

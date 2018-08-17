@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"k8s.io/api/core/v1"
 	"sync"
+	"strings"
 )
 
 type WalmInstanceAdaptor struct {
-	adaptorSet      *AdaptorSet
+	adaptorSet *AdaptorSet
 }
 
 func (adaptor *WalmInstanceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
@@ -77,7 +78,7 @@ func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule,
 
 	return
 }
-func (adaptor *WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationInstance) ([]v1.Event, error) {
+func (adaptor *WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationInstance) ([]WalmEvent, error) {
 	ref := v1.ObjectReference{
 		Namespace:       inst.Namespace,
 		Name:            inst.Name,
@@ -90,5 +91,26 @@ func (adaptor *WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationI
 	if err != nil {
 		return nil, err
 	}
-	return events.Items, nil
+	walmEvents := []WalmEvent{}
+	for _, event := range events.Items {
+		walmEvent := WalmEvent{
+			Type:           event.Type,
+			Reason:         event.Reason,
+			Message:        event.Message,
+			Count:          event.Count,
+			FirstTimestamp: event.FirstTimestamp,
+			LastTimestamp:  event.LastTimestamp,
+			From:           formatEventSource(event.Source),
+		}
+		walmEvents = append(walmEvents, walmEvent)
+	}
+	return walmEvents, nil
+}
+
+func formatEventSource(es v1.EventSource) string {
+	EventSourceString := []string{es.Component}
+	if len(es.Host) > 0 {
+		EventSourceString = append(EventSourceString, es.Host)
+	}
+	return strings.Join(EventSourceString, ", ")
 }
