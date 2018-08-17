@@ -29,6 +29,15 @@ func (adaptor *WalmStatefulSetAdaptor) GetResource(namespace string, name string
 func (adaptor *WalmStatefulSetAdaptor) buildWalmStatefulSet(statefulSet *appsv1beta1.StatefulSet) (walmStatefulSet WalmStatefulSet, err error) {
 	walmStatefulSet = WalmStatefulSet{
 		WalmMeta: buildWalmMetaWithoutState("StatefulSet", statefulSet.Namespace, statefulSet.Name),
+		ReadyReplicas: statefulSet.Status.ReadyReplicas,
+		CurrentVersion: statefulSet.Status.CurrentRevision,
+		UpdateVersion: statefulSet.Status.UpdateRevision,
+	}
+
+	if statefulSet.Spec.Replicas == nil {
+		walmStatefulSet.ExpectedReplicas = 1
+	} else {
+		walmStatefulSet.ExpectedReplicas = *statefulSet.Spec.Replicas
 	}
 
 	walmStatefulSet.Pods, err = adaptor.podAdaptor.GetWalmPods(statefulSet.Namespace, statefulSet.Spec.Selector)
@@ -63,7 +72,7 @@ func buildWalmStatefulSetState(statefulSet *appsv1beta1.StatefulSet, pods []*Wal
 	return walmState
 }
 func isStatefulSetReady(statefulSet *appsv1beta1.StatefulSet) bool {
-	if statefulSet.Status.ReadyReplicas < *statefulSet.Spec.Replicas && *statefulSet.Spec.Replicas > 0 {
+	if statefulSet.Spec.Replicas != nil && statefulSet.Status.ReadyReplicas < *statefulSet.Spec.Replicas {
 		return false
 	}
 
