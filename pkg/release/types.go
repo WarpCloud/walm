@@ -127,3 +127,26 @@ type HelmValues struct {
 	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
 	AppHelmValues   *AppHelmValues   `json:"HelmAdditionalValues"`
 }
+
+type RepoInfo struct {
+	TenantRepoName string `json:"repo_name"`
+	TenantRepoURL string `json:"repo_url"`
+}
+
+type RepoInfoList struct {
+	Items []*RepoInfo `json:"items" description:"chart repo list"`
+}
+
+type ChartInfo struct {
+	ChartName string `json:"chart_name"`
+	ChartVersion string `json:"chart_version"`
+	ChartDescription string `json:"chart_description"`
+	ChartAppVersion string `json:"chart_appversion"`
+	ChartEngine string `json:"chart_engine"`
+	DefaultValue string `json:"default_value" description:"default values.yaml defined by the chart"`
+	DependencyCharts []string `json:"dependency_charts" description:"dependency chart name"`
+}
+
+type ChartInfoList struct {
+	Items []*ChartInfo `json:"items" description:"chart list"`
+}

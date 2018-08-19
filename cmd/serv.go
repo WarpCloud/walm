@@ -84,6 +84,7 @@ func (sc *ServCmd) run() error {
 	restful.Add(router.InitProjectRouter())
 	restful.Add(router.InitReleaseRouter())
 	restful.Add(router.InitPodRouter())
+	restful.Add(router.InitChartRouter())
 	logrus.Infoln("Add Route Success")
 
 	config := restfulspec.Config{
@@ -93,7 +94,8 @@ func (sc *ServCmd) run() error {
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject}
 	restful.DefaultContainer.Add(restfulspec.NewOpenAPIService(config))
 
-	http.Handle("/swagger/", http.StripPrefix("/swagger/", http.FileServer(http.Dir("swagger-ui/dist"))))
+	http.Handle("/swagger-ui/", http.StripPrefix("/swagger-ui/", http.FileServer(http.Dir("swagger-ui/dist"))))
+	http.Handle("/swagger/", http.RedirectHandler("/swagger-ui/?url=/apidocs.json", http.StatusFound))
 
 	logrus.Infoln("ready to serve on")
 	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}

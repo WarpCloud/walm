@@ -19,6 +19,11 @@ func Test_downloadChart(t *testing.T) {
 }
 
 func Test_GetDependencies(t *testing.T) {
+	subCharts, _ := GetDefaultHelmClient().GetDependencies("stable", "inceptor", "")
+	fmt.Printf("%v\n", subCharts)
+}
+
+func TestMain(m *testing.M) {
 	chartRepoMap := make(map[string]*ChartRepository)
 	chartRepository := ChartRepository{
 		Name: "stable",
@@ -29,10 +34,5 @@ func Test_GetDependencies(t *testing.T) {
 	chartRepoMap["stable"] = &chartRepository
 	InitHelmByParams("172.26.0.5:31221", chartRepoMap, true)
 
-	subCharts, _ := GetDefaultHelmClient().GetDependencies("stable", "inceptor", "")
-	fmt.Printf("%v\n", subCharts)
-}
-
-func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
