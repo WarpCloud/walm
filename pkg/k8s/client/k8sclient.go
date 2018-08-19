@@ -100,7 +100,7 @@ func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientse
 	//TODO to investigate protobuf
 	//cfg.ContentType = "application/vnd.kubernetes.protobuf"
 
-	Log.Infof("Creating API client for %s", cfg.Host)
+	Log.Infof("Creating API clientEx for %s", cfg.Host)
 
 	client, err := clientsetex.NewForConfig(cfg)
 	if err != nil {

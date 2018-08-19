@@ -28,6 +28,15 @@ func (adaptor *WalmJobAdaptor) GetResource(namespace string, name string) (WalmR
 func (adaptor *WalmJobAdaptor) BuildWalmJob(job *batchv1.Job) (walmJob WalmJob, err error) {
 	walmJob = WalmJob{
 		WalmMeta: buildWalmMetaWithoutState("Job", job.Namespace, job.Name),
+		Succeeded: job.Status.Succeeded,
+		Failed: job.Status.Failed,
+		Active: job.Status.Active,
+	}
+
+	if job.Spec.Completions == nil {
+		walmJob.ExpectedCompletion = 1
+	} else {
+		walmJob.ExpectedCompletion = *job.Spec.Completions
 	}
 
 	walmJob.Pods, err = adaptor.podAdaptor.GetWalmPods(job.Namespace, job.Spec.Selector)

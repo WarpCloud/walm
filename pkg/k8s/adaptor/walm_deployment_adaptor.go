@@ -6,9 +6,9 @@ import (
 	"walm/pkg/k8s/handler"
 )
 
-type WalmDeploymentAdaptor struct{
+type WalmDeploymentAdaptor struct {
 	deploymentHandler *handler.DeploymentHandler
-	podAdaptor *WalmPodAdaptor
+	podAdaptor        *WalmPodAdaptor
 }
 
 func (adaptor *WalmDeploymentAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
@@ -25,9 +25,18 @@ func (adaptor *WalmDeploymentAdaptor) GetResource(namespace string, name string)
 	return adaptor.BuildWalmDeployment(deployment)
 }
 
-func (adaptor *WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.Deployment) (walmDeployment WalmDeployment, err error){
+func (adaptor *WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.Deployment) (walmDeployment WalmDeployment, err error) {
 	walmDeployment = WalmDeployment{
-		WalmMeta: buildWalmMetaWithoutState("Deployment", deployment.Namespace, deployment.Name),
+		WalmMeta:          buildWalmMetaWithoutState("Deployment", deployment.Namespace, deployment.Name),
+		UpdatedReplicas:   deployment.Status.UpdatedReplicas,
+		CurrentReplicas:   deployment.Status.Replicas,
+		AvailableReplicas: deployment.Status.AvailableReplicas,
+	}
+
+	if deployment.Spec.Replicas == nil {
+		walmDeployment.ExpectedReplicas = 1
+	} else {
+		walmDeployment.ExpectedReplicas = *deployment.Spec.Replicas
 	}
 
 	walmDeployment.Pods, err = adaptor.podAdaptor.GetWalmPods(deployment.Namespace, deployment.Spec.Selector)
@@ -36,11 +45,17 @@ func (adaptor *WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1
 }
 
 func isDeploymentReady(deployment *extv1beta1.Deployment) bool {
-	expectedReplicas, updatedReplicas, currentReplicas, availableReplicas := *deployment.Spec.Replicas, deployment.Status.UpdatedReplicas, deployment.Status.Replicas, deployment.Status.AvailableReplicas
-	if expectedReplicas > 0 && updatedReplicas >= expectedReplicas && currentReplicas == updatedReplicas && availableReplicas == updatedReplicas {
-		return true
+	expectedReplicas, updatedReplicas, currentReplicas, availableReplicas := deployment.Spec.Replicas, deployment.Status.UpdatedReplicas, deployment.Status.Replicas, deployment.Status.AvailableReplicas
+	if expectedReplicas != nil && updatedReplicas < *expectedReplicas {
+		return false
 	}
-	return false
+	if currentReplicas > updatedReplicas {
+		return false
+	}
+	if availableReplicas < updatedReplicas {
+		return false
+	}
+	return true
 }
 
 func BuildWalmDeploymentState(deployment *extv1beta1.Deployment, pods []*WalmPod) (walmState WalmState) {
@@ -48,7 +63,7 @@ func BuildWalmDeploymentState(deployment *extv1beta1.Deployment, pods []*WalmPod
 		walmState = buildWalmState("Ready", "", "")
 	} else {
 		if len(pods) == 0 {
-			walmState = buildWalmState("Pending","PodNotCreated", "There is no pod created")
+			walmState = buildWalmState("Pending", "PodNotCreated", "There is no pod created")
 		} else {
 			allPodsTerminating, unknownPod, pendingPod, runningPod := parsePods(pods)
 
@@ -69,6 +84,3 @@ func BuildWalmDeploymentState(deployment *extv1beta1.Deployment, pods []*WalmPod
 	}
 	return walmState
 }
-
-
-
