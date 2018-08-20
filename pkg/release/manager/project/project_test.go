@@ -8,7 +8,7 @@ import (
 	"github.com/twmb/algoimpl/go/graph"
 	"github.com/ghodss/yaml"
 
-		"walm/pkg/release"
+	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/setting"
 	"walm/pkg/k8s/informer"

@@ -251,8 +251,18 @@ func (client *HelmClient)installChart(releaseName, namespace string, configValue
 				namespace, previousReleaseNamespace,
 			)
 		}
-	}
-	if err != nil && strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
+		resp, err := client.client.UpdateReleaseFromChart(
+			releaseName,
+			chart,
+			helm.UpdateValueOverrides(rawVals),
+			helm.ReuseValues(true),
+			helm.UpgradeDryRun(client.dryRun),
+		)
+		if err != nil {
+			return fmt.Errorf("installChart UPGRADE FAILED: %v", err)
+		}
+		logrus.Infof("installChart Response %+v\n", resp)
+	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
 		resp, err := client.client.InstallReleaseFromChart(
 			chart,
 			namespace,
@@ -265,17 +275,7 @@ func (client *HelmClient)installChart(releaseName, namespace string, configValue
 		}
 		logrus.Infof("installChart Response %+v\n", resp)
 	} else {
-		resp, err := client.client.UpdateReleaseFromChart(
-			releaseName,
-			chart,
-			helm.UpdateValueOverrides(rawVals),
-			helm.ReuseValues(true),
-			helm.UpgradeDryRun(client.dryRun),
-		)
-		if err != nil {
-			return fmt.Errorf("installChart UPGRADE FAILED: %v", err)
-		}
-		logrus.Infof("installChart Response %+v\n", resp)
+		return err
 	}
 
 	return nil
