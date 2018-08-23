@@ -17,6 +17,10 @@ import (
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release/manager/project"
 	"walm/pkg/redis"
+	"os"
+	"walm/pkg/k8s/elect"
+	"walm/pkg/k8s/client"
+	"walm/pkg/job"
 )
 
 const servDesc = `
@@ -30,12 +34,15 @@ The file is named conf.yaml
 
 `
 
+const DefaultElectionId = "walm-election-id"
+
 type ServCmd struct {
 	cfgFile string
 }
 
 func initService() error {
 	redis.InitRedisClient()
+	job.InitWalmJobManager()
 	informer.InitInformer()
 	helm.InitHelm()
 	project.InitProject()
@@ -66,7 +73,7 @@ func (sc *ServCmd) run() error {
 	logrus.Infof("finished loading configuration %+v", setting.Config)
 
 	initService()
-
+	initElector()
 	// accept and respond in JSON unless told otherwise
 	restful.DefaultRequestContentType(restful.MIME_JSON)
 	restful.DefaultResponseContentType(restful.MIME_JSON)
@@ -89,8 +96,8 @@ func (sc *ServCmd) run() error {
 
 	config := restfulspec.Config{
 		// You control what services are visible
-		WebServices:    restful.RegisteredWebServices(),
-		APIPath:        "/apidocs.json",
+		WebServices:                   restful.RegisteredWebServices(),
+		APIPath:                       "/apidocs.json",
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject}
 	restful.DefaultContainer.Add(restfulspec.NewOpenAPIService(config))
 
@@ -105,12 +112,49 @@ func (sc *ServCmd) run() error {
 	return nil
 }
 
+func initElector() {
+	lockIdentity := os.Getenv("Pod_Name")
+	lockNamespace := os.Getenv("Pod_Namespace")
+	if lockIdentity == "" || lockNamespace == "" {
+		logrus.Fatal("Both env var Pod_Name and Pod_Namespace must not be empty")
+	}
+
+	onStartedLeadingFunc := func(stop <-chan struct{}) {
+		logrus.Info("Succeed to elect leader")
+		job.GetDefaultWalmJobManager().Start(stop)
+	}
+	onNewLeaderFunc := func(identity string) {
+		logrus.Infof("Now leader is changed to %s", identity)
+	}
+	onStoppedLeadingFunc := func() {
+		logrus.Info("Stopped being a leader")
+		job.GetDefaultWalmJobManager().Stop()
+	}
+
+	config := &elect.ElectorConfig{
+		LockNamespace:        lockNamespace,
+		LockIdentity:         lockIdentity,
+		ElectionId:           DefaultElectionId,
+		Client:               client.GetDefaultClient(),
+		OnStartedLeadingFunc: onStartedLeadingFunc,
+		OnNewLeaderFunc:      onNewLeaderFunc,
+		OnStoppedLeadingFunc: onStoppedLeadingFunc,
+	}
+
+	elector, err := elect.NewElector(config)
+	if err != nil {
+		logrus.Fatal("create leader elector failed")
+	}
+	logrus.Info("Start to elect leader")
+	go elector.Run()
+}
+
 func enrichSwaggerObject(swo *spec.Swagger) {
 	swo.Info = &spec.Info{
 		InfoProps: spec.InfoProps{
 			Title:       "Walm",
 			Description: "Walm Web Server",
-			Version: "0.0.1",
+			Version:     "0.0.1",
 		},
 	}
 }
