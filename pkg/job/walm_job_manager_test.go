@@ -7,6 +7,7 @@ import (
 	"time"
 	"sync"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"fmt"
 )
 
 func TestWalmJobManager(t *testing.T) {
@@ -14,17 +15,33 @@ func TestWalmJobManager(t *testing.T) {
 	manager := &WalmJobManager{redisClient: redisClient, collectInterval: 1*time.Second, mutex: &sync.Mutex{}, runningWalmJobs: map[string]*WalmJob{}}
 	manager.Start(wait.NeverStop)
 
-	err := manager.CreateWalmJob("fake", &FakeJob{"test1"})
+	id, err := manager.CreateWalmJob("","fake", &FakeJob{"test1"})
 	if err != nil {
 		logrus.Error(err.Error())
-		t.Fail()
 	}
 
-	time.Sleep(1 * time.Second)
-	err = manager.CreateWalmJob("fake", &FakeJob{"test2"})
+	walmJob, err := manager.GetWalmJob(id)
+	if err != nil {
+		logrus.Error(err.Error())
+	}
+	fmt.Println(walmJob.Status)
+
+	time.Sleep(2 * time.Second)
+	walmJob, err = manager.GetWalmJob(id)
+	if err != nil {
+		logrus.Error(err.Error())
+	}
+	fmt.Println(walmJob.Status)
+
+	_, err = manager.CreateWalmJob("", "fake", &FakeJob{"test2"})
 	if err != nil {
 		logrus.Error(err.Error())
 		t.Fail()
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
+
+	walmJob, err = manager.GetWalmJob(id)
+	if err != nil {
+		logrus.Error(err.Error())
+	}
 }

@@ -6,16 +6,25 @@ import (
 	"fmt"
 )
 
+type WalmJobStatus string
+
+const (
+	jobStatusPending  WalmJobStatus = "Pending"
+	jobStatusRunning  WalmJobStatus = "Running"
+)
+
 type WalmJob struct {
-	JobType string
-	Job     Job
-	Id      string
+	JobType string        `json:"job_type" description:"job type"`
+	Job     Job           `json:"job" description:"job object"`
+	Id      string        `json:"id" description:"job id"`
+	Status  WalmJobStatus `json:"status" description:"job status"`
 }
 
 type WalmJobAdaptor struct {
-	JobType string
-	Job     json.RawMessage
-	Id      string
+	JobType string          `json:"job_type" description:"job type"`
+	Job     json.RawMessage `json:"job" description:"job object"`
+	Id      string          `json:"id" description:"job id"`
+	Status  WalmJobStatus   `json:"status" description:"job status"`
 }
 
 func (adaptor *WalmJobAdaptor) getJobByType() (job Job, err error) {
@@ -36,10 +45,11 @@ func (adaptor *WalmJobAdaptor) getJobByType() (job Job, err error) {
 	return
 }
 
-func (adaptor *WalmJobAdaptor) GetWalmJob() (walmJob *WalmJob,err error) {
+func (adaptor *WalmJobAdaptor) GetWalmJob() (walmJob *WalmJob, err error) {
 	walmJob = &WalmJob{
 		Id:      adaptor.Id,
 		JobType: adaptor.JobType,
+		Status: adaptor.Status,
 	}
 	walmJob.Job, err = adaptor.getJobByType()
 	return
