@@ -214,16 +214,16 @@ func InitProjectRouter() *restful.WebService {
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-	tags := []string{"Project"}
+	tags := []string{"project"}
 
-	ws.Route(ws.GET("/").To(v1.GetProjectAllNamespaces).
+	ws.Route(ws.GET("/").To(v1.ListProjectAllNamespaces).
 		Doc("获取所有Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(releasetypes.ProjectInfoList{}).
 		Returns(200, "OK", releasetypes.ProjectInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/{namespace}").To(v1.GetProjectByNamespace).
+	ws.Route(ws.GET("/{namespace}").To(v1.ListProjectByNamespace).
 		Doc("获取对应租户的Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
@@ -231,11 +231,21 @@ func InitProjectRouter() *restful.WebService {
 		Returns(200, "OK", releasetypes.ProjectInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.GET("/{namespace}/name/{project}").To(v1.GetProjectInfo).
+		Doc("获取Project的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Returns(200, "OK", releasetypes.ProjectInfo{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	ws.Route(ws.POST("/{namespace}/name/{project}").To(v1.DeployProject).
 		Doc("新创建一个Project的详细信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Reads(releasetypes.ProjectParams{}).
-		Returns(200, "OK", releasetypes.ProjectParams{}).
+		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{namespace}/name/{project}").To(v1.DeleteProject).

@@ -51,6 +51,7 @@ func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectIn
 				projectMap[projectName] = new(release.ProjectInfo)
 				projectMap[projectName].Name = projectName
 				projectMap[projectName].Namespace = namespace
+				projectMap[projectName].CommonValues = make(map[string]interface{})
 				releaseInfo.Name = projectNameArray[1]
 				projectMap[projectName].Releases = append(projectMap[projectName].Releases, releaseInfo)
 				projectList.Items = append(projectList.Items, projectMap[projectName])
@@ -62,8 +63,9 @@ func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectIn
 
 func (manager *ProjectManager)GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
 	found := false
-	option := &release.ReleaseListOption{}
 	projectInfo := new(release.ProjectInfo)
+	option := &release.ReleaseListOption{}
+	option.Filter = fmt.Sprintf("%s.*", projectName)
 	releaseList, err := manager.helmClient.ListReleases(option)
 	if err != nil {
 		return nil, err
@@ -75,6 +77,7 @@ func (manager *ProjectManager)GetProjectInfo(namespace, projectName string) (*re
 				found = true
 				projectInfo.Name = projectName
 				projectInfo.Namespace = namespace
+				projectInfo.CommonValues = make(map[string]interface{})
 				releaseInfo.Name = projectNameArray[1]
 				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
 			}
@@ -118,6 +121,21 @@ func (manager *ProjectManager)CreateProject(namespace string, project string, pr
 }
 
 func (manager *ProjectManager)DeleteProject(namespace string, project string) error {
+	projectInfo, err := manager.GetProjectInfo(namespace, project)
+	if err != nil {
+		logrus.Errorf("DeleteProject get project info error %v\n", err)
+		return err
+	}
+	if projectInfo == nil && err == nil {
+		logrus.Infof("DeleteProject can't found project %s %s", namespace, project)
+	}
+	for _, releaseInfo := range projectInfo.Releases {
+		releaseName := fmt.Sprintf("%s--%s", projectInfo.Name, releaseInfo.Name)
+		err = manager.helmClient.DeleteRelease(namespace, releaseName)
+		if err != nil {
+			logrus.Errorf("DeleteProject deleteRelease %s info error %v\n", releaseName, err)
+		}
+	}
 	return nil
 }
 
@@ -197,11 +215,13 @@ func (manager *ProjectManager)brainFuckChartDepParse(projectParams *release.Proj
 
 	for i := range sortedChartList {
 		releaseRequest := *(*sortedChartList[i].Value).(*release.ReleaseRequest)
-		if len(releaseRequest.Dependencies) == 0 {
-			chartsNeighbors := g.Neighbors(sortedChartList[i])
-			for _, chartNeighbor := range chartsNeighbors {
-				releaseRequest.Dependencies[(*chartNeighbor.Value).(*release.ReleaseRequest).ChartName] =
-					(*chartNeighbor.Value).(*release.ReleaseRequest).Name
+		logrus.Infof("DEBUG: %v", releaseRequest.Dependencies)
+		chartsNeighbors := g.Neighbors(sortedChartList[i])
+		for _, chartNeighbor := range chartsNeighbors {
+			chartName := (*chartNeighbor.Value).(*release.ReleaseRequest).ChartName
+			_, ok := releaseRequest.Dependencies[chartName]
+			if !ok {
+				releaseRequest.Dependencies[chartName] = (*chartNeighbor.Value).(*release.ReleaseRequest).Name
 			}
 		}
 		releaseParsed = append(releaseParsed, &releaseRequest)
