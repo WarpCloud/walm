@@ -26,6 +26,6 @@ kubeConfig:
   config: "test/k8sconfig/kubeconfig"
   context: ""
 redisConfig:
-  addr: localhost:6379
-  password: ""
+  addr: 172.16.1.45:6379
+  password: "walmtest"
   db: 0
