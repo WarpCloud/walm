@@ -62,6 +62,8 @@ func buildReleaseInfo(helmRelease *hapiRelease.Release) (releaseInfo *release.Re
 	if ok {
 		yaml.Unmarshal([]byte(depValue.Value), &depLinks)
 		releaseInfo.Dependencies = depLinks
+	} else {
+		releaseInfo.Dependencies = make(map[string]string)
 	}
 
 	if helmRelease.Info.Status.Code == hapiRelease.Status_DEPLOYED {

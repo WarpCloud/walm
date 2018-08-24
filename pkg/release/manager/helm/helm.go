@@ -122,7 +122,6 @@ func (client *HelmClient)GetRelease(namespace, releaseName string) (*release.Rel
 		logrus.Errorf("Failed to build release info: %s\n", err.Error())
 		return release, err
 	}
-
 	return release, nil
 }
 
@@ -175,6 +174,7 @@ func (client *HelmClient)DeleteRelease(namespace, releaseName string) error {
 	if res != nil && res.Info != "" {
 		logrus.Println(res.Info)
 	}
+	logrus.Infof("DeleteRelease %s %s Success\n", namespace, releaseName)
 
 	return err
 }

@@ -62,7 +62,7 @@ func Test_ExampleGraph_TopologicalSort(t *testing.T) {
 
 func Test_Project_Create(t *testing.T) {
 	commonValuesVal := map[string]interface{}{}
-	chartList := []string{ "zookeeper", "hdfs", "hyperbase", "inceptor" }
+	chartList := []string{ "zookeeper", "txsql" }
 
 	yaml.Unmarshal([]byte(testSimpleCommonValuesStr), &commonValuesVal)
 	projectParams := release.ProjectParams{
@@ -109,6 +109,7 @@ func TestMain(m *testing.M) {
 		Config: "/home/bianyu/user/code/opensource/goproject/src/walm/test/k8sconfig/kubeconfig",
 	}
 	informer.InitInformer()
+	InitProject()
 	os.Exit(m.Run())
 }
 

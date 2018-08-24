@@ -1,6 +1,6 @@
 debug: true
 serverConfig:
-  port: 9000
+  port: 9001
   readTimeout: 0
   writeTimeout: 0
   tls: false
