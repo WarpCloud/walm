@@ -23,8 +23,17 @@ type ReleaseInfo struct {
 	Status          *ReleaseStatus         `json:"release_status" description:"status of release"`
 }
 
+type ReleaseInfoCache struct {
+	ReleaseInfo
+	ReleaseResourceMetas []*ReleaseResourceMeta `json:"release_resource_metas" description:"release resource metas"`
+}
+
+type ReleaseStatus struct {
+	Resources []ReleaseResource `json:"resources" description:" release resources "`
+}
+
 type ReleaseResource struct {
-	Kind     string `json:"kind" description:"resource kind"`
+	Kind     string               `json:"kind" description:"resource kind"`
 	Resource adaptor.WalmResource `json:"resource" description:"resource object"`
 }
 
@@ -47,10 +56,6 @@ type ChartValicationInfo struct {
 	DryRunStatus string                 `json:"dryrun_status" description:"status of dry run "`
 	DryRunResult map[string]string      `json:"dryrun_result" description:"result of dry run "`
 	ErrorMessage string                 `json:"error_message" description:" error msg "`
-}
-
-type ReleaseStatus struct {
-	Resources []ReleaseResource `json:"resources" description:" release resources "`
 }
 
 type ReleaseListOption struct {
@@ -130,7 +135,7 @@ type HelmValues struct {
 
 type RepoInfo struct {
 	TenantRepoName string `json:"repo_name"`
-	TenantRepoURL string `json:"repo_url"`
+	TenantRepoURL  string `json:"repo_url"`
 }
 
 type RepoInfoList struct {
@@ -138,12 +143,12 @@ type RepoInfoList struct {
 }
 
 type ChartInfo struct {
-	ChartName string `json:"chart_name"`
-	ChartVersion string `json:"chart_version"`
-	ChartDescription string `json:"chart_description"`
-	ChartAppVersion string `json:"chart_appversion"`
-	ChartEngine string `json:"chart_engine"`
-	DefaultValue string `json:"default_value" description:"default values.yaml defined by the chart"`
+	ChartName        string   `json:"chart_name"`
+	ChartVersion     string   `json:"chart_version"`
+	ChartDescription string   `json:"chart_description"`
+	ChartAppVersion  string   `json:"chart_appversion"`
+	ChartEngine      string   `json:"chart_engine"`
+	DefaultValue     string   `json:"default_value" description:"default values.yaml defined by the chart"`
 	DependencyCharts []string `json:"dependency_charts" description:"dependency chart name"`
 }
 
