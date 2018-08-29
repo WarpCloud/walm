@@ -34,8 +34,7 @@ func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectIn
 	projectMap := make(map[string]*release.ProjectInfo)
 	projectList := new(release.ProjectInfoList)
 
-	option := &release.ReleaseListOption{}
-	releaseList, err := manager.helmClient.ListReleases(option)
+	releaseList, err := manager.helmClient.ListReleases(namespace, "*--*")
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +49,7 @@ func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectIn
 			} else {
 				projectMap[projectName] = new(release.ProjectInfo)
 				projectMap[projectName].Name = projectName
-				projectMap[projectName].Namespace = namespace
+				projectMap[projectName].Namespace = releaseInfo.Namespace
 				projectMap[projectName].CommonValues = make(map[string]interface{})
 				releaseInfo.Name = projectNameArray[1]
 				projectMap[projectName].Releases = append(projectMap[projectName].Releases, releaseInfo)
@@ -62,11 +61,12 @@ func (manager *ProjectManager)ListProjects(namespace string) (*release.ProjectIn
 }
 
 func (manager *ProjectManager)GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
-	found := false
-	projectInfo := new(release.ProjectInfo)
-	option := &release.ReleaseListOption{}
-	option.Filter = fmt.Sprintf("%s.*", projectName)
-	releaseList, err := manager.helmClient.ListReleases(option)
+	projectInfo := &release.ProjectInfo{
+		Name: projectName,
+		Namespace: namespace,
+		CommonValues: map[string]interface{}{},
+	}
+	releaseList, err := manager.helmClient.ListReleases(namespace, projectName + "--*")
 	if err != nil {
 		return nil, err
 	}
@@ -74,16 +74,12 @@ func (manager *ProjectManager)GetProjectInfo(namespace, projectName string) (*re
 		projectNameArray := strings.Split(releaseInfo.Name, "--")
 		if len(projectNameArray) == 2 {
 			if projectName == projectNameArray[0] {
-				found = true
-				projectInfo.Name = projectName
-				projectInfo.Namespace = namespace
-				projectInfo.CommonValues = make(map[string]interface{})
 				releaseInfo.Name = projectNameArray[1]
 				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
 			}
 		}
 	}
-	if found {
+	if len(projectInfo.Releases) > 0 {
 		return projectInfo, nil
 	}
 	return nil, nil

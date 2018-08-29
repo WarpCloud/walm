@@ -121,6 +121,7 @@ func initElector() {
 
 	onStartedLeadingFunc := func(stop <-chan struct{}) {
 		logrus.Info("Succeed to elect leader")
+		helm.GetDefaultHelmClient().StartResyncReleaseCaches(stop)
 		job.GetDefaultWalmJobManager().Start(stop)
 	}
 	onNewLeaderFunc := func(identity string) {
