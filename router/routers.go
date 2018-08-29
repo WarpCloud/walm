@@ -146,8 +146,6 @@ func InitReleaseRouter() *restful.WebService {
 	ws.Route(ws.GET("/").To(v1.ListRelease).
 		Doc("获取所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.QueryParameter("filter", "release过滤").DataType("string")).
-		Param(ws.QueryParameter("limit", "返回release的最大数量").DataType("string")).
 		Writes(releasetypes.ReleaseInfoList{}).
 		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -156,8 +154,6 @@ func InitReleaseRouter() *restful.WebService {
 		Doc("获取Namepaces下的所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Param(ws.QueryParameter("filter", "release过滤").DataType("string")).
-		Param(ws.QueryParameter("limit", "返回release的最大数量").DataType("string")).
 		Writes(releasetypes.ReleaseInfoList{}).
 		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))

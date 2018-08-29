@@ -5,7 +5,6 @@ import (
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
 	"fmt"
-	"strconv"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
@@ -33,18 +32,8 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 }
 
 func ListReleaseByNamespace(request *restful.Request, response *restful.Response) {
-	option := &release.ReleaseListOption{}
-	option.Namespace = request.PathParameter("namespace")
-	option.Filter = request.QueryParameter("filter")
-	if limit := request.QueryParameter("limit"); len(limit) > 0 {
-		limitInt, err := strconv.Atoi(limit)
-		if err != nil {
-			WriteErrorResponse(response, -1, fmt.Sprintf("failed to parse limit query parameter %s: %s", limit, err.Error()))
-			return
-		}
-		option.Limit = limitInt
-	}
-	infos, err := helm.GetDefaultHelmClient().ListReleases(option)
+	namespace := request.PathParameter("namespace")
+	infos, err := helm.GetDefaultHelmClient().ListReleases(namespace, "")
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return
@@ -53,17 +42,7 @@ func ListReleaseByNamespace(request *restful.Request, response *restful.Response
 }
 
 func ListRelease(request *restful.Request, response *restful.Response) {
-	option := &release.ReleaseListOption{}
-	option.Filter = request.QueryParameter("filter")
-	if limit := request.QueryParameter("limit"); len(limit) > 0 {
-		limitInt, err := strconv.Atoi(limit)
-		if err != nil {
-			WriteErrorResponse(response, -1, fmt.Sprintf("failed to parse limit query parameter %s: %s", limit, err.Error()))
-			return
-		}
-		option.Limit = limitInt
-	}
-	infos, err := helm.GetDefaultHelmClient().ListReleases(option)
+	infos, err := helm.GetDefaultHelmClient().ListReleases("", "")
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return

@@ -1,7 +1,6 @@
 package release
 
 import (
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 	"walm/pkg/k8s/adaptor"
 )
 
@@ -11,21 +10,25 @@ type ReleaseInfoList struct {
 }
 
 type ReleaseInfo struct {
+	ReleaseSpec
+	Ready           bool                   `json:"ready" description:"whether release is ready"`
+	Status          *ReleaseStatus         `json:"release_status" description:"status of release"`
+}
+
+type ReleaseSpec struct {
 	Name            string                 `json:"name" description:"name of the release"`
 	ConfigValues    map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
 	Namespace       string                 `json:"namespace" description:"namespace of release"`
-	Ready           bool                   `json:"ready" description:"whether release is ready"`
 	Dependencies    map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 	ChartName       string                 `json:"chart_name" description:"chart name"`
 	ChartVersion    string                 `json:"chart_version" description:"chart version"`
 	ChartAppVersion string                 `json:"chart_app_version" description:"jsonnet app version"`
-	Status          *ReleaseStatus         `json:"release_status" description:"status of release"`
 }
 
-type ReleaseInfoCache struct {
-	ReleaseInfo
-	ReleaseResourceMetas []*ReleaseResourceMeta `json:"release_resource_metas" description:"release resource metas"`
+type ReleaseCache struct {
+	ReleaseSpec
+	ReleaseResourceMetas []ReleaseResourceMeta `json:"release_resource_metas" description:"release resource metas"`
 }
 
 type ReleaseStatus struct {
@@ -38,9 +41,9 @@ type ReleaseResource struct {
 }
 
 type ReleaseResourceMeta struct {
-	Kind      string
-	Namespace string
-	Name      string
+	Kind      string `json:"kind" description:"resource kind"`
+	Namespace string `json:"namespace" description:"resource namespace"`
+	Name      string `json:"name" description:"resource name"`
 }
 
 type ChartValicationInfo struct {
@@ -56,21 +59,6 @@ type ChartValicationInfo struct {
 	DryRunStatus string                 `json:"dryrun_status" description:"status of dry run "`
 	DryRunResult map[string]string      `json:"dryrun_result" description:"result of dry run "`
 	ErrorMessage string                 `json:"error_message" description:" error msg "`
-}
-
-type ReleaseListOption struct {
-	Namespace string
-	Filter    string
-	Limit     int
-	// 0: "ASC",
-	// 1: "DESC",
-	Order int32
-	//  0: "UNKNOWN",
-	//	1: "NAME",
-	//	2: "LAST_RELEASED",
-	Sort     int32
-	Offset   string
-	Statuses []hapiRelease.Status_Code
 }
 
 type ReleaseRequest struct {

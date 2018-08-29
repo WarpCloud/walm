@@ -116,21 +116,21 @@ func CreateFakeApiserverClient(apiserverHost string, kubeConfig string) (*kubern
 }
 
 // for test
-func CreateFakeApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
-	return createApiserverClientEx(apiserverHost, kubeConfig)
+func CreateFakeKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
+	return createKubeClient(apiserverHost, kubeConfig)
 }
 
 // k8s client to deal with instance, only for k8s 1.9+
-func CreateKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
+func createKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
 
 	//cfg := kube.GetConfig(kubeConfig)
-	cfg := GetKubeConfig(apiserverHost, kubeConfig)
+	cfg := getKubeConfig(apiserverHost, kubeConfig)
 	client := kube.New(cfg)
 
 	return client
 }
 
-func GetKubeConfig(apiserverHost string, kubeConfig string) clientcmd.ClientConfig {
+func getKubeConfig(apiserverHost string, kubeConfig string) clientcmd.ClientConfig {
 
 	if kubeConfig == "" && apiserverHost == "" {
 		cfg := kube.GetConfig("", "")

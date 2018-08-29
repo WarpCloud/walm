@@ -54,7 +54,7 @@ type WalmConfig struct {
 	RedisConfig *RedisConfig `json:"redisConfig"`
 }
 
-// Init sets values from the environment.
+// StartResyncReleaseCaches sets values from the environment.
 func InitConfig(configPath string) {
 	yamlFile, err := ioutil.ReadFile(configPath)
 	if err != nil {

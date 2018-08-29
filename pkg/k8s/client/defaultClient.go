@@ -54,7 +54,7 @@ func GetDefaultRestConfig() *restclient.Config {
 func GetKubeClient() *kube.Client {
 
 	if DefaultKubeClient == nil {
-		DefaultKubeClient = CreateKubeClient("", setting.Config.KubeConfig.Config)
+		DefaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
 	}
 
 	return  DefaultKubeClient
