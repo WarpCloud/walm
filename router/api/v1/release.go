@@ -5,6 +5,7 @@ import (
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
 	"fmt"
+	walmerr "walm/pkg/util/error"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
@@ -27,7 +28,7 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 	}
 	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install or upgrade release: %s", err.Error()))
 	}
 }
 
@@ -55,7 +56,11 @@ func GetRelease(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("release")
 	info, err := helm.GetDefaultHelmClient().GetRelease(namespace, name)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get release: %s", err.Error()))
+		if walmerr.IsNotFoundError(err) {
+			WriteNotFoundResponse(response, -1, fmt.Sprintf("release %s is not found", name))
+			return
+		}
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get release %s: %s", name, err.Error()))
 		return
 	}
 	response.WriteEntity(info)

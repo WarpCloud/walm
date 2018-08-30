@@ -121,6 +121,7 @@ func InitNodeRouter() *restful.WebService {
 		Param(ws.PathParameter("nodename", "节点名字").DataType("string")).
 		Writes(k8stypes.WalmNode{}).
 		Returns(200, "OK", k8stypes.WalmNode{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{nodename}/labels").To(v1.LabelNode).
@@ -165,6 +166,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Writes(releasetypes.ReleaseInfo{}).
 		Returns(200, "OK", releasetypes.ReleaseInfo{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.PUT("/{namespace}").To(v1.UpgradeRelease).

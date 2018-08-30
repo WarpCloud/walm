@@ -9,3 +9,7 @@ import (
 func WriteErrorResponse(response *restful.Response, code int, errMsg string) error {
 	return response.WriteHeaderAndEntity(http.StatusInternalServerError, api.ErrorMessageResponse{code, errMsg})
 }
+
+func WriteNotFoundResponse(response *restful.Response, code int, errMsg string) error {
+	return response.WriteHeaderAndEntity(http.StatusNotFound, api.ErrorMessageResponse{code, errMsg})
+}

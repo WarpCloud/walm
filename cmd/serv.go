@@ -21,6 +21,7 @@ import (
 	"walm/pkg/k8s/elect"
 	"walm/pkg/k8s/client"
 	"walm/pkg/job"
+	"encoding/json"
 )
 
 const servDesc = `
@@ -70,7 +71,11 @@ func NewServCmd() *cobra.Command {
 func (sc *ServCmd) run() error {
 	logrus.Infof("loading configuration from [%s]", sc.cfgFile)
 	setting.InitConfig(sc.cfgFile)
-	logrus.Infof("finished loading configuration %+v", setting.Config)
+	settingConfig, err := json.Marshal(setting.Config)
+	if err != nil {
+		logrus.Fatal("failed to marshal setting config")
+	}
+	logrus.Infof("finished loading configuration: %s", string(settingConfig))
 
 	initService()
 	initElector()

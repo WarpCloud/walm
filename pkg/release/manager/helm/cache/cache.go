@@ -14,10 +14,7 @@ import (
 	"encoding/json"
 	goredis "github.com/go-redis/redis"
 	"time"
-)
-
-const (
-	walmReleasesKey = "walm-releases"
+	walmerr "walm/pkg/util/error"
 )
 
 type HelmCache struct {
@@ -33,7 +30,7 @@ func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapiRelease.Rele
 		return err
 	}
 
-	_, err = cache.redisClient.GetClient().HMSet(walmReleasesKey, releaseCache).Result()
+	_, err = cache.redisClient.GetClient().HMSet(redis.WalmReleasesKey, releaseCache).Result()
 	if err != nil {
 		logrus.Errorf("failed to set release cache of %s to redis: %s", helmRelease.Name, err.Error())
 		return err
@@ -43,7 +40,7 @@ func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapiRelease.Rele
 }
 
 func (cache *HelmCache) DeleteReleaseCache(namespace, name string) error {
-	_, err := cache.redisClient.GetClient().HDel(walmReleasesKey, buildWalmReleaseFieldName(namespace, name)).Result()
+	_, err := cache.redisClient.GetClient().HDel(redis.WalmReleasesKey, buildWalmReleaseFieldName(namespace, name)).Result()
 	if err != nil {
 		logrus.Errorf("failed to delete release cache of %s from redis: %s", name, err.Error())
 		return err
@@ -53,8 +50,12 @@ func (cache *HelmCache) DeleteReleaseCache(namespace, name string) error {
 }
 
 func (cache *HelmCache) GetReleaseCache(namespace, name string) (releaseCache *release.ReleaseCache, err error) {
-	releaseCacheStr, err := cache.redisClient.GetClient().HGet(walmReleasesKey, buildWalmReleaseFieldName(namespace, name)).Result()
+	releaseCacheStr, err := cache.redisClient.GetClient().HGet(redis.WalmReleasesKey, buildWalmReleaseFieldName(namespace, name)).Result()
 	if err != nil {
+		if err.Error() == redis.KeyNotFoundErrMsg {
+			logrus.Errorf("release cache of %s is not found in redis", name)
+			return nil, walmerr.NotFoundError{}
+		}
 		logrus.Errorf("failed to get release cache of %s from redis: %s", name, err.Error())
 		return
 	}
@@ -73,7 +74,7 @@ func (cache *HelmCache) GetReleaseCache(namespace, name string) (releaseCache *r
 func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) (releaseCaches []*release.ReleaseCache, err error) {
 	var releaseCacheStrs []string
 	if namespace == "" && filter == "" && count == 0 {
-		releaseCacheMap, err := cache.redisClient.GetClient().HGetAll(walmReleasesKey).Result()
+		releaseCacheMap, err := cache.redisClient.GetClient().HGetAll(redis.WalmReleasesKey).Result()
 		if err != nil {
 			logrus.Errorf("failed to get all the release caches from redis: %s", err.Error())
 			return nil, err
@@ -82,24 +83,14 @@ func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) 
 			releaseCacheStrs = append(releaseCacheStrs, releaseCacheStr)
 		}
 	} else {
-		newFilter := namespace
-		if newFilter == "" {
-			newFilter = "*"
-		}
-		newFilter += "/"
-		if filter == "" {
-			newFilter += "*"
-		} else {
-			newFilter += filter
-		}
-
+		newFilter := buildHScanFilter(namespace, filter)
 		if count == 0 {
-			count = 100
+			count = 1000
 		}
 
 		// ridiculous logic: scan result contains both key and value
 		// TODO deal with cursor
-		scanResult, _, err := cache.redisClient.GetClient().HScan(walmReleasesKey, 0, newFilter, count).Result()
+		scanResult, _, err := cache.redisClient.GetClient().HScan(redis.WalmReleasesKey, 0, newFilter, count).Result()
 		if err != nil {
 			logrus.Errorf("failed to scan the release caches from redis with namespace=%s filter=%s count=%d: %s", namespace, filter, count, err.Error())
 			return nil, err
@@ -125,6 +116,20 @@ func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) 
 	return
 }
 
+func buildHScanFilter(namespace string, filter string) string {
+	newFilter := namespace
+	if newFilter == "" {
+		newFilter = "*"
+	}
+	newFilter += "/"
+	if filter == "" {
+		newFilter += "*"
+	} else {
+		newFilter += filter
+	}
+	return newFilter
+}
+
 func (cache *HelmCache) Resync() error {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
@@ -140,7 +145,7 @@ func (cache *HelmCache) Resync() error {
 				return err
 			}
 
-			releaseCacheKeys, err := tx.HKeys(walmReleasesKey).Result()
+			releaseCacheKeys, err := tx.HKeys(redis.WalmReleasesKey).Result()
 			if err != nil {
 				logrus.Errorf("failed to get release cache keys from redis: %s", err.Error())
 				return err
@@ -154,15 +159,15 @@ func (cache *HelmCache) Resync() error {
 			}
 
 			_, err = tx.Pipelined(func(pipe goredis.Pipeliner) error {
-				pipe.HMSet(walmReleasesKey, releaseCachesFromHelm)
+				pipe.HMSet(redis.WalmReleasesKey, releaseCachesFromHelm)
 				if len(releaseCacheKeysToDel) > 0 {
-					pipe.HDel(walmReleasesKey, releaseCacheKeysToDel...)
+					pipe.HDel(redis.WalmReleasesKey, releaseCacheKeysToDel...)
 				}
 				return nil
 			})
 
 			return err
-		}, walmReleasesKey)
+		}, redis.WalmReleasesKey)
 
 		if err == goredis.TxFailedErr {
 			logrus.Warn("resync release cache transaction failed, will retry after 5 seconds")

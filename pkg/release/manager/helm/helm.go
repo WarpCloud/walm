@@ -23,6 +23,7 @@ import (
 	"walm/pkg/k8s/client"
 	"k8s.io/apimachinery/pkg/util/wait"
 	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
+	walmerr "walm/pkg/util/error"
 )
 
 const (
@@ -122,7 +123,6 @@ func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.Rel
 func (client *HelmClient) GetRelease(namespace, releaseName string) (release *release.ReleaseInfo, err error) {
 	logrus.Debugf("Enter GetRelease %s %s\n", namespace, releaseName)
 	releaseCache, err := client.helmCache.GetReleaseCache(namespace, releaseName)
-	// TODO deal with not found case
 	if err != nil {
 		logrus.Errorf("failed to get release cache of %s : %s", releaseName, err.Error())
 		return nil, err
@@ -144,6 +144,7 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 	}
 	chartRequested, err := client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
+		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 		return err
 	}
 	depLinks := make(map[string]interface{})
@@ -173,15 +174,14 @@ func (client *HelmClient) RollbackRealese(namespace, releaseName, version string
 func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
 	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
 
-	releaseInfo, err := client.GetRelease(namespace, releaseName)
-	//TODO deal with not found case, return nil
+	_, err := client.GetRelease(namespace, releaseName)
 	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release %s is not found", releaseName)
+			return nil
+		}
+		logrus.Errorf("failed to get release %s : %s", releaseName, err.Error())
 		return err
-	}
-
-	if releaseInfo.Name == "" {
-		logrus.Printf("Can't found %s in ns %s\n", releaseName, namespace)
-		return nil
 	}
 
 	opts := []helm.DeleteOption{
@@ -252,10 +252,12 @@ func (client *HelmClient) downloadChart(repoName, charName, version string) (str
 func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
 	chartPath, err := client.downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
+		logrus.Errorf("failed to download chart : %s", err.Error())
 		return nil, err
 	}
 	chartRequested, err := chartutil.Load(chartPath)
 	if err != nil {
+		logrus.Errorf("failed to load chart : %s", err.Error())
 		return nil, err
 	}
 
@@ -265,12 +267,12 @@ func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion stri
 func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) (*hapiRelease.Release, error) {
 	rawVals, err := yaml.Marshal(configValues)
 	if err != nil {
-		logrus.Errorf("installChart Marshal Error : %s\n", err.Error())
+		logrus.Errorf("failed to marshal config values: %s", err.Error())
 		return nil, err
 	}
 	err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(rawVals[:]), depLinks)
 	if err != nil {
-		logrus.Errorf("installChart ProcessAppCharts error : %s\n", err.Error())
+		logrus.Errorf("failed to process app charts : %s", err.Error())
 		return nil, err
 	}
 
@@ -279,7 +281,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 	if err == nil {
 		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
 		if previousReleaseNamespace != namespace {
-			logrus.Warnf("WARNING: Namespace %s doesn't match with previous. Release will be deployed to %s\n",
+			logrus.Warnf("namespace %s doesn't match with previous, release will be deployed to %s",
 				namespace, previousReleaseNamespace,
 			)
 		}
@@ -291,7 +293,8 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			helm.UpgradeDryRun(client.dryRun),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("installChart UPGRADE FAILED: %v", err)
+			logrus.Errorf("failed to update release from chart : %s", err.Error())
+			return nil, err
 		}
 		helmRelease = resp.GetRelease()
 	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
@@ -303,17 +306,19 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			helm.InstallDryRun(client.dryRun),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("installChart INSTALL FAILED: %v", err)
+			logrus.Errorf("failed to install release from chart : %s", err.Error())
+			return nil, err
 		}
 		helmRelease = resp.GetRelease()
 	} else {
+		logrus.Errorf("failed to get release history : %s", err.Error())
 		return nil, err
 	}
 
 	return helmRelease, nil
 }
 
-func (client *HelmClient) StartResyncReleaseCaches(stopCh <- chan struct{}) {
+func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
 	logrus.Infof("start to resync release cache every %v", client.helmCacheResyncInterval)
 	go wait.Until(func() {
 		client.helmCache.Resync()

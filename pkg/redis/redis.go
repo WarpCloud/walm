@@ -6,6 +6,12 @@ import (
 	"github.com/go-redis/redis"
 )
 
+const (
+	KeyNotFoundErrMsg = "redis: nil"
+	WalmJobsKey       = "walm-jobs"
+	WalmReleasesKey   = "walm-releases"
+)
+
 type RedisClient struct {
 	client *redis.Client
 }
