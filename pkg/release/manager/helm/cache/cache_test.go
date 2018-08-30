@@ -31,13 +31,13 @@ func TestHelmCache_Resync(t *testing.T) {
 	}()
 
 	time.Sleep(500 * time.Millisecond)
-	_, err := redisClient.GetClient().HSet(walmReleasesKey, "test1/test1", "test").Result()
+	_, err := redisClient.GetClient().HSet(redis.WalmReleasesKey, "test1/test1", "test").Result()
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	wg.Wait()
-	test, err := redisClient.GetClient().HGet(walmReleasesKey, "test1/test1").Result()
+	test, err := redisClient.GetClient().HGet(redis.WalmReleasesKey, "test1/test1").Result()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -112,4 +112,46 @@ func TestHelmCache_GetCache(t *testing.T) {
 		t.Fail()
 	}
 	fmt.Println(len(releaseCaches))
+}
+
+func TestHelmCache_Tmp(t *testing.T) {
+	redisClient := redis.CreateFakeRedisClient()
+	res, err := redisClient.GetClient().HGet(redis.WalmReleasesKey, "notexists").Result()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(res)
+	}
+
+
+	num, err := redisClient.GetClient().HDel(redis.WalmReleasesKey, "notexists").Result()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(num)
+	}
+
+
+	ok, err := redisClient.GetClient().HSet(redis.WalmReleasesKey, "existtest", "test").Result()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(ok)
+	}
+
+
+	ok, err = redisClient.GetClient().HSetNX(redis.WalmReleasesKey, "existtest", "test").Result()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(ok)
+	}
+
+	num, err = redisClient.GetClient().HDel(redis.WalmReleasesKey, "existtest").Result()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(num)
+	}
+
 }

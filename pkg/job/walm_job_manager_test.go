@@ -8,6 +8,7 @@ import (
 	"sync"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"fmt"
+	walmerr "walm/pkg/util/error"
 )
 
 func TestWalmJobManager(t *testing.T) {
@@ -15,7 +16,12 @@ func TestWalmJobManager(t *testing.T) {
 	manager := &WalmJobManager{redisClient: redisClient, collectInterval: 1*time.Second, mutex: &sync.Mutex{}, runningWalmJobs: map[string]*WalmJob{}}
 	manager.Start(wait.NeverStop)
 
-	id, err := manager.CreateWalmJob("","fake", &FakeJob{"test1"})
+	id, err := manager.CreateWalmJob("test1","fake", &FakeJob{"test1"})
+	if err != nil {
+		logrus.Error(err.Error())
+	}
+
+	_, err = manager.CreateWalmJob("test1","fake", &FakeJob{"test1"})
 	if err != nil {
 		logrus.Error(err.Error())
 	}
@@ -42,6 +48,10 @@ func TestWalmJobManager(t *testing.T) {
 
 	walmJob, err = manager.GetWalmJob(id)
 	if err != nil {
-		logrus.Error(err.Error())
+		if _, ok := err.(walmerr.NotFoundError) ; ok {
+			fmt.Println("it is not found err")
+		}
 	}
+
+
 }

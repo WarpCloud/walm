@@ -35,6 +35,10 @@ func GetNode(request *restful.Request, response *restful.Response) {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get node: %s", err.Error()))
 		return
 	}
+	if node.GetState().Status == "NotFound" {
+		WriteNotFoundResponse(response, -1, fmt.Sprintf("node %s is not found", nodeName))
+		return
+	}
 	response.WriteEntity(node)
 }
 

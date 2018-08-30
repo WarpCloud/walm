@@ -9,10 +9,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"time"
 	"fmt"
+	walmerr "walm/pkg/util/error"
 )
 
 const (
-	walmJobsKey                           = "walm-jobs"
 	collectWalmJobsInterval time.Duration = 5 * time.Second
 )
 
@@ -85,7 +85,7 @@ func (manager *WalmJobManager) runWalmJob(jobId string, walmJob *WalmJob) {
 }
 
 func (manager *WalmJobManager) GetWalmJobsFromRedis() (map[string]*WalmJob, error) {
-	walmJobStrs, err := manager.redisClient.GetClient().HGetAll(walmJobsKey).Result()
+	walmJobStrs, err := manager.redisClient.GetClient().HGetAll(redis.WalmJobsKey).Result()
 	if err != nil {
 		logrus.Errorf("failed to get walm jobs from redis: %s", err.Error())
 		return nil, err
@@ -114,7 +114,7 @@ func convertJsonStrToWalmJob(walmJobStr string) (walmJob *WalmJob, err error) {
 }
 
 func (manager *WalmJobManager) deleteWalmJobFromRedis(jobId string) error {
-	_, err := manager.redisClient.GetClient().HDel(walmJobsKey, jobId).Result()
+	_, err := manager.redisClient.GetClient().HDel(redis.WalmJobsKey, jobId).Result()
 	if err != nil {
 		logrus.Errorf("failed to delete walm job %s: %s", jobId, err.Error())
 	} else {
@@ -130,7 +130,7 @@ func (manager *WalmJobManager) updateWalmJob(jobId string, walmJob *WalmJob) (er
 		return err
 	}
 
-	_, err = manager.redisClient.GetClient().HSet(walmJobsKey, jobId, walmJobStr).Result()
+	_, err = manager.redisClient.GetClient().HSet(redis.WalmJobsKey, jobId, walmJobStr).Result()
 	if err != nil {
 		logrus.Errorf("failed to update walm job %s: %s", walmJobStr, err.Error())
 	} else {
@@ -140,14 +140,13 @@ func (manager *WalmJobManager) updateWalmJob(jobId string, walmJob *WalmJob) (er
 }
 
 func (manager *WalmJobManager) GetWalmJob(jobId string) (*WalmJob, error) {
-	walmJobStr, err := manager.redisClient.GetClient().HGet(walmJobsKey, jobId).Result()
+	walmJobStr, err := manager.redisClient.GetClient().HGet(redis.WalmJobsKey, jobId).Result()
 	if err != nil {
+		if err.Error() == redis.KeyNotFoundErrMsg {
+			logrus.Errorf("walm job %s is not found in redis", jobId)
+			return nil, walmerr.NotFoundError{}
+		}
 		logrus.Errorf("failed to get walm job %s from redis: %s", jobId, err.Error())
-		return nil, err
-	}
-
-	if walmJobStr == "" {
-		err = fmt.Errorf("walm job %s is not found in redis", jobId)
 		return nil, err
 	}
 
@@ -173,7 +172,7 @@ func (manager *WalmJobManager) CreateWalmJob(jobId, jobType string, job Job) (st
 		return "", err
 	}
 
-	ok, err := manager.redisClient.GetClient().HSetNX(walmJobsKey, newJobId, walmJobStr).Result()
+	ok, err := manager.redisClient.GetClient().HSetNX(redis.WalmJobsKey, newJobId, walmJobStr).Result()
 	if err != nil {
 		logrus.Errorf("failed to create walm job %s : %s", walmJobStr, err.Error())
 		return "", err
