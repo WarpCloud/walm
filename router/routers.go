@@ -132,6 +132,14 @@ func InitNodeRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.POST("/{nodename}/annotations").To(v1.AnnotateNode).
+		Doc("修改节点Annotations").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("nodename", "节点名字").DataType("string")).
+		Reads(walmtypes.AnnotateNodeRequestBody{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	return ws
 }
 

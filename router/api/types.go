@@ -9,3 +9,8 @@ type LabelNodeRequestBody struct {
 	AddLabels    map[string]string `json:"add_labels"`
 	RemoveLabels []string `json:"remove_labels"`
 }
+
+type AnnotateNodeRequestBody struct {
+	AddAnnotations    map[string]string `json:"add_annotations"`
+	RemoveAnnotations []string `json:"remove_annotations"`
+}
