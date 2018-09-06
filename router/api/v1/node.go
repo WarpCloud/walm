@@ -61,3 +61,23 @@ func LabelNode(request *restful.Request, response *restful.Response) {
 		return
 	}
 }
+
+func AnnotateNode(request *restful.Request, response *restful.Response) {
+	nodeName := request.PathParameter("nodename")
+	if nodeName == "" {
+		WriteErrorResponse(response, -1, fmt.Sprintf("node name can not be empty"))
+		return
+	}
+	annotateNodeRequest := &api.AnnotateNodeRequestBody{}
+	err := request.ReadEntity(annotateNodeRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+
+	_, err = handler.GetDefaultHandlerSet().GetNodeHandler().AnnotateNode(nodeName, annotateNodeRequest.AddAnnotations, annotateNodeRequest.RemoveAnnotations)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to annotate node %s: %s", nodeName, err.Error()))
+		return
+	}
+}
