@@ -97,6 +97,54 @@ func InitTenantRouter() *restful.WebService {
 	return ws
 }
 
+func InitSecretRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/secret").
+		Doc("Kubernetes Secret相关操作").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"secret"}
+
+	ws.Route(ws.GET("/{namespace}").To(v1.GetSecrets).
+		Doc("获取Namepace下的所有Secret列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Writes(k8stypes.WalmSecretList{}).
+		Returns(200, "OK", k8stypes.WalmSecretList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{namespace}/name/{secretname}").To(v1.GetSecret).
+		Doc("获取对应Secret的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("secretname", "secret名字").DataType("string")).
+		Writes(k8stypes.WalmSecret{}).
+		Returns(200, "OK", k8stypes.WalmSecret{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{secretname}").To(v1.DeleteSecret).
+		Doc("删除一个Secret").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("secretname", "Secret名字").DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}").To(v1.CreateSecret).
+		Doc("创建一个Secret").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(walmtypes.CreateSecretRequestBody{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	//TODO updateSecret
+	return ws
+}
+
 func InitNodeRouter() *restful.WebService {
 	ws := new(restful.WebService)
 

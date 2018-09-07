@@ -14,7 +14,7 @@ type WalmDaemonSetAdaptor struct {
 func (adaptor *WalmDaemonSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	daemonSet, err := adaptor.daemonSetHandler.GetDaemonSet(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmDaemonSet{
 				WalmMeta: buildNotFoundWalmMeta("DaemonSet", namespace, name),
 			}, nil

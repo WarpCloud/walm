@@ -15,7 +15,7 @@ type WalmInstanceAdaptor struct {
 func (adaptor *WalmInstanceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	instance, err := adaptor.adaptorSet.GetHandlerSet().GetInstanceHandler().GetInstance(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmApplicationInstance{
 				WalmMeta: buildNotFoundWalmMeta("ApplicationInstance", namespace, name),
 			}, nil

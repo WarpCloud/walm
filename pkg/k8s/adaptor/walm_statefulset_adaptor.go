@@ -15,7 +15,7 @@ type WalmStatefulSetAdaptor struct {
 func (adaptor *WalmStatefulSetAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	statefulSet, err := adaptor.statefulSetHandler.GetStatefulSet(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmStatefulSet{
 				WalmMeta: buildNotFoundWalmMeta("StatefulSet", namespace, name),
 			}, nil

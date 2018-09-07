@@ -13,7 +13,7 @@ type WalmPodAdaptor struct {
 func (adaptor *WalmPodAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	pod, err := adaptor.handler.GetPod(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmPod{
 				WalmMeta: buildNotFoundWalmMeta("Pod", namespace, name),
 			}, nil

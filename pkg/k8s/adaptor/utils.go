@@ -31,7 +31,7 @@ func parsePods(pods []*WalmPod) (bool, *WalmPod, *WalmPod, *WalmPod) {
 	return allPodsTerminating, unknownPod, pendingPod, runningPod
 }
 
-func isNotFoundErr(err error) bool {
+func IsNotFoundErr(err error) bool {
 	if e, ok := err.(*errors.StatusError); ok {
 		if e.Status().Reason == "NotFound" {
 			return true
