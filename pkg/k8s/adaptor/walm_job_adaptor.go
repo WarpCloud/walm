@@ -14,7 +14,7 @@ type WalmJobAdaptor struct {
 func (adaptor *WalmJobAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	job, err := adaptor.jobHandler.GetJob(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmJob{
 				WalmMeta: buildNotFoundWalmMeta("Job", namespace, name),
 			}, nil

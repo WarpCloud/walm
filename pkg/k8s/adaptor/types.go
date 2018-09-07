@@ -48,8 +48,8 @@ type WalmState struct {
 
 type WalmApplicationInstance struct {
 	WalmMeta
-	Modules []WalmModule   `json:"modules" description:"instance modules"`
-	Events  []WalmEvent `json:"events" description:"instance events"`
+	Modules []WalmModule `json:"modules" description:"instance modules"`
+	Events  []WalmEvent  `json:"events" description:"instance events"`
 }
 
 type WalmEvent struct {
@@ -138,13 +138,19 @@ type WalmIngress struct {
 
 type WalmSecret struct {
 	WalmMeta
-	Data map[string][]byte `json:"data" description:"secret data"`
+	Data map[string]string `json:"data" description:"secret data"`
 	Type corev1.SecretType `json:"type" description:"secret type"`
+}
+
+type WalmSecretList struct {
+	Num   int           `json:"num" description:"secret num"`
+	Items []*WalmSecret `json:"items" description:"secrets"`
 }
 
 type WalmNode struct {
 	WalmMeta
 	Labels map[string]string `json:"labels" description:"node labels"`
+	Annotations map[string]string `json:"annotations" description:"node annotations"`
 	NodeIp string            `json:"node_ip" description:"ip of node"`
 }
 

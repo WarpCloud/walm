@@ -14,7 +14,7 @@ type WalmDeploymentAdaptor struct {
 func (adaptor *WalmDeploymentAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	deployment, err := adaptor.deploymentHandler.GetDeployment(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmDeployment{
 				WalmMeta: buildNotFoundWalmMeta("Deployment", namespace, name),
 			}, nil

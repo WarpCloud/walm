@@ -13,7 +13,7 @@ type WalmResourceQuotaAdaptor struct {
 func (adaptor *WalmResourceQuotaAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	resourceQuota, err := adaptor.handler.GetResourceQuota(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmResourceQuota{
 				WalmMeta: buildNotFoundWalmMeta("ResourceQuota", namespace, name),
 			}, nil

@@ -13,7 +13,7 @@ type WalmNodeAdaptor struct {
 func (adaptor *WalmNodeAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	node, err := adaptor.handler.GetNode(name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmNode{
 				WalmMeta: buildNotFoundWalmMeta("Node", namespace, name),
 			}, nil
@@ -43,9 +43,10 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 
 func BuildWalmNode(node corev1.Node) *WalmNode {
 	walmNode := WalmNode{
-		WalmMeta: buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
-		NodeIp:   BuildNodeIp(node),
-		Labels:   node.Labels,
+		WalmMeta:    buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
+		NodeIp:      BuildNodeIp(node),
+		Labels:      node.Labels,
+		Annotations: node.Annotations,
 	}
 	return &walmNode
 }

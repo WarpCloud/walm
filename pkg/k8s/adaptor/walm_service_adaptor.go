@@ -12,7 +12,7 @@ type WalmServiceAdaptor struct {
 func (adaptor *WalmServiceAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	service, err := adaptor.handler.GetService(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmService{
 				WalmMeta: buildNotFoundWalmMeta("Service", namespace, name),
 			}, nil

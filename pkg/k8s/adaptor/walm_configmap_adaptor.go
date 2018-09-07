@@ -12,7 +12,7 @@ type WalmConfigMapAdaptor struct {
 func (adaptor *WalmConfigMapAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
 	configMap, err := adaptor.handler.GetConfigMap(namespace, name)
 	if err != nil {
-		if isNotFoundErr(err) {
+		if IsNotFoundErr(err) {
 			return WalmConfigMap{
 				WalmMeta: buildNotFoundWalmMeta("ConfigMap", namespace, name),
 			}, nil
