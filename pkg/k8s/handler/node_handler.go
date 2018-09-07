@@ -56,6 +56,34 @@ func (handler *NodeHandler) LabelNode(name string, labels map[string]string, rem
 	return
 }
 
+func (handler *NodeHandler) AnnotateNode(name string, annos map[string]string, remove []string) (node *v1.Node, err error) {
+	if len(annos) == 0 && len(remove) == 0 {
+		return
+	}
+
+	node, err = handler.client.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	oldAnnos, err := json.Marshal(node.Annotations)
+	if err != nil {
+		return
+	}
+
+	node.Annotations = k8sutils.MergeLabels(node.Annotations, annos, remove)
+	newAnnos, err := json.Marshal(node.Annotations)
+	if err != nil {
+		return
+	}
+
+	if !reflect.DeepEqual(oldAnnos, newAnnos) {
+		return handler.client.CoreV1().Nodes().Update(node)
+	}
+
+	return
+}
+
 func (handler *NodeHandler) GetPodsOnNode(nodeName string, labelSelector *metav1.LabelSelector) (*v1.PodList, error) {
 	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName + ",status.phase!=" + string(v1.PodSucceeded) + ",status.phase!=" + string(v1.PodFailed))
 	if err != nil {
