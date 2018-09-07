@@ -98,8 +98,8 @@ func (manager *ProjectManager)CreateProject(namespace string, project string, pr
 
 	for _, releaseParams := range projectParams.Releases {
 		releaseParams.Name = fmt.Sprintf("%s--%s", project, releaseParams.Name)
-		fmt.Printf("%v\n", releaseParams.ConfigValues)
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
+		logrus.Infof("CreateProject Release %s %v\n", releaseParams.Name, releaseParams.ConfigValues)
 	}
 
 	releaseList, err := manager.brainFuckChartDepParse(projectParams)

@@ -1,17 +1,10 @@
-FROM 172.16.1.99/transwarp/walm-builder:1.0 as builder
+FROM 172.16.1.99/transwarp/gcr.io/google_containers/kube-cross:v1.10.3-1 AS build-env
+MAINTAINER TOS <tos@transwarp.io>
 
-WORKDIR /go/src/walm
-COPY . .
+ADD . /go/src/walm
+RUN cd /go/src/walm && make
 
-RUN swag init -g router/routers.go && make install
+FROM 172.16.1.73/transwarp/alpine:transwarp-base
+MAINTAINER TOS <tos@transwarp.io>
 
-# kubectl and helm will be placed and build base image
-FROM 172.16.1.99/gold/helm:tos18-latest
-#RUN apk add --update ca-certificates && update-ca-certificates
-RUN mkdir -p /etc/walm/conf
-COPY --from=builder /go/bin/* /usr/local/bin/
-COPY --from=builder /go/src/walm/pkg/setting/conf/* /etc/walm/conf/
-ENV WALM_HOME=/root/.walm
-
-CMD [ "walm","serv" ] 
-#ENTRYPOINT [ "walm","serv" ]
+COPY --from=build-env /go/src/walm/walm /usr/bin/
