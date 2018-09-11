@@ -50,7 +50,7 @@ type ApplicationInstanceSpec struct {
 	InstanceId string `json:"instanceId,omitempty" protobuf:"bytes,2,opt,name=instanceId"`
 
 	// +optional
-	Configs string `json:"configs,omitempty" protobuf:"bytes,3,opt,name=configs"`
+	Configs map[string]interface{} `json:"configs,omitempty" protobuf:"bytes,3,opt,name=configs"`
 
 	// +optional
 	Dependencies []Dependency `json:"dependencies,omitempty" protobuf:"bytes,4,rep,name=dependencies"`
@@ -148,6 +148,6 @@ type ServiceNodePort struct {
 type ApplicationInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
-	metav1.ListMeta             `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items []ApplicationInstance `json:"items" protobuf:"bytes,2,rep,name=items"`
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []ApplicationInstance `json:"items" protobuf:"bytes,2,rep,name=items"`
 }

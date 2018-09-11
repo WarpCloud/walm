@@ -17,7 +17,6 @@ and are tested by HashiCorp.
 
 ---
 
-
 [Chef](/docs/providers/chef/index.html)
 
 [Consul](/docs/providers/consul/index.html)
@@ -40,6 +39,6 @@ and are tested by HashiCorp.
 
 [Terraform](/docs/providers/terraform/index.html)
 
-[Terraform Enterprise](/docs/providers/terraform-enterprise/index.html)
+[Terraform Enterprise](/docs/providers/tfe/index.html)
 
 [Vault](/docs/providers/vault/index.html)

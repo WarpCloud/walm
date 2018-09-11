@@ -1,5 +1,5 @@
 hash: 41307d2e47357c30e24204c416fe47222a38f1669e1c7756f690868fe780ab4a
-updated: 2018-08-13T00:32:02.473845873+08:00
+updated: 2018-09-11T13:57:23.162256263+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -136,14 +136,10 @@ imports:
   subpackages:
   - ast
   - parser
-- name: github.com/google/go-querystring
-  version: 53e6ce116135b80d037921a7fdd5138cf32d7a8a
-  subpackages:
-  - query
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -155,28 +151,25 @@ imports:
   subpackages:
   - diskcache
 - name: github.com/hashicorp/go-multierror
-  version: 3d5d8f294aa03d8e98859feac328afbdf1ae0703
+  version: 886a7fbe3eb1c874d46f623bfa70af45f425b3d1
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
   - simplelru
 - name: github.com/hashicorp/terraform
-  version: bb37637a139151be0ff9bf00c85c448538e5b3d2
+  version: 71c79522c6b4abff83e37e609cb28562b5aa25fc
   subpackages:
   - ./dag
-  - dag
 - name: github.com/howeyc/gopass
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/huandu/xstrings
-  version: 7bb0250b58e5c15670406e6f93ffda43281305b1
+  version: 8bbcf2f9ccb55755e748b7644164cd4bdce94c1d
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/json-iterator/go
   version: f2b4162afba35581b6d4a50d3b8f34e33c144682
-- name: github.com/levigross/grequests
-  version: 3f841d606c5aba51bee0b5bcdc6b293905836d77
 - name: github.com/mailru/easyjson
   version: 2f5df55504ebc322e4d52d34df6a1f5b503bf26d
   subpackages:
@@ -199,6 +192,8 @@ imports:
   version: bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94
 - name: github.com/modern-go/reflect2
   version: 05fbef0ca5da472bbf96c9322b84a53edc03c9fd
+- name: github.com/mohae/deepcopy
+  version: 491d3605edfb866af34a48075bd4355ac1bf46ca
 - name: github.com/opencontainers/go-digest
   version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
 - name: github.com/opencontainers/image-spec
@@ -271,13 +266,15 @@ imports:
   version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
+  - html
+  - html/atom
   - http2
   - http2/hpack
   - idna
   - internal/timeseries
   - lex/httplex
-  - publicsuffix
   - trace
+  - websocket
 - name: golang.org/x/sys
   version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
@@ -346,7 +343,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
-  version: 0f11257a8a25954878633ebdc9841c67d8f83bdb
+  version: 12444147eb1150aa5c80d2aae532cbc5b7be73d0
   subpackages:
   - admission/v1beta1
   - admissionregistration/v1alpha1
@@ -440,7 +437,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: a06aaaa0603fceba7fcb18594cb98c38d5ba3a23
+  version: 88d4601515c27f180f7efc8705e4cc18dc19100d
   subpackages:
   - pkg/apis/audit
   - pkg/authentication/authenticator
@@ -570,6 +567,8 @@ imports:
   - tools/clientcmd/api
   - tools/clientcmd/api/latest
   - tools/clientcmd/api/v1
+  - tools/leaderelection
+  - tools/leaderelection/resourcelock
   - tools/metrics
   - tools/pager
   - tools/portforward
@@ -588,11 +587,10 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 0d25a1c872a5f9e75fa82a90edd8f4994fbc273c
+  version: dfae7c7ec2e9329c8dbdb7797d57594502b40657
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/chartutil
-  - pkg/downloader
   - pkg/engine
   - pkg/getter
   - pkg/helm
@@ -607,7 +605,6 @@ imports:
   - pkg/proto/hapi/version
   - pkg/provenance
   - pkg/repo
-  - pkg/resolver
   - pkg/storage/driver
   - pkg/sympath
   - pkg/timeconv
@@ -621,7 +618,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 8619d2218cd390359b3f22163ae3319b4974930a
+  version: a963fce72fed31bdcf65502884f25ee2cdfaf9e1
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme
@@ -792,7 +789,7 @@ imports:
   - exec
   - exec/testing
 - name: transwarp/application-instance
-  version: aca0ba398585ccad851f7ab287ee0d3e6cceb835
+  version: f8bb8699ceec6fc1b174e07524baf366ede3965b
   repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
   subpackages:
   - pkg/apis/transwarp
@@ -810,8 +807,6 @@ imports:
   subpackages:
   - sortorder
 testImports:
-- name: github.com/hashicorp/errwrap
-  version: d6c0cd88035724dd42e0f335ae30161c20575ecc
 - name: github.com/kr/pretty
   version: f31442d60e51465c69811e2107ae978868dbea5c
 - name: github.com/kr/text

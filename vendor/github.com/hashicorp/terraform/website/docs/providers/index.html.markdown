@@ -144,7 +144,7 @@ down to see all providers.
     <tr>
     <td><a href="/docs/providers/template/index.html">Template</a></td>
     <td><a href="/docs/providers/terraform/index.html">Terraform</a></td>
-    <td><a href="/docs/providers/terraform-enterprise/index.html">Terraform Enterprise</a></td>
+    <td><a href="/docs/providers/tfe/index.html">Terraform Enterprise</a></td>
     </tr>
     <tr>
     <td><a href="/docs/providers/tls/index.html">TLS</a></td>

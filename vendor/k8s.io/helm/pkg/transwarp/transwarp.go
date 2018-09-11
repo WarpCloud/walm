@@ -113,15 +113,6 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 	chartRawBase["HelmAdditionalValues"] = &helmVals
 
 	rawValsBase = mergeValues(chartRawBase, rawValsBase)
-	rawVals, rawErr := yaml.Marshal(rawValsBase)
-	if rawErr != nil {
-		return fmt.Errorf("failed marshal merge values: %s", rawErr)
-	}
-
-	instanceConfigBytes, err := yaml.YAMLToJSON(rawVals)
-	if err != nil {
-		return err
-	}
 
 	chartRequested.Files[len(chartRequested.Files)-1], chartRequested.Files[removeIdx] = chartRequested.Files[removeIdx], chartRequested.Files[len(chartRequested.Files)-1]
 	chartRequested.Files = chartRequested.Files[:len(chartRequested.Files)-1]
@@ -177,7 +168,7 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 				Name:    chartRequested.Metadata.GetName(),
 				Version: chartRequested.Metadata.GetAppVersion(),
 			},
-			Configs:      string(instanceConfigBytes[:]),
+			Configs:      rawValsBase,
 			Dependencies: dependencies,
 		},
 	}

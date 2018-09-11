@@ -38,8 +38,7 @@ spec:
               - version
 #              additionalProperties: false
             configs:
-              type: string
-              pattern: '{.*}$'
+              type: object
             instanceId:
               type: string
           required:

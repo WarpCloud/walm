@@ -21,6 +21,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/mohae/deepcopy"
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -90,6 +91,17 @@ func (in *ApplicationInstanceList) DeepCopyObject() runtime.Object {
 func (in *ApplicationInstanceSpec) DeepCopyInto(out *ApplicationInstanceSpec) {
 	*out = *in
 	out.ApplicationRef = in.ApplicationRef
+	if in.Configs != nil {
+		in, out := &in.Configs, &out.Configs
+		*out = make(map[string]interface{}, len(*in))
+		for key, val := range *in {
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				(*out)[key] = deepcopy.Copy(val)
+			}
+		}
+	}
 	if in.Dependencies != nil {
 		in, out := &in.Dependencies, &out.Dependencies
 		*out = make([]Dependency, len(*in))

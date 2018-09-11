@@ -32,3 +32,6 @@ ${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
 
 # To use your own boilerplate text append:
 #   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
+
+sed -i -e 's/val.DeepCopyinterface{}()/deepcopy.Copy(val)/' -e '/import (/a "github.com/mohae/deepcopy"' pkg/apis/transwarp/v1beta1/zz_generated.deepcopy.go
+find pkg/ -name *.go -type f -execdir  gofmt -w -s {} +
