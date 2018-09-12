@@ -11,8 +11,8 @@ type ReleaseInfoList struct {
 
 type ReleaseInfo struct {
 	ReleaseSpec
-	Ready           bool                   `json:"ready" description:"whether release is ready"`
-	Status          *ReleaseStatus         `json:"release_status" description:"status of release"`
+	Ready  bool           `json:"ready" description:"whether release is ready"`
+	Status *adaptor.WalmResourceSet `json:"release_status" description:"status of release"`
 }
 
 type ReleaseSpec struct {
@@ -29,15 +29,6 @@ type ReleaseSpec struct {
 type ReleaseCache struct {
 	ReleaseSpec
 	ReleaseResourceMetas []ReleaseResourceMeta `json:"release_resource_metas" description:"release resource metas"`
-}
-
-type ReleaseStatus struct {
-	Resources []ReleaseResource `json:"resources" description:" release resources "`
-}
-
-type ReleaseResource struct {
-	Kind     string               `json:"kind" description:"resource kind"`
-	Resource adaptor.WalmResource `json:"resource" description:"resource object"`
 }
 
 type ReleaseResourceMeta struct {

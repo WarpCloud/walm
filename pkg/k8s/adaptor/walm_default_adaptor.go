@@ -5,5 +5,5 @@ type WalmDefaultAdaptor struct{
 }
 
 func(adaptor *WalmDefaultAdaptor) GetResource(namespace string, name string) (walmresource WalmResource, err error) {
-	return	buildWalmMeta(adaptor.Kind, namespace, name, buildWalmState("Unknown", "NotSupportedKind", "Can not get this resource")), nil
+	return	WalmDefaultResource{buildWalmMeta(adaptor.Kind, namespace, name, buildWalmState("Unknown", "NotSupportedKind", "Can not get this resource"))}, nil
 }
