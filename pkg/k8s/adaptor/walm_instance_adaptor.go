@@ -47,33 +47,27 @@ func (adaptor *WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.Applicat
 	return
 }
 
-func (adaptor *WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.ApplicationInstance) ([]WalmModule, error) {
-	walmModules := []WalmModule{}
+func (adaptor *WalmInstanceAdaptor) getWalmInstanceModules(instance *v1beta1.ApplicationInstance) (instanceResourceSet *WalmInstanceResourceSet, err error) {
+	instanceResourceSet = NewWalmInstanceResourceSet()
 	for _, module := range instance.Status.Modules {
 		resource, err := adaptor.adaptorSet.GetAdaptor(module.ResourceRef.Kind).
 			GetResource(module.ResourceRef.Namespace, module.ResourceRef.Name)
 		if err != nil {
-			return walmModules, err
+			return nil, err
 		}
-		if resource.GetState().Status == "Unknown" && resource.GetState().Reason == "NotSupportedKind" {
-			continue
-		}
-		walmModules = append(walmModules, WalmModule{module.ResourceRef.Kind, resource})
+		resource.AddToWalmInstanceResourceSet(instanceResourceSet)
 	}
-	return walmModules, nil
+	return
 }
-func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(modules []WalmModule, ready bool) (instanceState WalmState) {
+func (adaptor *WalmInstanceAdaptor) buildWalmInstanceState(instanceResourceSet *WalmInstanceResourceSet, ready bool) (instanceState WalmState) {
 	if ready {
 		instanceState = buildWalmState("Ready", "", "")
 	} else {
 		instanceState = buildWalmState("Pending", "ModuleNotEnough", "there is module still not created")
 	}
 
-	for _, module := range modules {
-		if module.Resource.GetState().Status != "Ready" {
-			instanceState = buildWalmState("Pending", "ModulePending", fmt.Sprintf("%s %s/%s is in state %s", module.Kind, module.Resource.GetNamespace(), module.Resource.GetName(), module.Resource.GetState().Status))
-			return
-		}
+	if ready, notReadyResource := instanceResourceSet.IsReady(); !ready {
+		instanceState = buildWalmState("Pending", "ModulePending", fmt.Sprintf("%s %s/%s is in state %s", notReadyResource.GetKind(), notReadyResource.GetNamespace(), notReadyResource.GetName(), notReadyResource.GetState().Status))
 	}
 
 	return

@@ -15,6 +15,120 @@ type WalmResource interface {
 	GetName() string
 	GetNamespace() string
 	GetState() WalmState
+	AddToWalmResourceSet(resourceSet *WalmResourceSet)
+	AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet)
+}
+
+type WalmResourceSet struct {
+	WalmInstanceResourceSet
+	Instances []WalmApplicationInstance `json:"instances" description:"release instances"`
+}
+
+func (resourceSet *WalmResourceSet)IsReady() bool {
+	if ready, _ := resourceSet.WalmInstanceResourceSet.IsReady(); !ready {
+		return false
+	}
+
+	for _, instance := range resourceSet.Instances {
+		if instance.State.Status != "Ready" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func NewWalmResourceSet() *WalmResourceSet {
+	return &WalmResourceSet{
+		WalmInstanceResourceSet: *NewWalmInstanceResourceSet(),
+		Instances: []WalmApplicationInstance{},
+	}
+}
+
+type WalmInstanceResourceSet struct {
+	Services     []WalmService     `json:"services" description:"release services"`
+	ConfigMaps   []WalmConfigMap   `json:"configmaps" description:"release configmaps"`
+	DaemonSets   []WalmDaemonSet   `json:"daemonsets" description:"release daemonsets"`
+	Deployments  []WalmDeployment  `json:"deployments" description:"release deployments"`
+	Ingresses    []WalmIngress     `json:"ingresses" description:"release ingresses"`
+	Jobs         []WalmJob         `json:"jobs" description:"release jobs"`
+	Secrets      []WalmSecret      `json:"secrets" description:"release secrets"`
+	StatefulSets []WalmStatefulSet `json:"statefulsets" description:"release statefulsets"`
+}
+
+func (instanceResourceSet *WalmInstanceResourceSet)IsReady() (bool, WalmResource) {
+	for _, secret := range instanceResourceSet.Secrets {
+		if secret.State.Status != "Ready" {
+			return false, secret
+		}
+	}
+
+	for _, job := range instanceResourceSet.Jobs {
+		if job.State.Status != "Ready" {
+			return false, job
+		}
+	}
+
+	for _, statefulSet := range instanceResourceSet.StatefulSets {
+		if statefulSet.State.Status != "Ready" {
+			return false, statefulSet
+		}
+	}
+
+	for _, service := range instanceResourceSet.Services {
+		if service.State.Status != "Ready" {
+			return false, service
+		}
+	}
+
+	for _, ingress := range instanceResourceSet.Ingresses {
+		if ingress.State.Status != "Ready" {
+			return false, ingress
+		}
+	}
+
+	for _, deployment := range instanceResourceSet.Deployments {
+		if deployment.State.Status != "Ready" {
+			return false, deployment
+		}
+	}
+
+	for _, daemonSet := range instanceResourceSet.DaemonSets {
+		if daemonSet.State.Status != "Ready" {
+			return false, daemonSet
+		}
+	}
+
+	for _, configMap := range instanceResourceSet.ConfigMaps {
+		if configMap.State.Status != "Ready" {
+			return false, configMap
+		}
+	}
+
+	return true, nil
+}
+
+func NewWalmInstanceResourceSet() *WalmInstanceResourceSet {
+	return &WalmInstanceResourceSet{
+		StatefulSets: []WalmStatefulSet{},
+		Services:     []WalmService{},
+		Jobs:         []WalmJob{},
+		Ingresses:    []WalmIngress{},
+		Deployments:  []WalmDeployment{},
+		DaemonSets:   []WalmDaemonSet{},
+		ConfigMaps:   []WalmConfigMap{},
+		Secrets:      []WalmSecret{},
+	}
+}
+
+type WalmDefaultResource struct {
+	WalmMeta
+}
+
+func (resource WalmDefaultResource) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmDefaultResource) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
 }
 
 type WalmMeta struct {
@@ -48,8 +162,15 @@ type WalmState struct {
 
 type WalmApplicationInstance struct {
 	WalmMeta
-	Modules []WalmModule `json:"modules" description:"instance modules"`
-	Events  []WalmEvent  `json:"events" description:"instance events"`
+	Modules *WalmInstanceResourceSet `json:"modules" description:"instance modules"`
+	Events  []WalmEvent             `json:"events" description:"instance events"`
+}
+
+func (resource WalmApplicationInstance) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Instances = append(resourceSet.Instances, resource)
+}
+
+func (resource WalmApplicationInstance) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
 }
 
 type WalmEvent struct {
@@ -62,11 +183,6 @@ type WalmEvent struct {
 	LastTimestamp  metav1.Time `json:"last_timestamp" description:"The time at which the most recent occurrence of this event was recorded"`
 }
 
-type WalmModule struct {
-	Kind     string       `json:"kind" description:"module kind"`
-	Resource WalmResource `json:"resource" description:"module object"`
-}
-
 type WalmDeployment struct {
 	WalmMeta
 	ExpectedReplicas  int32      `json:"expected_replicas" description:"expected replicas"`
@@ -76,10 +192,24 @@ type WalmDeployment struct {
 	Pods              []*WalmPod `json:"pods" description:"deployment pods"`
 }
 
+func (resource WalmDeployment) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Deployments = append(resourceSet.Deployments, resource)
+}
+
+func (resource WalmDeployment) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.Deployments = append(resourceSet.Deployments, resource)
+}
+
 type WalmPod struct {
 	WalmMeta
 	HostIp string `json:"host_ip" description:"host ip where pod is on"`
 	PodIp  string `json:"pod_ip" description:"pod ip"`
+}
+
+func (resource WalmPod) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmPod) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
 }
 
 type WalmService struct {
@@ -87,6 +217,14 @@ type WalmService struct {
 	Ports       []WalmServicePort  `json:"ports" description:"service ports"`
 	ClusterIp   string             `json:"cluster_ip" description:"service cluster ip"`
 	ServiceType corev1.ServiceType `json:"service_type" description:"service type"`
+}
+
+func (resource WalmService) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Services = append(resourceSet.Services, resource)
+}
+
+func (resource WalmService) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.Services = append(resourceSet.Services, resource)
 }
 
 type WalmServicePort struct {
@@ -106,12 +244,28 @@ type WalmStatefulSet struct {
 	Pods             []*WalmPod `json:"pods" description:"stateful set pods"`
 }
 
+func (resource WalmStatefulSet) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.StatefulSets = append(resourceSet.StatefulSets, resource)
+}
+
+func (resource WalmStatefulSet) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.StatefulSets = append(resourceSet.StatefulSets, resource)
+}
+
 type WalmDaemonSet struct {
 	WalmMeta
 	DesiredNumberScheduled int32      `json:"desired_number_scheduled" description:"desired number scheduled"`
 	UpdatedNumberScheduled int32      `json:"updated_number_scheduled" description:"updated number scheduled"`
 	NumberAvailable        int32      `json:"number_available" description:"number available"`
 	Pods                   []*WalmPod `json:"pods" description:"daemon set pods"`
+}
+
+func (resource WalmDaemonSet) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.DaemonSets = append(resourceSet.DaemonSets, resource)
+}
+
+func (resource WalmDaemonSet) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.DaemonSets = append(resourceSet.DaemonSets, resource)
 }
 
 type WalmJob struct {
@@ -123,9 +277,25 @@ type WalmJob struct {
 	Pods               []*WalmPod `json:"pods" description:"job pods"`
 }
 
+func (resource WalmJob) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Jobs = append(resourceSet.Jobs, resource)
+}
+
+func (resource WalmJob) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.Jobs = append(resourceSet.Jobs, resource)
+}
+
 type WalmConfigMap struct {
 	WalmMeta
 	Data map[string]string `json:"data" description:"config map data"`
+}
+
+func (resource WalmConfigMap) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.ConfigMaps = append(resourceSet.ConfigMaps, resource)
+}
+
+func (resource WalmConfigMap) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.ConfigMaps = append(resourceSet.ConfigMaps, resource)
 }
 
 type WalmIngress struct {
@@ -136,10 +306,26 @@ type WalmIngress struct {
 	ServicePort string `json:"service_port" description:"ingress backend service port"`
 }
 
+func (resource WalmIngress) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Ingresses = append(resourceSet.Ingresses, resource)
+}
+
+func (resource WalmIngress) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.Ingresses = append(resourceSet.Ingresses, resource)
+}
+
 type WalmSecret struct {
 	WalmMeta
 	Data map[string]string `json:"data" description:"secret data"`
 	Type corev1.SecretType `json:"type" description:"secret type"`
+}
+
+func (resource WalmSecret) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+	resourceSet.Secrets = append(resourceSet.Secrets, resource)
+}
+
+func (resource WalmSecret) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+	resourceSet.Secrets = append(resourceSet.Secrets, resource)
 }
 
 type WalmSecretList struct {
@@ -149,9 +335,15 @@ type WalmSecretList struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels map[string]string `json:"labels" description:"node labels"`
+	Labels      map[string]string `json:"labels" description:"node labels"`
 	Annotations map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp string            `json:"node_ip" description:"ip of node"`
+	NodeIp      string            `json:"node_ip" description:"ip of node"`
+}
+
+func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmNode) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
 }
 
 type WalmNodeList struct {
@@ -161,4 +353,10 @@ type WalmNodeList struct {
 type WalmResourceQuota struct {
 	WalmMeta
 	ResourceLimits map[corev1.ResourceName]string `json:"limits" description:"resource quota hard limits"`
+}
+
+func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmResourceQuota) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
 }

@@ -18,34 +18,21 @@ func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.
 		logrus.Errorf(fmt.Sprintf("Failed to build the status of releaseInfo: %s", releaseInfo.Name))
 		return
 	}
-	releaseInfo.Ready = isReleaseReady(releaseInfo.Status)
+	releaseInfo.Ready = releaseInfo.Status.IsReady()
 
 	return
 }
-func isReleaseReady(status *release.ReleaseStatus) bool {
-	ready := true
-	for _, resource := range status.Resources {
-		if resource.Resource.GetState().Status != "Ready" {
-			ready = false
-			break
-		}
-	}
-	return ready
-}
 
-func buildReleaseStatus(releaseResourceMetas []release.ReleaseResourceMeta) (*release.ReleaseStatus, error) {
-	status := &release.ReleaseStatus{[]release.ReleaseResource{}}
+func buildReleaseStatus(releaseResourceMetas []release.ReleaseResourceMeta) (resourceSet *adaptor.WalmResourceSet,err error) {
+	resourceSet = adaptor.NewWalmResourceSet()
 	for _, resourceMeta := range releaseResourceMetas {
 		resource, err := adaptor.GetDefaultAdaptorSet().GetAdaptor(resourceMeta.Kind).GetResource(resourceMeta.Namespace, resourceMeta.Name)
 		if err != nil {
-			return status, err
+			return nil, err
 		}
-		if resource.GetState().Status == "Unknown" && resource.GetState().Reason == "NotSupportedKind" {
-			continue
-		}
-		status.Resources = append(status.Resources, release.ReleaseResource{Kind: resource.GetKind(), Resource: resource})
+		resource.AddToWalmResourceSet(resourceSet)
 	}
-	return status, nil
+	return
 }
 
 func parseChartDependencies(chart *chart.Chart) ([]string, error) {
