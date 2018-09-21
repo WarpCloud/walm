@@ -104,6 +104,7 @@ type ProjectInfo struct {
 type ProjectCache struct {
 	Name                  string                `json:"name" description:"project name"`
 	Namespace             string                `json:"namespace" description:"project namespace"`
+	CommonValues          map[string]interface{} `json:"common_values" description:"common values added to the chart"`
 	Releases              []string              `json:"releases" description:"list of release of the project"`
 	InstalledReleases     []string              `json:"installed_releases" description:"list of installed release of the project"`
 	CreateProjectJobState CreateProjectJobState `json:"create_project_job_state" description:"create project job state"`

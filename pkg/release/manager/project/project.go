@@ -72,7 +72,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 	projectInfo = &release.ProjectInfo{
 		Name:                  projectCache.Name,
 		Namespace:             projectCache.Namespace,
-		CommonValues:          map[string]interface{}{},
+		CommonValues:          projectCache.CommonValues,
 		CreateProjectJobState: projectCache.CreateProjectJobState,
 		Releases:              []*release.ReleaseInfo{},
 	}
@@ -132,6 +132,7 @@ func buildProjectCache(namespace, project, jobStatus string, projectParams *rele
 	projectCache = &release.ProjectCache{
 		Namespace:         namespace,
 		Name:              project,
+		CommonValues:      projectParams.CommonValues,
 		Releases:          []string{},
 		InstalledReleases: []string{},
 		CreateProjectJobState: release.CreateProjectJobState{
