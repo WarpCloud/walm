@@ -12,6 +12,8 @@ import (
 )
 
 func TestWalmJobManager(t *testing.T) {
+	RegisterJobType("fake", &FakeJob{})
+
 	redisClient := redis.CreateFakeRedisClient()
 	manager := &WalmJobManager{redisClient: redisClient, collectInterval: 1*time.Second, mutex: &sync.Mutex{}, runningWalmJobs: map[string]*WalmJob{}}
 	manager.Start(wait.NeverStop)

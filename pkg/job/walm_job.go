@@ -6,11 +6,13 @@ import (
 	"fmt"
 )
 
+var jobTypes map[string]Job
+
 type WalmJobStatus string
 
 const (
-	jobStatusPending  WalmJobStatus = "Pending"
-	jobStatusRunning  WalmJobStatus = "Running"
+	jobStatusPending WalmJobStatus = "Pending"
+	jobStatusRunning WalmJobStatus = "Running"
 )
 
 type WalmJob struct {
@@ -27,29 +29,26 @@ type WalmJobAdaptor struct {
 	Status  WalmJobStatus   `json:"status" description:"job status"`
 }
 
-func (adaptor *WalmJobAdaptor) getJobByType() (job Job, err error) {
-	switch adaptor.JobType {
-	case "fake":
-		job = &FakeJob{}
-	default:
-		err = fmt.Errorf("job type %s is not supported", adaptor.JobType)
+func (adaptor *WalmJobAdaptor) getJobByType() (Job, error) {
+	if job, ok := jobTypes[adaptor.JobType]; ok {
+		err := json.Unmarshal(adaptor.Job, job)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal job %s : %s", string(adaptor.Job), err.Error())
+			return nil , err
+		}
+		return job, err
+	} else {
+		err := fmt.Errorf("job type %s is not supported", adaptor.JobType)
 		logrus.Errorf(err.Error())
-		return
+		return nil, err
 	}
-
-	err = json.Unmarshal(adaptor.Job, job)
-	if err != nil {
-		logrus.Errorf("failed to unmarshal job %s : %s", string(adaptor.Job), err.Error())
-		return
-	}
-	return
 }
 
 func (adaptor *WalmJobAdaptor) GetWalmJob() (walmJob *WalmJob, err error) {
 	walmJob = &WalmJob{
 		Id:      adaptor.Id,
 		JobType: adaptor.JobType,
-		Status: adaptor.Status,
+		Status:  adaptor.Status,
 	}
 	walmJob.Job, err = adaptor.getJobByType()
 	return
@@ -68,4 +67,11 @@ func (walmJob *WalmJob) Run() {
 
 type Job interface {
 	Do() error
+}
+
+func RegisterJobType(jobType string, job Job) {
+	if jobTypes == nil {
+		jobTypes = map[string]Job{}
+	}
+	jobTypes[jobType] = job
 }

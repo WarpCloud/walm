@@ -291,10 +291,11 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Returns(200, "OK", releasetypes.ProjectInfo{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{namespace}/name/{project}").To(v1.DeployProject).
-		Doc("新创建一个Project的详细信息").
+		Doc("创建一个Project").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
@@ -311,7 +312,7 @@ func InitProjectRouter() *restful.WebService {
 		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{namespace}/name/{project}/instance").To(v1.DeployInstanceInProject).
-		Doc("新添加一个Project组件").
+		Doc("添加一个Project组件").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).

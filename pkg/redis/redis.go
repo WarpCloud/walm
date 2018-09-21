@@ -8,8 +8,10 @@ import (
 
 const (
 	KeyNotFoundErrMsg = "redis: nil"
+
 	WalmJobsKey       = "walm-jobs"
 	WalmReleasesKey   = "walm-releases"
+	WalmProjectsKey   = "walm-projects"
 )
 
 type RedisClient struct {

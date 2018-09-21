@@ -7,11 +7,11 @@ import (
 	releasetypes "walm/pkg/release"
 	"net/http"
 	"fmt"
+	walmerr "walm/pkg/util/error"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
-	tenantName := request.PathParameter("namespace")
-	projectList, err := project.GetDefaultProjectManager().ListProjects(tenantName)
+	projectList, err := project.GetDefaultProjectManager().ListProjects("")
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -61,6 +61,10 @@ func GetProjectInfo(request *restful.Request, response *restful.Response) {
 	projectName := request.PathParameter("project")
 	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfo(tenantName, projectName)
 	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			WriteNotFoundResponse(response, -1, fmt.Sprintf("project %s/%s is not found", tenantName, projectName))
+			return
+		}
 		response.WriteError(http.StatusInternalServerError, err)
 	}
 	response.WriteEntity(projectInfo)
