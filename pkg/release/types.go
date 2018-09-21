@@ -11,7 +11,7 @@ type ReleaseInfoList struct {
 
 type ReleaseInfo struct {
 	ReleaseSpec
-	Ready  bool           `json:"ready" description:"whether release is ready"`
+	Ready  bool                     `json:"ready" description:"whether release is ready"`
 	Status *adaptor.WalmResourceSet `json:"release_status" description:"status of release"`
 }
 
@@ -93,13 +93,29 @@ type ProjectParams struct {
 }
 
 type ProjectInfo struct {
-	Name         string                 `json:"name" description:"project name"`
-	Namespace    string                 `json:"namespace" description:"project namespace"`
-	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
-	Releases     []*ReleaseInfo         `json:"releases" description:"list of release of the project"`
+	Name                  string                 `json:"name" description:"project name"`
+	Namespace             string                 `json:"namespace" description:"project namespace"`
+	CommonValues          map[string]interface{} `json:"common_values" description:"common values added to the chart"`
+	Releases              []*ReleaseInfo         `json:"releases" description:"list of release of the project"`
+	Ready                 bool                   `json:"ready" description:"whether all the project releases are ready"`
+	CreateProjectJobState CreateProjectJobState  `json:"create_project_job_state" description:"create project job state"`
+}
+
+type ProjectCache struct {
+	Name                  string                `json:"name" description:"project name"`
+	Namespace             string                `json:"namespace" description:"project namespace"`
+	Releases              []string              `json:"releases" description:"list of release of the project"`
+	InstalledReleases     []string              `json:"installed_releases" description:"list of installed release of the project"`
+	CreateProjectJobState CreateProjectJobState `json:"create_project_job_state" description:"create project job state"`
+}
+
+type CreateProjectJobState struct {
+	CreateProjectJobStatus string `json:"create_project_job_status" description:"create project job status: pending, running, failed, succeed"`
+	Message                string `json:"message" description:"create project job message"`
 }
 
 type ProjectInfoList struct {
+	Num   int            `json:"num" description:"project number"`
 	Items []*ProjectInfo `json:"items" description:"project info list"`
 }
 

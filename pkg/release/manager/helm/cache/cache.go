@@ -35,7 +35,7 @@ func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapiRelease.Rele
 		logrus.Errorf("failed to set release cache of %s to redis: %s", helmRelease.Name, err.Error())
 		return err
 	}
-	logrus.Infof("succeed to set release cache of %s to redis", helmRelease.Name)
+	logrus.Debugf("succeed to set release cache of %s to redis", helmRelease.Name)
 	return nil
 }
 
@@ -45,7 +45,7 @@ func (cache *HelmCache) DeleteReleaseCache(namespace, name string) error {
 		logrus.Errorf("failed to delete release cache of %s from redis: %s", name, err.Error())
 		return err
 	}
-	logrus.Infof("succeed to delete release cache of %s from redis", name)
+	logrus.Debugf("succeed to delete release cache of %s from redis", name)
 	return nil
 }
 
@@ -116,6 +116,42 @@ func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) 
 	return
 }
 
+func (cache *HelmCache) GetReleaseCachesByNames(namespace string, names ...string) (releaseCaches []*release.ReleaseCache, err error) {
+	releaseCaches = []*release.ReleaseCache{}
+	if len(names) == 0 {
+		return
+	}
+
+	releaseCacheFieldNames := []string{}
+	for _, name := range names {
+		releaseCacheFieldNames = append(releaseCacheFieldNames, buildWalmReleaseFieldName(namespace, name))
+	}
+
+	releaseCacheStrs, err := cache.redisClient.GetClient().HMGet(redis.WalmReleasesKey, releaseCacheFieldNames...).Result()
+	if err != nil {
+		logrus.Errorf("failed to get release caches from redis : %s", err.Error())
+		return nil, err
+	}
+
+	for index, releaseCacheStr := range releaseCacheStrs {
+		if releaseCacheStr == nil {
+			logrus.Warnf("release cache %s is not found", releaseCacheFieldNames[index])
+			continue
+		}
+
+		releaseCache := &release.ReleaseCache{}
+
+		err = json.Unmarshal([]byte(releaseCacheStr.(string)), releaseCache)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal release cache of %s: %s", releaseCacheStr, err.Error())
+			return
+		}
+		releaseCaches = append(releaseCaches, releaseCache)
+	}
+
+	return
+}
+
 func buildHScanFilter(namespace string, filter string) string {
 	newFilter := namespace
 	if newFilter == "" {
@@ -133,7 +169,11 @@ func buildHScanFilter(namespace string, filter string) string {
 func (cache *HelmCache) Resync() error {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
-			resp, err := cache.helmClient.ListReleases()
+			resp, err := cache.helmClient.ListReleases(helm.ReleaseListStatuses(
+				[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
+					hapiRelease.Status_DELETED, hapiRelease.Status_SUPERSEDED, hapiRelease.Status_FAILED,
+					hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
+					hapiRelease.Status_PENDING_ROLLBACK}))
 			if err != nil {
 				logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 				return err

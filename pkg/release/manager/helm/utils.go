@@ -39,7 +39,6 @@ func parseChartDependencies(chart *chart.Chart) ([]string, error) {
 	var dependencies []string
 
 	for _, chartFile := range chart.Files {
-		logrus.Printf("Chartfile %s \n", chartFile.TypeUrl)
 		if chartFile.TypeUrl == "transwarp-app-yaml" {
 			app := &release.AppDependency{}
 			err := yaml.Unmarshal(chartFile.Value, &app)

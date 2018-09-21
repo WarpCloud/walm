@@ -104,6 +104,38 @@ func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.Rel
 			defer wg.Done()
 			info, err1 := buildReleaseInfo(releaseCache)
 			if err1 != nil {
+				err = errors.New(fmt.Sprintf("failed to build release info: %s", err1.Error()))
+				logrus.Error(err.Error())
+				return
+			}
+			mux.Lock()
+			releaseInfos = append(releaseInfos, info)
+			mux.Unlock()
+		}(releaseCache)
+	}
+	wg.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return releaseInfos, nil
+}
+
+func (client *HelmClient) GetReleasesByNames(namespace string, names ...string) ([]*release.ReleaseInfo, error) {
+	releaseCaches, err := client.helmCache.GetReleaseCachesByNames(namespace, names...)
+	if err != nil {
+		logrus.Errorf("failed to get release caches : %s", err.Error())
+		return nil, err
+	}
+
+	releaseInfos := []*release.ReleaseInfo{}
+	mux := &sync.Mutex{}
+	var wg sync.WaitGroup
+	for _, releaseCache := range releaseCaches {
+		wg.Add(1)
+		go func(releaseCache *release.ReleaseCache) {
+			defer wg.Done()
+			info, err1 := buildReleaseInfo(releaseCache)
+			if err1 != nil {
 				err = errors.New(fmt.Sprintf("failed to build release info: %s\n", err1.Error()))
 				logrus.Error(err.Error())
 				return
@@ -160,7 +192,6 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 	err = client.helmCache.CreateOrUpdateReleaseCache(helmRelease)
 	if err != nil {
 		logrus.Errorf("failed to create of update release cache of %s : %s", helmRelease.Name, err.Error())
-		// TODO rollback helm release
 		return err
 	}
 	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
@@ -177,7 +208,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
 	_, err := client.GetRelease(namespace, releaseName)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
-			logrus.Warnf("release %s is not found", releaseName)
+			logrus.Warnf("release %s is not found in redis", releaseName)
 			return nil
 		}
 		logrus.Errorf("failed to get release %s : %s", releaseName, err.Error())
@@ -191,8 +222,12 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
 		releaseName, opts...,
 	)
 	if err != nil {
-		logrus.Errorf("failed to delete release : %s", err.Error())
-		return err
+		if strings.Contains(err.Error(), "not found") {
+			logrus.Warnf("release %s is not found in tiller", releaseName)
+		} else {
+			logrus.Errorf("failed to delete release : %s", err.Error())
+			return err
+		}
 	}
 	if res != nil && res.Info != "" {
 		logrus.Println(res.Info)
@@ -201,11 +236,10 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
 	err = client.helmCache.DeleteReleaseCache(namespace, releaseName)
 	if err != nil {
 		logrus.Errorf("failed to delete release cache of %s : %s", releaseName, err.Error())
-		//TODO rollback?
 		return err
 	}
 
-	logrus.Infof("DeleteRelease %s %s Success\n", namespace, releaseName)
+	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
 
 	return err
 }
@@ -280,6 +314,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 	releaseHistory, err := client.client.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
 	if err == nil {
 		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
+		//TODO is it reasonable? it is wield, helm should support the same name in different namespace
 		if previousReleaseNamespace != namespace {
 			logrus.Warnf("namespace %s doesn't match with previous, release will be deployed to %s",
 				namespace, previousReleaseNamespace,
@@ -293,7 +328,8 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			helm.UpgradeDryRun(client.dryRun),
 		)
 		if err != nil {
-			logrus.Errorf("failed to update release from chart : %s", err.Error())
+			//TODO should rollback to prev version?
+			logrus.Errorf("failed to update release %s from chart : %s", releaseName, err.Error())
 			return nil, err
 		}
 		helmRelease = resp.GetRelease()
@@ -306,7 +342,16 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			helm.InstallDryRun(client.dryRun),
 		)
 		if err != nil {
-			logrus.Errorf("failed to install release from chart : %s", err.Error())
+			logrus.Errorf("failed to install release %s from chart : %s", releaseName, err.Error())
+			opts := []helm.DeleteOption{
+				helm.DeletePurge(true),
+			}
+			_, err1 := client.client.DeleteRelease(
+				releaseName, opts...,
+			)
+			if err1 != nil {
+				logrus.Errorf("failed to rollback to delete release %s : %s", releaseName, err1.Error())
+			}
 			return nil, err
 		}
 		helmRelease = resp.GetRelease()
