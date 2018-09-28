@@ -2,6 +2,7 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"encoding/base64"
 	"walm/pkg/k8s/handler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sirupsen/logrus"
@@ -61,12 +62,21 @@ func (adaptor *WalmSecretAdaptor) BuildWalmSecret(secret *corev1.Secret) (walmSe
 }
 
 func BuildSecret(walmSecret *WalmSecret) (secret *corev1.Secret) {
+	DataByte := make(map[string][]byte, 0)
+	var err error = nil
+	for k, v := range walmSecret.Data {
+		DataByte[k], err = base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			logrus.Errorf("failed to decode secret : %+v %s", walmSecret.Data, err.Error())
+		}
+	}
+	logrus.Infof("secret data: %+v", walmSecret.Data)
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: walmSecret.Namespace,
 			Name: walmSecret.Name,
 		},
-		StringData: walmSecret.Data,
+		Data: DataByte,
 		Type: walmSecret.Type,
 	}
 }
