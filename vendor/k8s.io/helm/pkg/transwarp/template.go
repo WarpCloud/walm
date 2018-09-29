@@ -1,17 +1,16 @@
 package transwarp
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	yaml2 "gopkg.in/yaml.v2"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/storage/driver"
 	"math/rand"
 	"path/filepath"
 	"strings"
 	"time"
+	"encoding/json"
+	"github.com/ghodss/yaml"
 )
 
 const (
@@ -22,47 +21,53 @@ const (
 	DefaultDirectoryPermission = 0755
 )
 
-func Render(chartRequested *chart.Chart, namespace string, userVals []byte, kubeVersion string) (map[string]string, error) {
+func Render(chartRequested *chart.Chart, namespace string, kubeContext string, depLinks map[string]interface{}) (map[string]string, error) {
 
-	appName := ""
-	jsonnetTemplatePath := ""
-	for _, file := range chartRequested.Files {
-
-		if file.TypeUrl == "transwarp-app-yaml" {
-			data := file.Value
-			if len(data) == 0 {
-				return nil, fmt.Errorf("file transwarp-app-yaml is null")
-			}
-
-			appYaml := make(map[string]interface{})
-			err := yaml2.Unmarshal(data, &appYaml)
-			if err != nil {
-				return nil, err
-			}
-			appName = appYaml["name"].(string)
-			jsonnetTemplatePath = appYaml["jsonnetTemplatePath"].(string)
-		}
-
+	// get AppName And Jsonnet Template Path
+	appName, jsonnetTemplatePath, err := getJsonnetAppNameAndTemplatePath(chartRequested)
+	if err != nil {
+		return nil, err
 	}
 
-	if appName == "" {
-		return nil, fmt.Errorf("fail to find appName in transwarp-app-yaml ")
+	// handle dependencies
+	depConfig, err := handleDependencies(chartRequested, namespace, kubeContext, depLinks)
+	if err != nil {
+		return nil, err
 	}
 
-	if jsonnetTemplatePath == "" {
-		return nil, fmt.Errorf("fail to find jsonnetTemplatePath in transwarp-app-yaml ")
+	// get templates/instance-crd.yaml config
+	templateConfig, err := getInstanceCrdConfig(chartRequested)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, file := range chartRequested.Files {
+	for _, file := range chartRequested.Templates {
 
-		if file.TypeUrl == "transwarp-configmap-reserved" {
+		if file.Name == "templates/transwarp-configmap-reserved.yaml" {
 
-			if len(file.Value) == 0 {
+			if len(file.Data) == 0 {
 				return nil, fmt.Errorf("file transwarp-configmap-reserved is null")
 			}
 
-			appChart := string(file.Value[:])
-			rls, err := driver.DecodeRelease(appChart)
+			type T struct {
+				ApiVersion string `json:"apiVersion"`
+				Data   struct {
+					Release string `json:"release"`
+				}
+			}
+
+			t := &T{}
+			err := yaml.Unmarshal(file.Data, &t)
+			if err != nil {
+				return nil, err
+			}
+
+			releaseData := t.Data.Release
+			if releaseData == "" {
+				return nil, fmt.Errorf("releaseData is null")
+			}
+
+			rls, err := driver.DecodeRelease(releaseData)
 			if err != nil {
 				return nil, err
 			}
@@ -72,46 +77,26 @@ func Render(chartRequested *chart.Chart, namespace string, userVals []byte, kube
 				return nil, err
 			}
 
-			defaultConfigs := make(map[string]interface{})
-
-			if values, ok := template[filepath.Join(appName, ValuesFileName)]; ok {
-				result := make(map[string]interface{})
-				err = yaml2.Unmarshal([]byte(values), &result)
-				if err != nil {
-					return nil, err
-				}
-				for key, value := range result {
-					defaultConfigs[key] = value
-				}
-			}
-
-			userConfigs := make(map[string]interface{})
-			err = yaml.Unmarshal([]byte(userVals), &userConfigs)
-			if err != nil {
-				return nil, err
-			}
-
-			// TosVersion Transwarp_Install_ID  Transwarp_Install_Namespace Customized_Namespace
-			userConfigs["TosVersion"] = interface{}(kubeVersion)
-			userConfigs["Transwarp_Install_Namespace"] = interface{}(namespace)
-			userConfigs["Customized_Namespace"] = interface{}(namespace)
-			userConfigs["Transwarp_Install_ID"] = interface{}(getRandomString(5))
-
-			combinedConfigs := mergeValues(defaultConfigs, userConfigs)
-			for k, v := range combinedConfigs {
-				combinedConfigs[k] = yamlJsonConvert(v)
-			}
-
-			//// parse the template with configs
-			configArray, err := json.Marshal(combinedConfigs)
-			if err != nil {
-				glog.Errorf("Fail to marsh configs %+v", err)
-				return nil, err
-			}
 			entrance, err := getTemplateEntrance(template, appName, jsonnetTemplatePath)
 			if err != nil {
 				return nil, err
 			}
+
+			// add extra config
+			//userConfig["TosVersion"] = interface{}("1.5")
+			templateConfig["Customized_Namespace"] = interface{}(namespace)
+			templateConfig["Transwarp_Install_ID"] = interface{}(getRandomString(5))
+			templateConfig["Transwarp_Install_Namespace"] = interface{}(namespace)
+			templateConfig["Transwarp_Cni_Network"] = interface{}("overlay")
+
+			mergedConfig := mergeValues(depConfig, templateConfig)
+			configArray, err := json.Marshal(mergedConfig)
+			if err != nil {
+				glog.Errorf("Fail to marsh configs %+v", err)
+				return nil, err
+			}
+
+			//templateConfig = string(configArray)
 
 			resultStr, err := parseTemplateWithTLAString(entrance, "config", string(configArray), template)
 			if err != nil {
@@ -130,6 +115,111 @@ func Render(chartRequested *chart.Chart, namespace string, userVals []byte, kube
 	}
 
 	return nil, fmt.Errorf("Fail to find file transwarp-configmap-reserved ")
+}
+
+func getInstanceCrdConfig(chartRequested *chart.Chart) (map[string]interface{}, error) {
+
+	config := make(map[string]interface{})
+	var err error
+	for _, file := range chartRequested.Templates {
+
+		if file.Name == "templates/instance-crd.yaml" {
+
+			if len(file.Data) == 0 {
+				return config, fmt.Errorf("file transwarp-configmap-reserved is null")
+			}
+
+			type T struct {
+				Kind string `json:"kind"`
+				Spec   struct {
+					Configs map[string]interface{} `json:"configs"`
+				}
+			}
+
+			t := T{}
+			err = yaml.Unmarshal(file.Data, &t)
+			if err != nil {
+				return config, err
+			}
+
+			config = t.Spec.Configs
+		}
+	}
+
+	if config == nil || len(config) == 0 {
+		return config, fmt.Errorf("fail to find config in templates/instance-crd.yaml ")
+	}
+
+	return config, nil
+}
+
+func getJsonnetAppNameAndTemplatePath(chartRequested *chart.Chart) (string, string, error) {
+
+	appName := ""
+	jsonnetTemplatePath := ""
+
+	for _, file := range chartRequested.Files {
+
+		if file.TypeUrl == "transwarp-app-yaml" {
+			data := file.Value
+			if len(data) == 0 {
+				return appName, jsonnetTemplatePath, fmt.Errorf("file transwarp-app-yaml is null")
+			}
+
+			type T struct {
+				Name string `json:"name"`
+				JsonnetTemplatePath string `json:"jsonnetTemplatePath"`
+			}
+
+			t := T{}
+			err := yaml.Unmarshal(data, &t)
+			if err != nil {
+				return "", "", err
+			}
+
+			appName = t.Name
+			jsonnetTemplatePath = t.JsonnetTemplatePath
+		}
+
+	}
+
+	if appName == "" {
+		return appName, jsonnetTemplatePath, fmt.Errorf("fail to find appName in transwarp-app-yaml ")
+	}
+
+	if jsonnetTemplatePath == "" {
+		return appName, jsonnetTemplatePath, fmt.Errorf("fail to find jsonnetTemplatePath in transwarp-app-yaml ")
+	}
+
+	return appName, jsonnetTemplatePath, nil
+
+}
+
+func handleDependencies(chartRequested *chart.Chart, namespace string, kubeContext string, depLinks map[string]interface{}) (map[string]interface{}, error) {
+
+	err := CheckDepencies(chartRequested, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	// init k8s transwarp client
+	k8sTranswarpClient, err := GetTranswarpKubeClient(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// init k8s client
+	k8sClient, err := GetK8sKubeClient(kubeContext)
+	if err != nil {
+		return nil, err
+	}
+
+	depVals, err := GetDepenciesConfig(k8sTranswarpClient, k8sClient, namespace, depLinks)
+	if err != nil {
+		return nil, err
+	}
+
+ 	return depVals, nil
 }
 
 func yamlJsonConvert(i interface{}) interface{} {
@@ -241,7 +331,7 @@ func changeResultStrToMap(resultStr string, resultMap *map[string]string) error 
 
 	// key: resource.json, value: resource template(map)
 	resourcesMap := make(map[string]map[string]interface{})
-	err := yaml2.Unmarshal([]byte(resultStr), &resourcesMap)
+	err := yaml.Unmarshal([]byte(resultStr), &resourcesMap)
 	if err != nil {
 		return err
 	}
@@ -258,7 +348,7 @@ func changeResultStrToMap(resultStr string, resultMap *map[string]string) error 
 			return fmt.Errorf("%s: invalid format to decode, lack of kind fields.", key)
 		}
 
-		configArray, err := yaml2.Marshal(value)
+		configArray, err := yaml.Marshal(value)
 		if err != nil {
 			return fmt.Errorf("Fail to marsh configs %+v", err)
 		}

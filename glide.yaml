@@ -39,6 +39,10 @@ import:
   version: 0.11.0
 - package: github.com/thoas/stats
 - package: github.com/hashicorp/go-multierror
+- package: github.com/Shopify/sarama
+  version: 1.19.0
+- package: github.com/bsm/sarama-cluster
+  version: 2.1.15
 - package: github.com/hashicorp/terraform
   subpackages:
   - ./dag

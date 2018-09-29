@@ -39,6 +39,8 @@ import (
 	"k8s.io/helm/pkg/timeconv"
 	tversion "k8s.io/helm/pkg/version"
 
+	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/strvals"
 	"k8s.io/helm/pkg/transwarp"
 )
 
@@ -79,6 +81,8 @@ type templateCmd struct {
 	renderFiles      []string
 	kubeVersion      string
 	outputDir        string
+	links            []string
+	client           helm.Interface
 }
 
 func newTemplateCmd(out io.Writer) *cobra.Command {
@@ -107,6 +111,7 @@ func newTemplateCmd(out io.Writer) *cobra.Command {
 	f.StringVar(&t.nameTemplate, "name-template", "", "specify template used to name the release")
 	f.StringVar(&t.kubeVersion, "kube-version", defaultKubeVersion, "kubernetes version used as Capabilities.KubeVersion.Major/Minor")
 	f.StringVar(&t.outputDir, "output-dir", "", "writes the executed templates to files in output-dir instead of stdout")
+	f.StringArrayVar(&t.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
 	return cmd
 }
@@ -152,23 +157,63 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check chart requirements to make sure all dependencies are present in /charts
-	c, err := chartutil.Load(t.chartPath)
+	chartRequested, err := chartutil.Load(t.chartPath)
 	if err != nil {
 		return prettyError(err)
 	}
 
-	out := make(map[string]string)
-	if c.Metadata.Engine == "jsonnet" {
+	jsonnetOut := make(map[string]string)
+	if chartRequested.Metadata.Engine == "jsonnet" {
 
-		out, err = transwarp.Render(c, t.namespace, rawVals, t.kubeVersion)
+		fmt.Println("Chart Metadata Engine: jsonnet")
+
+		t.client = ensureHelmClient(t.client)
+		depLinks := map[string]interface{}{}
+		for _, value := range t.links {
+			if err := strvals.ParseInto(value, depLinks); err != nil {
+				return fmt.Errorf("failed parsing --set data: %s", err)
+			}
+		}
+
+		err := transwarp.ProcessAppCharts(t.client, chartRequested, t.releaseName, t.namespace, string(rawVals[:]), depLinks)
 		if err != nil {
 			return prettyError(err)
 		}
 
-	} else {
+		fmt.Println("Begin Render Chart ")
 
-		if req, err := chartutil.LoadRequirements(c); err == nil {
-			if err := checkDependencies(c, req); err != nil {
+		jsonnetOut, err = transwarp.Render(chartRequested, t.namespace, settings.KubeContext, depLinks)
+		if err != nil {
+			return prettyError(err)
+		}
+
+		if len(jsonnetOut) == 0 {
+			return fmt.Errorf("failed parsing jsonnet file")
+		}
+
+		// remove Templates file which include jsonnet
+		flag := false
+		for removeIdx, file := range chartRequested.Templates {
+
+			if flag == true {
+				removeIdx = removeIdx - 1
+				flag = false
+			}
+
+			if file.Name == "templates/instance-crd.yaml" || file.Name == "templates/transwarp-configmap-reserved.yaml" {
+				chartRequested.Templates[removeIdx] = chartRequested.Templates[len(chartRequested.Templates)-1]
+				chartRequested.Templates = chartRequested.Templates[:len(chartRequested.Templates)-1]
+				flag = true
+			}
+		}
+
+	}
+
+	out := make(map[string]string)
+	if len(chartRequested.Templates) > 0 {
+
+		if req, err := chartutil.LoadRequirements(chartRequested); err == nil {
+			if err := checkDependencies(chartRequested, req); err != nil {
 				return prettyError(err)
 			}
 		} else if err != chartutil.ErrRequirementsNotFound {
@@ -182,11 +227,11 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 			Namespace: t.namespace,
 		}
 
-		err = chartutil.ProcessRequirementsEnabled(c, config)
+		err = chartutil.ProcessRequirementsEnabled(chartRequested, config)
 		if err != nil {
 			return err
 		}
-		err = chartutil.ProcessRequirementsImportValues(c)
+		err = chartutil.ProcessRequirementsImportValues(chartRequested)
 		if err != nil {
 			return err
 		}
@@ -209,16 +254,22 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 		caps.KubeVersion.Minor = fmt.Sprint(kv.Minor())
 		caps.KubeVersion.GitVersion = fmt.Sprintf("v%d.%d.0", kv.Major(), kv.Minor())
 
-		vals, err := chartutil.ToRenderValuesCaps(c, config, options, caps)
+		vals, err := chartutil.ToRenderValuesCaps(chartRequested, config, options, caps)
 		if err != nil {
 			return err
 		}
 
-		out, err = renderer.Render(c, vals)
+		out, err = renderer.Render(chartRequested, vals)
 		if err != nil {
 			return err
 		}
 
+	}
+
+	if len(jsonnetOut) > 0 {
+		for k ,v := range jsonnetOut {
+			out[k] = v
+		}
 	}
 
 	listManifests := []tiller.Manifest{}
@@ -237,7 +288,7 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 	if settings.Debug {
 		rel := &release.Release{
 			Name:      t.releaseName,
-			Chart:     c,
+			Chart:     chartRequested,
 			Config:    config,
 			Version:   1,
 			Namespace: t.namespace,
