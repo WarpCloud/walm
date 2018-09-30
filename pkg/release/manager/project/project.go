@@ -1,18 +1,18 @@
 package project
 
 import (
-	"github.com/twmb/algoimpl/go/graph"
+	"strings"
+	"sync"
+	"encoding/json"
+	"errors"
 	"github.com/sirupsen/logrus"
 
 	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/redis"
 	"walm/pkg/job"
-	"encoding/json"
-	"errors"
+	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
-	"strings"
-	"sync"
 )
 
 type ProjectManager struct {
@@ -322,9 +322,8 @@ func brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *r
 
 func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
 	projectParamsMap := make(map[string]interface{})
-	g := graph.New(graph.Directed)
-	projectDepGraph := make(map[string]graph.Node, 0)
 	releaseParsed := make([]*release.ReleaseRequest, 0)
+	var g dag.AcyclicGraph
 
 	for _, releaseInfo := range projectParams.Releases {
 		projectParamsMap[releaseInfo.ChartName] = &releaseInfo
@@ -332,8 +331,7 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 
 	// init node
 	for _, helmRelease := range projectParams.Releases {
-		projectDepGraph[helmRelease.ChartName] = g.MakeNode()
-		*projectDepGraph[helmRelease.ChartName].Value = helmRelease
+		g.Add(helmRelease.ChartName)
 	}
 
 	// init edge
@@ -344,29 +342,41 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 		}
 
 		for _, subChartName := range subCharts {
-			g.MakeEdge(projectDepGraph[helmRelease.ChartName], projectDepGraph[subChartName])
+			g.Connect(dag.BasicEdge(helmRelease.ChartName, subChartName))
 		}
 	}
 
-	sortedChartList := g.TopologicalSort()
+	_, err := g.Root()
+	if err != nil {
+		return nil, err
+	}
 
-	for i := range sortedChartList {
-		releaseRequest := *(*sortedChartList[i].Value).(*release.ReleaseRequest)
-		logrus.Debugf("DEBUG: %v", releaseRequest.Dependencies)
-		chartsNeighbors := g.Neighbors(sortedChartList[i])
-		for _, chartNeighbor := range chartsNeighbors {
-			chartName := (*chartNeighbor.Value).(*release.ReleaseRequest).ChartName
-			_, ok := releaseRequest.Dependencies[chartName]
-			if !ok {
-				releaseRequest.Dependencies[chartName] = (*chartNeighbor.Value).(*release.ReleaseRequest).Name
-			}
-		}
+	var lock sync.Mutex
+	err = g.Walk(func(v dag.Vertex) error {
+		lock.Lock()
+		defer lock.Unlock()
+		releaseRequest := v.(*release.ReleaseRequest)
+		releaseRequest.ChartName
 		releaseParsed = append(releaseParsed, &releaseRequest)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	for i, j := 0, len(releaseParsed)-1; i < j; i, j = i+1, j-1 {
-		releaseParsed[i], releaseParsed[j] = releaseParsed[j], releaseParsed[i]
-	}
+	//for i := range sortedChartList {
+	//	releaseRequest := *(*sortedChartList[i].Value).(*release.ReleaseRequest)
+	//	logrus.Debugf("DEBUG: %v", releaseRequest.Dependencies)
+	//	chartsNeighbors := g.Neighbors(sortedChartList[i])
+	//	for _, chartNeighbor := range chartsNeighbors {
+	//		chartName := (*chartNeighbor.Value).(*release.ReleaseRequest).ChartName
+	//		_, ok := releaseRequest.Dependencies[chartName]
+	//		if !ok {
+	//			releaseRequest.Dependencies[chartName] = (*chartNeighbor.Value).(*release.ReleaseRequest).Name
+	//		}
+	//	}
+	//	releaseParsed = append(releaseParsed, &releaseRequest)
+	//}
 
 	return releaseParsed, nil
 }

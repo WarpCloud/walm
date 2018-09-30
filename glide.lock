@@ -1,5 +1,5 @@
-hash: 4f4181fd4f61fc85da3d8569705073242e840a6fbd0effab13e69095c52fa0f6
-updated: 2018-09-29T12:41:46.376196851+08:00
+hash: 1e9a0571c8ec29f7bb9df64fb24c9edb69ba17109f28ccd176565a90fa358b64
+updated: 2018-09-30T20:52:26.752071984+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -141,7 +141,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 064e2069ce9c359c118179501254f67d7d37ba24
+  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -152,16 +152,14 @@ imports:
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
   - diskcache
+- name: github.com/hashicorp/errwrap
+  version: 8a6fb523712970c966eefc6b39ed2c5e74880354
 - name: github.com/hashicorp/go-multierror
   version: 886a7fbe3eb1c874d46f623bfa70af45f425b3d1
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
   - simplelru
-- name: github.com/hashicorp/terraform
-  version: fd1f630aff6ec47d76bba6e5aadcc0a6481c9eb7
-  subpackages:
-  - ./dag
 - name: github.com/howeyc/gopass
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/huandu/xstrings
@@ -247,11 +245,6 @@ imports:
   version: db2ee6c14a35e4fca95b0d75054296ef2b699050
 - name: github.com/thoas/stats
   version: 772d6bc584ef4367a73ec981604c0c3010ba07b6
-- name: github.com/twmb/algoimpl
-  version: 076353e90b94cccf4fe7cc41790d46f421da2d97
-  subpackages:
-  - go/graph
-  - go/graph/lite
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:

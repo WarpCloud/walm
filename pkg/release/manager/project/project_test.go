@@ -5,59 +5,58 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/twmb/algoimpl/go/graph"
+	"walm/pkg/util/dag"
 	"github.com/ghodss/yaml"
 
 	"walm/pkg/release"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/setting"
 	"walm/pkg/k8s/informer"
+	"sync"
 )
 
 func Test_ExampleGraph_TopologicalSort(t *testing.T) {
-	g := graph.New(graph.Directed)
+	var g dag.AcyclicGraph
 
-	clothes := make(map[string]graph.Node, 0)
-	// Make a mapping from strings to a node
-	clothes["hat"] = g.MakeNode()
-	clothes["shirt"] = g.MakeNode()
-	clothes["tie"] = g.MakeNode()
-	clothes["jacket"] = g.MakeNode()
-	clothes["belt"] = g.MakeNode()
-	clothes["watch"] = g.MakeNode()
-	clothes["undershorts"] = g.MakeNode()
-	clothes["pants"] = g.MakeNode()
-	clothes["shoes"] = g.MakeNode()
-	clothes["socks"] = g.MakeNode()
-	// Make references back to the string values
-	for key, node := range clothes {
-		*node.Value = key
+	g.Add("hat")
+	g.Add("shirt")
+	g.Add("tie")
+	g.Add("jacket")
+	g.Add("belt")
+	g.Add("watch")
+	g.Add("undershorts")
+	g.Add("pants")
+	g.Add("shoes")
+	g.Add("socks")
+
+	g.Connect(dag.BasicEdge("hat", "shirt"))
+	g.Connect(dag.BasicEdge("shirt", "tie"))
+	g.Connect(dag.BasicEdge("tie", "jacket"))
+	g.Connect(dag.BasicEdge("undershorts", "pants"))
+	g.Connect(dag.BasicEdge("undershorts", "shoes"))
+	g.Connect(dag.BasicEdge("pants", "belt"))
+	g.Connect(dag.BasicEdge("pants", "shoes"))
+	g.Connect(dag.BasicEdge("socks", "shoes"))
+
+	var visits []dag.Vertex
+	var lock sync.Mutex
+	err := g.Walk(func(v dag.Vertex) error {
+		lock.Lock()
+		defer lock.Unlock()
+		visits = append(visits, v)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("err: %s", err)
 	}
-	// Connect the elements
-	g.MakeEdge(clothes["shirt"], clothes["tie"])
-	g.MakeEdge(clothes["tie"], clothes["jacket"])
-	g.MakeEdge(clothes["shirt"], clothes["belt"])
-	g.MakeEdge(clothes["belt"], clothes["jacket"])
-	g.MakeEdge(clothes["undershorts"], clothes["pants"])
-	g.MakeEdge(clothes["undershorts"], clothes["shoes"])
-	g.MakeEdge(clothes["pants"], clothes["belt"])
-	g.MakeEdge(clothes["pants"], clothes["shoes"])
-	g.MakeEdge(clothes["socks"], clothes["shoes"])
-	sorted := g.TopologicalSort()
-	for i := range sorted {
-		fmt.Println(*sorted[i].Value)
-	}
-	// Output:
-	// socks
-	// undershorts
-	// pants
-	// shoes
-	// watch
-	// shirt
-	// belt
-	// tie
-	// jacket
-	// hat
+
+	roots, _ := g.Root()
+	fmt.Printf("%+v\n", roots)
+	marshalBytes, _ := g.MarshalJSON()
+	fmt.Printf("%+v\n", string(marshalBytes[:]))
+	fmt.Printf("%+v\n", visits)
+	fmt.Printf("%+v\n", g.UpEdges("shoes").List())
+	fmt.Printf("%+v\n", g.DownEdges("hat").List())
 }
 
 func Test_Project_Create(t *testing.T) {
