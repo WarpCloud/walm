@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"fmt"
 	walmerr "walm/pkg/util/error"
+	"github.com/sirupsen/logrus"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
-	projectList, err := project.GetDefaultProjectManager().ListProjects("")
+	projectList, err := project.GetDefaultProjectManager().ListProjectsSync("")
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -20,7 +21,7 @@ func ListProjectAllNamespaces(request *restful.Request, response *restful.Respon
 
 func ListProjectByNamespace(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
-	projectList, err := project.GetDefaultProjectManager().ListProjects(tenantName)
+	projectList, err := project.GetDefaultProjectManager().ListProjectsSync(tenantName)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -50,8 +51,9 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
-	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams)
+	err = project.CreateProjectSync(tenantName, projectName, projectParams)
 	if err != nil {
+		logrus.Infof("DeployProject %+v", err)
 		response.WriteError(http.StatusInternalServerError, err)
 	}
 }
@@ -59,7 +61,13 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 func GetProjectInfo(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfo(tenantName, projectName)
+	releaseRequest := &releasetypes.ReleaseRequest{}
+	err := request.ReadEntity(releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfoSync(tenantName, projectName)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			WriteNotFoundResponse(response, -1, fmt.Sprintf("project %s/%s is not found", tenantName, projectName))
@@ -73,11 +81,48 @@ func GetProjectInfo(request *restful.Request, response *restful.Response) {
 func DeleteProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	err := project.GetDefaultProjectManager().DeleteProject(tenantName, projectName)
+	err := project.GetDefaultProjectManager().DeleteProjectSync(tenantName, projectName)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
 }
 
 func DeployInstanceInProject(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+	releaseRequest := &releasetypes.ReleaseRequest{}
+	err := request.ReadEntity(releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().AddReleaseInProject(tenantName, projectName, releaseRequest)
+	if err != nil {
+		response.WriteError(http.StatusInternalServerError, err)
+	}
+}
+
+func DeployProjectInProject(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+	projectParams := &releasetypes.ProjectParams{}
+	err := request.ReadEntity(projectParams)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().AddProjectInProject(tenantName, projectName, projectParams)
+	if err != nil {
+		response.WriteError(http.StatusInternalServerError, err)
+	}
+}
+
+func DeleteInstanceInProject(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+	releaseName := request.PathParameter("release")
+	err := project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName)
+	if err != nil {
+		response.WriteError(http.StatusInternalServerError, err)
+	}
 }

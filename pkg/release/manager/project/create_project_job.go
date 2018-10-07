@@ -19,6 +19,25 @@ type CreateProjectJob struct {
 	ProjectParams *release.ProjectParams
 }
 
+func copyProjectParams(projectParams *release.ProjectParams) release.ProjectParams {
+	var copyProjectParams release.ProjectParams
+	copyProjectParams.CommonValues = map[string]interface{}{}
+	copyProjectParams.Releases = make([]*release.ReleaseRequest, 0)
+	mergeValues(copyProjectParams.CommonValues, projectParams.CommonValues)
+	for _, releaseRequest := range projectParams.Releases {
+		var release_v release.ReleaseRequest
+		release_v.Name = releaseRequest.Name
+		release_v.ChartName = releaseRequest.ChartName
+		release_v.ChartVersion = releaseRequest.ChartVersion
+		release_v.RepoName = releaseRequest.RepoName
+		release_v.ConfigValues = releaseRequest.ConfigValues
+		release_v.Dependencies = releaseRequest.Dependencies
+		copyProjectParams.Releases = append(copyProjectParams.Releases, &release_v)
+	}
+
+	return copyProjectParams
+}
+
 func (createProjectJob *CreateProjectJob) createProject(projectCache *release.ProjectCache) error {
 	helmExtraLabelsBase := map[string]interface{}{}
 	helmExtraLabelsVals := release.HelmExtraLabels{}
@@ -35,7 +54,8 @@ func (createProjectJob *CreateProjectJob) createProject(projectCache *release.Pr
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
 	}
 
-	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(createProjectJob.ProjectParams)
+	projectParams := copyProjectParams(createProjectJob.ProjectParams)
+	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(&projectParams)
 	if err != nil {
 		logrus.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
 		return err

@@ -13,6 +13,8 @@ import (
 	"walm/pkg/job"
 	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
+	"fmt"
+	"time"
 )
 
 type ProjectManager struct {
@@ -143,7 +145,7 @@ func buildProjectCache(namespace, project, jobStatus string, projectParams *rele
 	for _, release := range projectParams.Releases {
 		projectCache.Releases = append(projectCache.Releases, buildProjectReleaseName(project, release.Name))
 	}
-	return
+	return projectCache
 }
 
 func setProjectCacheToRedis(redisClient *redis.RedisClient, projectCache *release.ProjectCache) error {
@@ -277,61 +279,207 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string) e
 }
 
 func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
-	projectInfo, err := manager.GetProjectInfo(namespace, projectName)
+	projectInfo, err := manager.GetProjectInfoSync(namespace, projectName)
 	if err != nil {
 		return err
 	}
-	if projectInfo == nil {
+	releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
+
+	if projectInfo != nil {
+		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, projectInfo.CommonValues)
+	}
+	if projectInfo != nil {
+		affectReleaseRequest, err2 := manager.brainFuckRuntimeDepParse(projectInfo, releaseParams, false)
+		if err2 != nil {
+			logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
+			return err2
+		}
+		err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
+		if err != nil {
+			logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
+			return err
+		}
+		for _, affectReleaseParams := range affectReleaseRequest {
+			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
+			err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+			if err != nil {
+				logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
+				return err
+			}
+		}
+	} else {
 		err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
 		if err != nil {
 			logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 			return err
 		}
 	}
+
 	return nil
 }
 
-func (manager *ProjectManager) RemoveReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
+func (manager *ProjectManager) RemoveReleaseInProject(namespace string, projectName, releaseName string) error {
+	projectInfo, err := manager.GetProjectInfoSync(namespace, projectName)
+	if err != nil {
+		return err
+	}
+	releaseProjectName := buildProjectReleaseName(projectName, releaseName)
+
+	err = manager.helmClient.DeleteRelease(namespace, releaseProjectName)
+	if err != nil {
+		logrus.Errorf("RemoveReleaseInProject install release %s error %v\n", releaseProjectName, err)
+		return err
+	}
+	releaseParams := buildReleaseRequest(projectInfo, releaseName)
+	if releaseParams == nil {
+		return fmt.Errorf("can not remove %s in %v", releaseName, *projectInfo)
+	}
+	if projectInfo != nil {
+		affectReleaseRequest, err2 := manager.brainFuckRuntimeDepParse(projectInfo, releaseParams, true)
+		if err2 != nil {
+			logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
+			return err2
+		}
+		for _, affectReleaseParams := range affectReleaseRequest {
+			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
+			err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+			if err != nil {
+				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
+				return err
+			}
+		}
+	}
+	manager.helmClient.DeleteRelease(namespace, releaseProjectName)
+
 	return nil
 }
 
-func brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *release.ReleaseRequest) ([]*release.ReleaseRequest, error) {
-	//subCharts, err := helm.GetDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
-	//if err != nil {
-	//	return nil, err
-	//}
+func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *release.ReleaseRequest, isRemove bool) ([]*release.ReleaseRequest, error) {
+	var g dag.AcyclicGraph
+	affectReleases := make([]*release.ReleaseRequest, 0)
 
-	// Find Upstream Release
-	//for _, chartName := range subCharts {
-	//	for _, releaseInfo := range projectInfo.Releases {
-	//		releaseSubCharts, err := helm.GetDependencies(releaseInfo.ChartName, releaseInfo.ChartVersion)
-	//		if err != nil {
-	//			return nil, err
-	//		}
-	//		logrus.Infof("%s %v", chartName, releaseSubCharts)
-	//	}
-	//}
-	//projectParams := {
-	//}
-	// Find Downstream Release
-	//for _, chartName := range subCharts {
-	//}
+	// init node
+	for _, helmRelease := range projectInfo.Releases {
+		g.Add(helmRelease.Name)
+	}
 
-	return nil, nil
+	// init edge
+	for _, helmRelease := range projectInfo.Releases {
+		for _, v := range helmRelease.Dependencies {
+			g.Connect(dag.BasicEdge(helmRelease.Name, v))
+		}
+	}
+
+	if !isRemove {
+		g.Add(releaseParams.Name)
+		for _, helmRelease := range projectInfo.Releases {
+			subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+			if err != nil {
+				return nil, err
+			}
+			for _, subChartName := range subCharts {
+				_, ok := helmRelease.Dependencies[subChartName]
+				if subChartName == releaseParams.ChartName && !ok {
+					g.Connect(dag.BasicEdge(helmRelease.Name, releaseParams.Name))
+				}
+			}
+		}
+		releaseSubCharts, err := manager.helmClient.GetDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
+		if err != nil {
+			return nil, err
+		}
+		for _, releaseSubChart := range releaseSubCharts {
+			_, ok := releaseParams.Dependencies[releaseSubChart]
+			if ok {
+				continue
+			}
+			for _, helmRelease := range projectInfo.Releases {
+				if releaseSubChart == helmRelease.ChartName {
+					g.Connect(dag.BasicEdge(releaseParams.Name, helmRelease.Name))
+				}
+			}
+		}
+		logrus.Infof("add %s Modify UpperStream Release %+v deps %s\n", releaseParams.Name, g.UpEdges(releaseParams.Name).List(), releaseParams.Name)
+		for _, upperReleaseName := range g.UpEdges(releaseParams.Name).List() {
+			upperRelease := buildReleaseRequest(projectInfo, upperReleaseName.(string))
+			if upperRelease == nil {
+				continue
+			}
+			_, ok := upperRelease.Dependencies[releaseParams.ChartName]
+			if !ok {
+				upperRelease.Dependencies[releaseParams.ChartName] = releaseParams.Name
+			}
+			affectReleases = append(affectReleases, upperRelease)
+		}
+		logrus.Infof("add %s release add more %+v deps. current %+v\n",
+			releaseParams.Name, g.DownEdges(releaseParams.Name).List(), releaseParams.Dependencies)
+		for _, downReleaseName := range g.DownEdges(releaseParams.Name).List() {
+			downRelease := buildReleaseRequest(projectInfo, downReleaseName.(string))
+			if downRelease == nil {
+				continue
+			}
+			_, ok := releaseParams.Dependencies[downRelease.ChartName]
+			if !ok {
+				releaseParams.Dependencies[downRelease.ChartName] = downRelease.Name
+				logrus.Infof("RuntimeDepParse release %s Dependencies %+v\n", releaseParams.Name, releaseParams.Dependencies)
+			}
+		}
+	} else {
+		logrus.Infof("remove %+v\n", g.UpEdges(releaseParams.Name).List())
+		for _, upperReleaseName := range g.UpEdges(releaseParams.Name).List() {
+			upperRelease := buildReleaseRequest(projectInfo, upperReleaseName.(string))
+			if upperRelease == nil {
+				continue
+			}
+			_, ok := upperRelease.Dependencies[releaseParams.ChartName]
+			if ok {
+				delete(upperRelease.Dependencies, releaseParams.ChartName)
+			}
+			affectReleases = append(affectReleases, upperRelease)
+		}
+	}
+
+	return affectReleases, nil
+}
+
+func buildReleaseRequest(projectInfo *release.ProjectInfo, releaseName string) *release.ReleaseRequest {
+	var releaseRequest release.ReleaseRequest
+	found := false
+	for _, releaseInfo := range projectInfo.Releases {
+		if releaseInfo.Name != releaseName {
+			continue
+		}
+		releaseRequest.ConfigValues = make(map[string]interface{})
+		releaseRequest.ConfigValues["UPDATE"] = time.Now().String()
+		releaseRequest.Dependencies = make(map[string]string)
+		for k, v := range releaseInfo.Dependencies {
+			releaseRequest.Dependencies[k] = v
+		}
+		releaseRequest.Name = buildProjectReleaseName(projectInfo.Name, releaseInfo.Name)
+		releaseRequest.ChartName = releaseInfo.ChartName
+		releaseRequest.ChartVersion = releaseInfo.ChartVersion
+		found = true
+		break
+	}
+
+	if !found {
+		return nil
+	}
+	return &releaseRequest
 }
 
 func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
-	projectParamsMap := make(map[string]interface{})
+	projectParamsMap := make(map[string]*release.ReleaseRequest)
 	releaseParsed := make([]*release.ReleaseRequest, 0)
 	var g dag.AcyclicGraph
 
 	for _, releaseInfo := range projectParams.Releases {
-		projectParamsMap[releaseInfo.ChartName] = &releaseInfo
+		projectParamsMap[releaseInfo.ChartName] = releaseInfo
 	}
 
 	// init node
 	for _, helmRelease := range projectParams.Releases {
-		g.Add(helmRelease.ChartName)
+		g.Add(helmRelease)
 	}
 
 	// init edge
@@ -342,7 +490,11 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 		}
 
 		for _, subChartName := range subCharts {
-			g.Connect(dag.BasicEdge(helmRelease.ChartName, subChartName))
+			_, ok := projectParamsMap[subChartName]
+			_, ok2 := helmRelease.Dependencies[subChartName]
+			if ok && !ok2 {
+				g.Connect(dag.BasicEdge(helmRelease, projectParamsMap[subChartName]))
+			}
 		}
 	}
 
@@ -356,27 +508,16 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 		lock.Lock()
 		defer lock.Unlock()
 		releaseRequest := v.(*release.ReleaseRequest)
-		releaseRequest.ChartName
-		releaseParsed = append(releaseParsed, &releaseRequest)
+		for _, dv := range g.DownEdges(releaseRequest).List() {
+			release := dv.(*release.ReleaseRequest)
+			releaseRequest.Dependencies[release.ChartName] = release.Name
+		}
+		releaseParsed = append(releaseParsed, releaseRequest)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	//for i := range sortedChartList {
-	//	releaseRequest := *(*sortedChartList[i].Value).(*release.ReleaseRequest)
-	//	logrus.Debugf("DEBUG: %v", releaseRequest.Dependencies)
-	//	chartsNeighbors := g.Neighbors(sortedChartList[i])
-	//	for _, chartNeighbor := range chartsNeighbors {
-	//		chartName := (*chartNeighbor.Value).(*release.ReleaseRequest).ChartName
-	//		_, ok := releaseRequest.Dependencies[chartName]
-	//		if !ok {
-	//			releaseRequest.Dependencies[chartName] = (*chartNeighbor.Value).(*release.ReleaseRequest).Name
-	//		}
-	//	}
-	//	releaseParsed = append(releaseParsed, &releaseRequest)
-	//}
 
 	return releaseParsed, nil
 }
@@ -406,4 +547,156 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 	}
 
 	return dest
+}
+
+func CreateProjectSync(tenantName, projectName string, projectParams *release.ProjectParams) error {
+	helmExtraLabelsBase := map[string]interface{}{}
+	helmExtraLabelsVals := release.HelmExtraLabels{}
+	helmExtraLabelsVals.HelmLabels = make(map[string]interface{})
+	helmExtraLabelsVals.HelmLabels["project_name"] = projectName
+	helmExtraLabelsBase["HelmExtraLabels"] = helmExtraLabelsVals
+
+	rawValsBase := map[string]interface{}{}
+	rawValsBase = mergeValues(rawValsBase, projectParams.CommonValues)
+	rawValsBase = mergeValues(helmExtraLabelsBase, rawValsBase)
+
+	for _, releaseParams := range projectParams.Releases {
+		releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
+		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
+	}
+
+	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(projectParams)
+	if err != nil {
+		logrus.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
+		return err
+	}
+	for _, releaseParams := range releaseList {
+		err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(tenantName, releaseParams)
+		if err != nil {
+			logrus.Errorf("failed to create project release %s/%s : %s", tenantName, releaseParams.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (manager *ProjectManager) ListProjectsSync(namespace string) (*release.ProjectInfoList, error) {
+	projectMap := make(map[string]*release.ProjectInfo)
+	projectList := new(release.ProjectInfoList)
+
+	releaseList, err := manager.helmClient.ListReleases(namespace, "*--*")
+	if err != nil {
+		return nil, err
+	}
+	for _, releaseInfo := range releaseList {
+		projectNameArray := strings.Split(releaseInfo.Name, "--")
+		if len(projectNameArray) == 2 {
+			projectName := projectNameArray[0]
+			projectInfo, ok := projectMap[projectName]
+			if ok {
+				releaseInfo.Name = projectNameArray[1]
+				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
+			} else {
+				projectMap[projectName] = new(release.ProjectInfo)
+				projectMap[projectName].Name = projectName
+				projectMap[projectName].Namespace = releaseInfo.Namespace
+				projectMap[projectName].CommonValues = make(map[string]interface{})
+				releaseInfo.Name = projectNameArray[1]
+				projectMap[projectName].Releases = append(projectMap[projectName].Releases, releaseInfo)
+				projectList.Items = append(projectList.Items, projectMap[projectName])
+			}
+		}
+	}
+	return projectList, nil
+}
+
+func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string) (*release.ProjectInfo, error) {
+	projectInfo := &release.ProjectInfo{
+		Name: projectName,
+		Namespace: namespace,
+		CommonValues: map[string]interface{}{},
+	}
+	releaseList, err := manager.helmClient.ListReleases(namespace, projectName + "--*")
+	if err != nil {
+		return nil, err
+	}
+	for _, releaseInfo := range releaseList {
+		projectNameArray := strings.Split(releaseInfo.Name, "--")
+		if len(projectNameArray) == 2 {
+			if projectName == projectNameArray[0] {
+				releaseInfo.Name = projectNameArray[1]
+				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
+			}
+		}
+	}
+	if len(projectInfo.Releases) > 0 {
+		return projectInfo, nil
+	}
+	return nil, nil
+}
+
+func (manager *ProjectManager) DeleteProjectSync(namespace string, project string) error {
+	projectInfo, err := manager.GetProjectInfo(namespace, project)
+	if err != nil {
+		logrus.Errorf("DeleteProject get project info error %v\n", err)
+		return err
+	}
+	if projectInfo == nil && err == nil {
+		logrus.Infof("DeleteProject can't found project %s %s", namespace, project)
+	}
+	for _, releaseInfo := range projectInfo.Releases {
+		releaseName := fmt.Sprintf("%s--%s", projectInfo.Name, releaseInfo.Name)
+		err = manager.helmClient.DeleteRelease(namespace, releaseName)
+		if err != nil {
+			logrus.Errorf("DeleteProject deleteRelease %s info error %v\n", releaseName, err)
+		}
+	}
+	return nil
+}
+
+func (manager *ProjectManager) AddProjectInProject(namespace string, projectName string, projectParams *release.ProjectParams) error {
+	projectInfo, err := manager.GetProjectInfoSync(namespace, projectName)
+	if err != nil {
+		return err
+	}
+	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(projectParams)
+	if err != nil {
+		logrus.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
+		return err
+	}
+	for _, releaseParams := range releaseList {
+		releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
+		logrus.Infof("#### %s %+v\n", releaseParams.Name, releaseParams.ConfigValues)
+		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, projectParams.CommonValues)
+		logrus.Infof("#### after %s %+v %+v\n", releaseParams.Name, releaseParams.ConfigValues, projectParams.CommonValues)
+
+		if projectInfo != nil {
+			affectReleaseRequest, err2 := manager.brainFuckRuntimeDepParse(projectInfo, releaseParams, false)
+			if err2 != nil {
+				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
+				return err2
+			}
+			err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
+			if err != nil {
+				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
+				return err
+			}
+			for _, affectReleaseParams := range affectReleaseRequest {
+				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
+				err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+				if err != nil {
+					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
+					return err
+				}
+			}
+		} else {
+			err = manager.helmClient.InstallUpgradeRealese(namespace, releaseParams)
+			if err != nil {
+				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
+				return err
+			}
+		}
+	}
+
+	return nil
 }

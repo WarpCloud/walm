@@ -316,6 +316,25 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Reads(releasetypes.ReleaseRequest{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/name/{project}/project").To(v1.DeployProjectInProject).
+		Doc("添加多个Project组件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Reads(releasetypes.ProjectParams{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{project}/instance/{release}").To(v1.DeleteInstanceInProject).
+		Doc("删除一个Project组件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

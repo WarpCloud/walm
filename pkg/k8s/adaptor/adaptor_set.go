@@ -27,6 +27,7 @@ type AdaptorSet struct {
 	walmStatefulSetAdaptor *WalmStatefulSetAdaptor
 	walmNodeAdaptor *WalmNodeAdaptor
 	walmResourceQuotaAdaptor *WalmResourceQuotaAdaptor
+	walmNamespaceAdaptor *WalmNamespaceAdaptor
 }
 
 func(set *AdaptorSet) GetHandlerSet() *handler.HandlerSet{
@@ -96,6 +97,11 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 			set.walmResourceQuotaAdaptor = &WalmResourceQuotaAdaptor{set.handlerSet.GetResourceQuotaHandler()}
 		}
 		resourceAdaptor = set.walmResourceQuotaAdaptor
+	case "Namespace":
+		if set.walmNamespaceAdaptor == nil {
+			set.walmNamespaceAdaptor = &WalmNamespaceAdaptor{set.handlerSet.GetNamespaceHandler()}
+		}
+		resourceAdaptor = set.walmNamespaceAdaptor
 	default:
 		resourceAdaptor = &WalmDefaultAdaptor{kind}
 	}

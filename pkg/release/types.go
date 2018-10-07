@@ -17,6 +17,7 @@ type ReleaseInfo struct {
 
 type ReleaseSpec struct {
 	Name            string                 `json:"name" description:"name of the release"`
+	RepoName        string                 `json:"repo_name" description:"chart name"`
 	ConfigValues    map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
 	Namespace       string                 `json:"namespace" description:"namespace of release"`

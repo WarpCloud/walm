@@ -14,7 +14,6 @@ func GetTenantInfo(name string) (TenantInfo, error) {
 
 		return TenantInfo{
 			TenantName:         namespace.GetName(),
-			TenantUid:          string(namespace.GetUID()),
 			TenantCreationTime: namespace.GetCreationTimestamp(),
 			TenantLabels:       MapToKvString(namespace.GetLabels()),
 			TenantStatus:       string(namespace.Status.Phase),

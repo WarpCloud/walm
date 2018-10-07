@@ -14,8 +14,7 @@ import (
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/helm/pkg/transwarp"
-	"sync"
+		"sync"
 	"errors"
 	"walm/pkg/release/manager/helm/cache"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 	walmerr "walm/pkg/util/error"
+	"k8s.io/helm/pkg/transwarp"
 )
 
 const (
@@ -299,17 +299,12 @@ func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion stri
 }
 
 func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) (*hapiRelease.Release, error) {
-	rawVals, err := yaml.Marshal(configValues)
+	configVals, err := yaml.Marshal(configValues)
 	if err != nil {
 		logrus.Errorf("failed to marshal config values: %s", err.Error())
 		return nil, err
 	}
-	err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(rawVals[:]), depLinks)
-	if err != nil {
-		logrus.Errorf("failed to process app charts : %s", err.Error())
-		return nil, err
-	}
-
+	logrus.Infof("InstallChart Params %s %s %+v %+v", releaseName, namespace, configValues, depLinks)
 	helmRelease := &hapiRelease.Release{}
 	releaseHistory, err := client.client.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
 	if err == nil {
@@ -320,10 +315,28 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 				namespace, previousReleaseNamespace,
 			)
 		}
+		previousValues := map[string]interface{}{}
+		if err := yaml.Unmarshal([]byte(releaseHistory.Releases[0].Chart.Values.Raw), &previousValues); err != nil {
+			return nil, fmt.Errorf("failed to parse rawValues: %s", err)
+		}
+		mergedValues := map[string]interface{}{}
+		mergedValues = mergeValues(mergedValues, configValues)
+		mergedValues = mergeValues(previousValues, mergedValues)
+		mergedVals, err := yaml.Marshal(mergedValues)
+		if err != nil {
+			logrus.Errorf("failed to marshal config values: %s", err.Error())
+			return nil, err
+		}
+		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
+		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
+		if err != nil {
+			logrus.Errorf("failed to process app charts : %s", err.Error())
+			return nil, err
+		}
 		resp, err := client.client.UpdateReleaseFromChart(
 			releaseName,
 			chart,
-			helm.UpdateValueOverrides(rawVals),
+			helm.UpdateValueOverrides(mergedVals),
 			helm.ReuseValues(true),
 			helm.UpgradeDryRun(client.dryRun),
 		)
@@ -334,10 +347,16 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 		helmRelease = resp.GetRelease()
 	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
+		logrus.Infof("InstallChart %s DepLinks %+v ConfigValues %+v", releaseName, depLinks, configValues)
+		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
+		if err != nil {
+			logrus.Errorf("failed to process app charts : %s", err.Error())
+			return nil, err
+		}
 		resp, err := client.client.InstallReleaseFromChart(
 			chart,
 			namespace,
-			helm.ValueOverrides(rawVals),
+			helm.ValueOverrides(configVals),
 			helm.ReleaseName(releaseName),
 			helm.InstallDryRun(client.dryRun),
 		)
@@ -368,4 +387,30 @@ func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
 	go wait.Until(func() {
 		client.helmCache.Resync()
 	}, client.helmCacheResyncInterval, stopCh)
+}
+
+func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+	for k, v := range src {
+		// If the key doesn't exist already, then just set the key to that value
+		if _, exists := dest[k]; !exists {
+			dest[k] = v
+			continue
+		}
+		nextMap, ok := v.(map[string]interface{})
+		// If it isn't another map, overwrite the value
+		if !ok {
+			dest[k] = v
+			continue
+		}
+		// Edge case: If the key exists in the destination, but isn't a map
+		destMap, isMap := dest[k].(map[string]interface{})
+		// If the source map has a map for this key, prefer it
+		if !isMap {
+			dest[k] = v
+			continue
+		}
+		// If we got to this point, it is a map in both, so merge them
+		dest[k] = mergeValues(destMap, nextMap)
+	}
+	return dest
 }

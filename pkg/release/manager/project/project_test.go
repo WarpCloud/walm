@@ -25,6 +25,7 @@ func Test_ExampleGraph_TopologicalSort(t *testing.T) {
 	g.Add("belt")
 	g.Add("watch")
 	g.Add("undershorts")
+	g.Add("undershorts")
 	g.Add("pants")
 	g.Add("shoes")
 	g.Add("socks")
@@ -61,7 +62,7 @@ func Test_ExampleGraph_TopologicalSort(t *testing.T) {
 
 func Test_Project_Create(t *testing.T) {
 	commonValuesVal := map[string]interface{}{}
-	chartList := []string{ "zookeeper", "txsql" }
+	chartList := []string{ "zookeeper", "txsql", "hdfs" }
 
 	yaml.Unmarshal([]byte(testSimpleCommonValuesStr), &commonValuesVal)
 	projectParams := release.ProjectParams{
@@ -69,7 +70,7 @@ func Test_Project_Create(t *testing.T) {
 	}
 	for _, chartName := range chartList {
 		releaseInfo := release.ReleaseRequest{
-			Name: fmt.Sprintf("%s-%s", chartName, "test"),
+			Name: fmt.Sprintf("%s", chartName),
 			ChartName: chartName,
 		}
 		releaseInfo.ConfigValues = make(map[string]interface{})
@@ -93,6 +94,132 @@ func Test_Project_List(t *testing.T) {
 	}
 }
 
+func Test_Project_ChartDepParse(t *testing.T) {
+	commonValuesVal := map[string]interface{}{}
+	chartList := []string{ "zookeeper", "txsql", "hdfs", "guardian" }
+
+	yaml.Unmarshal([]byte(testSimpleCommonValuesStr), &commonValuesVal)
+	projectParams := release.ProjectParams{
+		CommonValues: commonValuesVal,
+	}
+	for _, chartName := range chartList {
+		releaseInfo := release.ReleaseRequest{
+			Name: fmt.Sprintf("%s-%s", chartName, "test"),
+			ChartName: chartName,
+		}
+		releaseInfo.ConfigValues = make(map[string]interface{})
+		releaseInfo.Dependencies = make(map[string]string)
+		projectParams.Releases = append(projectParams.Releases, &releaseInfo)
+	}
+	releases, _ := GetDefaultProjectManager().brainFuckChartDepParse(&projectParams)
+	for i := range releases {
+		release := releases[len(releases)-1-i]
+		fmt.Printf("%s %s %+v\n", release.Name, release.ChartName, release.Dependencies)
+	}
+}
+
+func Test_Project_ChartRuntimeDepParse(t *testing.T) {
+	projectInfo := release.ProjectInfo{
+		Name: "test0",
+	}
+	projectInfo.Releases = make([]*release.ReleaseInfo, 0)
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"zookeeper-test",
+			ChartName: "zookeeper",
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"hdfs-test",
+			ChartName: "hdfs",
+			Dependencies:map[string]string{
+				"zookeeper": "zookeeper-test",
+			},
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"metastore-test",
+			ChartName: "metastore",
+			Dependencies:map[string]string{
+				"hdfs": "hdfs-test",
+			},
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"guardian-test",
+			ChartName: "guardian",
+		},
+	})
+	releaseParams := release.ReleaseRequest{
+		Name: "yarn-test",
+		ChartName: "yarn",
+		Dependencies:map[string]string{
+			"hdfs": "hdfs-aaa",
+		},
+	}
+	releases, _ := GetDefaultProjectManager().brainFuckRuntimeDepParse(&projectInfo, &releaseParams, false)
+	fmt.Printf("%+v\n", releaseParams)
+	for i := range releases {
+		release := releases[len(releases)-1-i]
+		fmt.Printf("%s %s %+v\n", release.Name, release.ChartName, release.Dependencies)
+	}
+}
+
+func Test_Project_ChartRuntimeDepParse2(t *testing.T) {
+	projectInfo := release.ProjectInfo{
+		Name: "test0",
+	}
+	projectInfo.Releases = make([]*release.ReleaseInfo, 0)
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"zookeeper-test",
+			ChartName: "zookeeper",
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"hdfs-test",
+			ChartName: "hdfs",
+			Dependencies:map[string]string{
+				"zookeeper": "zookeeper-test",
+			},
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"yarn-test",
+			ChartName: "yarn",
+			Dependencies:map[string]string{
+				"zookeeper": "zookeeper-test",
+				"hdfs": "hdfs-test",
+			},
+		},
+	})
+	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
+		ReleaseSpec: release.ReleaseSpec{
+			Name:"metastore-test",
+			ChartName: "metastore",
+			Dependencies:map[string]string{
+				"hdfs": "hdfs-test",
+				"yarn": "yarn-test",
+			},
+		},
+	})
+	releaseParams := release.ReleaseRequest{
+		Name: "yarn-test",
+		ChartName: "yarn",
+	}
+	releases, _ := GetDefaultProjectManager().brainFuckRuntimeDepParse(&projectInfo, &releaseParams, true)
+	fmt.Printf("%+v\n", releaseParams)
+	for i := range releases {
+		release := releases[len(releases)-1-i]
+		fmt.Printf("%s %s %+v\n", release.Name, release.ChartName, release.Dependencies)
+	}
+}
+
 func TestMain(m *testing.M) {
 	chartRepoMap := make(map[string]*helm.ChartRepository)
 	chartRepository := helm.ChartRepository{
@@ -104,8 +231,15 @@ func TestMain(m *testing.M) {
 	chartRepoMap["stable"] = &chartRepository
 	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap, false)
 
+	//redis.InitRedisClient()
+	//job.InitWalmJobManager()
+	//informer.InitInformer()
+	//helm.InitHelm()
+	//InitProject()
+	gopath := os.Getenv("GOPATH")
+
 	setting.Config.KubeConfig = &setting.KubeConfig{
-		Config: "/home/bianyu/user/code/opensource/goproject/src/walm/test/k8sconfig/kubeconfig",
+		Config: gopath + "/src/walm/test/k8sconfig/kubeconfig",
 	}
 	informer.InitInformer()
 	InitProject()

@@ -45,7 +45,7 @@ func (redisClient *RedisClient) GetClient() *redis.Client {
 func CreateFakeRedisClient() *RedisClient {
 	client := redis.NewClient(&redis.Options{
 		Addr:         "172.16.1.45:6379",
-		Password:     "walmtest",
+		// Password:     "walmtest",
 		DialTimeout:  10 * time.Second,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,

@@ -5,24 +5,23 @@ import (
 )
 
 type TenantInfoList struct {
-	Items *[]TenantInfo `json:"items" description:"tenant list"`
+	Items []*TenantInfo `json:"items" description:"tenant list"`
 }
 
 //Tenant Info
 type TenantInfo struct {
 	TenantName         string  `json:"tenant_name" description:"name of the tenant"`
-	TenantUid          string  `json:"tenant_uid" description:"uid of the tenant"`
 	TenantCreationTime v1.Time `json:"tenant_creation_time" description:"create time of the tenant"`
 	TenantLabels       string  `json:"tenant_labels"  description:"labels of the tenant"`
 	TenantStatus       string  `json:"tenant_status" description:"status of the tenant"`
-	TenantQuotas *[]TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
+	TenantQuotas []*TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
 }
 
 //Tenant Params Info
 type TenantParams struct {
 	TenantName         string  `json:"tenant_name" description:"name of the tenant"`
 	TenantLabels       string  `json:"tenant_labels"  description:"labels of the tenant"`
-	TenantQuotas *[]TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
+	TenantQuotas []*TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
 }
 
 //Quota Info
