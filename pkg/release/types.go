@@ -2,6 +2,7 @@ package release
 
 import (
 	"walm/pkg/k8s/adaptor"
+	"k8s.io/helm/pkg/transwarp"
 )
 
 type ReleaseInfoList struct {
@@ -84,8 +85,7 @@ type HelmNativeValues struct {
 }
 
 type AppHelmValues struct {
-	Dependencies []*DependencyDeclare `json:"dependencies"`
-	NativeValues HelmNativeValues     `json:"HelmNativeValues"`
+	transwarp.AppHelmValues
 }
 
 type ProjectParams struct {

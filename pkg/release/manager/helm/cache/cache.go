@@ -15,7 +15,7 @@ import (
 	goredis "github.com/go-redis/redis"
 	"time"
 	walmerr "walm/pkg/util/error"
-)
+	)
 
 type HelmCache struct {
 	redisClient *redis.RedisClient
@@ -246,10 +246,11 @@ func (cache *HelmCache) buildReleaseCaches(releases []*hapiRelease.Release) (rel
 
 func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (releaseCache *release.ReleaseCache, err error) {
 	emptyChart := chart.Chart{}
-	depLinks := make(map[string]string)
+	helmVals := release.HelmValues{}
 	releaseSpec := release.ReleaseSpec{}
 	releaseSpec.Name = helmRelease.Name
 	releaseSpec.Namespace = helmRelease.Namespace
+	releaseSpec.Dependencies = make(map[string]string)
 	releaseSpec.Version = helmRelease.Version
 	releaseSpec.ChartVersion = helmRelease.Chart.Metadata.Version
 	releaseSpec.ChartName = helmRelease.Chart.Metadata.Name
@@ -260,12 +261,11 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 		return
 	}
 	releaseSpec.ConfigValues = cvals
-	depValue, ok := helmRelease.Config.Values["dependencies"]
-	if ok {
-		yaml.Unmarshal([]byte(depValue.Value), &depLinks)
-		releaseSpec.Dependencies = depLinks
-	} else {
-		releaseSpec.Dependencies = make(map[string]string)
+	err = yaml.Unmarshal([]byte(helmRelease.GetChart().GetValues().GetRaw()), &helmVals)
+	if err == nil {
+		if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
+			releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
+		}
 	}
 
 	releaseCache = &release.ReleaseCache{

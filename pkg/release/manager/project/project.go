@@ -301,7 +301,7 @@ func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+			err = manager.helmClient.UpgradeRealese(namespace, affectReleaseParams)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err
@@ -342,7 +342,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace string, projectN
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+			err = manager.helmClient.UpgradeRealese(namespace, affectReleaseParams)
 			if err != nil {
 				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err
@@ -666,9 +666,7 @@ func (manager *ProjectManager) AddProjectInProject(namespace string, projectName
 	}
 	for _, releaseParams := range releaseList {
 		releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
-		logrus.Infof("#### %s %+v\n", releaseParams.Name, releaseParams.ConfigValues)
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, projectParams.CommonValues)
-		logrus.Infof("#### after %s %+v %+v\n", releaseParams.Name, releaseParams.ConfigValues, projectParams.CommonValues)
 
 		if projectInfo != nil {
 			affectReleaseRequest, err2 := manager.brainFuckRuntimeDepParse(projectInfo, releaseParams, false)
@@ -683,7 +681,7 @@ func (manager *ProjectManager) AddProjectInProject(namespace string, projectName
 			}
 			for _, affectReleaseParams := range affectReleaseRequest {
 				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-				err = manager.helmClient.InstallUpgradeRealese(namespace, affectReleaseParams)
+				err = manager.helmClient.UpgradeRealese(namespace, affectReleaseParams)
 				if err != nil {
 					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 					return err

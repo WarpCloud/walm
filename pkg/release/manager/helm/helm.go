@@ -167,6 +167,46 @@ func (client *HelmClient) GetRelease(namespace, releaseName string) (release *re
 	return
 }
 
+func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest) error {
+	if releaseRequest.ConfigValues == nil {
+		releaseRequest.ConfigValues = map[string]interface{}{}
+	}
+	if releaseRequest.Dependencies == nil {
+		releaseRequest.Dependencies = map[string]string{}
+	}
+	chartRequested, err := client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	if err != nil {
+		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+		return err
+	}
+	depLinks := make(map[string]interface{})
+	for k, v := range releaseRequest.Dependencies {
+		depLinks[k] = v
+	}
+	releaseInfo, err := client.GetRelease(namespace, releaseRequest.Name)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("releaseInfo.Dependencies %+v %+v %+v\n", releaseInfo.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
+	for k, v := range releaseInfo.Dependencies {
+		depLinks[k] = v
+	}
+	mergeValues(releaseRequest.ConfigValues, releaseInfo.ConfigValues)
+	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	if err != nil {
+		logrus.Errorf("failed to install chart : %s", err.Error())
+		return err
+	}
+
+	err = client.helmCache.CreateOrUpdateReleaseCache(helmRelease)
+	if err != nil {
+		logrus.Errorf("failed to create of update release cache of %s : %s", helmRelease.Name, err.Error())
+		return err
+	}
+	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
+	return nil
+}
+
 func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest) error {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
@@ -322,11 +362,11 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		mergedValues := map[string]interface{}{}
 		mergedValues = mergeValues(mergedValues, configValues)
 		mergedValues = mergeValues(previousValues, mergedValues)
-		mergedVals, err := yaml.Marshal(mergedValues)
-		if err != nil {
-			logrus.Errorf("failed to marshal config values: %s", err.Error())
-			return nil, err
-		}
+		//mergedVals, err := yaml.Marshal(mergedValues)
+		//if err != nil {
+		//	logrus.Errorf("failed to marshal config values: %s", err.Error())
+		//	return nil, err
+		//}
 		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
 		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
 		if err != nil {
@@ -336,7 +376,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		resp, err := client.client.UpdateReleaseFromChart(
 			releaseName,
 			chart,
-			helm.UpdateValueOverrides(mergedVals),
+			helm.UpdateValueOverrides([]byte(chart.Values.Raw)),
 			helm.ReuseValues(true),
 			helm.UpgradeDryRun(client.dryRun),
 		)
@@ -356,7 +396,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		resp, err := client.client.InstallReleaseFromChart(
 			chart,
 			namespace,
-			helm.ValueOverrides(configVals),
+			helm.ValueOverrides([]byte(chart.Values.Raw)),
 			helm.ReleaseName(releaseName),
 			helm.InstallDryRun(client.dryRun),
 		)

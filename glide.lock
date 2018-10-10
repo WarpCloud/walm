@@ -1,5 +1,5 @@
 hash: 1e9a0571c8ec29f7bb9df64fb24c9edb69ba17109f28ccd176565a90fa358b64
-updated: 2018-09-30T20:52:26.752071984+08:00
+updated: 2018-10-10T15:27:02.189182236+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -171,7 +171,7 @@ imports:
 - name: github.com/json-iterator/go
   version: f2b4162afba35581b6d4a50d3b8f34e33c144682
 - name: github.com/konsorten/go-windows-terminal-sequences
-  version: b729f2633dfe35f4d1d8a32385f6685610ce1cb5
+  version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
 - name: github.com/mailru/easyjson
   version: 2f5df55504ebc322e4d52d34df6a1f5b503bf26d
   subpackages:
@@ -236,11 +236,11 @@ imports:
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
 - name: github.com/sirupsen/logrus
-  version: a67f783a3814b8729bd2dac5780b5f78f8dbd64d
+  version: ad15b42461921f1fb3529b058c6786c6a45d5162
 - name: github.com/spf13/cobra
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/pflag
-  version: 9a97c102cda95a86cec2345a6f09f55a939babf5
+  version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/swaggo/swag
   version: db2ee6c14a35e4fca95b0d75054296ef2b699050
 - name: github.com/thoas/stats
@@ -436,7 +436,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: 88d4601515c27f180f7efc8705e4cc18dc19100d
+  version: c0373f43cffe58a0a99215236c4bbec8be78be09
   subpackages:
   - pkg/apis/audit
   - pkg/authentication/authenticator
@@ -586,7 +586,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: a400bb9b1f39603cb70a5358a4c40dd7a71ae076
+  version: aa7d7da5d3e56c6a66b21d689d751b035da9d5c8
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/chartutil
@@ -617,7 +617,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 6b64246e2588d1594664e1e83c72735acd279d26
+  version: 832ea2d6a6e834208b95c71e744637cf009ef46d
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme
