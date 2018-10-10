@@ -22,6 +22,7 @@ import (
 	"walm/pkg/k8s/client"
 	"walm/pkg/job"
 	"encoding/json"
+	"walm/pkg/kafka"
 )
 
 const servDesc = `
@@ -42,6 +43,7 @@ type ServCmd struct {
 }
 
 func initService() error {
+	kafka.InitKafkaClient(setting.Config.KafkaConfig)
 	redis.InitRedisClient()
 	job.InitWalmJobManager()
 	informer.InitInformer()

@@ -11,27 +11,27 @@ import (
 var Config WalmConfig
 
 type HttpConfig struct {
-	HTTPPort int `json:"port,default=9999"`
-	TLS bool `json:"tls"`
-	TlsKey string `json:"tlsKey"`
-	TlsCert string `json:"tlsCert"`
+	HTTPPort     int           `json:"port,default=9999"`
+	TLS          bool          `json:"tls"`
+	TlsKey       string        `json:"tlsKey"`
+	TlsCert      string        `json:"tlsCert"`
 	ReadTimeout  time.Duration `json:"readTimeout"`
 	WriteTimeout time.Duration `json:"writeTimeout"`
 }
 
 type HelmConfig struct {
 	TillerConnectionTimeout time.Duration `json:"tillerTimeout"`
-	TillerHost string `json:"tillerHost"`
-	TillerHome string `json:"tillerHome"`
-	TLS bool `json:"tls"`
-	TlsKey string `json:"tlsKey"`
-	TlsCert string `json:"tlsCert"`
-	TlsCACert string `json:"tlsCert"`
+	TillerHost              string        `json:"tillerHost"`
+	TillerHome              string        `json:"tillerHome"`
+	TLS                     bool          `json:"tls"`
+	TlsKey                  string        `json:"tlsKey"`
+	TlsCert                 string        `json:"tlsCert"`
+	TlsCACert               string        `json:"tlsCert"`
 }
 
 type ChartRepo struct {
 	Name string `json:"name"`
-	URL string `json:"url"`
+	URL  string `json:"url"`
 }
 
 type KubeConfig struct {
@@ -39,19 +39,29 @@ type KubeConfig struct {
 }
 
 type RedisConfig struct {
-	Addr string `json:"addr"`
+	Addr     string `json:"addr"`
 	Password string `json:"password"`
-	DB int `json:"db"`
+	DB       int    `json:"db"`
+}
+
+type KafkaConfig struct {
+	Enable    bool     `json:"enable"`
+	Brokers   []string `json:"brokers"`
+	CertFile  string   `json:"certFile"`
+	KeyFile   string   `json:"keyFile"`
+	CaFile    string   `json:"caFile"`
+	VerifySsl bool     `json:"verifySsl"`
 }
 
 type WalmConfig struct {
 	Debug bool `json:"debug"`
 
-	HttpConfig *HttpConfig `json:"serverConfig"`
-	SysHelm *HelmConfig `json:"sysHelmConfig"`
-	RepoList []*ChartRepo `json:"repoList"`
-	KubeConfig *KubeConfig `json:"kubeConfig"`
+	HttpConfig  *HttpConfig  `json:"serverConfig"`
+	SysHelm     *HelmConfig  `json:"sysHelmConfig"`
+	RepoList    []*ChartRepo `json:"repoList"`
+	KubeConfig  *KubeConfig  `json:"kubeConfig"`
 	RedisConfig *RedisConfig `json:"redisConfig"`
+	KafkaConfig *KafkaConfig `json:"kafkaConfig"`
 }
 
 // StartResyncReleaseCaches sets values from the environment.
