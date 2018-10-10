@@ -39,7 +39,7 @@ type HelmNativeValues struct {
 }
 
 type AppHelmValues struct {
-	Dependencies []*DependencyDeclare `json:"dependencies"`
+	Dependencies map[string]string `json:"dependencies"`
 	NativeValues HelmNativeValues `json:"HelmNativeValues"`
 }
 
@@ -104,15 +104,11 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 		return fmt.Errorf("failed to parse rawValues: %s", err)
 	}
 	helmVals := AppHelmValues{}
-	helmVals.Dependencies = app.Dependencies
 	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Name
 	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Version
 	helmVals.NativeValues.AppVersion = chartRequested.Metadata.AppVersion
 	helmVals.NativeValues.ReleaseName = name
 	helmVals.NativeValues.ReleaseNamespace = namespace
-	chartRawBase["HelmAdditionalValues"] = &helmVals
-
-	rawValsBase = mergeValues(chartRawBase, rawValsBase)
 
 	chartRequested.Files[len(chartRequested.Files)-1], chartRequested.Files[removeIdx] = chartRequested.Files[removeIdx], chartRequested.Files[len(chartRequested.Files)-1]
 	chartRequested.Files = chartRequested.Files[:len(chartRequested.Files)-1]
@@ -142,7 +138,17 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 			APIVersion: "apiextensions.transwarp.io/v1beta1",
 		}
 		dependencies = append(dependencies, dependency)
+		depValuesLinks[k] = v.(string)
 	}
+
+	chartRawBase["HelmAdditionalValues"] = &helmVals
+	helmVals.Dependencies = depValuesLinks
+	rawValsBase = mergeValues(chartRawBase, rawValsBase)
+	rawMergeVals, err := yaml.Marshal(rawValsBase)
+	if err != nil {
+		return err
+	}
+	chartRequested.Values.Raw = string(rawMergeVals[:])
 
 	annotations["helm.sh/storage"] = "ConfigMap"
 	annotations["helm.sh/storageName"] = appConfigMapName
@@ -178,16 +184,6 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 	}
 	chartRequested.Templates = append(chartRequested.Templates,
 		&chart.Template{Name: "templates/instance-crd.yaml", Data: instanceData})
-
-	depValuesData, err := yaml.Marshal(depValuesLinks)
-	if err != nil {
-		return err
-	}
-	depValues := chart.Value{
-		Value: string(depValuesData[:]),
-	}
-	chartRequested.Values.Values = make(map[string]*chart.Value)
-	chartRequested.Values.Values["dependencies"] = &depValues
 
 	return nil
 }
