@@ -24,7 +24,7 @@ type WalmResourceSet struct {
 	Instances []WalmApplicationInstance `json:"instances" description:"release instances"`
 }
 
-func (resourceSet *WalmResourceSet)IsReady() bool {
+func (resourceSet *WalmResourceSet) IsReady() bool {
 	if ready, _ := resourceSet.WalmInstanceResourceSet.IsReady(); !ready {
 		return false
 	}
@@ -41,7 +41,7 @@ func (resourceSet *WalmResourceSet)IsReady() bool {
 func NewWalmResourceSet() *WalmResourceSet {
 	return &WalmResourceSet{
 		WalmInstanceResourceSet: *NewWalmInstanceResourceSet(),
-		Instances: []WalmApplicationInstance{},
+		Instances:               []WalmApplicationInstance{},
 	}
 }
 
@@ -56,7 +56,7 @@ type WalmInstanceResourceSet struct {
 	StatefulSets []WalmStatefulSet `json:"statefulsets" description:"release statefulsets"`
 }
 
-func (instanceResourceSet *WalmInstanceResourceSet)IsReady() (bool, WalmResource) {
+func (instanceResourceSet *WalmInstanceResourceSet) IsReady() (bool, WalmResource) {
 	for _, secret := range instanceResourceSet.Secrets {
 		if secret.State.Status != "Ready" {
 			return false, secret
@@ -162,8 +162,9 @@ type WalmState struct {
 
 type WalmApplicationInstance struct {
 	WalmMeta
-	Modules *WalmInstanceResourceSet `json:"modules" description:"instance modules"`
-	Events  []WalmEvent             `json:"events" description:"instance events"`
+	InstanceId string                   `json:"instance_id" description:"instance id"`
+	Modules    *WalmInstanceResourceSet `json:"modules" description:"instance modules"`
+	Events     []WalmEvent              `json:"events" description:"instance events"`
 }
 
 func (resource WalmApplicationInstance) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

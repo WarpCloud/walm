@@ -30,7 +30,7 @@ redisConfig:
   password: "walmtest"
   db: 0
 kafkaConfig:
-  enable: true
+  enable: false
   brokers:
     - "172.26.0.5:9092"
   certFile: ""
