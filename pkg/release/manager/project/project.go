@@ -611,6 +611,7 @@ func (manager *ProjectManager) ListProjectsSync(namespace string) (*release.Proj
 }
 
 func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string) (*release.ProjectInfo, error) {
+	ready := true
 	projectInfo := &release.ProjectInfo{
 		Name: projectName,
 		Namespace: namespace,
@@ -626,9 +627,13 @@ func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string)
 			if projectName == projectNameArray[0] {
 				releaseInfo.Name = projectNameArray[1]
 				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
+				if !releaseInfo.Ready {
+					ready = false
+				}
 			}
 		}
 	}
+	projectInfo.Ready = ready
 	if len(projectInfo.Releases) > 0 {
 		return projectInfo, nil
 	}
