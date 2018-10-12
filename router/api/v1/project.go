@@ -61,12 +61,6 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 func GetProjectInfo(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	releaseRequest := &releasetypes.ReleaseRequest{}
-	err := request.ReadEntity(releaseRequest)
-	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
-		return
-	}
 	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfoSync(tenantName, projectName)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
