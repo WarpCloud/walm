@@ -45,5 +45,10 @@ import:
 - package: github.com/hashicorp/go-multierror
 - package: github.com/hashicorp/errwrap
   version: 1.0.0
+- package: github.com/eapache/go-resiliency/breaker
+- package: github.com/eapache/go-xerial-snappy
+- package: github.com/eapache/queue
+- package: github.com/pierrec/lz4
+- package: github.com/rcrowley/go-metrics
 testImport:
 - package: gopkg.in/check.v1
