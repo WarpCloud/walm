@@ -2,6 +2,8 @@
 package main
 
 import (
+	// 	"bytes"
+
 	"flag"
 	"fmt"
 	"io"
