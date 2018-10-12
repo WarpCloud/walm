@@ -29,6 +29,7 @@ func (adaptor *WalmInstanceAdaptor) GetResource(namespace string, name string) (
 func (adaptor *WalmInstanceAdaptor) BuildWalmInstance(instance *v1beta1.ApplicationInstance) (walmInstance WalmApplicationInstance, err error) {
 	walmInstance = WalmApplicationInstance{
 		WalmMeta: buildWalmMetaWithoutState("ApplicationInstance", instance.Namespace, instance.Name),
+		InstanceId: instance.Spec.InstanceId,
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)

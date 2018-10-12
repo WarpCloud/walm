@@ -29,3 +29,11 @@ redisConfig:
   addr: 172.16.1.45:6379
   password: "walmtest"
   db: 0
+kafkaConfig:
+  enable: false
+  brokers:
+    - "172.26.0.5:9092"
+  certFile: ""
+  keyFile: ""
+  caFile: ""
+  VerifySsl: false
