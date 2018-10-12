@@ -595,13 +595,20 @@ func (manager *ProjectManager) ListProjectsSync(namespace string) (*release.Proj
 			projectInfo, ok := projectMap[projectName]
 			if ok {
 				releaseInfo.Name = projectNameArray[1]
+				if !releaseInfo.Ready {
+					projectInfo.Ready = releaseInfo.Ready
+				}
 				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
 			} else {
 				projectMap[projectName] = new(release.ProjectInfo)
+				projectInfo.Ready = true
 				projectMap[projectName].Name = projectName
 				projectMap[projectName].Namespace = releaseInfo.Namespace
 				projectMap[projectName].CommonValues = make(map[string]interface{})
 				releaseInfo.Name = projectNameArray[1]
+				if !releaseInfo.Ready {
+					projectInfo.Ready = releaseInfo.Ready
+				}
 				projectMap[projectName].Releases = append(projectMap[projectName].Releases, releaseInfo)
 				projectList.Items = append(projectList.Items, projectMap[projectName])
 			}
@@ -611,11 +618,11 @@ func (manager *ProjectManager) ListProjectsSync(namespace string) (*release.Proj
 }
 
 func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string) (*release.ProjectInfo, error) {
-	ready := true
 	projectInfo := &release.ProjectInfo{
 		Name: projectName,
 		Namespace: namespace,
 		CommonValues: map[string]interface{}{},
+		Ready: true,
 	}
 	releaseList, err := manager.helmClient.ListReleases(namespace, projectName + "--*")
 	if err != nil {
@@ -628,12 +635,11 @@ func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string)
 				releaseInfo.Name = projectNameArray[1]
 				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
 				if !releaseInfo.Ready {
-					ready = false
+					projectInfo.Ready = false
 				}
 			}
 		}
 	}
-	projectInfo.Ready = ready
 	if len(projectInfo.Releases) > 0 {
 		return projectInfo, nil
 	}
@@ -641,7 +647,7 @@ func (manager *ProjectManager) GetProjectInfoSync(namespace, projectName string)
 }
 
 func (manager *ProjectManager) DeleteProjectSync(namespace string, project string) error {
-	projectInfo, err := manager.GetProjectInfo(namespace, project)
+	projectInfo, err := manager.GetProjectInfoSync(namespace, project)
 	if err != nil {
 		logrus.Errorf("DeleteProject get project info error %v\n", err)
 		return err
