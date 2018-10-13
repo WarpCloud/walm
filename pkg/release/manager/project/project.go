@@ -670,14 +670,17 @@ func (manager *ProjectManager) AddProjectInProject(namespace string, projectName
 	if err != nil {
 		return err
 	}
+
+	for _, releaseParams := range projectParams.Releases {
+		releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
+		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, projectParams.CommonValues)
+	}
 	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(projectParams)
 	if err != nil {
 		logrus.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		releaseParams.Name = buildProjectReleaseName(projectName, releaseParams.Name)
-		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, projectParams.CommonValues)
 
 		if projectInfo != nil {
 			affectReleaseRequest, err2 := manager.brainFuckRuntimeDepParse(projectInfo, releaseParams, false)
