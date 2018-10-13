@@ -1,12 +1,15 @@
 package v1
 
 import (
-	"github.com/emicklei/go-restful"
-	"walm/pkg/k8s/handler"
-	"walm/pkg/tenant"
 	"net/http"
+	"fmt"
+
+	"github.com/emicklei/go-restful"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/tenant"
+	"walm/pkg/k8s/adaptor"
 )
 
 func ListTenants(request *restful.Request, response *restful.Response) {
@@ -18,6 +21,8 @@ func ListTenants(request *restful.Request, response *restful.Response) {
 	for _, namespace := range namespaces {
 		var tenantInfo tenant.TenantInfo
 		tenantInfo.TenantName = namespace.GetName()
+		tenantInfo.TenantCreationTime = namespace.GetCreationTimestamp()
+		tenantInfo.TenantStatus = namespace.Status.String()
 		tenantInfoList.Items = append(tenantInfoList.Items, &tenantInfo)
 	}
 	response.WriteEntity(tenantInfoList)
@@ -45,9 +50,46 @@ func CreateTenant(request *restful.Request, response *restful.Response) {
 }
 
 func GetTenant(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("tenantName")
+	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			WriteNotFoundResponse(response, -1, fmt.Sprintf("namespace %s is not found", namespace))
+			return
+		}
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get namespace %s: %s" , tenantName, err.Error()))
+		return
+	}
+
+	tenantInfo := tenant.TenantInfo{
+		TenantName: namespace.Name,
+		TenantCreationTime: namespace.CreationTimestamp,
+		//TenantLabels: namespace.Labels,
+		TenantStatus: namespace.Status.String(),
+	}
+
+	response.WriteEntity(tenantInfo)
 }
 
 func DeleteTenant(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("tenantName")
+	_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			response.WriteEntity(nil)
+			return
+		}
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get namespace %s: %s" , tenantName, err.Error()))
+		return
+	}
+
+	err = handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(tenantName)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete namespace %s: %s" , tenantName, err.Error()))
+		return
+	}
+
+	response.WriteEntity(nil)
 }
 
 func GetQuotas(request *restful.Request, response *restful.Response) {
