@@ -34,7 +34,7 @@ import (
 
 // maxMsgSize use 20MB as the default message size limit.
 // grpc library default is 4MB
-const maxMsgSize = 1024 * 1024 * 20
+const maxMsgSize = 1024 * 1024 * 200
 
 // Client manages client side of the Helm-Tiller protocol.
 type Client struct {
@@ -316,7 +316,7 @@ func (h *Client) connect(ctx context.Context) (conn *grpc.ClientConn, err error)
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			// Send keepalive every 30 seconds to prevent the connection from
 			// getting closed by upstreams
-			Time: time.Duration(30) * time.Second,
+			Time: time.Duration(60) * time.Second,
 		}),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
 	}
