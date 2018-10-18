@@ -8,6 +8,8 @@ import (
 	"time"
 	"walm/pkg/k8s/client"
 	"sync"
+	"github.com/sirupsen/logrus"
+	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestHelmCache_Resync(t *testing.T) {
@@ -114,44 +116,12 @@ func TestHelmCache_GetCache(t *testing.T) {
 	fmt.Println(len(releaseCaches))
 }
 
-func TestHelmCache_Tmp(t *testing.T) {
-	redisClient := redis.CreateFakeRedisClient()
-	res, err := redisClient.GetClient().HGet(redis.WalmReleasesKey, "notexists").Result()
+func TestHelmList_Tmp(t *testing.T) {
+	helmClient := helm.NewClient(helm.Host("172.26.0.5:31225"))
+	resp, err := helmClient.ListReleases(helm.ReleaseListStatuses(
+		[]hapiRelease.Status_Code{hapiRelease.Status_SUPERSEDED}))
 	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(res)
+		logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 	}
-
-
-	num, err := redisClient.GetClient().HDel(redis.WalmReleasesKey, "notexists").Result()
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(num)
-	}
-
-
-	ok, err := redisClient.GetClient().HSet(redis.WalmReleasesKey, "existtest", "test").Result()
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(ok)
-	}
-
-
-	ok, err = redisClient.GetClient().HSetNX(redis.WalmReleasesKey, "existtest", "test").Result()
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(ok)
-	}
-
-	num, err = redisClient.GetClient().HDel(redis.WalmReleasesKey, "existtest").Result()
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println(num)
-	}
-
+	fmt.Println(len(resp.Releases))
 }

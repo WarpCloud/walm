@@ -3,14 +3,17 @@ package project
 import (
 	"walm/pkg/release"
 	"walm/pkg/job"
-	"fmt"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/redis"
-	"time"
+)
+
+const (
+	createProjectJobType = "CreateProject"
 )
 
 func init() {
-	job.RegisterJobType("CreateProject", &CreateProjectJob{})
+	job.RegisterJobType(createProjectJobType, func() job.Job {
+		return &CreateProjectJob{}
+	})
 }
 
 type CreateProjectJob struct {
@@ -19,26 +22,11 @@ type CreateProjectJob struct {
 	ProjectParams *release.ProjectParams
 }
 
-func copyProjectParams(projectParams *release.ProjectParams) release.ProjectParams {
-	var copyProjectParams release.ProjectParams
-	copyProjectParams.CommonValues = map[string]interface{}{}
-	copyProjectParams.Releases = make([]*release.ReleaseRequest, 0)
-	mergeValues(copyProjectParams.CommonValues, projectParams.CommonValues)
-	for _, releaseRequest := range projectParams.Releases {
-		var release_v release.ReleaseRequest
-		release_v.Name = releaseRequest.Name
-		release_v.ChartName = releaseRequest.ChartName
-		release_v.ChartVersion = releaseRequest.ChartVersion
-		release_v.RepoName = releaseRequest.RepoName
-		release_v.ConfigValues = releaseRequest.ConfigValues
-		release_v.Dependencies = releaseRequest.Dependencies
-		copyProjectParams.Releases = append(copyProjectParams.Releases, &release_v)
-	}
-
-	return copyProjectParams
+func (createProjectJob *CreateProjectJob)Type() string {
+	return createProjectJobType
 }
 
-func (createProjectJob *CreateProjectJob) createProject(projectCache *release.ProjectCache) error {
+func (createProjectJob *CreateProjectJob) createProject() error {
 	helmExtraLabelsBase := map[string]interface{}{}
 	helmExtraLabelsVals := release.HelmExtraLabels{}
 	helmExtraLabelsVals.HelmLabels = make(map[string]interface{})
@@ -54,8 +42,7 @@ func (createProjectJob *CreateProjectJob) createProject(projectCache *release.Pr
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
 	}
 
-	projectParams := copyProjectParams(createProjectJob.ProjectParams)
-	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(&projectParams)
+	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(createProjectJob.ProjectParams)
 	if err != nil {
 		logrus.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
 		return err
@@ -66,8 +53,6 @@ func (createProjectJob *CreateProjectJob) createProject(projectCache *release.Pr
 			logrus.Errorf("failed to create project release %s/%s : %s", createProjectJob.Namespace, releaseParams.Name, err)
 			return err
 		}
-		projectCache.InstalledReleases = append(projectCache.InstalledReleases, releaseParams.Name)
-		setProjectCacheToRedisUntilSuccess(projectCache, createProjectJob)
 		logrus.Debugf("succeed to create project release %s/%s", createProjectJob.Namespace, releaseParams.Name)
 	}
 	return nil
@@ -76,36 +61,20 @@ func (createProjectJob *CreateProjectJob) createProject(projectCache *release.Pr
 func (createProjectJob *CreateProjectJob) Do() error {
 	logrus.Debugf("start to create project %s/%s", createProjectJob.Namespace, createProjectJob.Name)
 
-	projectCache := buildProjectCache(createProjectJob.Namespace, createProjectJob.Name, "Running", createProjectJob.ProjectParams)
-	setProjectCacheToRedisUntilSuccess(projectCache, createProjectJob)
+	projectCache := buildProjectCache(createProjectJob.Namespace, createProjectJob.Name, createProjectJob.Type(), "Running")
+	setProjectCacheToRedisUntilSuccess(projectCache)
 
-	err := createProjectJob.createProject(projectCache)
+	err := createProjectJob.createProject()
 	if err != nil {
 		logrus.Errorf("failed to create project %s/%s : %s", createProjectJob.Namespace, createProjectJob.Name, err.Error())
-		projectCache.CreateProjectJobState.CreateProjectJobStatus = "Failed"
-		projectCache.CreateProjectJobState.Message = err.Error()
-		setProjectCacheToRedisUntilSuccess(projectCache, createProjectJob)
+		projectCache.LatestProjectJobState.Status = "Failed"
+		projectCache.LatestProjectJobState.Message = err.Error()
+		setProjectCacheToRedisUntilSuccess(projectCache)
 		return err
 	}
 
 	logrus.Infof("succeed to create project %s/%s", createProjectJob.Namespace, createProjectJob.Name)
-	projectCache.CreateProjectJobState.CreateProjectJobStatus = "Succeed"
-	setProjectCacheToRedisUntilSuccess(projectCache, createProjectJob)
+	projectCache.LatestProjectJobState.Status = "Succeed"
+	setProjectCacheToRedisUntilSuccess(projectCache)
 	return nil
-}
-
-func setProjectCacheToRedisUntilSuccess(projectCache *release.ProjectCache, createProjectJob *CreateProjectJob) {
-	for {
-		err := setProjectCacheToRedis(redis.GetDefaultRedisClient(), projectCache)
-		if err != nil {
-			logrus.Errorf("failed to set project cache of %s/%s to redis: %s", createProjectJob.Namespace, createProjectJob.Name, err.Error())
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		break
-	}
-}
-
-func buildProjectReleaseName(projectName, releaseName string) string {
-	return fmt.Sprintf("%s--%s", projectName, releaseName)
 }

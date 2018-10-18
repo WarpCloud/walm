@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	collectWalmJobsInterval time.Duration = 5 * time.Second
+	collectWalmJobsInterval time.Duration = 1 * time.Second
 )
 
 var walmJobManager *WalmJobManager
@@ -154,7 +154,7 @@ func (manager *WalmJobManager) GetWalmJob(jobId string) (*WalmJob, error) {
 }
 
 // if param jobId is empty, will use uuid as job id
-func (manager *WalmJobManager) CreateWalmJob(jobId, jobType string, job Job) (string, error) {
+func (manager *WalmJobManager) CreateWalmJob(jobId string, job Job) (string, error) {
 	newJobId := jobId
 	if newJobId == "" {
 		newJobId = uuid.New().String()
@@ -163,7 +163,7 @@ func (manager *WalmJobManager) CreateWalmJob(jobId, jobType string, job Job) (st
 	walmJob := &WalmJob{
 		Id:      newJobId,
 		Job:     job,
-		JobType: jobType,
+		JobType: job.Type(),
 		Status:  jobStatusPending,
 	}
 	walmJobStr, err := json.Marshal(walmJob)

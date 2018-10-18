@@ -21,6 +21,10 @@ type KafkaClient struct {
 }
 
 func InitKafkaClient(config *setting.KafkaConfig) {
+	if config == nil {
+		return
+	}
+
 	kafkaClient = &KafkaClient{
 		KafkaConfig: *config,
 	}

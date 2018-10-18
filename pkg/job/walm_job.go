@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-var jobTypes map[string]Job
+var jobTypes map[string]func()Job
 
 type WalmJobStatus string
 
@@ -30,7 +30,8 @@ type WalmJobAdaptor struct {
 }
 
 func (adaptor *WalmJobAdaptor) getJobByType() (Job, error) {
-	if job, ok := jobTypes[adaptor.JobType]; ok {
+	if newJobFunc, ok := jobTypes[adaptor.JobType]; ok {
+		job := newJobFunc()
 		err := json.Unmarshal(adaptor.Job, job)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal job %s : %s", string(adaptor.Job), err.Error())
@@ -67,11 +68,12 @@ func (walmJob *WalmJob) Run() {
 
 type Job interface {
 	Do() error
+	Type() string
 }
 
-func RegisterJobType(jobType string, job Job) {
+func RegisterJobType(jobType string, newJobFunc func()Job) {
 	if jobTypes == nil {
-		jobTypes = map[string]Job{}
+		jobTypes = map[string]func()Job{}
 	}
-	jobTypes[jobType] = job
+	jobTypes[jobType] = newJobFunc
 }

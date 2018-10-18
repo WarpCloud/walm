@@ -94,26 +94,25 @@ type ProjectParams struct {
 }
 
 type ProjectInfo struct {
-	Name                  string                 `json:"name" description:"project name"`
-	Namespace             string                 `json:"namespace" description:"project namespace"`
-	CommonValues          map[string]interface{} `json:"common_values" description:"common values added to the chart"`
-	Releases              []*ReleaseInfo         `json:"releases" description:"list of release of the project"`
-	Ready                 bool                   `json:"ready" description:"whether all the project releases are ready"`
-	CreateProjectJobState CreateProjectJobState  `json:"create_project_job_state" description:"create project job state"`
+	ProjectCache
+	Releases         []*ReleaseInfo  `json:"releases" description:"list of release of the project"`
+	Ready            bool            `json:"ready" description:"whether all the project releases are ready"`
 }
 
 type ProjectCache struct {
-	Name                  string                `json:"name" description:"project name"`
-	Namespace             string                `json:"namespace" description:"project namespace"`
-	CommonValues          map[string]interface{} `json:"common_values" description:"common values added to the chart"`
-	Releases              []string              `json:"releases" description:"list of release of the project"`
-	InstalledReleases     []string              `json:"installed_releases" description:"list of installed release of the project"`
-	CreateProjectJobState CreateProjectJobState `json:"create_project_job_state" description:"create project job state"`
+	Name             string          `json:"name" description:"project name"`
+	Namespace        string          `json:"namespace" description:"project namespace"`
+	LatestProjectJobState ProjectJobState `json:"latest_project_job_state" description:"latest project job state"`
 }
 
-type CreateProjectJobState struct {
-	CreateProjectJobStatus string `json:"create_project_job_status" description:"create project job status: pending, running, failed, succeed"`
-	Message                string `json:"message" description:"create project job message"`
+func(projectCache *ProjectCache) IsProjectJobNotFinished() bool {
+	return projectCache.LatestProjectJobState.Status == "Running" || projectCache.LatestProjectJobState.Status == "Pending"
+}
+
+type ProjectJobState struct {
+	Type    string `json:"type" description:"project job type: create, add_releases, remove_releases, delete"`
+	Status  string `json:"status" description:"project job status: pending, running, failed, succeed"`
+	Message string `json:"message" description:"project job message"`
 }
 
 type ProjectInfoList struct {

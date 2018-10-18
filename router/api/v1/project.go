@@ -12,7 +12,7 @@ import (
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
-	projectList, err := project.GetDefaultProjectManager().ListProjectsSync("")
+	projectList, err := project.GetDefaultProjectManager().ListProjects("")
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -21,7 +21,7 @@ func ListProjectAllNamespaces(request *restful.Request, response *restful.Respon
 
 func ListProjectByNamespace(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
-	projectList, err := project.GetDefaultProjectManager().ListProjectsSync(tenantName)
+	projectList, err := project.GetDefaultProjectManager().ListProjects(tenantName)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -51,7 +51,7 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
-	err = project.CreateProjectSync(tenantName, projectName, projectParams)
+	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams)
 	if err != nil {
 		logrus.Infof("DeployProject %+v", err)
 		response.WriteError(http.StatusInternalServerError, err)
@@ -61,7 +61,7 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 func GetProjectInfo(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfoSync(tenantName, projectName)
+	projectInfo, err := project.GetDefaultProjectManager().GetProjectInfo(tenantName, projectName)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			WriteNotFoundResponse(response, -1, fmt.Sprintf("project %s/%s is not found", tenantName, projectName))
@@ -75,7 +75,7 @@ func GetProjectInfo(request *restful.Request, response *restful.Response) {
 func DeleteProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	err := project.GetDefaultProjectManager().DeleteProjectSync(tenantName, projectName)
+	err := project.GetDefaultProjectManager().DeleteProject(tenantName, projectName)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
@@ -105,7 +105,7 @@ func DeployProjectInProject(request *restful.Request, response *restful.Response
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().AddProjectInProject(tenantName, projectName, projectParams)
+	err = project.GetDefaultProjectManager().AddReleasesInProject(tenantName, projectName, projectParams)
 	if err != nil {
 		response.WriteError(http.StatusInternalServerError, err)
 	}
