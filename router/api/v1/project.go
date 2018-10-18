@@ -5,16 +5,17 @@ import (
 
 	"walm/pkg/release/manager/project"
 	releasetypes "walm/pkg/release"
-	"net/http"
 	"fmt"
 	walmerr "walm/pkg/util/error"
 	"github.com/sirupsen/logrus"
+	"strconv"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
 	projectList, err := project.GetDefaultProjectManager().ListProjects("")
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response,-1, fmt.Sprintf("failed to list all projects : %s", err.Error()))
+		return
 	}
 	response.WriteEntity(projectList)
 }
@@ -23,22 +24,46 @@ func ListProjectByNamespace(request *restful.Request, response *restful.Response
 	tenantName := request.PathParameter("namespace")
 	projectList, err := project.GetDefaultProjectManager().ListProjects(tenantName)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response,-1, fmt.Sprintf("failed to list projects in tenant %s : %s", tenantName, err.Error()))
+		return
 	}
 	response.WriteEntity(projectList)
+}
+
+func getAsyncQueryParam(request *restful.Request) (async bool, err error) {
+	asyncStr := request.QueryParameter("async")
+	if len(asyncStr) > 0 {
+		async, err = strconv.ParseBool(asyncStr)
+		if err != nil {
+			logrus.Errorf("failed to parse query parameter async %s : %s",asyncStr, err.Error())
+			return
+		}
+	}
+	return
 }
 
 func DeployProject(request *restful.Request, response *restful.Response) {
 	projectParams := new(releasetypes.ProjectParams)
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	err := request.ReadEntity(&projectParams)
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+
+	err = request.ReadEntity(&projectParams)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body : %s", err.Error()))
+		return
+	}
+
 	if projectParams.CommonValues == nil {
 		projectParams.CommonValues = make(map[string]interface{})
 	}
 	if projectParams.Releases == nil {
-		response.WriteError(http.StatusInternalServerError,
-			fmt.Errorf("invalid project params releases is nil %+v", projectParams))
+		WriteErrorResponse(response,-1, "project params releases can not be empty")
+		return
 	}
 	for _, releaseInfo := range projectParams.Releases {
 		if releaseInfo.Dependencies == nil {
@@ -48,13 +73,11 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 			releaseInfo.ConfigValues = make(map[string]interface{})
 		}
 	}
+
+	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams, async)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
-	}
-	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams)
-	if err != nil {
-		logrus.Infof("DeployProject %+v", err)
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to create project : %s", err.Error()))
+		return
 	}
 }
 
@@ -67,7 +90,8 @@ func GetProjectInfo(request *restful.Request, response *restful.Response) {
 			WriteNotFoundResponse(response, -1, fmt.Sprintf("project %s/%s is not found", tenantName, projectName))
 			return
 		}
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get project info : %s", err.Error()))
+		return
 	}
 	response.WriteEntity(projectInfo)
 }
@@ -75,39 +99,57 @@ func GetProjectInfo(request *restful.Request, response *restful.Response) {
 func DeleteProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
-	err := project.GetDefaultProjectManager().DeleteProject(tenantName, projectName)
+	async, err := getAsyncQueryParam(request)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete project : %s", err.Error()))
+		return
 	}
 }
 
 func DeployInstanceInProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
 	releaseRequest := &releasetypes.ReleaseRequest{}
-	err := request.ReadEntity(releaseRequest)
+	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().AddReleaseInProject(tenantName, projectName, releaseRequest)
+	err = project.GetDefaultProjectManager().AddReleaseInProject(tenantName, projectName, releaseRequest, async)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to add release in project : %s", err.Error()))
+		return
 	}
 }
 
 func DeployProjectInProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
 	projectParams := &releasetypes.ProjectParams{}
-	err := request.ReadEntity(projectParams)
+	err = request.ReadEntity(projectParams)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().AddReleasesInProject(tenantName, projectName, projectParams)
+	err = project.GetDefaultProjectManager().AddReleasesInProject(tenantName, projectName, projectParams, async)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to add releases in project : %s", err.Error()))
+		return
 	}
 }
 
@@ -115,8 +157,14 @@ func DeleteInstanceInProject(request *restful.Request, response *restful.Respons
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
 	releaseName := request.PathParameter("release")
-	err := project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName)
+	async, err := getAsyncQueryParam(request)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release in project : %s", err.Error()))
+		return
 	}
 }

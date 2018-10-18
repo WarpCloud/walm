@@ -36,11 +36,12 @@ func buildProjectReleaseName(projectName, releaseName string) string {
 	return fmt.Sprintf("%s--%s", projectName, releaseName)
 }
 
-func buildProjectCache(namespace, project, jobType, jobStatus string) (projectCache *release.ProjectCache) {
+func buildProjectCache(namespace, project, jobType, jobStatus string, async bool) (projectCache *release.ProjectCache) {
 	return &release.ProjectCache{
 		Namespace: namespace,
 		Name:      project,
 		LatestProjectJobState: release.ProjectJobState{
+			Async:  async,
 			Type:   jobType,
 			Status: jobStatus,
 		},

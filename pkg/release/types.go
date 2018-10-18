@@ -95,21 +95,22 @@ type ProjectParams struct {
 
 type ProjectInfo struct {
 	ProjectCache
-	Releases         []*ReleaseInfo  `json:"releases" description:"list of release of the project"`
-	Ready            bool            `json:"ready" description:"whether all the project releases are ready"`
+	Releases []*ReleaseInfo `json:"releases" description:"list of release of the project"`
+	Ready    bool           `json:"ready" description:"whether all the project releases are ready"`
 }
 
 type ProjectCache struct {
-	Name             string          `json:"name" description:"project name"`
-	Namespace        string          `json:"namespace" description:"project namespace"`
+	Name                  string          `json:"name" description:"project name"`
+	Namespace             string          `json:"namespace" description:"project namespace"`
 	LatestProjectJobState ProjectJobState `json:"latest_project_job_state" description:"latest project job state"`
 }
 
-func(projectCache *ProjectCache) IsProjectJobNotFinished() bool {
+func (projectCache *ProjectCache) IsProjectJobNotFinished() bool {
 	return projectCache.LatestProjectJobState.Status == "Running" || projectCache.LatestProjectJobState.Status == "Pending"
 }
 
 type ProjectJobState struct {
+	Async   bool   `json:"async" description:"whether project job is async"`
 	Type    string `json:"type" description:"project job type: create, add_releases, remove_releases, delete"`
 	Status  string `json:"status" description:"project job status: pending, running, failed, succeed"`
 	Message string `json:"message" description:"project job message"`

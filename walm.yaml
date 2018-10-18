@@ -11,7 +11,7 @@ serverConfig:
 sysHelmConfig:
   helmHome: ""
   tillerTimeout: 0
-  tillerHost: "172.16.3.200:32263"
+  tillerHost: "172.16.3.200:31394"
   tls: false
   tlsKey: ""
   tlsCert: ""
