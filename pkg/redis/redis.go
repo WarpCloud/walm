@@ -11,7 +11,7 @@ const (
 
 	WalmJobsKey       = "walm-jobs"
 	WalmReleasesKey   = "walm-releases"
-	WalmProjectsKey   = "walm-projects"
+	WalmProjectsKey   = "walm-project-jobs"
 )
 
 type RedisClient struct {

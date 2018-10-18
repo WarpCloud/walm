@@ -297,6 +297,10 @@ func (client *HelmClient) GetDependencies(repoName, chartName, chartVersion stri
 	return dependencies, nil
 }
 
+func (client *HelmClient) GetHelmCache() *cache.HelmCache {
+	return client.helmCache
+}
+
 func (client *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
 	if repoName == "" {
 		repoName = "stable"
