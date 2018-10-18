@@ -17,6 +17,7 @@ func init() {
 }
 
 type RemoveReleaseJob struct {
+	Async       bool
 	Namespace   string
 	Name        string
 	ReleaseName string
@@ -65,7 +66,7 @@ func (removeReleaseJob *RemoveReleaseJob) removeRelease() error {
 func (removeReleaseJob *RemoveReleaseJob) Do() error {
 	logrus.Debugf("start to remove release in project %s/%s", removeReleaseJob.Namespace, removeReleaseJob.Name)
 
-	projectCache := buildProjectCache(removeReleaseJob.Namespace, removeReleaseJob.Name, removeReleaseJob.Type(), "Running")
+	projectCache := buildProjectCache(removeReleaseJob.Namespace, removeReleaseJob.Name, removeReleaseJob.Type(), "Running", removeReleaseJob.Async)
 	setProjectCacheToRedisUntilSuccess(projectCache)
 
 	err := removeReleaseJob.removeRelease()

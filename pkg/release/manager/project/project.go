@@ -140,7 +140,7 @@ func (manager *ProjectManager) validateProjectJob(namespace, name string, allowP
 	return
 }
 
-func (manager *ProjectManager) CreateProject(namespace string, project string, projectParams *release.ProjectParams) error {
+func (manager *ProjectManager) CreateProject(namespace string, project string, projectParams *release.ProjectParams, async bool) error {
 	if len(projectParams.Releases) == 0 {
 		return errors.New("project releases can not be empty")
 	}
@@ -154,27 +154,35 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 	createProjectJob := &CreateProjectJob{
 		Namespace:     namespace,
 		Name:          project,
+		Async:         async,
 		ProjectParams: projectParams,
 	}
 
-	projectCache := buildProjectCache(namespace, project, createProjectJob.Type(), "Pending")
+	projectCache := buildProjectCache(namespace, project, createProjectJob.Type(), "Pending", async)
 	err = manager.helmClient.GetHelmCache().CreateOrUpdateProjectCache(projectCache)
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, project, err.Error())
 		return err
 	}
 
-	jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", createProjectJob)
-	if err != nil {
-		logrus.Errorf("failed to create Async %s Job : %s", createProjectJob.Type(), err.Error())
-		return err
+	if async {
+		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", createProjectJob)
+		if err != nil {
+			logrus.Errorf("failed to create Async %s Job : %s", createProjectJob.Type(), err.Error())
+			return err
+		}
+		logrus.Infof("succeed to create Async %s Job %s", createProjectJob.Type(), jobId)
+	} else {
+		err = createProjectJob.Do()
+		if err != nil {
+			return err
+		}
 	}
-	logrus.Infof("succeed to create Async %s Job %s", createProjectJob.Type(), jobId)
 
 	return nil
 }
 
-func (manager *ProjectManager) DeleteProject(namespace string, project string) error {
+func (manager *ProjectManager) DeleteProject(namespace string, project string, async bool) error {
 	_, err := manager.validateProjectJob(namespace, project, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -188,30 +196,38 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string) e
 	deleteProjectJob := &DeleteProjectJob{
 		Namespace: namespace,
 		Name:      project,
+		Async:     async,
 	}
 
-	projectCache := buildProjectCache(namespace, project, deleteProjectJob.Type(), "Pending")
+	projectCache := buildProjectCache(namespace, project, deleteProjectJob.Type(), "Pending", async)
 	err = manager.helmClient.GetHelmCache().CreateOrUpdateProjectCache(projectCache)
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, project, err.Error())
 		return err
 	}
 
-	jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", deleteProjectJob)
-	if err != nil {
-		logrus.Errorf("failed to create Async %s Job : %s", deleteProjectJob.Type(), err.Error())
-		return err
+	if async {
+		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", deleteProjectJob)
+		if err != nil {
+			logrus.Errorf("failed to create Async %s Job : %s", deleteProjectJob.Type(), err.Error())
+			return err
+		}
+		logrus.Infof("succeed to create Async %s Job %s", deleteProjectJob.Type(), jobId)
+	} else {
+		err = deleteProjectJob.Do()
+		if err != nil {
+			return err
+		}
 	}
-	logrus.Infof("succeed to create Async %s Job %s", deleteProjectJob.Type(), jobId)
 
 	return nil
 }
 
-func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest) error {
-	return manager.AddReleasesInProject(namespace, projectName, &release.ProjectParams{Releases: []*release.ReleaseRequest{releaseParams}})
+func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest, async bool) error {
+	return manager.AddReleasesInProject(namespace, projectName, &release.ProjectParams{Releases: []*release.ReleaseRequest{releaseParams}}, async)
 }
 
-func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string) error {
+func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string, async bool) error {
 	projectCache, err := manager.validateProjectJob(namespace, projectName, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -242,24 +258,32 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	}
 
 	removeReleaseJob := &RemoveReleaseJob{
+		Async:       async,
 		Namespace:   namespace,
 		Name:        projectName,
 		ReleaseName: releaseName,
 	}
 
-	projectCache = buildProjectCache(namespace, projectName, removeReleaseJob.Type(), "Pending")
+	projectCache = buildProjectCache(namespace, projectName, removeReleaseJob.Type(), "Pending", async)
 	err = manager.helmClient.GetHelmCache().CreateOrUpdateProjectCache(projectCache)
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, projectName, err.Error())
 		return err
 	}
 
-	jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", removeReleaseJob)
-	if err != nil {
-		logrus.Errorf("failed to create Async %s Job : %s", removeReleaseJob.Type(), err.Error())
-		return err
+	if async {
+		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", removeReleaseJob)
+		if err != nil {
+			logrus.Errorf("failed to create Async %s Job : %s", removeReleaseJob.Type(), err.Error())
+			return err
+		}
+		logrus.Infof("succeed to create Async %s Job %s", removeReleaseJob.Type(), jobId)
+	} else {
+		err = removeReleaseJob.Do()
+		if err != nil {
+			return err
+		}
 	}
-	logrus.Infof("succeed to create Async %s Job %s", removeReleaseJob.Type(), jobId)
 
 	return nil
 }
@@ -406,7 +430,7 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 	return releaseParsed, nil
 }
 
-func (manager *ProjectManager) AddReleasesInProject(namespace string, projectName string, projectParams *release.ProjectParams) error {
+func (manager *ProjectManager) AddReleasesInProject(namespace string, projectName string, projectParams *release.ProjectParams, async bool) error {
 	if len(projectParams.Releases) == 0 {
 		return errors.New("project releases can not be empty")
 	}
@@ -418,24 +442,32 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 	}
 
 	addReleasesJob := &AddReleasesJob{
+		Async:         async,
 		Namespace:     namespace,
 		Name:          projectName,
 		ProjectParams: projectParams,
 	}
 
-	projectCache := buildProjectCache(namespace, projectName, addReleasesJob.Type(), "Pending")
+	projectCache := buildProjectCache(namespace, projectName, addReleasesJob.Type(), "Pending", async)
 	err = manager.helmClient.GetHelmCache().CreateOrUpdateProjectCache(projectCache)
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, projectName, err.Error())
 		return err
 	}
 
-	jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", addReleasesJob)
-	if err != nil {
-		logrus.Errorf("failed to create Async %s Job : %s", addReleasesJob.Type(), err.Error())
-		return err
+	if async {
+		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", addReleasesJob)
+		if err != nil {
+			logrus.Errorf("failed to create Async %s Job : %s", addReleasesJob.Type(), err.Error())
+			return err
+		}
+		logrus.Infof("succeed to create Async %s Job %s", addReleasesJob.Type(), jobId)
+	} else {
+		err = addReleasesJob.Do()
+		if err != nil {
+			return err
+		}
 	}
-	logrus.Infof("succeed to create Async %s Job %s", addReleasesJob.Type(), jobId)
 
 	return nil
 }

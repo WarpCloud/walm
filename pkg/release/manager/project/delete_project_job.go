@@ -16,11 +16,12 @@ func init() {
 }
 
 type DeleteProjectJob struct {
-	Namespace     string
-	Name          string
+	Namespace string
+	Name      string
+	Async     bool
 }
 
-func (deleteProjectJob *DeleteProjectJob)Type() string {
+func (deleteProjectJob *DeleteProjectJob) Type() string {
 	return deleteProjectJobType
 }
 
@@ -45,7 +46,7 @@ func (deleteProjectJob *DeleteProjectJob) deleteProject() error {
 func (deleteProjectJob *DeleteProjectJob) Do() error {
 	logrus.Debugf("start to delete project %s/%s", deleteProjectJob.Namespace, deleteProjectJob.Name)
 
-	projectCache := buildProjectCache(deleteProjectJob.Namespace, deleteProjectJob.Name, deleteProjectJob.Type(), "Running")
+	projectCache := buildProjectCache(deleteProjectJob.Namespace, deleteProjectJob.Name, deleteProjectJob.Type(), "Running", deleteProjectJob.Async)
 	setProjectCacheToRedisUntilSuccess(projectCache)
 
 	err := deleteProjectJob.deleteProject()

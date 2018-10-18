@@ -19,10 +19,11 @@ func init() {
 type CreateProjectJob struct {
 	Namespace     string
 	Name          string
+	Async         bool
 	ProjectParams *release.ProjectParams
 }
 
-func (createProjectJob *CreateProjectJob)Type() string {
+func (createProjectJob *CreateProjectJob) Type() string {
 	return createProjectJobType
 }
 
@@ -61,7 +62,7 @@ func (createProjectJob *CreateProjectJob) createProject() error {
 func (createProjectJob *CreateProjectJob) Do() error {
 	logrus.Debugf("start to create project %s/%s", createProjectJob.Namespace, createProjectJob.Name)
 
-	projectCache := buildProjectCache(createProjectJob.Namespace, createProjectJob.Name, createProjectJob.Type(), "Running")
+	projectCache := buildProjectCache(createProjectJob.Namespace, createProjectJob.Name, createProjectJob.Type(), "Running", createProjectJob.Async)
 	setProjectCacheToRedisUntilSuccess(projectCache)
 
 	err := createProjectJob.createProject()

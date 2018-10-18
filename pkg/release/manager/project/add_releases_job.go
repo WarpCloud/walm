@@ -18,12 +18,13 @@ func init() {
 }
 
 type AddReleasesJob struct {
+	Async         bool
 	Namespace     string
 	Name          string
 	ProjectParams *release.ProjectParams
 }
 
-func (addReleasesJob *AddReleasesJob)Type() string {
+func (addReleasesJob *AddReleasesJob) Type() string {
 	return addReleasesJobType
 }
 
@@ -84,7 +85,7 @@ func (addReleasesJob *AddReleasesJob) addReleases() error {
 func (addReleasesJob *AddReleasesJob) Do() error {
 	logrus.Debugf("start to add release in project %s/%s", addReleasesJob.Namespace, addReleasesJob.Name)
 
-	projectCache := buildProjectCache(addReleasesJob.Namespace, addReleasesJob.Name, addReleasesJob.Type(), "Running")
+	projectCache := buildProjectCache(addReleasesJob.Namespace, addReleasesJob.Name, addReleasesJob.Type(), "Running", addReleasesJob.Async)
 	setProjectCacheToRedisUntilSuccess(projectCache)
 
 	err := addReleasesJob.addReleases()
