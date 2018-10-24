@@ -336,9 +336,13 @@ type WalmSecretList struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels      map[string]string `json:"labels" description:"node labels"`
-	Annotations map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp      string            `json:"node_ip" description:"ip of node"`
+	Labels            map[string]string   `json:"labels" description:"node labels"`
+	Annotations       map[string]string   `json:"annotations" description:"node annotations"`
+	NodeIp            string              `json:"node_ip" description:"ip of node"`
+	Capacity          corev1.ResourceList `json:"capacity" description:"resource capacity"`
+	Allocatable       corev1.ResourceList `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated corev1.ResourceList `json:"requests_allocated" description:"requests resource allocated"`
+	LimitsAllocated   corev1.ResourceList `json:"limits_allocated" description:"limits resource allocated"`
 }
 
 func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
