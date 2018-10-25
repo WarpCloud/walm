@@ -184,6 +184,10 @@ type WalmEvent struct {
 	LastTimestamp  metav1.Time `json:"last_timestamp" description:"The time at which the most recent occurrence of this event was recorded"`
 }
 
+type WalmEventList struct {
+	Events []WalmEvent `json:"events" description:"events"`
+}
+
 type WalmDeployment struct {
 	WalmMeta
 	ExpectedReplicas  int32      `json:"expected_replicas" description:"expected replicas"`

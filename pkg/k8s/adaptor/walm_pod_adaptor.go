@@ -4,6 +4,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"walm/pkg/k8s/handler"
+	"github.com/sirupsen/logrus"
+	"sort"
+	"walm/pkg/k8s/utils"
 )
 
 type WalmPodAdaptor struct {
@@ -39,6 +42,54 @@ func (adaptor *WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *meta
 	}
 
 	return walmPods, nil
+}
+
+func (adaptor *WalmPodAdaptor) GetWalmPodEventList(namespace, name string) (*WalmEventList, error) {
+	pod, err := adaptor.handler.GetPod(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get pod : %s", err.Error())
+		return nil, err
+	}
+	eventList := &WalmEventList{}
+	eventList.Events, err = adaptor.GetWalmPodEvents(pod)
+	if err != nil {
+		logrus.Errorf("failed to get pod Events : %s", err.Error())
+		return nil, err
+	}
+	return eventList, nil
+}
+
+func (adaptor *WalmPodAdaptor) GetWalmPodEvents(pod *corev1.Pod) ([]WalmEvent, error) {
+	ref := &corev1.ObjectReference{
+		Namespace:       pod.Namespace,
+		Name:            pod.Name,
+		Kind:            pod.Kind,
+		ResourceVersion: pod.ResourceVersion,
+		UID:             pod.UID,
+		APIVersion:      pod.APIVersion,
+	}
+
+	podEvents, err := handler.GetDefaultHandlerSet().GetEventHandler().SearchEvents(pod.Namespace, ref)
+	if err != nil {
+		logrus.Errorf("failed to get Events : %s", err.Error())
+		return nil, err
+	}
+	sort.Sort(utils.SortableEvents(podEvents.Items))
+
+	walmEvents := []WalmEvent{}
+	for _, event := range podEvents.Items {
+		walmEvent := WalmEvent{
+			Type:           event.Type,
+			Reason:         event.Reason,
+			Message:        event.Message,
+			Count:          event.Count,
+			FirstTimestamp: event.FirstTimestamp,
+			LastTimestamp:  event.LastTimestamp,
+			From:           formatEventSource(event.Source),
+		}
+		walmEvents = append(walmEvents, walmEvent)
+	}
+	return walmEvents, nil
 }
 
 func BuildWalmPod(pod corev1.Pod) *WalmPod {

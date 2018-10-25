@@ -6,6 +6,8 @@ import (
 	"k8s.io/api/core/v1"
 	"sync"
 	"strings"
+	"sort"
+	"walm/pkg/k8s/utils"
 )
 
 type WalmInstanceAdaptor struct {
@@ -86,6 +88,8 @@ func (adaptor *WalmInstanceAdaptor) getInstanceEvents(inst *v1beta1.ApplicationI
 	if err != nil {
 		return nil, err
 	}
+	sort.Sort(utils.SortableEvents(events.Items))
+
 	walmEvents := []WalmEvent{}
 	for _, event := range events.Items {
 		walmEvent := WalmEvent{
