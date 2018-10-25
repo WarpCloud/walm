@@ -184,6 +184,10 @@ type WalmEvent struct {
 	LastTimestamp  metav1.Time `json:"last_timestamp" description:"The time at which the most recent occurrence of this event was recorded"`
 }
 
+type WalmEventList struct {
+	Events []WalmEvent `json:"events" description:"events"`
+}
+
 type WalmDeployment struct {
 	WalmMeta
 	ExpectedReplicas  int32      `json:"expected_replicas" description:"expected replicas"`
@@ -203,8 +207,17 @@ func (resource WalmDeployment) AddToWalmInstanceResourceSet(resourceSet *WalmIns
 
 type WalmPod struct {
 	WalmMeta
-	HostIp string `json:"host_ip" description:"host ip where pod is on"`
-	PodIp  string `json:"pod_ip" description:"pod ip"`
+	HostIp     string          `json:"host_ip" description:"host ip where pod is on"`
+	PodIp      string          `json:"pod_ip" description:"pod ip"`
+	Containers []WalmContainer `json:"containers" description:"pod containers"`
+}
+
+type WalmContainer struct {
+	Name         string    `json:"name" description:"container name"`
+	Image        string    `json:"image" description:"container image"`
+	Ready        bool      `json:"ready" description:"container ready"`
+	RestartCount int32     `json:"restart_count" description:"container restart count"`
+	State        WalmState `json:"state" description:"container state"`
 }
 
 func (resource WalmPod) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
@@ -336,9 +349,13 @@ type WalmSecretList struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels      map[string]string `json:"labels" description:"node labels"`
-	Annotations map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp      string            `json:"node_ip" description:"ip of node"`
+	Labels            map[string]string   `json:"labels" description:"node labels"`
+	Annotations       map[string]string   `json:"annotations" description:"node annotations"`
+	NodeIp            string              `json:"node_ip" description:"ip of node"`
+	Capacity          corev1.ResourceList `json:"capacity" description:"resource capacity"`
+	Allocatable       corev1.ResourceList `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated corev1.ResourceList `json:"requests_allocated" description:"requests resource allocated"`
+	LimitsAllocated   corev1.ResourceList `json:"limits_allocated" description:"limits resource allocated"`
 }
 
 func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

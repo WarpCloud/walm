@@ -4,6 +4,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"walm/pkg/k8s/handler"
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type WalmNodeAdaptor struct {
@@ -21,7 +23,7 @@ func (adaptor *WalmNodeAdaptor) GetResource(namespace string, name string) (Walm
 		return WalmNode{}, err
 	}
 
-	return BuildWalmNode(*node), nil
+	return adaptor.BuildWalmNode(*node)
 }
 
 func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *metav1.LabelSelector) ([]*WalmNode, error) {
@@ -33,7 +35,11 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 	walmNodes := []*WalmNode{}
 	if nodeList != nil {
 		for _, node := range nodeList {
-			walmNode := BuildWalmNode(*node)
+			walmNode, err := adaptor.BuildWalmNode(*node)
+			if err != nil {
+				logrus.Errorf("failed to build walm node : %s", err.Error())
+				return nil, err
+			}
 			walmNodes = append(walmNodes, walmNode)
 		}
 	}
@@ -41,14 +47,100 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 	return walmNodes, nil
 }
 
-func BuildWalmNode(node corev1.Node) *WalmNode {
-	walmNode := WalmNode{
+func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmNode, err error) {
+	walmNode = &WalmNode{
 		WalmMeta:    buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
 		NodeIp:      BuildNodeIp(node),
 		Labels:      node.Labels,
 		Annotations: node.Annotations,
+		Capacity:    node.Status.Capacity,
+		Allocatable: node.Status.Allocatable,
 	}
-	return &walmNode
+	walmNode.RequestsAllocated, walmNode.LimitsAllocated, err = adaptor.buildAllocated(node)
+	if err != nil {
+		logrus.Errorf("failed to build node allocated resource : %s", err.Error())
+		return
+	}
+	return
+}
+func (adaptor *WalmNodeAdaptor) buildAllocated(node corev1.Node) (requestsAllocated corev1.ResourceList, limitsAllocated corev1.ResourceList, err error) {
+	nonTerminatedPods, err := adaptor.handler.GetPodsOnNode(node.Name, nil)
+	if err != nil {
+		logrus.Errorf("failed to get non terminated pods on this node : %s", err.Error())
+		return
+	}
+	requestsAllocated, limitsAllocated = getPodsTotalRequestsAndLimits(nonTerminatedPods)
+	return
+}
+
+func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.ResourceList, limits corev1.ResourceList) {
+	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
+	for _, pod := range podList.Items {
+		podReqs, podLimits := getPodRequestsAndLimits(&pod)
+		for podReqName, podReqValue := range podReqs {
+			if value, ok := reqs[podReqName]; !ok {
+				reqs[podReqName] = *podReqValue.Copy()
+			} else {
+				value.Add(podReqValue)
+				reqs[podReqName] = value
+			}
+		}
+		for podLimitName, podLimitValue := range podLimits {
+			if value, ok := limits[podLimitName]; !ok {
+				limits[podLimitName] = *podLimitValue.Copy()
+			} else {
+				value.Add(podLimitValue)
+				limits[podLimitName] = value
+			}
+		}
+	}
+	return
+}
+
+func getPodRequestsAndLimits(pod *corev1.Pod) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
+	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
+	for _, container := range pod.Spec.Containers {
+		for name, quantity := range container.Resources.Requests {
+			if value, ok := reqs[name]; !ok {
+				reqs[name] = *quantity.Copy()
+			} else {
+				value.Add(quantity)
+				reqs[name] = value
+			}
+		}
+		for name, quantity := range container.Resources.Limits {
+			if value, ok := limits[name]; !ok {
+				limits[name] = *quantity.Copy()
+			} else {
+				value.Add(quantity)
+				limits[name] = value
+			}
+		}
+	}
+	// init containers define the minimum of any resource
+	for _, container := range pod.Spec.InitContainers {
+		for name, quantity := range container.Resources.Requests {
+			value, ok := reqs[name]
+			if !ok {
+				reqs[name] = *quantity.Copy()
+				continue
+			}
+			if quantity.Cmp(value) > 0 {
+				reqs[name] = *quantity.Copy()
+			}
+		}
+		for name, quantity := range container.Resources.Limits {
+			value, ok := limits[name]
+			if !ok {
+				limits[name] = *quantity.Copy()
+				continue
+			}
+			if quantity.Cmp(value) > 0 {
+				limits[name] = *quantity.Copy()
+			}
+		}
+	}
+	return
 }
 
 func BuildNodeIp(node corev1.Node) string {

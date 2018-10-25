@@ -3,6 +3,7 @@ package utils
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/api/core/v1"
 )
 
 func ConvertLabelSelectorToStr(labelSelector *metav1.LabelSelector) (string, error) {
@@ -31,4 +32,18 @@ func MergeLabels(labels map[string]string, newLabels map[string]string, remove [
 		delete(labels, label)
 	}
 	return labels
+}
+
+type SortableEvents []v1.Event
+
+func (list SortableEvents) Len() int {
+	return len(list)
+}
+
+func (list SortableEvents) Swap(i, j int) {
+	list[i], list[j] = list[j], list[i]
+}
+
+func (list SortableEvents) Less(i, j int) bool {
+	return list[i].LastTimestamp.Time.Before(list[j].LastTimestamp.Time)
 }

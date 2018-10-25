@@ -116,6 +116,11 @@ func CreateFakeApiserverClient(apiserverHost string, kubeConfig string) (*kubern
 }
 
 // for test
+func CreateFakeApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
+	return createApiserverClientEx(apiserverHost, kubeConfig)
+}
+
+// for test
 func CreateFakeKubeClient(apiserverHost string, kubeConfig string) (*kube.Client) {
 	return createKubeClient(apiserverHost, kubeConfig)
 }

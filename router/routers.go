@@ -392,12 +392,32 @@ func InitPodRouter() *restful.WebService {
 
 	tags := []string{"pod"}
 
-	ws.Route(ws.GET("/{namespace}/{pod}/shell/{container}").To(v1.ExecShell).
-		Doc("登录Pod对应的Shell").
+	//ws.Route(ws.GET("/{namespace}/{pod}/shell/{container}").To(v1.ExecShell).
+	//	Doc("登录Pod对应的Shell").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Writes("").
+	//	Returns(200, "OK", nil).
+	//	Returns(500, "Internal Error", ""))
+
+	ws.Route(ws.GET("/{namespace}/name/{pod}/events").To(v1.GetPodEvents).
+		Doc("获取Pod对应的事件").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("pod", "pod名字").DataType("string")).
+		Writes(k8stypes.WalmEventList{}).
+		Returns(200, "OK", k8stypes.WalmEventList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{namespace}/name/{pod}/logs").To(v1.GetPodLogs).
+		Doc("获取Pod对应的事件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("pod", "pod名字").DataType("string")).
+		Param(ws.QueryParameter("container", "container名字").DataType("string")).
+		Param(ws.QueryParameter("tail", "最后几行").DataType("int")).
 		Writes("").
-		Returns(200, "OK", nil).
-		Returns(500, "Internal Error", ""))
+		Returns(200, "OK", "").
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws
 }
