@@ -17,6 +17,10 @@ func (handler *PodHandler) GetPod(namespace string, name string) (*v1.Pod, error
 	return handler.lister.Pods(namespace).Get(name)
 }
 
+func (handler *PodHandler) GetPodLogs(namespace string, name string, podLogOoptions *v1.PodLogOptions) ([]byte, error) {
+	return handler.client.CoreV1().Pods(namespace).GetLogs(name, podLogOoptions).Do().Raw()
+}
+
 func (handler *PodHandler) ListPods(namespace string, labelSelector *metav1.LabelSelector) ([]*v1.Pod, error) {
 	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {

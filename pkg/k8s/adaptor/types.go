@@ -207,8 +207,17 @@ func (resource WalmDeployment) AddToWalmInstanceResourceSet(resourceSet *WalmIns
 
 type WalmPod struct {
 	WalmMeta
-	HostIp string `json:"host_ip" description:"host ip where pod is on"`
-	PodIp  string `json:"pod_ip" description:"pod ip"`
+	HostIp     string          `json:"host_ip" description:"host ip where pod is on"`
+	PodIp      string          `json:"pod_ip" description:"pod ip"`
+	Containers []WalmContainer `json:"containers" description:"pod containers"`
+}
+
+type WalmContainer struct {
+	Name         string    `json:"name" description:"container name"`
+	Image        string    `json:"image" description:"container image"`
+	Ready        bool      `json:"ready" description:"container ready"`
+	RestartCount int32     `json:"restart_count" description:"container restart count"`
+	State        WalmState `json:"state" description:"container state"`
 }
 
 func (resource WalmPod) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

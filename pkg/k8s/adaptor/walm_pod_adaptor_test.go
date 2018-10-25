@@ -4,8 +4,7 @@ import (
 	"testing"
 	"walm/pkg/k8s/client"
 	"fmt"
-	"encoding/json"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestPodAdaptor(t *testing.T) {
@@ -14,16 +13,11 @@ func TestPodAdaptor(t *testing.T) {
 		println(err.Error())
 		return
 	}
-	pod, err := client.CoreV1().Pods("default").Get("pi-qxhss", v1.GetOptions{})
+	tail := int64(5)
+	logs, err := client.CoreV1().Pods("tosshengfen").GetLogs("txsql-48d9q-2", &corev1.PodLogOptions{TailLines: &tail}).Do().Raw()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	e, err := json.Marshal(BuildWalmPodState(*pod))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(string(e))
+	fmt.Println(string(logs))
 }

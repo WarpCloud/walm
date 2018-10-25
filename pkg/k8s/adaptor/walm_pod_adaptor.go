@@ -92,15 +92,56 @@ func (adaptor *WalmPodAdaptor) GetWalmPodEvents(pod *corev1.Pod) ([]WalmEvent, e
 	return walmEvents, nil
 }
 
+func (adaptor *WalmPodAdaptor) GetWalmPodLogs(namespace, podName, containerName string, tailLines int64) (string, error) {
+	podLogOptions := &corev1.PodLogOptions{}
+	if containerName != "" {
+		podLogOptions.Container = containerName
+	}
+	if tailLines != 0 {
+		podLogOptions.TailLines = &tailLines
+	}
+	logs, err := adaptor.handler.GetPodLogs(namespace, podName, podLogOptions)
+	if err != nil {
+		logrus.Errorf("failed to get pod logs : %s", err.Error())
+		return "", err
+	}
+	return string(logs), nil
+}
+
 func BuildWalmPod(pod corev1.Pod) *WalmPod {
 	walmPod := WalmPod{
 		WalmMeta: buildWalmMeta("Pod", pod.Namespace, pod.Name, BuildWalmPodState(pod)),
 		PodIp:    pod.Status.PodIP,
 		HostIp:   pod.Status.HostIP,
+		Containers: buildWalmPodContainers(pod),
 	}
 	return &walmPod
 }
 
+func buildWalmPodContainers (pod corev1.Pod) (walmContainers []WalmContainer) {
+	walmContainers = []WalmContainer{}
+	for _, container := range pod.Status.ContainerStatuses {
+		walmContainer := WalmContainer{
+			Name: container.Name,
+			Ready: container.Ready,
+			Image: container.Image,
+			RestartCount: container.RestartCount,
+			State: buildPodContainerState(container.State),
+		}
+		walmContainers = append(walmContainers, walmContainer)
+	}
+	return
+}
+func buildPodContainerState(state corev1.ContainerState) (walmState WalmState) {
+	if state.Terminated != nil {
+		walmState = buildWalmState("Terminated", state.Terminated.Message, state.Terminated.Reason)
+	} else if state.Waiting != nil {
+		walmState = buildWalmState("Waiting", state.Waiting.Message, state.Waiting.Reason)
+	} else if state.Running != nil {
+		walmState = buildWalmState("Running", "", "")
+	}
+	return
+}
 // Pending, Running, Ready, Succeeded, Failed, Terminating, Unknown
 func BuildWalmPodState(pod corev1.Pod) WalmState {
 	podState := WalmState{}
