@@ -24,6 +24,15 @@ type WalmResourceSet struct {
 	Instances []WalmApplicationInstance `json:"instances" description:"release instances"`
 }
 
+func (resourceSet *WalmResourceSet) GetPodsNeedRestart() []*WalmPod {
+	walmPods := resourceSet.WalmInstanceResourceSet.GetPodsNeedRestart()
+	for _, instance := range resourceSet.Instances {
+		walmPods = append(walmPods, instance.Modules.GetPodsNeedRestart()...)
+	}
+
+	return walmPods
+}
+
 func (resourceSet *WalmResourceSet) IsReady() bool {
 	if ready, _ := resourceSet.WalmInstanceResourceSet.IsReady(); !ready {
 		return false
@@ -54,6 +63,26 @@ type WalmInstanceResourceSet struct {
 	Jobs         []WalmJob         `json:"jobs" description:"release jobs"`
 	Secrets      []WalmSecret      `json:"secrets" description:"release secrets"`
 	StatefulSets []WalmStatefulSet `json:"statefulsets" description:"release statefulsets"`
+}
+
+func (instanceResourceSet *WalmInstanceResourceSet) GetPodsNeedRestart() []*WalmPod {
+	walmPods := []*WalmPod{}
+	for _, ds := range instanceResourceSet.DaemonSets {
+		if len(ds.Pods) > 0 {
+			walmPods = append(walmPods, ds.Pods...)
+		}
+	}
+	for _, ss := range instanceResourceSet.StatefulSets {
+		if len(ss.Pods) > 0 {
+			walmPods = append(walmPods, ss.Pods...)
+		}
+	}
+	for _, dp := range instanceResourceSet.Deployments {
+		if len(dp.Pods) > 0 {
+			walmPods = append(walmPods, dp.Pods...)
+		}
+	}
+	return walmPods
 }
 
 func (instanceResourceSet *WalmInstanceResourceSet) IsReady() (bool, WalmResource) {

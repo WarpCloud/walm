@@ -257,6 +257,13 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("version", "版本号").DataType("string")).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+	ws.Route(ws.POST("/{namespace}/name/{release}/restart").To(v1.RestartRelease).
+		Doc("Restart　Release关联的所有pod").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws
 }
@@ -417,6 +424,14 @@ func InitPodRouter() *restful.WebService {
 		Param(ws.QueryParameter("tail", "最后几行").DataType("int")).
 		Writes("").
 		Returns(200, "OK", "").
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/name/{pod}/restart").To(v1.RestartPod).
+		Doc("重启Pod").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("pod", "pod名字").DataType("string")).
+		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws

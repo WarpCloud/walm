@@ -11,6 +11,7 @@ import (
 
 type WalmPodAdaptor struct {
 	handler *handler.PodHandler
+	eventHandler *handler.EventHandler
 }
 
 func (adaptor *WalmPodAdaptor) GetResource(namespace string, name string) (WalmResource, error) {
@@ -69,7 +70,7 @@ func (adaptor *WalmPodAdaptor) GetWalmPodEvents(pod *corev1.Pod) ([]WalmEvent, e
 		APIVersion:      pod.APIVersion,
 	}
 
-	podEvents, err := handler.GetDefaultHandlerSet().GetEventHandler().SearchEvents(pod.Namespace, ref)
+	podEvents, err := adaptor.eventHandler.SearchEvents(pod.Namespace, ref)
 	if err != nil {
 		logrus.Errorf("failed to get Events : %s", err.Error())
 		return nil, err
