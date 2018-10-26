@@ -66,6 +66,16 @@ func GetRelease(request *restful.Request, response *restful.Response) {
 	response.WriteEntity(info)
 }
 
+func RestartRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("release")
+	err := helm.GetDefaultHelmClient().RestartRelease(namespace, name)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to restart release %s: %s", name, err.Error()))
+		return
+	}
+}
+
 func RollBackRelease(request *restful.Request, response *restful.Response) {
 }
 

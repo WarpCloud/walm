@@ -84,7 +84,7 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 		resourceAdaptor = set.walmSecretAdaptor
 	case "Pod":
 		if set.walmPodAdaptor == nil {
-			set.walmPodAdaptor = &WalmPodAdaptor{set.handlerSet.GetPodHandler()}
+			set.walmPodAdaptor = &WalmPodAdaptor{set.handlerSet.GetPodHandler(), set.handlerSet.GetEventHandler()}
 		}
 		resourceAdaptor = set.walmPodAdaptor
 	case "Node":

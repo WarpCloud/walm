@@ -6,9 +6,20 @@ import (
 	"walm/pkg/k8s/adaptor"
 	"strconv"
 	"github.com/sirupsen/logrus"
+	"walm/pkg/k8s/handler"
 )
 
 func ExecShell(request *restful.Request, response *restful.Response) {
+}
+
+func RestartPod(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("pod")
+	err := handler.GetDefaultHandlerSet().GetPodHandler().DeletePod(namespace, name)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to restart pod %s: %s", name, err.Error()))
+		return
+	}
 }
 
 func GetPodEvents(request *restful.Request, response *restful.Response) {
