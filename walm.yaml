@@ -37,3 +37,10 @@ kafkaConfig:
   keyFile: ""
   caFile: ""
   VerifySsl: false
+multiTenant:
+  enable: true
+  tillerImage: "transwarp/helm:live"
+  certFile: ""
+  keyFile: ""
+  caFile: ""
+  VerifySsl: false

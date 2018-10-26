@@ -13,6 +13,11 @@ import (
 	"walm/pkg/setting"
 	"walm/pkg/k8s/informer"
 	"sync"
+	"github.com/sirupsen/logrus"
+	"walm/pkg/kafka"
+	"walm/pkg/redis"
+	"walm/pkg/job"
+	"encoding/json"
 )
 
 func Test_ExampleGraph_TopologicalSort(t *testing.T) {
@@ -77,7 +82,7 @@ func Test_Project_Create(t *testing.T) {
 		releaseInfo.Dependencies = make(map[string]string)
 		projectParams.Releases = append(projectParams.Releases, &releaseInfo)
 	}
-	err := GetDefaultProjectManager().CreateProject("project-test", "test-one", &projectParams)
+	err := GetDefaultProjectManager().CreateProject("project-test", "test-one", &projectParams, true)
 	fmt.Printf("%v\n", err)
 }
 
@@ -119,9 +124,8 @@ func Test_Project_ChartDepParse(t *testing.T) {
 }
 
 func Test_Project_ChartRuntimeDepParse(t *testing.T) {
-	projectInfo := release.ProjectInfo{
-		Name: "test0",
-	}
+	projectInfo := release.ProjectInfo{}
+	projectInfo.Name = "test0"
 	projectInfo.Releases = make([]*release.ReleaseInfo, 0)
 	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
 		ReleaseSpec: release.ReleaseSpec{
@@ -169,9 +173,8 @@ func Test_Project_ChartRuntimeDepParse(t *testing.T) {
 }
 
 func Test_Project_ChartRuntimeDepParse2(t *testing.T) {
-	projectInfo := release.ProjectInfo{
-		Name: "test0",
-	}
+	projectInfo := release.ProjectInfo{}
+	projectInfo.Name = "test0"
 	projectInfo.Releases = make([]*release.ReleaseInfo, 0)
 	projectInfo.Releases = append(projectInfo.Releases, &release.ReleaseInfo{
 		ReleaseSpec: release.ReleaseSpec{
@@ -221,30 +224,31 @@ func Test_Project_ChartRuntimeDepParse2(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	chartRepoMap := make(map[string]*helm.ChartRepository)
-	chartRepository := helm.ChartRepository{
-		Name: "stable",
-		URL: "http://172.16.1.41:8882/stable/",
-		Username: "",
-		Password: "",
-	}
-	chartRepoMap["stable"] = &chartRepository
-	helm.InitHelmByParams("172.26.0.5:31221", chartRepoMap, false)
-
-	//redis.InitRedisClient()
-	//job.InitWalmJobManager()
-	//informer.InitInformer()
-	//helm.InitHelm()
-	//InitProject()
 	gopath := os.Getenv("GOPATH")
 
 	setting.Config.KubeConfig = &setting.KubeConfig{
 		Config: gopath + "/src/walm/test/k8sconfig/kubeconfig",
 	}
+
+	logrus.Infof("loading configuration from [%s]", gopath + "/src/walm/walm.yaml")
+	setting.InitConfig(gopath + "/src/walm/walm.yaml")
+	settingConfig, err := json.Marshal(setting.Config)
+	if err != nil {
+		logrus.Fatal("failed to marshal setting config")
+	}
+	setting.Config.KubeConfig.Config = gopath + "/src/walm/test/k8sconfig/kubeconfig"
+	logrus.Infof("finished loading configuration: %s", string(settingConfig))
+
+	kafka.InitKafkaClient(setting.Config.KafkaConfig)
+	redis.InitRedisClient()
+	job.InitWalmJobManager()
 	informer.InitInformer()
+	helm.InitHelm()
 	InitProject()
+
 	os.Exit(m.Run())
 }
+
 
 const testSimpleCommonValuesStr = `
 Transwarp_License_Address: 172.16.1.41:2181

@@ -86,11 +86,11 @@ func InitTenantRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{tenantName}/quotas").To(v1.UpdateQuotas).
-		Doc("更新租户配额").
+	ws.Route(ws.PUT("/{tenantName}/quotas").To(v1.UpdateTenant).
+		Doc("更新租户信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
-		Reads(tenanttypes.TenantQuotaInfo{}).
+		Reads(tenanttypes.TenantParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -306,7 +306,7 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
-		Param(ws.QueryParameter("async", "异步与否").DataType("boolean")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Reads(releasetypes.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -316,7 +316,7 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
-		Param(ws.QueryParameter("async", "异步与否").DataType("boolean")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
@@ -325,7 +325,7 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
-		Param(ws.QueryParameter("async", "异步与否").DataType("boolean")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Reads(releasetypes.ReleaseRequest{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -335,7 +335,7 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
-		Param(ws.QueryParameter("async", "异步与否").DataType("boolean")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Reads(releasetypes.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -346,7 +346,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Param(ws.QueryParameter("async", "异步与否").DataType("boolean")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

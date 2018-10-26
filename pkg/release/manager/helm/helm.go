@@ -1,6 +1,9 @@
 package helm
 
 import (
+	"sync"
+	"errors"
+	"time"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -14,10 +17,7 @@ import (
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/storage/driver"
-		"sync"
-	"errors"
 	"walm/pkg/release/manager/helm/cache"
-	"time"
 	"walm/pkg/redis"
 	"walm/pkg/k8s/client"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -27,6 +27,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
 )
+
 
 const (
 	helmCacheDefaultResyncInterval time.Duration = 5 * time.Minute
@@ -406,11 +407,6 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		mergedValues := map[string]interface{}{}
 		mergedValues = mergeValues(mergedValues, configValues)
 		mergedValues = mergeValues(previousValues, mergedValues)
-		//mergedVals, err := yaml.Marshal(mergedValues)
-		//if err != nil {
-		//	logrus.Errorf("failed to marshal config values: %s", err.Error())
-		//	return nil, err
-		//}
 		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
 		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
 		if err != nil {

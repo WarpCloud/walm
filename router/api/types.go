@@ -8,13 +8,13 @@ type ErrorMessageResponse struct {
 }
 
 type LabelNodeRequestBody struct {
-	AddLabels    map[string]string `json:"add_labels"`
-	RemoveLabels []string          `json:"remove_labels"`
+	AddLabels    map[string]string `json:"addLabels"`
+	RemoveLabels []string          `json:"removeLabels"`
 }
 
 type AnnotateNodeRequestBody struct {
-	AddAnnotations    map[string]string `json:"add_annotations"`
-	RemoveAnnotations []string          `json:"remove_annotations"`
+	AddAnnotations    map[string]string `json:"addAnnotations"`
+	RemoveAnnotations []string          `json:"removeAnnotations"`
 }
 
 type CreateSecretRequestBody struct {

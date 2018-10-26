@@ -1,7 +1,6 @@
 package project
 
 import (
-	"strings"
 	"sync"
 	"errors"
 	"github.com/sirupsen/logrus"
@@ -13,6 +12,7 @@ import (
 	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
 	"fmt"
+			"strings"
 )
 
 type ProjectManager struct {
@@ -98,7 +98,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 	}
 
 	for _, releaseInfo := range releaseList {
-		projectNameArray := strings.Split(releaseInfo.Name, "--")
+		projectNameArray := strings.SplitN(releaseInfo.Name, "--", 2)
 		if len(projectNameArray) == 2 {
 			if projectInfo.Name == projectNameArray[0] {
 				releaseInfo.Name = projectNameArray[1]
@@ -109,8 +109,8 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 
 	if projectInfo.LatestProjectJobState.Status == "Succeed" {
 		projectInfo.Ready = true
-		for _, release := range projectInfo.Releases {
-			if !release.Ready {
+		for _, releaseInfo := range projectInfo.Releases {
+			if !releaseInfo.Ready {
 				projectInfo.Ready = false
 				break
 			}
@@ -245,8 +245,8 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	}
 
 	releaseExistsInProject := false
-	for _, release := range projectInfo.Releases {
-		if release.Name == releaseName {
+	for _, releaseInfo := range projectInfo.Releases {
+		if releaseInfo.Name == releaseName {
 			releaseExistsInProject = true
 			break
 		}
@@ -417,8 +417,8 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 		defer lock.Unlock()
 		releaseRequest := v.(*release.ReleaseRequest)
 		for _, dv := range g.DownEdges(releaseRequest).List() {
-			release := dv.(*release.ReleaseRequest)
-			releaseRequest.Dependencies[release.ChartName] = release.Name
+			releaseInfo := dv.(*release.ReleaseRequest)
+			releaseRequest.Dependencies[releaseInfo.ChartName] = releaseInfo.Name
 		}
 		releaseParsed = append(releaseParsed, releaseRequest)
 		return nil

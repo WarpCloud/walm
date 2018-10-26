@@ -16,6 +16,8 @@ import (
 	"time"
 	walmerr "walm/pkg/util/error"
 	"strings"
+	"walm/pkg/tenant"
+	"fmt"
 )
 
 type HelmCache struct {
@@ -167,110 +169,140 @@ func buildHScanFilter(namespace string, filter string) string {
 	return newFilter
 }
 
+func (cache *HelmCache) SingleTenantResync(client *helm.Client, tx *goredis.Tx, isSystemTiller bool) error {
+	var currentHelmClient *helm.Client
+	if isSystemTiller {
+		currentHelmClient = cache.helmClient
+	} else {
+		currentHelmClient = client
+		err := currentHelmClient.PingTiller()
+		if err != nil {
+			logrus.Errorf("RedisResync failed to ping tiller err: %s\n", err.Error())
+			return err
+		}
+	}
+	resp, err := currentHelmClient.ListReleases(helm.ReleaseListStatuses(
+		[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
+			hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
+			hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
+			hapiRelease.Status_PENDING_ROLLBACK}))
+	if err != nil {
+		logrus.Errorf("failed to list helm releases: %s\n", err.Error())
+		return err
+	}
+	releaseCachesFromHelm, err := cache.buildReleaseCaches(resp.Releases)
+	if err != nil {
+		logrus.Errorf("failed to build release caches: %s", err.Error())
+		return err
+	}
+	releaseCacheKeysFromRedis, err := tx.HKeys(redis.WalmReleasesKey).Result()
+	if err != nil {
+		logrus.Errorf("failed to get release cache keys from redis: %s", err.Error())
+		return err
+	}
+
+	releaseCacheKeysToDel := []string{}
+	for _, releaseCacheKey := range releaseCacheKeysFromRedis {
+		if _, ok := releaseCachesFromHelm[releaseCacheKey]; !ok {
+			releaseCacheKeysToDel = append(releaseCacheKeysToDel, releaseCacheKey)
+		}
+	}
+
+	projectCachesFromHelm := map[string]string{}
+	for releaseCacheKey, releaseCacheStr := range releaseCachesFromHelm {
+		releaseCache := &release.ReleaseCache{}
+		err = json.Unmarshal(releaseCacheStr.([]byte), releaseCache)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal release cache of %s: %s", releaseCacheKey, err.Error())
+			return err
+		}
+		projectNameArray := strings.Split(releaseCache.Name, "--")
+		if len(projectNameArray) == 2 {
+			projectName := projectNameArray[0]
+			_, ok := projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)]
+			if !ok {
+				projectCacheStr, err := json.Marshal(&release.ProjectCache{
+					Namespace: releaseCache.Namespace,
+					Name:      projectName,
+					LatestProjectJobState: release.ProjectJobState{
+						Type:    "NotKnown",
+						Status:  "Succeed",
+						Message: "This project is synced from helm",
+					},
+				})
+				if err != nil {
+					logrus.Errorf("failed to marshal project cache of %s/%s: %s", releaseCache.Namespace, projectName, err.Error())
+					return err
+				}
+				projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)] = string(projectCacheStr)
+			}
+		}
+	}
+
+	projectCacheInRedis, err := tx.HGetAll(redis.WalmProjectsKey).Result()
+	if err != nil {
+		logrus.Errorf("failed to get project caches from redis: %s", err.Error())
+		return err
+	}
+
+	projectCachesToSet := map[string]interface{}{}
+	projectCachesToDel := []string{}
+	for projectCacheKey, projectCacheStr := range projectCacheInRedis {
+		if _, ok := projectCachesFromHelm[projectCacheKey] ; !ok {
+			projectCache := &release.ProjectCache{}
+			err = json.Unmarshal([]byte(projectCacheStr), projectCache)
+			if err != nil {
+				logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
+				return err
+			}
+			if !projectCache.IsProjectJobNotFinished() {
+				projectCachesToDel = append(projectCachesToDel, projectCacheKey)
+			}
+		}
+	}
+	for projectCacheKey, projectCacheStr := range projectCachesFromHelm {
+		if _, ok := projectCacheInRedis[projectCacheKey] ; !ok {
+			projectCachesToSet[projectCacheKey] = projectCacheStr
+		}
+	}
+
+	_, err = tx.Pipelined(func(pipe goredis.Pipeliner) error {
+		if len(releaseCachesFromHelm) > 0 {
+			pipe.HMSet(redis.WalmReleasesKey, releaseCachesFromHelm)
+		}
+		if len(releaseCacheKeysToDel) > 0 {
+			pipe.HDel(redis.WalmReleasesKey, releaseCacheKeysToDel...)
+		}
+		if len(projectCachesToSet) > 0 {
+			pipe.HMSet(redis.WalmProjectsKey, projectCachesToSet)
+		}
+		if len(projectCachesToDel) > 0 {
+			pipe.HDel(redis.WalmProjectsKey, projectCachesToDel...)
+		}
+		return nil
+	})
+	return err
+}
+
 func (cache *HelmCache) Resync() error {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
-			resp, err := cache.helmClient.ListReleases(helm.ReleaseListStatuses(
-				[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
-					hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
-					hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
-					hapiRelease.Status_PENDING_ROLLBACK}))
+			err := cache.SingleTenantResync(nil, tx, true)
 			if err != nil {
-				logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 				return err
 			}
-			releaseCachesFromHelm, err := cache.buildReleaseCaches(resp.Releases)
+			tenantInfoList, err := tenant.ListTenants()
 			if err != nil {
-				logrus.Errorf("failed to build release caches: %s", err.Error())
-				return err
-			}
-			releaseCacheKeysFromRedis, err := tx.HKeys(redis.WalmReleasesKey).Result()
-			if err != nil {
-				logrus.Errorf("failed to get release cache keys from redis: %s", err.Error())
-				return err
-			}
-
-			releaseCacheKeysToDel := []string{}
-			for _, releaseCacheKey := range releaseCacheKeysFromRedis {
-				if _, ok := releaseCachesFromHelm[releaseCacheKey]; !ok {
-					releaseCacheKeysToDel = append(releaseCacheKeysToDel, releaseCacheKey)
-				}
-			}
-
-			projectCachesFromHelm := map[string]string{}
-			for releaseCacheKey, releaseCacheStr := range releaseCachesFromHelm {
-				releaseCache := &release.ReleaseCache{}
-				err = json.Unmarshal(releaseCacheStr.([]byte), releaseCache)
-				if err != nil {
-					logrus.Errorf("failed to unmarshal release cache of %s: %s", releaseCacheKey, err.Error())
-					return err
-				}
-				projectNameArray := strings.Split(releaseCache.Name, "--")
-				if len(projectNameArray) == 2 {
-					projectName := projectNameArray[0]
-					_, ok := projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)]
-					if !ok {
-						projectCacheStr, err := json.Marshal(&release.ProjectCache{
-							Namespace: releaseCache.Namespace,
-							Name:      projectName,
-							LatestProjectJobState: release.ProjectJobState{
-								Type:    "NotKnown",
-								Status:  "Succeed",
-								Message: "This project is synced from helm",
-							},
-						})
-						if err != nil {
-							logrus.Errorf("failed to marshal project cache of %s/%s: %s", releaseCache.Namespace, projectName, err.Error())
-							return err
-						}
-						projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)] = string(projectCacheStr)
+				for _, tenantInfo := range tenantInfoList.Items {
+					if tenantInfo.MultiTenant {
+						tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", tenantInfo.TenantName)
+						tenantClient := helm.NewClient(helm.Host(tillerHosts))
+						cache.SingleTenantResync(tenantClient, tx, true)
 					}
 				}
 			}
 
-			projectCacheInRedis, err := tx.HGetAll(redis.WalmProjectsKey).Result()
-			if err != nil {
-				logrus.Errorf("failed to get project caches from redis: %s", err.Error())
-				return err
-			}
-
-			projectCachesToSet := map[string]interface{}{}
-			projectCachesToDel := []string{}
-			for projectCacheKey, projectCacheStr := range projectCacheInRedis {
-				if _, ok := projectCachesFromHelm[projectCacheKey] ; !ok {
-					projectCache := &release.ProjectCache{}
-					err = json.Unmarshal([]byte(projectCacheStr), projectCache)
-					if err != nil {
-						logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
-						return err
-					}
-					if !projectCache.IsProjectJobNotFinished() {
-						projectCachesToDel = append(projectCachesToDel, projectCacheKey)
-					}
-				}
-			}
-			for projectCacheKey, projectCacheStr := range projectCachesFromHelm {
-				if _, ok := projectCacheInRedis[projectCacheKey] ; !ok {
-					projectCachesToSet[projectCacheKey] = projectCacheStr
-				}
-			}
-
-			_, err = tx.Pipelined(func(pipe goredis.Pipeliner) error {
-				if len(releaseCachesFromHelm) > 0 {
-					pipe.HMSet(redis.WalmReleasesKey, releaseCachesFromHelm)
-				}
-				if len(releaseCacheKeysToDel) > 0 {
-					pipe.HDel(redis.WalmReleasesKey, releaseCacheKeysToDel...)
-				}
-				if len(projectCachesToSet) > 0 {
-					pipe.HMSet(redis.WalmProjectsKey, projectCachesToSet)
-				}
-				if len(projectCachesToDel) > 0 {
-					pipe.HDel(redis.WalmProjectsKey, projectCachesToDel...)
-				}
-				return nil
-			})
-			return err
+			return nil
 		}, redis.WalmReleasesKey, redis.WalmProjectsKey)
 
 		if err == goredis.TxFailedErr {
@@ -404,6 +436,7 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 		if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
 			releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
 		}
+		releaseSpec.HelmValues = helmVals
 	}
 
 	releaseCache = &release.ReleaseCache{
