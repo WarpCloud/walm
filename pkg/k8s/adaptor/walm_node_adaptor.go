@@ -47,22 +47,36 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 	return walmNodes, nil
 }
 
+func convertResourceListToMap(resourceList corev1.ResourceList) map[string]string {
+	mapResource := make(map[string]string, 0)
+
+	for k, v := range resourceList {
+		mapResource[k.String()] = v.String()
+	}
+
+	return mapResource
+}
+
 func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmNode, err error) {
 	walmNode = &WalmNode{
 		WalmMeta:    buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
 		NodeIp:      BuildNodeIp(node),
 		Labels:      node.Labels,
 		Annotations: node.Annotations,
-		Capacity:    node.Status.Capacity,
-		Allocatable: node.Status.Allocatable,
+		Capacity:    convertResourceListToMap(node.Status.Capacity),
+		Allocatable: convertResourceListToMap(node.Status.Allocatable),
 	}
-	walmNode.RequestsAllocated, walmNode.LimitsAllocated, err = adaptor.buildAllocated(node)
+	requestsAllocated, limitsAllocated, err := adaptor.buildAllocated(node)
 	if err != nil {
 		logrus.Errorf("failed to build node allocated resource : %s", err.Error())
 		return
 	}
+	walmNode.RequestsAllocated = convertResourceListToMap(requestsAllocated)
+	walmNode.LimitsAllocated = convertResourceListToMap(limitsAllocated)
+
 	return
 }
+
 func (adaptor *WalmNodeAdaptor) buildAllocated(node corev1.Node) (requestsAllocated corev1.ResourceList, limitsAllocated corev1.ResourceList, err error) {
 	nonTerminatedPods, err := adaptor.handler.GetPodsOnNode(node.Name, nil)
 	if err != nil {
