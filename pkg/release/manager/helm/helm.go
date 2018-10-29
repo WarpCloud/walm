@@ -28,7 +28,6 @@ import (
 	"walm/pkg/k8s/adaptor"
 )
 
-
 const (
 	helmCacheDefaultResyncInterval time.Duration = 5 * time.Minute
 )
@@ -233,7 +232,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 		depLinks[k] = v
 	}
 	mergeValues(releaseRequest.ConfigValues, releaseInfo.ConfigValues)
-	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested, false)
 	if err != nil {
 		logrus.Errorf("failed to install chart : %s", err.Error())
 		return err
@@ -248,7 +247,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	return nil
 }
 
-func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest) error {
+func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
 	}
@@ -264,7 +263,7 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
 	}
-	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested)
+	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested, isSystem)
 	if err != nil {
 		logrus.Errorf("failed to install chart : %s", err.Error())
 		return err
@@ -283,8 +282,20 @@ func (client *HelmClient) RollbackRealese(namespace, releaseName, version string
 	return nil
 }
 
-func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
+func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool) error {
 	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
+	currentHelmClient := client.client
+
+	if !isSystem {
+		multiTenant, err := cache.IsMultiTenant(namespace)
+		if err != nil {
+			logrus.Errorf("InstallChart IsMultiTenant error %s\n", err.Error())
+		}
+		if multiTenant {
+			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
+			currentHelmClient = helm.NewClient(helm.Host(tillerHosts))
+		}
+	}
 
 	_, err := client.GetRelease(namespace, releaseName)
 	if err != nil {
@@ -299,7 +310,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string) error {
 	opts := []helm.DeleteOption{
 		helm.DeletePurge(true),
 	}
-	res, err := client.client.DeleteRelease(
+	res, err := currentHelmClient.DeleteRelease(
 		releaseName, opts...,
 	)
 	if err != nil {
@@ -383,15 +394,28 @@ func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion stri
 	return chartRequested, nil
 }
 
-func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart) (*hapiRelease.Release, error) {
+func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart, isSystem bool) (*hapiRelease.Release, error) {
+	currentHelmClient := client.client
 	configVals, err := yaml.Marshal(configValues)
 	if err != nil {
 		logrus.Errorf("failed to marshal config values: %s", err.Error())
 		return nil, err
 	}
+
+	if !isSystem {
+		multiTenant, err := cache.IsMultiTenant(namespace)
+		if err != nil {
+			logrus.Errorf("InstallChart IsMultiTenant error %s\n", err.Error())
+		}
+		if multiTenant {
+			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
+			currentHelmClient = helm.NewClient(helm.Host(tillerHosts))
+		}
+	}
+
 	logrus.Infof("InstallChart Params %s %s %+v %+v", releaseName, namespace, configValues, depLinks)
 	helmRelease := &hapiRelease.Release{}
-	releaseHistory, err := client.client.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
+	releaseHistory, err := currentHelmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
 	if err == nil {
 		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
 		//TODO is it reasonable? it is wield, helm should support the same name in different namespace
@@ -407,13 +431,30 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		mergedValues := map[string]interface{}{}
 		mergedValues = mergeValues(mergedValues, configValues)
 		mergedValues = mergeValues(previousValues, mergedValues)
-		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
-		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
+		mergedVals, err := yaml.Marshal(mergedValues)
 		if err != nil {
-			logrus.Errorf("failed to process app charts : %s", err.Error())
+			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())
 			return nil, err
 		}
-		resp, err := client.client.UpdateReleaseFromChart(
+
+		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
+		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
+		if err != nil {
+			return nil, err
+		}
+		if transwarpAppType == true {
+			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
+			if err != nil {
+				return nil, err
+			}
+
+			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(mergedVals[:]), appConfigMapName, dependencies)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		resp, err := currentHelmClient.UpdateReleaseFromChart(
 			releaseName,
 			chart,
 			helm.UpdateValueOverrides([]byte(chart.Values.Raw)),
@@ -428,12 +469,23 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		helmRelease = resp.GetRelease()
 	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
 		logrus.Infof("InstallChart %s DepLinks %+v ConfigValues %+v", releaseName, depLinks, configValues)
-		err = transwarp.ProcessAppCharts(client.client, chart, releaseName, namespace, string(configVals[:]), depLinks)
+		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
 		if err != nil {
-			logrus.Errorf("failed to process app charts : %s", err.Error())
 			return nil, err
 		}
-		resp, err := client.client.InstallReleaseFromChart(
+		if transwarpAppType == true {
+			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
+			if err != nil {
+				return nil, err
+			}
+
+			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(configVals[:]), appConfigMapName, dependencies)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		resp, err := currentHelmClient.InstallReleaseFromChart(
 			chart,
 			namespace,
 			helm.ValueOverrides([]byte(chart.Values.Raw)),
@@ -445,7 +497,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			opts := []helm.DeleteOption{
 				helm.DeletePurge(true),
 			}
-			_, err1 := client.client.DeleteRelease(
+			_, err1 := currentHelmClient.DeleteRelease(
 				releaseName, opts...,
 			)
 			if err1 != nil {
@@ -467,6 +519,21 @@ func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
 	go wait.Until(func() {
 		client.helmCache.Resync()
 	}, client.helmCacheResyncInterval, stopCh)
+}
+
+
+func (client *HelmClient) DeployTillerCharts(namespace string) error {
+	tillerRelease := release.ReleaseRequest{}
+	tillerRelease.Name = fmt.Sprintf("tenant-tiller-%s", namespace)
+	tillerRelease.ChartName = "helm-tiller-tenant"
+	tillerRelease.ConfigValues = make(map[string]interface{}, 0)
+	tillerRelease.ConfigValues["tiller"] = map[string]string {
+		"image": setting.Config.MultiTenantConfig.TillerImage,
+	}
+	err := client.InstallUpgradeRealese(namespace, &tillerRelease, true)
+	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
+
+	return err
 }
 
 func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {

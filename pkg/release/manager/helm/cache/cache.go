@@ -16,8 +16,9 @@ import (
 	"time"
 	walmerr "walm/pkg/util/error"
 	"strings"
-	"walm/pkg/tenant"
-	"fmt"
+		"fmt"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/k8s/adaptor"
 )
 
 type HelmCache struct {
@@ -284,6 +285,24 @@ func (cache *HelmCache) SingleTenantResync(client *helm.Client, tx *goredis.Tx, 
 	return err
 }
 
+func IsMultiTenant(tenantName string) (bool, error) {
+	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+
+	_, ok := namespace.Labels["multi-tenant"]
+	if ok {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 func (cache *HelmCache) Resync() error {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
@@ -291,14 +310,21 @@ func (cache *HelmCache) Resync() error {
 			if err != nil {
 				return err
 			}
-			tenantInfoList, err := tenant.ListTenants()
+			namespaces, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().ListNamespaces(nil)
 			if err != nil {
-				for _, tenantInfo := range tenantInfoList.Items {
-					if tenantInfo.MultiTenant {
-						tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", tenantInfo.TenantName)
-						tenantClient := helm.NewClient(helm.Host(tillerHosts))
-						cache.SingleTenantResync(tenantClient, tx, true)
-					}
+				logrus.Errorf("ListNamespaces error %s\n", err.Error())
+				return nil
+			}
+			for _, namespace := range namespaces {
+				multiTenant, err := IsMultiTenant(namespace.Name)
+				if err != nil {
+					logrus.Errorf("IsMultiTenant error %s\n", err.Error())
+					continue
+				}
+				if multiTenant {
+					tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace.Name)
+					tenantClient := helm.NewClient(helm.Host(tillerHosts))
+					cache.SingleTenantResync(tenantClient, tx, true)
 				}
 			}
 

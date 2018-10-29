@@ -11,7 +11,7 @@ import (
 func DeleteRelease(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("release")
-	err := helm.GetDefaultHelmClient().DeleteRelease(namespace, name)
+	err := helm.GetDefaultHelmClient().DeleteRelease(namespace, name, false)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release: %s", err.Error()))
 		return
@@ -26,7 +26,7 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install or upgrade release: %s", err.Error()))
 	}

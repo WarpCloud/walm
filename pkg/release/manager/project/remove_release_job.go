@@ -55,7 +55,7 @@ func (removeReleaseJob *RemoveReleaseJob) removeRelease() error {
 	}
 
 	releaseProjectName := buildProjectReleaseName(removeReleaseJob.Name, removeReleaseJob.ReleaseName)
-	err = GetDefaultProjectManager().helmClient.DeleteRelease(removeReleaseJob.Namespace, releaseProjectName)
+	err = GetDefaultProjectManager().helmClient.DeleteRelease(removeReleaseJob.Namespace, releaseProjectName, false)
 	if err != nil {
 		logrus.Errorf("RemoveReleaseInProject install release %s error %v\n", releaseProjectName, err)
 		return err

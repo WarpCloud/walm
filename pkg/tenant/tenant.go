@@ -4,12 +4,10 @@ import (
 	"walm/pkg/k8s/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/release"
-	"walm/pkg/release/manager/helm"
+		"walm/pkg/release/manager/helm"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"walm/pkg/k8s/adaptor"
-	"walm/pkg/setting"
 )
 
 func ListTenants() (TenantInfoList, error) {
@@ -29,7 +27,6 @@ func ListTenants() (TenantInfoList, error) {
 
 	return tenantInfoList, nil
 }
-
 
 func GetTenant(tenantName string) (*TenantInfo, error) {
 	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
@@ -63,6 +60,7 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 // CreateTenant initialize the namespace for the tenant
 // and installs the essential components
 func CreateTenant(tenantParams *TenantParams) error {
+	logrus.Infof("CreateTenant %s", tenantParams.TenantName)
 	tenantLabel := make(map[string]string, 0)
 	for k, v := range tenantParams.TenantLabels {
 		tenantLabel[k] = v
@@ -81,12 +79,14 @@ func CreateTenant(tenantParams *TenantParams) error {
 	if err != nil {
 		_, err2 := handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&namespace)
 		if err2 != nil {
+			logrus.Errorf("CreateTenant GetNamespace %s\n", err2.Error())
 			return err2
 		}
 	}
 
-	err = deployTillerCharts(tenantParams.TenantName)
+	err = helm.GetDefaultHelmClient().DeployTillerCharts(tenantParams.TenantName)
 	if err != nil {
+		logrus.Errorf("CreateTenant DeployTillerCharts %s\n", err.Error())
 		return err
 	}
 
@@ -96,7 +96,7 @@ func CreateTenant(tenantParams *TenantParams) error {
 func DeleteTenant(tenantName string) error {
 	logrus.Infof("DeleteTenant %s start\n", tenantName)
 
-	err := helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName))
+	err := helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true)
 	if err != nil {
 		logrus.Errorf("DeleteTenant %s error %v", tenantName, err)
 	}
@@ -130,18 +130,4 @@ func UpdateTenant(tenantParams *TenantParams) error {
 	}
 
 	return nil
-}
-
-func deployTillerCharts(namespace string) error {
-	tillerRelease := release.ReleaseRequest{}
-	tillerRelease.Name = fmt.Sprintf("tenant-tiller-%s", namespace)
-	tillerRelease.ChartName = "helm-tiller-tenant"
-	tillerRelease.ConfigValues = make(map[string]interface{}, 0)
-	tillerRelease.ConfigValues["tiller"] = map[string]string {
-		"image": setting.Config.MultiTenantConfig.TillerImage,
-	}
-	err := helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, &tillerRelease)
-	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
-
-	return err
 }

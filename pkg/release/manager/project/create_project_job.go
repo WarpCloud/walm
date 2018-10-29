@@ -49,7 +49,7 @@ func (createProjectJob *CreateProjectJob) createProject() error {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(createProjectJob.Namespace, releaseParams)
+		err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(createProjectJob.Namespace, releaseParams, false)
 		if err != nil {
 			logrus.Errorf("failed to create project release %s/%s : %s", createProjectJob.Namespace, releaseParams.Name, err)
 			return err
