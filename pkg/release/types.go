@@ -42,16 +42,16 @@ type ReleaseResourceMeta struct {
 
 type ChartValicationInfo struct {
 	Name         string                 `json:"name" description:"name of the release"`
-	ConfigValues map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	ConfigValues map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Version      int32                  `json:"version" description:"version of the release"`
 	Namespace    string                 `json:"namespace" description:"namespace of release"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ChartName    string                 `json:"chartname" description:"chart name"`
-	ChartVersion string                 `json:"chartversion" description:"chart version"`
+	ChartName    string                 `json:"chartName" description:"chart name"`
+	ChartVersion string                 `json:"chartVersion" description:"chart version"`
 	RenderStatus string                 `json:"renderStatus" description:"status of rending "`
 	RenderResult map[string]string      `json:"renderResult" description:"result of rending "`
-	DryRunStatus string                 `json:"dryrunStatus" description:"status of dry run "`
-	DryRunResult map[string]string      `json:"dryrunResult" description:"result of dry run "`
+	DryRunStatus string                 `json:"dryRunStatus" description:"status of dry run "`
+	DryRunResult map[string]string      `json:"dryRunResult" description:"result of dry run "`
 	ErrorMessage string                 `json:"errorMessage" description:" error msg "`
 }
 
