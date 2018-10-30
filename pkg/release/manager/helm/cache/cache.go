@@ -228,6 +228,9 @@ func (cache *HelmCache) Resync() error {
 						logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 						continue
 					}
+					if  resp == nil || len(resp.Releases) == 0 {
+						continue
+					}
 					helmReleases = append(helmReleases, resp.Releases...)
 				}
 			}
