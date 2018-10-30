@@ -57,7 +57,7 @@ func (addReleasesJob *AddReleasesJob) addReleases() error {
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2
 			}
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleasesJob.Namespace, releaseParams)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleasesJob.Namespace, releaseParams, false)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
@@ -71,7 +71,7 @@ func (addReleasesJob *AddReleasesJob) addReleases() error {
 				}
 			}
 		} else {
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleasesJob.Namespace, releaseParams)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleasesJob.Namespace, releaseParams, false)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err

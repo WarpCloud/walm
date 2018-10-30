@@ -15,6 +15,7 @@ import (
 	rls "k8s.io/helm/pkg/proto/hapi/services"
 	"k8s.io/api/core/v1"
 	v1beta1 "transwarp/application-instance/pkg/apis/transwarp/v1beta1"
+	"strings"
 )
 
 
@@ -43,17 +44,12 @@ type AppHelmValues struct {
 	NativeValues HelmNativeValues `json:"HelmNativeValues"`
 }
 
-func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, namespace, config string, depLinks map[string]interface{}) error {
-	var dependencies []v1beta1.Dependency
+// will change chartRequested values
+func ProcessTranswarpChartRequested(chartRequested *chart.Chart, name, namespace string) (string, bool, *AppDependency, error) {
 	var appConfigMapName string
-
-	appManagerType := false
-	annotations := make(map[string]string)
-	labels := make(map[string]string)
-	app := &AppDependency{}
-	dep := make([]string, 0)
-	depValuesLinks := make(map[string]string)
 	removeIdx := -1
+	transwarpAppType := false
+	appDependency := AppDependency{}
 
 	for idx, file := range chartRequested.Files {
 		if file.TypeUrl == "transwarp-configmap-reserved" {
@@ -74,45 +70,59 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 			}
 			appChartData, err := yaml.Marshal(appChartConfigmap)
 			if err != nil {
-				return err
+				return "", transwarpAppType, nil, err
 			}
 			chartRequested.Templates = append(chartRequested.Templates,
 				&chart.Template{Name: "templates/transwarp-configmap-reserved.yaml", Data: appChartData})
 			removeIdx = idx
-			appManagerType = true
+			transwarpAppType = true
 		} else if file.TypeUrl == "transwarp-app-yaml" {
-			err := yaml.Unmarshal(file.Value, &app)
+			err := yaml.Unmarshal(file.Value, &appDependency)
 			if err != nil {
-				return err
-			}
-			for _, dependency := range app.Dependencies {
-				dep = append(dep, dependency.Name)
+				return "", transwarpAppType, nil, err
 			}
 		}
 	}
-	if appManagerType == false {
-		return nil
+
+	if transwarpAppType {
+		chartRequested.Files[len(chartRequested.Files)-1], chartRequested.Files[removeIdx] = chartRequested.Files[removeIdx], chartRequested.Files[len(chartRequested.Files)-1]
+		chartRequested.Files = chartRequested.Files[:len(chartRequested.Files)-1]
 	}
 
-	// Merge Values.yaml and rawVals and helm Native Charts Values
-	rawValsBase := map[string]interface{}{}
-	if err := yaml.Unmarshal([]byte(config), &rawValsBase); err != nil {
-		return fmt.Errorf("failed to parse rawValues: %s", err)
-	}
-	chartRawBase := map[string]interface{}{}
-	if err := yaml.Unmarshal([]byte(chartRequested.Values.Raw), &chartRawBase); err != nil {
-		return fmt.Errorf("failed to parse rawValues: %s", err)
-	}
-	helmVals := AppHelmValues{}
-	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Name
-	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Version
-	helmVals.NativeValues.AppVersion = chartRequested.Metadata.AppVersion
-	helmVals.NativeValues.ReleaseName = name
-	helmVals.NativeValues.ReleaseNamespace = namespace
+	return appConfigMapName, transwarpAppType, &appDependency, nil
+}
 
-	chartRequested.Files[len(chartRequested.Files)-1], chartRequested.Files[removeIdx] = chartRequested.Files[removeIdx], chartRequested.Files[len(chartRequested.Files)-1]
-	chartRequested.Files = chartRequested.Files[:len(chartRequested.Files)-1]
+func FindAppInstanceDependency(client helm.Interface, releaseName string) (string, string, error) {
+	var err error
 
+	var releaseHistory *rls.GetHistoryResponse
+	retry := 20
+
+	for i:=0; i < retry; i++ {
+		releaseHistory, err = client.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
+		time.Sleep(500 * time.Millisecond)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return "", "", err
+	}
+	if len(releaseHistory.Releases) == 0 {
+		return "", "", errors.New(fmt.Sprintf("cannot found helm release %s", releaseName))
+	}
+	depRelease := releaseHistory.GetReleases()[0]
+
+	return depRelease.Name, depRelease.Namespace, nil
+}
+
+func GetTranswarpInstanceCRDDependency(client helm.Interface, appDependency *AppDependency, depLinks map[string]interface{}, defaultNamespace string, depMustExist bool) ([]v1beta1.Dependency, error) {
+	var dependencies []v1beta1.Dependency
+	dep := make([]string, 0)
+
+	for _, dependency := range appDependency.Dependencies {
+		dep = append(dep, dependency.Name)
+	}
 	for k, v := range depLinks {
 		found := false
 		for _, depName := range dep {
@@ -127,10 +137,26 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 		}
 		dependency := v1beta1.Dependency{}
 		dependency.Name = k
-		depInstanceName, depInstanceNamespace, err := findAppInstanceDependency(client, v.(string))
-		if err != nil {
-			return err
+		depInstanceName := ""
+		depInstanceNamespace := ""
+		var err error
+		if depMustExist {
+			depInstanceName, depInstanceNamespace, err = FindAppInstanceDependency(client, v.(string))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			depLinkValues := v.(string)
+			depLinks := strings.SplitN(depLinkValues, ".", 2)
+			if len(depLinks) > 1 {
+				depInstanceNamespace = depLinks[0]
+				depInstanceName = depLinks[1]
+			} else {
+				depInstanceNamespace = defaultNamespace
+				depInstanceName = depLinkValues
+			}
 		}
+
 		dependency.DependencyRef = v1.ObjectReference{
 			Kind: "ApplicationInstance",
 			Namespace: depInstanceNamespace,
@@ -138,9 +164,30 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 			APIVersion: "apiextensions.transwarp.io/v1beta1",
 		}
 		dependencies = append(dependencies, dependency)
-		depValuesLinks[k] = v.(string)
+		//depValuesLinks[k] = v.(string)
 	}
 
+	return dependencies, nil
+}
+
+func ProcessTranswarpInstanceCRD(chartRequested *chart.Chart, name, namespace, config, appConfigMapName string, dependencies []v1beta1.Dependency) error {
+	annotations := make(map[string]string)
+	labels := make(map[string]string)
+	depValuesLinks := make(map[string]string)
+
+	// Unmarshal User Configs
+	rawValsBase := map[string]interface{}{}
+	if err := yaml.Unmarshal([]byte(config), &rawValsBase); err != nil {
+		return fmt.Errorf("failed to parse rawValues: %s", err)
+	}
+	// add more helm values to instance
+	helmVals := AppHelmValues{}
+	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Name
+	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Version
+	helmVals.NativeValues.AppVersion = chartRequested.Metadata.AppVersion
+	helmVals.NativeValues.ReleaseName = name
+	helmVals.NativeValues.ReleaseNamespace = namespace
+	chartRawBase := map[string]interface{}{}
 	chartRawBase["HelmAdditionalValues"] = &helmVals
 	helmVals.Dependencies = depValuesLinks
 	rawValsBase = mergeValues(chartRawBase, rawValsBase)
@@ -188,26 +235,24 @@ func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, 
 	return nil
 }
 
-func findAppInstanceDependency(client helm.Interface, releaseName string) (string, string, error) {
-	var err error
-
-	var releaseHistory *rls.GetHistoryResponse
-	retry := 20
-
-	for i:=0; i < retry; i++ {
-		releaseHistory, err = client.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
-		time.Sleep(500 * time.Millisecond)
-		if err == nil {
-			break
-		}
-	}
+func ProcessAppCharts(client helm.Interface, chartRequested *chart.Chart, name, namespace, config string, depLinks map[string]interface{}) error {
+	appConfigMapName, transwarpAppType, appDependency, err := ProcessTranswarpChartRequested(chartRequested, name, namespace)
 	if err != nil {
-		return "", "", err
+		return err
 	}
-	if len(releaseHistory.Releases) == 0 {
-		return "", "", errors.New(fmt.Sprintf("cannot found helm release %s", releaseName))
+	if transwarpAppType == false {
+		return nil
 	}
-	depRelease := releaseHistory.GetReleases()[0]
 
-	return depRelease.Name, depRelease.Namespace, nil
+	dependencies, err := GetTranswarpInstanceCRDDependency(client, appDependency, depLinks, namespace, true)
+	if err != nil {
+		return err
+	}
+
+	err = ProcessTranswarpInstanceCRD(chartRequested, name, namespace, config, appConfigMapName, dependencies)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

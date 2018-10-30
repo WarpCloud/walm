@@ -3,8 +3,8 @@ package api
 import "k8s.io/api/core/v1"
 
 type ErrorMessageResponse struct {
-	ErrCode    int    `json:"errCode"`
-	ErrMessage string `json:"errMessage"`
+	ErrCode    int    `json:"err_code"`
+	ErrMessage string `json:"err_message"`
 }
 
 type LabelNodeRequestBody struct {

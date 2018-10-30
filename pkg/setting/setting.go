@@ -53,15 +53,25 @@ type KafkaConfig struct {
 	VerifySsl bool     `json:"verifySsl"`
 }
 
+type MultiTenantConfig struct {
+	Enable    bool     `json:"enable"`
+	TillerImage string `json:"tillerImage"`
+	CertFile  string   `json:"certFile"`
+	KeyFile   string   `json:"keyFile"`
+	CaFile    string   `json:"caFile"`
+	VerifySsl bool     `json:"verifySsl"`
+}
+
 type WalmConfig struct {
 	Debug bool `json:"debug"`
 
-	HttpConfig  *HttpConfig  `json:"serverConfig"`
-	SysHelm     *HelmConfig  `json:"sysHelmConfig"`
-	RepoList    []*ChartRepo `json:"repoList"`
-	KubeConfig  *KubeConfig  `json:"kubeConfig"`
-	RedisConfig *RedisConfig `json:"redisConfig"`
-	KafkaConfig *KafkaConfig `json:"kafkaConfig"`
+	HttpConfig        *HttpConfig        `json:"serverConfig"`
+	SysHelm           *HelmConfig        `json:"sysHelmConfig"`
+	RepoList          []*ChartRepo       `json:"repoList"`
+	KubeConfig        *KubeConfig        `json:"kubeConfig"`
+	RedisConfig       *RedisConfig       `json:"redisConfig"`
+	KafkaConfig       *KafkaConfig       `json:"kafkaConfig"`
+	MultiTenantConfig *MultiTenantConfig `json:"multiTenant"`
 }
 
 // StartResyncReleaseCaches sets values from the environment.

@@ -26,6 +26,7 @@ type ReleaseSpec struct {
 	ChartName       string                 `json:"chart_name" description:"chart name"`
 	ChartVersion    string                 `json:"chart_version" description:"chart version"`
 	ChartAppVersion string                 `json:"chart_app_version" description:"jsonnet app version"`
+	HelmValues
 }
 
 type ReleaseCache struct {
@@ -41,16 +42,16 @@ type ReleaseResourceMeta struct {
 
 type ChartValicationInfo struct {
 	Name         string                 `json:"name" description:"name of the release"`
-	ConfigValues map[string]interface{} `json:"configvalues" description:"extra values added to the chart"`
+	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Version      int32                  `json:"version" description:"version of the release"`
 	Namespace    string                 `json:"namespace" description:"namespace of release"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ChartName    string                 `json:"chartname" description:"chart name"`
-	ChartVersion string                 `json:"chartversion" description:"chart version"`
+	ChartName    string                 `json:"chart_name" description:"chart name"`
+	ChartVersion string                 `json:"chart_version" description:"chart version"`
 	RenderStatus string                 `json:"render_status" description:"status of rending "`
 	RenderResult map[string]string      `json:"render_result" description:"result of rending "`
-	DryRunStatus string                 `json:"dryrun_status" description:"status of dry run "`
-	DryRunResult map[string]string      `json:"dryrun_result" description:"result of dry run "`
+	DryRunStatus string                 `json:"dry_run_status" description:"status of dry run "`
+	DryRunResult map[string]string      `json:"dry_run_result" description:"result of dry run "`
 	ErrorMessage string                 `json:"error_message" description:" error msg "`
 }
 
@@ -61,7 +62,6 @@ type ReleaseRequest struct {
 	ChartVersion string                 `json:"chart_version" description:"chart repo"`
 	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	//ChartURL string
 }
 
 type DependencyDeclare struct {
@@ -77,11 +77,11 @@ type AppDependency struct {
 }
 
 type HelmNativeValues struct {
-	ChartName        string `json:"chartName"`
-	ChartVersion     string `json:"chartVersion"`
-	AppVersion       string `json:"appVersion"`
-	ReleaseName      string `json:"releaseName"`
-	ReleaseNamespace string `json:"releaseNamespace"`
+	ChartName        string `json:"chart_name"`
+	ChartVersion     string `json:"chart_version"`
+	AppVersion       string `json:"app_version"`
+	ReleaseName      string `json:"release_name"`
+	ReleaseNamespace string `json:"release_namespace"`
 }
 
 type AppHelmValues struct {
@@ -122,12 +122,12 @@ type ProjectInfoList struct {
 }
 
 type HelmExtraLabels struct {
-	HelmLabels map[string]interface{} `json:"helmlabels"`
+	HelmLabels map[string]interface{} `json:"helm_labels"`
 }
 
 type HelmValues struct {
-	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
-	AppHelmValues   *AppHelmValues   `json:"HelmAdditionalValues"`
+	HelmExtraLabels *HelmExtraLabels `json:"helm_extra_labels"`
+	AppHelmValues   *AppHelmValues   `json:"helm_additional_values"`
 }
 
 type RepoInfo struct {
@@ -143,7 +143,7 @@ type ChartInfo struct {
 	ChartName        string   `json:"chart_name"`
 	ChartVersion     string   `json:"chart_version"`
 	ChartDescription string   `json:"chart_description"`
-	ChartAppVersion  string   `json:"chart_appversion"`
+	ChartAppVersion  string   `json:"chart_appVersion"`
 	ChartEngine      string   `json:"chart_engine"`
 	DefaultValue     string   `json:"default_value" description:"default values.yaml defined by the chart"`
 	DependencyCharts []string `json:"dependency_charts" description:"dependency chart name"`

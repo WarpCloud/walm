@@ -16,6 +16,9 @@ import (
 	"time"
 	walmerr "walm/pkg/util/error"
 	"strings"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/k8s/adaptor"
+	"fmt"
 )
 
 type HelmCache struct {
@@ -167,6 +170,24 @@ func buildHScanFilter(namespace string, filter string) string {
 	return newFilter
 }
 
+func IsMultiTenant(tenantName string) (bool, error) {
+	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+
+	_, ok := namespace.Labels["multi-tenant"]
+	if ok {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 func (cache *HelmCache) Resync() error {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
@@ -175,11 +196,43 @@ func (cache *HelmCache) Resync() error {
 					hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
 					hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
 					hapiRelease.Status_PENDING_ROLLBACK}))
+
 			if err != nil {
 				logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 				return err
 			}
-			releaseCachesFromHelm, err := cache.buildReleaseCaches(resp.Releases)
+
+			helmReleases := []*hapiRelease.Release{}
+			helmReleases = append(helmReleases, resp.Releases...)
+
+			namespaces, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().ListNamespaces(nil)
+			if err != nil {
+				logrus.Errorf("ListNamespaces error %s\n", err.Error())
+				return err
+			}
+			for _, namespace := range namespaces {
+				multiTenant, err := IsMultiTenant(namespace.Name)
+				if err != nil {
+					logrus.Errorf("IsMultiTenant error %s\n", err.Error())
+					continue
+				}
+				if multiTenant {
+					tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace.Name)
+					tenantClient := helm.NewClient(helm.Host(tillerHosts))
+					resp, err = tenantClient.ListReleases(helm.ReleaseListStatuses(
+						[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
+							hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
+							hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
+							hapiRelease.Status_PENDING_ROLLBACK}))
+					if err != nil {
+						logrus.Errorf("failed to list helm releases: %s\n", err.Error())
+						continue
+					}
+					helmReleases = append(helmReleases, resp.Releases...)
+				}
+			}
+
+			releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleases)
 			if err != nil {
 				logrus.Errorf("failed to build release caches: %s", err.Error())
 				return err
@@ -404,6 +457,7 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 		if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
 			releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
 		}
+		releaseSpec.HelmValues = helmVals
 	}
 
 	releaseCache = &release.ReleaseCache{

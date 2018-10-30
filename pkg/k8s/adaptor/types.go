@@ -381,10 +381,10 @@ type WalmNode struct {
 	Labels            map[string]string   `json:"labels" description:"node labels"`
 	Annotations       map[string]string   `json:"annotations" description:"node annotations"`
 	NodeIp            string              `json:"node_ip" description:"ip of node"`
-	Capacity          corev1.ResourceList `json:"capacity" description:"resource capacity"`
-	Allocatable       corev1.ResourceList `json:"allocatable" description:"resource allocatable"`
-	RequestsAllocated corev1.ResourceList `json:"requests_allocated" description:"requests resource allocated"`
-	LimitsAllocated   corev1.ResourceList `json:"limits_allocated" description:"limits resource allocated"`
+	Capacity          map[string]string   `json:"capacity" description:"resource capacity"`
+	Allocatable       map[string]string   `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated map[string]string   `json:"requests_allocated" description:"requests resource allocated"`
+	LimitsAllocated   map[string]string   `json:"limits_allocated" description:"limits resource allocated"`
 }
 
 func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
