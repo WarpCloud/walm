@@ -3,18 +3,18 @@ package api
 import "k8s.io/api/core/v1"
 
 type ErrorMessageResponse struct {
-	ErrCode    int    `json:"errCode"`
-	ErrMessage string `json:"errMessage"`
+	ErrCode    int    `json:"err_code"`
+	ErrMessage string `json:"err_message"`
 }
 
 type LabelNodeRequestBody struct {
-	AddLabels    map[string]string `json:"addLabels"`
-	RemoveLabels []string          `json:"removeLabels"`
+	AddLabels    map[string]string `json:"add_labels"`
+	RemoveLabels []string          `json:"remove_labels"`
 }
 
 type AnnotateNodeRequestBody struct {
-	AddAnnotations    map[string]string `json:"addAnnotations"`
-	RemoveAnnotations []string          `json:"removeAnnotations"`
+	AddAnnotations    map[string]string `json:"add_annotations"`
+	RemoveAnnotations []string          `json:"remove_annotations"`
 }
 
 type CreateSecretRequestBody struct {

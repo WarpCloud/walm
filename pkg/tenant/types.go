@@ -10,31 +10,31 @@ type TenantInfoList struct {
 
 //Tenant Info
 type TenantInfo struct {
-	TenantName         string  `json:"tenantName" description:"name of the tenant"`
-	TenantCreationTime v1.Time `json:"tenantCreationTime" description:"create time of the tenant"`
-	TenantLabels       map[string]string `json:"tenantLabels"  description:"labels of the tenant"`
-	TenantAnnotitions  map[string]string `json:"tenantAnnotations"  description:"annotations of the tenant"`
-	TenantStatus       string `json:"tenantStatus" description:"status of the tenant"`
-	TenantQuotas       []*TenantQuotaInfo `json:"tenantQuotas" description:"quotas of the tenant"`
+	TenantName         string  `json:"tenant_name" description:"name of the tenant"`
+	TenantCreationTime v1.Time `json:"tenant_creation_time" description:"create time of the tenant"`
+	TenantLabels       map[string]string `json:"tenant_labels"  description:"labels of the tenant"`
+	TenantAnnotitions  map[string]string `json:"tenant_annotations"  description:"annotations of the tenant"`
+	TenantStatus       string `json:"tenant_status" description:"status of the tenant"`
+	TenantQuotas       []*TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
 	MultiTenant        bool    `json:"" `
 	Ready              bool    `json:"ready" description:"tenant ready status"`
 }
 
 //Tenant Params Info
 type TenantParams struct {
-	TenantName         string             `json:"tenantName" description:"name of the tenant"`
-	TenantAnnotitions  map[string]string  `json:"tenantAnnotations"  description:"annotations of the tenant"`
-	TenantLabels       map[string]string  `json:"tenantLabels"  description:"labels of the tenant"`
-	TenantQuotas       []*TenantQuotaInfo `json:"tenantQuotas" description:"quotas of the tenant"`
+	TenantName         string             `json:"tenant_name" description:"name of the tenant"`
+	TenantAnnotitions  map[string]string  `json:"tenant_annotations"  description:"annotations of the tenant"`
+	TenantLabels       map[string]string  `json:"tenant_labels"  description:"labels of the tenant"`
+	TenantQuotas       []*TenantQuotaInfo `json:"tenant_quotas" description:"quotas of the tenant"`
 }
 
 //Quota Info
 type TenantQuotaInfo struct {
-	LimitCpu        float64 `json:"limitCpu"  description:"requests of the CPU"`
-	LimitMemory     float64 `json:"limitMemory"  description:"limit of the memory"`
-	RequestsCPU     float64 `json:"requestsCpu"  description:"requests of the CPU"`
-	RequestsMemory  float64 `json:"requestsMemory"  description:"requests of the memory"`
-	RequestsStorage float64 `json:"requestsStorage"  description:"requests of the storage"`
+	LimitCpu        float64 `json:"limit_cpu"  description:"requests of the CPU"`
+	LimitMemory     float64 `json:"limit_memory"  description:"limit of the memory"`
+	RequestsCPU     float64 `json:"requests_cpu"  description:"requests of the CPU"`
+	RequestsMemory  float64 `json:"requests_memory"  description:"requests of the memory"`
+	RequestsStorage float64 `json:"requests_storage"  description:"requests of the storage"`
 	Pods            int     `json:"pods" description:"num of the pods"`
 }
 
