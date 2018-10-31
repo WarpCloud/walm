@@ -380,10 +380,8 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	if err != nil {
 		return err
 	}
-	logrus.Infof("releaseInfo.Dependencies %+v %+v %+v\n", releaseInfo.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
-	for k, v := range releaseInfo.Dependencies {
-		depLinks[k] = v
-	}
+	logrus.Infof("releaseInfo.Dependencies OLD(%+v) NEW(%+v) %+v %+v\n", releaseInfo.Dependencies, releaseRequest.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
+	releaseInfo.Dependencies = releaseRequest.Dependencies
 	mergeValues(releaseRequest.ConfigValues, releaseInfo.ConfigValues)
 	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested, false)
 	if err != nil {
@@ -572,6 +570,18 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 	}
 
+	retry := 20
+	for i:=0; i < retry; i++ {
+		err = currentHelmClient.PingTiller()
+		if err == nil {
+			break
+		}
+		if i == retry - 1 {
+			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	logrus.Infof("InstallChart Params %s %s %+v %+v", releaseName, namespace, configValues, depLinks)
 	helmRelease := &hapiRelease.Release{}
 	releaseHistory, err := currentHelmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
@@ -589,7 +599,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 		mergedValues := map[string]interface{}{}
 		mergedValues = mergeValues(mergedValues, configValues)
-		mergedValues = mergeValues(previousValues, mergedValues)
+		mergedValues = mergeValues(mergedValues, previousValues)
 		mergedVals, err := yaml.Marshal(mergedValues)
 		if err != nil {
 			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())

@@ -13,7 +13,8 @@ import (
 	"path/filepath"
 	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
-	)
+	"k8s.io/helm/pkg/transwarp"
+)
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
 	repoIndex := &repo.IndexFile{}
@@ -149,7 +150,7 @@ func GetChartList(TenantRepoName string) (*release.ChartInfoList, error) {
 
 func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.ChartInfo, error) {
 	chartInfo := new(release.ChartInfo)
-	appMetaInfo := release.AppDependency{}
+	appMetaInfo := transwarp.AppDependency{}
 
 	chartRequest, err := GetDefaultHelmClient().getChartRequest(TenantRepoName, ChartName, ChartVersion)
 	if err != nil {

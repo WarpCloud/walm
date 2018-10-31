@@ -459,6 +459,7 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 	if err == nil {
 		if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
 			releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
+			logrus.Debugf("buildReleaseCache %s/%s Dep %+v\n", releaseSpec.Namespace, releaseSpec.Name, helmVals.AppHelmValues.Dependencies)
 		}
 		releaseSpec.HelmValues = helmVals
 	}

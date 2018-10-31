@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/ghodss/yaml"
 	"walm/pkg/k8s/adaptor"
+	"k8s.io/helm/pkg/transwarp"
 )
 
 func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
@@ -40,7 +41,7 @@ func parseChartDependencies(chart *chart.Chart) ([]string, error) {
 
 	for _, chartFile := range chart.Files {
 		if chartFile.TypeUrl == "transwarp-app-yaml" {
-			app := &release.AppDependency{}
+			app := &transwarp.AppDependency{}
 			err := yaml.Unmarshal(chartFile.Value, &app)
 			if err != nil {
 				return dependencies, err

@@ -173,29 +173,49 @@ func GetTranswarpInstanceCRDDependency(client helm.Interface, appDependency *App
 func ProcessTranswarpInstanceCRD(chartRequested *chart.Chart, name, namespace, config, appConfigMapName string, dependencies []v1beta1.Dependency) error {
 	annotations := make(map[string]string)
 	labels := make(map[string]string)
-	depValuesLinks := make(map[string]string)
 
 	// Unmarshal User Configs
 	rawValsBase := map[string]interface{}{}
 	if err := yaml.Unmarshal([]byte(config), &rawValsBase); err != nil {
 		return fmt.Errorf("failed to parse rawValues: %s", err)
 	}
+	// Clean dependency field
+	v, ok := rawValsBase["HelmAdditionalValues"].(map[string]interface{})
+	if ok {
+		_, isMap := v["dependencies"].(map[string]interface{})
+		if isMap {
+			delete(v, "dependencies")
+			rawValsBase["HelmAdditionalValues"] = v
+		}
+	}
 	// add more helm values to instance
 	helmVals := AppHelmValues{}
-	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Name
+	helmVals.NativeValues.ChartName = chartRequested.Metadata.Name
 	helmVals.NativeValues.ChartVersion = chartRequested.Metadata.Version
 	helmVals.NativeValues.AppVersion = chartRequested.Metadata.AppVersion
 	helmVals.NativeValues.ReleaseName = name
 	helmVals.NativeValues.ReleaseNamespace = namespace
+	helmVals.Dependencies = make(map[string]string, 0)
+	for _, dep := range dependencies {
+		if namespace != dep.DependencyRef.Namespace {
+			helmVals.Dependencies[dep.Name] = fmt.Sprintf("%s.%s", dep.DependencyRef.Namespace, dep.DependencyRef.Name)
+		} else {
+			helmVals.Dependencies[dep.Name] = dep.DependencyRef.Name
+		}
+	}
 	chartRawBase := map[string]interface{}{}
-	chartRawBase["HelmAdditionalValues"] = &helmVals
-	helmVals.Dependencies = depValuesLinks
-	rawValsBase = mergeValues(chartRawBase, rawValsBase)
-	rawMergeVals, err := yaml.Marshal(rawValsBase)
+	chartRawBase["HelmAdditionalValues"] = helmVals
+	chartJsonRawBase := map[string]interface{}{}
+	chartJsonRawVals, _ := yaml.Marshal(chartRawBase)
+	yaml.Unmarshal(chartJsonRawVals, &chartJsonRawBase)
+	mergeValues(chartJsonRawBase, rawValsBase)
+	chartRawVals, err := yaml.Marshal(chartJsonRawBase)
 	if err != nil {
+		fmt.Printf("ProcessTranswarpInstanceCRD yaml.Marshal %+v error %s", chartRawBase, err.Error())
 		return err
 	}
-	chartRequested.Values.Raw = string(rawMergeVals[:])
+
+	chartRequested.Values.Raw = string(chartRawVals[:])
 
 	annotations["helm.sh/storage"] = "ConfigMap"
 	annotations["helm.sh/storageName"] = appConfigMapName
@@ -221,7 +241,7 @@ func ProcessTranswarpInstanceCRD(chartRequested *chart.Chart, name, namespace, c
 				Name:    chartRequested.Metadata.GetName(),
 				Version: chartRequested.Metadata.GetAppVersion(),
 			},
-			Configs:      rawValsBase,
+			Configs:      chartJsonRawBase,
 			Dependencies: dependencies,
 		},
 	}

@@ -64,30 +64,6 @@ type ReleaseRequest struct {
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 }
 
-type DependencyDeclare struct {
-	// name of dependency declaration
-	Name string `json:"name,omitempty"`
-	// dependency variable mappings
-	Requires map[string]string `json:"requires,omitempty"`
-}
-
-type AppDependency struct {
-	Name         string               `json:"name,omitempty"`
-	Dependencies []*DependencyDeclare `json:"dependencies"`
-}
-
-type HelmNativeValues struct {
-	ChartName        string `json:"chart_name"`
-	ChartVersion     string `json:"chart_version"`
-	AppVersion       string `json:"app_version"`
-	ReleaseName      string `json:"release_name"`
-	ReleaseNamespace string `json:"release_namespace"`
-}
-
-type AppHelmValues struct {
-	transwarp.AppHelmValues
-}
-
 type ProjectParams struct {
 	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
 	Releases     []*ReleaseRequest      `json:"releases" description:"list of release of the project"`
@@ -122,12 +98,12 @@ type ProjectInfoList struct {
 }
 
 type HelmExtraLabels struct {
-	HelmLabels map[string]interface{} `json:"helm_labels"`
+	HelmLabels map[string]interface{} `json:"helmlabels"`
 }
 
 type HelmValues struct {
-	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
-	AppHelmValues   *AppHelmValues   `json:"HelmAdditionalValues"`
+	HelmExtraLabels *HelmExtraLabels         `json:"HelmExtraLabels"`
+	AppHelmValues   *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
 }
 
 type RepoInfo struct {
