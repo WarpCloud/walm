@@ -126,8 +126,8 @@ type HelmExtraLabels struct {
 }
 
 type HelmValues struct {
-	HelmExtraLabels *HelmExtraLabels `json:"helm_extra_labels"`
-	AppHelmValues   *AppHelmValues   `json:"helm_additional_values"`
+	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
+	AppHelmValues   *AppHelmValues   `json:"HelmAdditionalValues"`
 }
 
 type RepoInfo struct {
