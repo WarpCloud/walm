@@ -152,3 +152,43 @@ type ChartInfo struct {
 type ChartInfoList struct {
 	Items []*ChartInfo `json:"items" description:"chart list"`
 }
+
+type ReleaseConfigDeltaEventType string
+
+const (
+	CreateOrUpdate ReleaseConfigDeltaEventType = "CreateOrUpdate"
+	Delete         ReleaseConfigDeltaEventType = "Delete"
+)
+
+type ReleaseConfigDeltaEvent struct {
+	Type ReleaseConfigDeltaEventType `json:"type" description:"delta type: CreateOrUpdate, Delete"`
+	Data ReleaseConfig               `json:"data" description:"release config data"`
+}
+
+type ReleaseConfig struct {
+	AppName      string             `json:"app_name" description:"chart name"`
+	Version      string             `json:"version" description:"chart version"`
+	InstanceName string             `json:"instance_name" description:"release name"`
+	ConfigSets   []ReleaseConfigSet `json:"configsets" description:"configsets"`
+}
+
+type ReleaseConfigSet struct {
+	Name        string              `json:"name" description:"name"`
+	CreatedBy   string              `json:""created_by" description:"created by"`
+	ConfigItems []ReleaseConfigItem `json:"config_items" description:"config items"`
+	Format      string              `json:"format" description:"format"`
+}
+
+type ReleaseConfigItem struct {
+	Name  string                 `json:"name" description:"name"`
+	Value map[string]interface{} `json:"value" description:"value"`
+	Type  string                 `json:"type" description:"value"`
+}
+
+type DummyServiceConfig struct {
+	Provides map[string]DummyServiceConfigImmediateValue `json:"provides" description:"dummy service provides"`
+}
+
+type DummyServiceConfigImmediateValue struct {
+	ImmediateValue map[string]interface{} `json:"immediate_value" description:"dummy service immediate value"`
+}

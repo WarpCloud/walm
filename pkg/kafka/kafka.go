@@ -9,6 +9,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+
+const (
+	ReleaseConfigTopic string = "release-config"
+)
+
 var kafkaClient *KafkaClient
 
 func GetDefaultKafkaClient() *KafkaClient {
@@ -56,6 +61,10 @@ func InitKafkaClient(config *setting.KafkaConfig) {
 }
 
 func (client *KafkaClient) SyncSendMessage(topic, message string) error {
+	if !client.Enable {
+		logrus.Warnf("kafka client is not enabled, failed to send message %s to topic %s", message, topic)
+		return nil
+	}
 	_, _, err := client.syncProducer.SendMessage(&sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.StringEncoder(message),
