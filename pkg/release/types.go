@@ -116,13 +116,14 @@ type RepoInfoList struct {
 }
 
 type ChartInfo struct {
-	ChartName        string   `json:"chart_name"`
-	ChartVersion     string   `json:"chart_version"`
-	ChartDescription string   `json:"chart_description"`
-	ChartAppVersion  string   `json:"chart_appVersion"`
-	ChartEngine      string   `json:"chart_engine"`
-	DefaultValue     string   `json:"default_value" description:"default values.yaml defined by the chart"`
-	DependencyCharts []string `json:"dependency_charts" description:"dependency chart name"`
+	ChartName         string   `json:"chart_name"`
+	ChartVersion      string   `json:"chart_version"`
+	ChartDescription  string   `json:"chart_description"`
+	ChartAppVersion   string   `json:"chart_appVersion"`
+	ChartEngine       string   `json:"chart_engine"`
+	DefaultValue      string   `json:"default_value" description:"default values.yaml defined by the chart"`
+	DependencyCharts  []string `json:"dependency_charts" description:"dependency chart name"`
+	ChartPrettyParams PrettyChartParams `json:"chart_pretty_params" description:"pretty chart params for market"`
 }
 
 type ChartInfoList struct {
@@ -167,4 +168,53 @@ type DummyServiceConfig struct {
 
 type DummyServiceConfigImmediateValue struct {
 	ImmediateValue map[string]interface{} `json:"immediate_value" description:"dummy service immediate value"`
+}
+
+// Pretty Paramters
+type ResourceStorageConfig struct {
+	Name string `json:"name"`
+	StorageType string `json:"storageType"`
+	StorageClass string `json:"storageClass"`
+	Size string `json:"size"`
+	AccessModes []string `json:"accessModes"`
+	AccessMode string `json:"accessMode"`
+}
+
+type ResourceConfig struct {
+	CpuLimit float64 `json:"cpu_limit"`
+	CpuRequest float64 `json:"cpu_request"`
+	MemoryLimit float64 `json:"memory_limit"`
+	MemoryRequest float64 `json:"memory_request"`
+	GpuLimit int `json:"gpu_limit"`
+	GpuRequest int `json:"gpu_request"`
+	ResourceStorageList []ResourceStorageConfig `json:"storage"`
+}
+
+type BaseConfig struct{
+	ValueName string `json:"variable"`
+	DefaultValue interface{} `json:"default"`
+	ValueDescription string `json:"description"`
+	ValueType string `json:"type"`
+}
+
+type RoleConfig struct {
+	Name string `json:"name"`
+	Description string `json:"description"`
+	RoleBaseConfig []BaseConfig `json:"baseConfig"`
+	RoleResourceConfig ResourceConfig `json:"resouceConfig"`
+}
+
+type CommonConfig struct {
+	Roles []RoleConfig `json:"roles"`
+}
+
+type PrettyChartParams struct {
+	CommonConfig CommonConfig `json:"commonConfig"`
+	TranswarpBaseConfig []*BaseConfig `json:"transwarpBundleConfig"`
+	AdvanceConfig []*BaseConfig `json:"advanceConfig"`
+}
+
+type TranswarpAppInfo struct {
+	transwarp.AppDependency
+	UserInputParams PrettyChartParams `json:"userInputParams"`
 }

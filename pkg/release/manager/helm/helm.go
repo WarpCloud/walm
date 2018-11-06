@@ -599,7 +599,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 		mergedValues := map[string]interface{}{}
 		mergedValues = mergeValues(mergedValues, configValues)
-		mergedValues = mergeValues(mergedValues, previousValues)
+		mergedValues = mergeValues(previousValues, mergedValues)
 		mergedVals, err := yaml.Marshal(mergedValues)
 		if err != nil {
 			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())
