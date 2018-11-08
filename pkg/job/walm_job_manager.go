@@ -19,15 +19,13 @@ const (
 var walmJobManager *WalmJobManager
 
 func GetDefaultWalmJobManager() *WalmJobManager {
+	if walmJobManager == nil {
+		walmJobManager = &WalmJobManager{redisClient: redis.GetDefaultRedisClient()}
+		walmJobManager.collectInterval = collectWalmJobsInterval
+		walmJobManager.runningWalmJobs = map[string]*WalmJob{}
+		walmJobManager.mutex = &sync.Mutex{}
+	}
 	return walmJobManager
-}
-
-func InitWalmJobManager() {
-	walmJobManager = &WalmJobManager{redisClient: redis.GetDefaultRedisClient()}
-	walmJobManager.collectInterval = collectWalmJobsInterval
-	walmJobManager.runningWalmJobs = map[string]*WalmJob{}
-	walmJobManager.mutex = &sync.Mutex{}
-	logrus.Info("walm job manager inited")
 }
 
 type WalmJobManager struct {

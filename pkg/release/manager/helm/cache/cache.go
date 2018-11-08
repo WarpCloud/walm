@@ -188,7 +188,7 @@ func IsMultiTenant(tenantName string) (bool, error) {
 	}
 }
 
-func (cache *HelmCache) Resync() error {
+func (cache *HelmCache) Resync() {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
 			resp, err := cache.helmClient.ListReleases(helm.ReleaseListStatuses(
@@ -338,7 +338,7 @@ func (cache *HelmCache) Resync() error {
 			} else {
 				logrus.Info("succeed to resync release caches")
 			}
-			return err
+			return
 		}
 	}
 }

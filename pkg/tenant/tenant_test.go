@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	kafka.InitKafkaClient(setting.Config.KafkaConfig)
 	redis.InitRedisClient()
 	job.InitWalmJobManager()
-	informer.InitInformer()
+	informer.StartInformer()
 	helm.InitHelm()
 	project.InitProject()
 
