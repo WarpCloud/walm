@@ -13,14 +13,16 @@ import (
 	"k8s.io/client-go/listers/apps/v1beta1"
 	"walm/pkg/k8s/client"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/sirupsen/logrus"
 )
 
 var defaultFactory *InformerFactory
 
-func InitInformer() {
+func StartInformer() {
 	defaultFactory = newInformerFactory(client.GetDefaultClient(), client.GetDefaultClientEx(), 0)
 	defaultFactory.Start(wait.NeverStop)
 	defaultFactory.WaitForCacheSync(wait.NeverStop)
+	logrus.Info("informer started")
 }
 
 func GetDefaultFactory() *InformerFactory {
@@ -28,18 +30,18 @@ func GetDefaultFactory() *InformerFactory {
 }
 
 type InformerFactory struct {
-	factory           informers.SharedInformerFactory
-	DeploymentLister  listv1beta1.DeploymentLister
-	ConfigMapLister   v1.ConfigMapLister
-	DaemonSetLister   listv1beta1.DaemonSetLister
-	IngressLister     listv1beta1.IngressLister
-	JobLister         batchv1.JobLister
-	PodLister         v1.PodLister
-	SecretLister      v1.SecretLister
-	ServiceLister     v1.ServiceLister
-	StatefulSetLister v1beta1.StatefulSetLister
-	NodeLister        v1.NodeLister
-	NamespaceLister   v1.NamespaceLister
+	Factory             informers.SharedInformerFactory
+	DeploymentLister    listv1beta1.DeploymentLister
+	ConfigMapLister     v1.ConfigMapLister
+	DaemonSetLister     listv1beta1.DaemonSetLister
+	IngressLister       listv1beta1.IngressLister
+	JobLister           batchv1.JobLister
+	PodLister           v1.PodLister
+	SecretLister        v1.SecretLister
+	ServiceLister       v1.ServiceLister
+	StatefulSetLister   v1beta1.StatefulSetLister
+	NodeLister          v1.NodeLister
+	NamespaceLister     v1.NamespaceLister
 	ResourceQuotaLister v1.ResourceQuotaLister
 
 	factoryEx      externalversions.SharedInformerFactory
@@ -47,30 +49,30 @@ type InformerFactory struct {
 }
 
 func (factory *InformerFactory) Start(stopCh <-chan struct{}) {
-	factory.factory.Start(stopCh)
+	factory.Factory.Start(stopCh)
 	factory.factoryEx.Start(stopCh)
 }
 
 func (factory *InformerFactory) WaitForCacheSync(stopCh <-chan struct{}) {
-	factory.factory.WaitForCacheSync(stopCh)
+	factory.Factory.WaitForCacheSync(stopCh)
 	factory.factoryEx.WaitForCacheSync(stopCh)
 }
 
 func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
 	factory := &InformerFactory{}
-	factory.factory =  informers.NewSharedInformerFactory(client, resyncPeriod)
-	factory.DeploymentLister = factory.factory.Extensions().V1beta1().Deployments().Lister()
-	factory.ConfigMapLister = factory.factory.Core().V1().ConfigMaps().Lister()
-	factory.DaemonSetLister = factory.factory.Extensions().V1beta1().DaemonSets().Lister()
-	factory.IngressLister = factory.factory.Extensions().V1beta1().Ingresses().Lister()
-	factory.JobLister = factory.factory.Batch().V1().Jobs().Lister()
-	factory.PodLister = factory.factory.Core().V1().Pods().Lister()
-	factory.SecretLister = factory.factory.Core().V1().Secrets().Lister()
-	factory.ServiceLister = factory.factory.Core().V1().Services().Lister()
-	factory.StatefulSetLister = factory.factory.Apps().V1beta1().StatefulSets().Lister()
-	factory.NodeLister = factory.factory.Core().V1().Nodes().Lister()
-	factory.NamespaceLister = factory.factory.Core().V1().Namespaces().Lister()
-	factory.ResourceQuotaLister = factory.factory.Core().V1().ResourceQuotas().Lister()
+	factory.Factory =  informers.NewSharedInformerFactory(client, resyncPeriod)
+	factory.DeploymentLister = factory.Factory.Extensions().V1beta1().Deployments().Lister()
+	factory.ConfigMapLister = factory.Factory.Core().V1().ConfigMaps().Lister()
+	factory.DaemonSetLister = factory.Factory.Extensions().V1beta1().DaemonSets().Lister()
+	factory.IngressLister = factory.Factory.Extensions().V1beta1().Ingresses().Lister()
+	factory.JobLister = factory.Factory.Batch().V1().Jobs().Lister()
+	factory.PodLister = factory.Factory.Core().V1().Pods().Lister()
+	factory.SecretLister = factory.Factory.Core().V1().Secrets().Lister()
+	factory.ServiceLister = factory.Factory.Core().V1().Services().Lister()
+	factory.StatefulSetLister = factory.Factory.Apps().V1beta1().StatefulSets().Lister()
+	factory.NodeLister = factory.Factory.Core().V1().Nodes().Lister()
+	factory.NamespaceLister = factory.Factory.Core().V1().Namespaces().Lister()
+	factory.ResourceQuotaLister = factory.Factory.Core().V1().ResourceQuotas().Lister()
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()

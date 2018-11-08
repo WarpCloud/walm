@@ -18,19 +18,20 @@ import (
 type ProjectManager struct {
 	helmClient  *helm.HelmClient
 	redisClient *redis.RedisClient
+	walmJobManager *job.WalmJobManager
 }
 
 var projectManager *ProjectManager
 
 func GetDefaultProjectManager() *ProjectManager {
-	return projectManager
-}
-
-func InitProject() {
-	projectManager = &ProjectManager{
-		helmClient:  helm.GetDefaultHelmClient(),
-		redisClient: redis.GetDefaultRedisClient(),
+	if projectManager == nil {
+		projectManager = &ProjectManager{
+			helmClient:  helm.GetDefaultHelmClient(),
+			redisClient: redis.GetDefaultRedisClient(),
+			walmJobManager: job.GetDefaultWalmJobManager(),
+		}
 	}
+	return projectManager
 }
 
 func (manager *ProjectManager) ListProjects(namespace string) (*release.ProjectInfoList, error) {
@@ -166,7 +167,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 	}
 
 	if async {
-		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", createProjectJob)
+		jobId, err := manager.walmJobManager.CreateWalmJob("", createProjectJob)
 		if err != nil {
 			logrus.Errorf("failed to create Async %s Job : %s", createProjectJob.Type(), err.Error())
 			return err
@@ -207,7 +208,7 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	}
 
 	if async {
-		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", deleteProjectJob)
+		jobId, err := manager.walmJobManager.CreateWalmJob("", deleteProjectJob)
 		if err != nil {
 			logrus.Errorf("failed to create Async %s Job : %s", deleteProjectJob.Type(), err.Error())
 			return err
@@ -272,7 +273,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	}
 
 	if async {
-		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", removeReleaseJob)
+		jobId, err := manager.walmJobManager.CreateWalmJob("", removeReleaseJob)
 		if err != nil {
 			logrus.Errorf("failed to create Async %s Job : %s", removeReleaseJob.Type(), err.Error())
 			return err
@@ -456,7 +457,7 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 	}
 
 	if async {
-		jobId, err := job.GetDefaultWalmJobManager().CreateWalmJob("", addReleasesJob)
+		jobId, err := manager.walmJobManager.CreateWalmJob("", addReleasesJob)
 		if err != nil {
 			logrus.Errorf("failed to create Async %s Job : %s", addReleasesJob.Type(), err.Error())
 			return err

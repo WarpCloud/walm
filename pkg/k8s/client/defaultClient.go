@@ -11,53 +11,53 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var DefaultApiserverClient *kubernetes.Clientset
-var DefaultRestConfig *restclient.Config
-var DefaultApiserverClientEx *clientsetex.Clientset
-var DefaultKubeClient *kube.Client
+var defaultApiserverClient *kubernetes.Clientset
+var defaultRestConfig *restclient.Config
+var defaultApiserverClientEx *clientsetex.Clientset
+var defaultKubeClient *kube.Client
 
 func GetDefaultClient() *kubernetes.Clientset {
 	var err error
-	if DefaultApiserverClient == nil {
-		DefaultApiserverClient, err = createApiserverClient("", setting.Config.KubeConfig.Config)
+	if defaultApiserverClient == nil {
+		defaultApiserverClient, err = createApiserverClient("", setting.Config.KubeConfig.Config)
 	}
 	if err != nil {
 		logrus.Fatalf("create apiserver client failed:%v", err)
 	}
-	return DefaultApiserverClient
+	return defaultApiserverClient
 }
 
 func GetDefaultClientEx() *clientsetex.Clientset {
-	if DefaultApiserverClientEx == nil {
+	if defaultApiserverClientEx == nil {
 		var err error
-		DefaultApiserverClientEx, err = createApiserverClientEx("", setting.Config.KubeConfig.Config)
+		defaultApiserverClientEx, err = createApiserverClientEx("", setting.Config.KubeConfig.Config)
 		if err != nil {
 			logrus.Fatalf("create apiserver client failed:%v", err)
 		}
 	}
 
-	return DefaultApiserverClientEx
+	return defaultApiserverClientEx
 }
 
 func GetDefaultRestConfig() *restclient.Config {
 	var err error
-	if DefaultRestConfig == nil {
-		DefaultRestConfig, err = clientcmd.BuildConfigFromFlags("", setting.Config.KubeConfig.Config)
+	if defaultRestConfig == nil {
+		defaultRestConfig, err = clientcmd.BuildConfigFromFlags("", setting.Config.KubeConfig.Config)
 	}
 	if err != nil {
 		logrus.Fatalf("get default rest config= failed:%v", err)
 	}
-	return DefaultRestConfig
+	return defaultRestConfig
 }
 
 
 func GetKubeClient() *kube.Client {
 
-	if DefaultKubeClient == nil {
-		DefaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
+	if defaultKubeClient == nil {
+		defaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
 	}
 
-	return  DefaultKubeClient
+	return defaultKubeClient
 }
 
 

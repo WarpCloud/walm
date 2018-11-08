@@ -26,10 +26,6 @@ import (
 	"k8s.io/helm/pkg/transwarp"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
-	"encoding/json"
-	"walm/pkg/kafka"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -54,33 +50,32 @@ type HelmClient struct {
 var helmClient *HelmClient
 
 func GetDefaultHelmClient() *HelmClient {
-	return helmClient
-}
+	if helmClient == nil {
+		tillerHost := setting.Config.SysHelm.TillerHost
+		client1 := helm.NewClient(helm.Host(tillerHost))
+		chartRepoMap := make(map[string]*ChartRepository)
 
-func InitHelm() {
-	tillerHost := setting.Config.SysHelm.TillerHost
-	client1 := helm.NewClient(helm.Host(tillerHost))
-	chartRepoMap := make(map[string]*ChartRepository)
-
-	for _, chartRepo := range setting.Config.RepoList {
-		chartRepository := ChartRepository{
-			Name:     chartRepo.Name,
-			URL:      chartRepo.URL,
-			Username: "",
-			Password: "",
+		for _, chartRepo := range setting.Config.RepoList {
+			chartRepository := ChartRepository{
+				Name:     chartRepo.Name,
+				URL:      chartRepo.URL,
+				Username: "",
+				Password: "",
+			}
+			chartRepoMap[chartRepo.Name] = &chartRepository
 		}
-		chartRepoMap[chartRepo.Name] = &chartRepository
-	}
 
-	helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, client.GetKubeClient())
+		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, client.GetKubeClient())
 
-	helmClient = &HelmClient{
-		client:                  client1,
-		chartRepoMap:            chartRepoMap,
-		dryRun:                  false,
-		helmCache:               helmCache,
-		helmCacheResyncInterval: helmCacheDefaultResyncInterval,
+		helmClient = &HelmClient{
+			client:                  client1,
+			chartRepoMap:            chartRepoMap,
+			dryRun:                  false,
+			helmCache:               helmCache,
+			helmCacheResyncInterval: helmCacheDefaultResyncInterval,
+		}
 	}
+	return helmClient
 }
 
 func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepository, dryRun bool) {
@@ -178,150 +173,6 @@ func (client *HelmClient) GetReleaseConfigs() (releaseConfigs []*release.Release
 	return
 }
 
-func (client *HelmClient) sendReleaseConfigDeltaEventToKafka(namespace, name string, deltaType release.ReleaseConfigDeltaEventType) {
-	if !kafka.GetDefaultKafkaClient().Enable {
-		logrus.Warnf("failed to send release %s config delta event to kafka : kafka is not enabled", name)
-		return
-	}
-
-	retryTimes := 5
-	for {
-		err := client.doSendReleaseConfigDeltaEventToKafka(namespace, name, deltaType)
-		if err != nil && retryTimes > 0{
-			retryTimes --
-			time.Sleep(1 * time.Second)
-			continue
-		}
-		if err != nil {
-			logrus.Errorf("failed to send release %s config delta event to kafka : %s", name, err.Error())
-			return
-		}
-		logrus.Infof("succeed to send release %s config delta event to kafka", name)
-		break
-	}
-}
-
-func (client *HelmClient) doSendReleaseConfigDeltaEventToKafka(namespace, name string, deltaType release.ReleaseConfigDeltaEventType) error {
-	releaseConfigDeltaEvent, err := client.buildReleaseConfigDeltaEvent(namespace, name, deltaType)
-	if err != nil {
-		logrus.Errorf("failed to get release config delta event : %s", err.Error())
-		return err
-	}
-	releaseConfigDeltaEventStr, err := json.Marshal(releaseConfigDeltaEvent)
-	if err != nil {
-		logrus.Errorf("failed to marshal release config delta event: %s", err.Error())
-		return err
-	}
-	err = kafka.GetDefaultKafkaClient().SyncSendMessage(kafka.ReleaseConfigTopic, string(releaseConfigDeltaEventStr))
-	if err != nil {
-		logrus.Errorf("failed to send release config delta event to kafka : %s", err.Error())
-		return err
-	}
-	return nil
-}
-
-func (client *HelmClient) buildReleaseConfigDeltaEvent(namespace, name string,
-	deltaType release.ReleaseConfigDeltaEventType) (releaseConfigDeltaEvent *release.ReleaseConfigDeltaEvent, err error) {
-	releaseConfigDeltaEvent = &release.ReleaseConfigDeltaEvent{
-		Type: deltaType,
-	}
-	switch deltaType {
-	case release.Delete:
-		releaseConfigDeltaEvent.Data = release.ReleaseConfig{
-			InstanceName: name,
-			ConfigSets:      []release.ReleaseConfigSet{},
-		}
-	case release.CreateOrUpdate:
-		releaseConfigDeltaEvent.Data, err = client.getReleaseConfig(namespace, name)
-		if err != nil {
-			logrus.Errorf("failed to get release config : %s", err.Error())
-			return
-		}
-	}
-	return
-}
-
-func (client *HelmClient) getReleaseConfig(namespace, name string) (releaseConfig release.ReleaseConfig, err error) {
-	releaseConfig = release.ReleaseConfig{
-		InstanceName: name,
-		ConfigSets: []release.ReleaseConfigSet{},
-	}
-
-	releaseInfo, err := client.GetRelease(namespace, name)
-	if err != nil {
-		logrus.Errorf("failed to get release info : %s", err.Error())
-		return
-	}
-
-	releaseConfig.AppName = releaseInfo.ChartName
-	releaseConfig.Version = releaseInfo.ChartVersion
-
-	if len(releaseInfo.Status.Instances) > 0 {
-		installId := releaseInfo.Status.Instances[0].InstanceId
-		labelSelector := v1.LabelSelector{
-			MatchLabels: map[string]string{
-				"transwarp.install": installId,
-				"transwarp.meta": "true",
-			},
-		}
-
-		retryTimes := 60
-		for {
-			dummyServices, err := handler.GetDefaultHandlerSet().GetServiceHandler().ListServices(namespace, &labelSelector)
-			if err != nil {
-				logrus.Errorf("failed to get dummy services : %s", err.Error())
-				return releaseConfig, err
-			}
-			if len(dummyServices) == 0 && retryTimes > 0 {
-				retryTimes --
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			if len(dummyServices) == 1 {
-				outputConfigSet, err := buildOutputConfigSetFromDummyService(dummyServices[0])
-				if err != nil {
-					logrus.Errorf("failed to build output config from dummy service: %s", err.Error())
-					return releaseConfig, err
-				}
-				releaseConfig.ConfigSets = append(releaseConfig.ConfigSets, outputConfigSet)
-			} else if len(dummyServices) > 1 {
-				err = errors.New("more than one dummy service are found")
-				logrus.Error(err.Error())
-				return releaseConfig, err
-			}
-			break
-		}
-	}
-
-	return
-}
-
-func buildOutputConfigSetFromDummyService(service *corev1.Service) (release.ReleaseConfigSet, error) {
-	dummyServiceConfigStr := service.Annotations["transwarp.meta"]
-	dummyServiceConfig := &release.DummyServiceConfig{}
-	err := json.Unmarshal([]byte(dummyServiceConfigStr), dummyServiceConfig)
-	if err != nil {
-		logrus.Errorf("failed to unmarshal dummy service config string: %s", err.Error())
-		return release.ReleaseConfigSet{}, err
-	}
-
-	releaseConfigSet := release.ReleaseConfigSet{
-		Name: "output",
-		CreatedBy: "walm",
-		ConfigItems: []release.ReleaseConfigItem{},
-	}
-	for key, value := range dummyServiceConfig.Provides {
-		releaseConfigItem := release.ReleaseConfigItem{
-			Name: "metadata.provides." + key + ".immediateValue",
-			Value: value.ImmediateValue,
-			Type: "json",
-		}
-		releaseConfigSet.ConfigItems = append(releaseConfigSet.ConfigItems, releaseConfigItem)
-	}
-	return releaseConfigSet, nil
-}
-
 func (client *HelmClient) RestartRelease(namespace, releaseName string) error {
 	logrus.Debugf("Enter RestartRelease %s %s\n", namespace, releaseName)
 	releaseInfo, err := client.GetRelease(namespace, releaseName)
@@ -395,7 +246,6 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 		return err
 	}
 
-	go client.sendReleaseConfigDeltaEventToKafka(namespace, releaseRequest.Name, release.CreateOrUpdate)
 	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
 	return nil
 }
@@ -427,8 +277,6 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 		logrus.Errorf("failed to create of update release cache of %s : %s", helmRelease.Name, err.Error())
 		return err
 	}
-
-	go client.sendReleaseConfigDeltaEventToKafka(namespace, releaseRequest.Name, release.CreateOrUpdate)
 
 	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
 	return nil
@@ -487,9 +335,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 		return err
 	}
 
-	go client.sendReleaseConfigDeltaEventToKafka(namespace, releaseName, release.Delete)
 	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
-
 	return err
 }
 
@@ -685,7 +531,14 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 
 func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
 	logrus.Infof("start to resync release cache every %v", client.helmCacheResyncInterval)
+	// first time should be sync
+	client.helmCache.Resync()
+	firstTime := true
 	go wait.Until(func() {
+		if firstTime {
+			time.Sleep(client.helmCacheResyncInterval)
+			firstTime = false
+		}
 		client.helmCache.Resync()
 	}, client.helmCacheResyncInterval, stopCh)
 }

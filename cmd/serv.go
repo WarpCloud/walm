@@ -13,16 +13,14 @@ import (
 	"walm/router"
 	"walm/router/middleware"
 	"walm/pkg/setting"
-	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
-	"walm/pkg/release/manager/project"
-	"walm/pkg/redis"
 	"os"
 	"walm/pkg/k8s/elect"
 	"walm/pkg/k8s/client"
 	"walm/pkg/job"
 	"encoding/json"
-	"walm/pkg/kafka"
+	"walm/pkg/k8s/informer/handlers"
+	"walm/pkg/k8s/informer"
 )
 
 const servDesc = `
@@ -40,17 +38,6 @@ const DefaultElectionId = "walm-election-id"
 
 type ServCmd struct {
 	cfgFile string
-}
-
-func initService() error {
-	kafka.InitKafkaClient(setting.Config.KafkaConfig)
-	redis.InitRedisClient()
-	job.InitWalmJobManager()
-	informer.InitInformer()
-	helm.InitHelm()
-	project.InitProject()
-
-	return nil
 }
 
 func NewServCmd() *cobra.Command {
@@ -71,6 +58,19 @@ func NewServCmd() *cobra.Command {
 }
 
 func (sc *ServCmd) run() error {
+	initConfig(sc)
+	informer.StartInformer()
+	startElect()
+	initRestApi()
+
+	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
+	logrus.Fatalln(server.ListenAndServe())
+	// server.ListenAndServeTLS()
+
+	return nil
+}
+
+func initConfig(sc *ServCmd) {
 	logrus.Infof("loading configuration from [%s]", sc.cfgFile)
 	setting.InitConfig(sc.cfgFile)
 	settingConfig, err := json.Marshal(setting.Config)
@@ -78,9 +78,9 @@ func (sc *ServCmd) run() error {
 		logrus.Fatal("failed to marshal setting config")
 	}
 	logrus.Infof("finished loading configuration: %s", string(settingConfig))
+}
 
-	initService()
-	initElector()
+func initRestApi() {
 	// accept and respond in JSON unless told otherwise
 	restful.DefaultRequestContentType(restful.MIME_JSON)
 	restful.DefaultResponseContentType(restful.MIME_JSON)
@@ -90,7 +90,6 @@ func (sc *ServCmd) run() error {
 	restful.DefaultContainer.Router(restful.CurlyRouter{})
 	restful.Filter(middleware.ServerStatsFilter)
 	restful.Filter(middleware.RouteLogging)
-
 	logrus.Infoln("Adding Route...")
 	restful.Add(router.InitRootRouter())
 	restful.Add(router.InitNodeRouter())
@@ -101,26 +100,18 @@ func (sc *ServCmd) run() error {
 	restful.Add(router.InitPodRouter())
 	restful.Add(router.InitChartRouter())
 	logrus.Infoln("Add Route Success")
-
 	config := restfulspec.Config{
 		// You control what services are visible
 		WebServices:                   restful.RegisteredWebServices(),
 		APIPath:                       "/apidocs.json",
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject}
 	restful.DefaultContainer.Add(restfulspec.NewOpenAPIService(config))
-
 	http.Handle("/swagger-ui/", http.StripPrefix("/swagger-ui/", http.FileServer(http.Dir("swagger-ui/dist"))))
 	http.Handle("/swagger/", http.RedirectHandler("/swagger-ui/?url=/apidocs.json", http.StatusFound))
-
 	logrus.Infoln("ready to serve on")
-	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
-	logrus.Fatalln(server.ListenAndServe())
-	// server.ListenAndServeTLS()
-
-	return nil
 }
 
-func initElector() {
+func startElect() {
 	lockIdentity := os.Getenv("Pod_Name")
 	lockNamespace := os.Getenv("Pod_Namespace")
 	if lockIdentity == "" || lockNamespace == "" {
@@ -131,6 +122,7 @@ func initElector() {
 		logrus.Info("Succeed to elect leader")
 		helm.GetDefaultHelmClient().StartResyncReleaseCaches(stop)
 		job.GetDefaultWalmJobManager().Start(stop)
+		handlers.EnableHandlers()
 	}
 	onNewLeaderFunc := func(identity string) {
 		logrus.Infof("Now leader is changed to %s", identity)
@@ -138,6 +130,7 @@ func initElector() {
 	onStoppedLeadingFunc := func() {
 		logrus.Info("Stopped being a leader")
 		job.GetDefaultWalmJobManager().Stop()
+		handlers.DisableHandlers()
 	}
 
 	config := &elect.ElectorConfig{

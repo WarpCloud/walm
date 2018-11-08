@@ -38,7 +38,7 @@ func Test(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 
-	//deployment, err := factory.DeploymentLister.Deployments("walm").Get("walm-server")
+	//deployment, err := Factory.DeploymentLister.Deployments("walm").Get("walm-server")
 	//e, err = json.Marshal(deployment)
 	//if err != nil {
 	//	fmt.Println(err)
