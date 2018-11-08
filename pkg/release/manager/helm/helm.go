@@ -40,7 +40,8 @@ type ChartRepository struct {
 }
 
 type HelmClient struct {
-	client                  *helm.Client
+	systemClient            *helm.Client
+	multiTenantClients      map[string]*helm.Client
 	chartRepoMap            map[string]*ChartRepository
 	dryRun                  bool
 	helmCache               *cache.HelmCache
@@ -65,10 +66,12 @@ func GetDefaultHelmClient() *HelmClient {
 			chartRepoMap[chartRepo.Name] = &chartRepository
 		}
 
-		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, client.GetKubeClient())
+		multiTenantClients := map[string]*helm.Client{}
+		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, multiTenantClients, client.GetKubeClient())
 
 		helmClient = &HelmClient{
-			client:                  client1,
+			systemClient:            client1,
+			multiTenantClients:      multiTenantClients,
 			chartRepoMap:            chartRepoMap,
 			dryRun:                  false,
 			helmCache:               helmCache,
@@ -82,9 +85,23 @@ func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepositor
 	client := helm.NewClient(helm.Host(tillerHost))
 
 	helmClient = &HelmClient{
-		client:       client,
+		systemClient: client,
 		chartRepoMap: chartRepoMap,
 		dryRun:       dryRun,
+	}
+}
+
+func (client *HelmClient) getMultiTenantClient(tillerHost string) *helm.Client {
+	if client.multiTenantClients == nil {
+		client.multiTenantClients = map[string]*helm.Client{}
+	}
+
+	if multiTenantClient, ok := client.multiTenantClients[tillerHost]; ok {
+		return multiTenantClient
+	} else {
+		multiTenantClient = helm.NewClient(helm.Host(tillerHost))
+		client.multiTenantClients[tillerHost] = multiTenantClient
+		return multiTenantClient
 	}
 }
 
@@ -288,7 +305,7 @@ func (client *HelmClient) RollbackRealese(namespace, releaseName, version string
 
 func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool) error {
 	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
-	currentHelmClient := client.client
+	currentHelmClient := client.systemClient
 
 	if !isSystem {
 		multiTenant, err := cache.IsMultiTenant(namespace)
@@ -297,7 +314,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 		}
 		if multiTenant {
 			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = helm.NewClient(helm.Host(tillerHosts))
+			currentHelmClient = client.getMultiTenantClient(tillerHosts)
 		}
 	}
 
@@ -398,7 +415,7 @@ func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion stri
 }
 
 func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart, isSystem bool) (*hapiRelease.Release, error) {
-	currentHelmClient := client.client
+	currentHelmClient := client.systemClient
 	configVals, err := yaml.Marshal(configValues)
 	if err != nil {
 		logrus.Errorf("failed to marshal config values: %s", err.Error())
@@ -412,17 +429,17 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 		if multiTenant {
 			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = helm.NewClient(helm.Host(tillerHosts))
+			currentHelmClient = client.getMultiTenantClient(tillerHosts)
 		}
 	}
 
 	retry := 20
-	for i:=0; i < retry; i++ {
+	for i := 0; i < retry; i++ {
 		err = currentHelmClient.PingTiller()
 		if err == nil {
 			break
 		}
-		if i == retry - 1 {
+		if i == retry-1 {
 			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
 		}
 		time.Sleep(500 * time.Millisecond)
