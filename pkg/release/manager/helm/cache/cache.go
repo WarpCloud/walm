@@ -24,7 +24,7 @@ import (
 type HelmCache struct {
 	redisClient        *redis.RedisClient
 	helmClient         *helm.Client
-	multiTenantClients map[string]*helm.Client
+	multiTenantClients *MultiTenantClientsCache
 	kubeClient         *kube.Client
 }
 
@@ -189,20 +189,6 @@ func IsMultiTenant(tenantName string) (bool, error) {
 	}
 }
 
-func (cache *HelmCache) getMultiTenantClient(tillerHost string) *helm.Client {
-	if cache.multiTenantClients == nil {
-		cache.multiTenantClients = map[string]*helm.Client{}
-	}
-
-	if multiTenantClient, ok := cache.multiTenantClients[tillerHost]; ok {
-		return multiTenantClient
-	} else {
-		multiTenantClient = helm.NewClient(helm.Host(tillerHost))
-		cache.multiTenantClients[tillerHost] = multiTenantClient
-		return multiTenantClient
-	}
-}
-
 func (cache *HelmCache) Resync() {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
@@ -233,7 +219,7 @@ func (cache *HelmCache) Resync() {
 				}
 				if multiTenant {
 					tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace.Name)
-					tenantClient := cache.getMultiTenantClient(tillerHosts)
+					tenantClient := cache.multiTenantClients.Get(tillerHosts)
 					resp, err = tenantClient.ListReleases(helm.ReleaseListStatuses(
 						[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
 							hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
@@ -513,7 +499,7 @@ func buildWalmProjectFieldName(namespace, name string) string {
 	return namespace + "/" + name
 }
 
-func NewHelmCache(redisClient *redis.RedisClient, helmClient *helm.Client, multiTenantClients map[string]*helm.Client, kubeClient *kube.Client) *HelmCache {
+func NewHelmCache(redisClient *redis.RedisClient, helmClient *helm.Client, multiTenantClients *MultiTenantClientsCache, kubeClient *kube.Client) *HelmCache {
 	return &HelmCache{
 		redisClient: redisClient,
 		helmClient:  helmClient,

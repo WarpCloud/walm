@@ -30,6 +30,7 @@ import (
 
 const (
 	helmCacheDefaultResyncInterval time.Duration = 5 * time.Minute
+	multiTenantClientsMaxSize int = 128
 )
 
 type ChartRepository struct {
@@ -41,7 +42,7 @@ type ChartRepository struct {
 
 type HelmClient struct {
 	systemClient            *helm.Client
-	multiTenantClients      map[string]*helm.Client
+	multiTenantClients      *cache.MultiTenantClientsCache
 	chartRepoMap            map[string]*ChartRepository
 	dryRun                  bool
 	helmCache               *cache.HelmCache
@@ -66,7 +67,7 @@ func GetDefaultHelmClient() *HelmClient {
 			chartRepoMap[chartRepo.Name] = &chartRepository
 		}
 
-		multiTenantClients := map[string]*helm.Client{}
+		multiTenantClients := cache.NewMultiTenantClientsCache(multiTenantClientsMaxSize)
 		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, multiTenantClients, client.GetKubeClient())
 
 		helmClient = &HelmClient{
@@ -88,20 +89,6 @@ func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepositor
 		systemClient: client,
 		chartRepoMap: chartRepoMap,
 		dryRun:       dryRun,
-	}
-}
-
-func (client *HelmClient) getMultiTenantClient(tillerHost string) *helm.Client {
-	if client.multiTenantClients == nil {
-		client.multiTenantClients = map[string]*helm.Client{}
-	}
-
-	if multiTenantClient, ok := client.multiTenantClients[tillerHost]; ok {
-		return multiTenantClient
-	} else {
-		multiTenantClient = helm.NewClient(helm.Host(tillerHost))
-		client.multiTenantClients[tillerHost] = multiTenantClient
-		return multiTenantClient
 	}
 }
 
@@ -314,7 +301,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 		}
 		if multiTenant {
 			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = client.getMultiTenantClient(tillerHosts)
+			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
 		}
 	}
 
@@ -429,7 +416,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 		}
 		if multiTenant {
 			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = client.getMultiTenantClient(tillerHosts)
+			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
 		}
 	}
 
