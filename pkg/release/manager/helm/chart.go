@@ -160,7 +160,9 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo.ChartAppVersion = chartRequest.Metadata.AppVersion
 	chartInfo.ChartEngine = chartRequest.Metadata.Engine
 	chartInfo.ChartDescription = chartRequest.Metadata.Description
-	chartInfo.DefaultValue = chartRequest.Values.Raw
+	if chartRequest.Values != nil {
+		chartInfo.DefaultValue = chartRequest.Values.Raw
+	}
 	chartInfo.DependencyCharts = make([]string, 0)
 	for _, file := range chartRequest.Files {
 		if file.TypeUrl == "transwarp-app-yaml" {
