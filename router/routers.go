@@ -385,6 +385,7 @@ func InitChartRouter() *restful.WebService {
 		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
 		Writes(releasetypes.ChartInfo{}).
 		Returns(200, "OK", releasetypes.ChartInfo{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws
