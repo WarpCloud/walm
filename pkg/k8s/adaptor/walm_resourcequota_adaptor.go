@@ -2,8 +2,10 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"walm/pkg/k8s/handler"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/sirupsen/logrus"
 )
 
 type WalmResourceQuotaAdaptor struct {
@@ -22,6 +24,25 @@ func (adaptor *WalmResourceQuotaAdaptor) GetResource(namespace string, name stri
 	}
 
 	return BuildWalmResourceQuota(resourceQuota), nil
+}
+
+func (adaptor *WalmResourceQuotaAdaptor) GetWalmResourceQuotas(namespace string, labelSelector *metav1.LabelSelector) ([]*WalmResourceQuota, error) {
+	resourceQuotaList, err := adaptor.handler.ListResourceQuota(namespace, labelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	walmResourceQuotas := []*WalmResourceQuota{}
+	for _, resourceQuota := range resourceQuotaList {
+		walmResourceQuota := BuildWalmResourceQuota(resourceQuota)
+		if err != nil {
+			logrus.Errorf("failed to build walm resource quota : %s", err.Error())
+			return nil, err
+		}
+		walmResourceQuotas = append(walmResourceQuotas, walmResourceQuota)
+	}
+
+	return walmResourceQuotas, nil
 }
 
 func BuildWalmResourceQuota(resourceQuota *corev1.ResourceQuota) *WalmResourceQuota {

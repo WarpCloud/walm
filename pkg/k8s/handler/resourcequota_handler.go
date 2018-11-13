@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	listv1 "k8s.io/client-go/listers/core/v1"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
+	k8sutils "walm/pkg/k8s/utils"
 )
 
 type ResourceQuotaHandler struct {
@@ -15,6 +16,14 @@ type ResourceQuotaHandler struct {
 
 func (handler *ResourceQuotaHandler) GetResourceQuota(namespace string, name string) (*v1.ResourceQuota, error) {
 	return handler.lister.ResourceQuotas(namespace).Get(name)
+}
+
+func (handler *ResourceQuotaHandler) ListResourceQuota(namespace string, labelSelector *metav1.LabelSelector) ([]*v1.ResourceQuota, error){
+	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	return handler.lister.ResourceQuotas(namespace).List(selector)
 }
 
 func (handler *ResourceQuotaHandler) CreateResourceQuota(namespace string, resourceQuota *v1.ResourceQuota) (*v1.ResourceQuota, error) {
