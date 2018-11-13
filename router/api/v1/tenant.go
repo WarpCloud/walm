@@ -1,32 +1,33 @@
 package v1
 
 import (
-	"net/http"
 	"fmt"
 
 	"github.com/emicklei/go-restful"
 	"walm/pkg/tenant"
+	walmerr "walm/pkg/util/error"
 )
 
 func ListTenants(request *restful.Request, response *restful.Response) {
 	tenantInfoList, err := tenant.ListTenants()
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to list tenants : %s", err.Error()))
 		return
 	}
 	response.WriteEntity(tenantInfoList)
 }
 
 func CreateTenant(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("tenantName")
 	tenantParams := new(tenant.TenantParams)
 	err := request.ReadEntity(&tenantParams)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read tenant params : %s", err.Error()))
 		return
 	}
-	err = tenant.CreateTenant(tenantParams)
+	err = tenant.CreateTenant(tenantName, tenantParams)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to create tenant : %s", err.Error()))
 		return
 	}
 }
@@ -35,14 +36,13 @@ func GetTenant(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("tenantName")
 	tenantInfo, err := tenant.GetTenant(tenantName)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		if walmerr.IsNotFoundError(err) {
+			WriteNotFoundResponse(response, -1, fmt.Sprintf("tenant %s is not found", tenantName))
+			return
+		}
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get tenant : %s", err.Error()))
 		return
 	}
-	if tenantInfo == nil {
-		response.WriteError(http.StatusNotFound, fmt.Errorf("namespace %s not found", tenantName))
-		return
-	}
-
 	response.WriteEntity(tenantInfo)
 }
 
@@ -58,15 +58,16 @@ func DeleteTenant(request *restful.Request, response *restful.Response) {
 }
 
 func UpdateTenant(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("tenantName")
 	tenantParams := new(tenant.TenantParams)
 	err := request.ReadEntity(&tenantParams)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read tenant params : %s", err.Error()))
 		return
 	}
-	err = tenant.UpdateTenant(tenantParams)
+	err = tenant.UpdateTenant(tenantName, tenantParams)
 	if err != nil {
-		response.WriteError(http.StatusInternalServerError, err)
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to update tenant : %s", err.Error()))
 		return
 	}
 }
