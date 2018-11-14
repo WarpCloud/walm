@@ -141,7 +141,14 @@ func InitSecretRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	//TODO updateSecret
+	ws.Route(ws.PUT("/{namespace}").To(v1.UpdateSecret).
+		Doc("更新一个Secret").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(walmtypes.CreateSecretRequestBody{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	return ws
 }
 

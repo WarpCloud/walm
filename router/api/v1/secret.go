@@ -58,6 +58,30 @@ func CreateSecret(request *restful.Request, response *restful.Response) {
 	}
 }
 
+func UpdateSecret(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	createSecretRequestBody := &api.CreateSecretRequestBody{}
+	err := request.ReadEntity(createSecretRequestBody)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+
+	walmSecret := &adaptor.WalmSecret{
+		Type: createSecretRequestBody.Type,
+		Data: createSecretRequestBody.Data,
+		WalmMeta: adaptor.WalmMeta{
+			Namespace: namespace,
+			Name: createSecretRequestBody.Name,
+		},
+	}
+	err = adaptor.GetDefaultAdaptorSet().GetAdaptor("Secret").(*adaptor.WalmSecretAdaptor).UpdateSecret(walmSecret)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to update secret : %s", err.Error()))
+		return
+	}
+}
+
 func DeleteSecret(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("secretname")
