@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
+	walmerr "walm/pkg/util/error"
 	)
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
@@ -153,6 +154,9 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 
 	chartRequest, err := GetDefaultHelmClient().getChartRequest(TenantRepoName, ChartName, ChartVersion)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			err = walmerr.NotFoundError{}
+		}
 		return nil, err
 	}
 	chartInfo.ChartName = chartRequest.Metadata.Name
@@ -160,7 +164,9 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo.ChartAppVersion = chartRequest.Metadata.AppVersion
 	chartInfo.ChartEngine = chartRequest.Metadata.Engine
 	chartInfo.ChartDescription = chartRequest.Metadata.Description
-	chartInfo.DefaultValue = chartRequest.Values.Raw
+	if chartRequest.Values != nil {
+		chartInfo.DefaultValue = chartRequest.Values.Raw
+	}
 	chartInfo.DependencyCharts = make([]string, 0)
 	for _, file := range chartRequest.Files {
 		if file.TypeUrl == "transwarp-app-yaml" {

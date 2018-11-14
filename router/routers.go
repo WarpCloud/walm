@@ -68,7 +68,7 @@ func InitTenantRouter() *restful.WebService {
 		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
 		Writes(tenanttypes.TenantInfo{}).
 		Returns(200, "OK", tenanttypes.TenantInfo{}).
-		Returns(400, "Invalid Name", walmtypes.ErrorMessageResponse{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{tenantName}").To(v1.DeleteTenant).
@@ -86,7 +86,7 @@ func InitTenantRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.PUT("/{tenantName}/quotas").To(v1.UpdateTenant).
+	ws.Route(ws.PUT("/{tenantName}").To(v1.UpdateTenant).
 		Doc("更新租户信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("tenantName", "租户名字").DataType("string")).
@@ -141,7 +141,14 @@ func InitSecretRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	//TODO updateSecret
+	ws.Route(ws.PUT("/{namespace}").To(v1.UpdateSecret).
+		Doc("更新一个Secret").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(walmtypes.CreateSecretRequestBody{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	return ws
 }
 
@@ -385,6 +392,7 @@ func InitChartRouter() *restful.WebService {
 		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
 		Writes(releasetypes.ChartInfo{}).
 		Returns(200, "OK", releasetypes.ChartInfo{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	return ws

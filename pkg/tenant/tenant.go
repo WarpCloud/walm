@@ -4,10 +4,12 @@ import (
 	"walm/pkg/k8s/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-		"walm/pkg/release/manager/helm"
+	"walm/pkg/release/manager/helm"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"walm/pkg/k8s/adaptor"
+	walmerr "walm/pkg/util/error"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func ListTenants() (TenantInfoList, error) {
@@ -32,18 +34,26 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
 	if err != nil {
 		if adaptor.IsNotFoundErr(err) {
-			return nil, nil
+			return nil, walmerr.NotFoundError{}
 		} else {
 			return nil, err
 		}
 	}
 
 	tenantInfo := TenantInfo{
-		TenantName: namespace.Name,
+		TenantName:         namespace.Name,
 		TenantCreationTime: namespace.CreationTimestamp,
-		TenantLabels: namespace.Labels,
-		TenantAnnotitions: namespace.Annotations,
-		TenantStatus: namespace.Status.String(),
+		TenantLabels:       namespace.Labels,
+		TenantAnnotitions:  namespace.Annotations,
+		TenantStatus:       namespace.Status.String(),
+		TenantQuotas:       []*TenantQuotaInfo{},
+	}
+
+	if tenantInfo.TenantLabels == nil {
+		tenantInfo.TenantLabels = map[string]string{}
+	}
+	if tenantInfo.TenantAnnotitions == nil {
+		tenantInfo.TenantAnnotitions = map[string]string{}
 	}
 
 	_, ok := namespace.Labels["multi-tenant"]
@@ -52,56 +62,125 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 	} else {
 		tenantInfo.MultiTenant = false
 	}
-	tenantInfo.Ready = true
+
+	if namespace.Status.Phase == corev1.NamespaceActive {
+		tenantInfo.Ready = true
+	}
+
+	walmResourceQuotas, err := adaptor.GetDefaultAdaptorSet().GetAdaptor("ResourceQuota").(*adaptor.WalmResourceQuotaAdaptor).GetWalmResourceQuotas(tenantName, nil)
+	if err != nil {
+		logrus.Errorf("failed to get resource quotas : %s", err.Error())
+		return nil, err
+	}
+
+	for _, walmResourceQuota := range walmResourceQuotas {
+		tenantQuotaInfo := TenantQuotaInfo{
+			QuotaName:       walmResourceQuota.Name,
+			Pods:            walmResourceQuota.ResourceLimits[corev1.ResourcePods],
+			LimitCpu:        walmResourceQuota.ResourceLimits[corev1.ResourceLimitsCPU],
+			LimitMemory:     walmResourceQuota.ResourceLimits[corev1.ResourceLimitsMemory],
+			RequestsStorage: walmResourceQuota.ResourceLimits[corev1.ResourceRequestsStorage],
+			RequestsMemory:  walmResourceQuota.ResourceLimits[corev1.ResourceRequestsMemory],
+			RequestsCPU:     walmResourceQuota.ResourceLimits[corev1.ResourceRequestsCPU],
+		}
+		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &tenantQuotaInfo)
+	}
 
 	return &tenantInfo, nil
 }
 
 // CreateTenant initialize the namespace for the tenant
 // and installs the essential components
-func CreateTenant(tenantParams *TenantParams) error {
-	logrus.Infof("CreateTenant %s", tenantParams.TenantName)
-	tenantLabel := make(map[string]string, 0)
-	for k, v := range tenantParams.TenantLabels {
-		tenantLabel[k] = v
-	}
-	tenantLabel["multi-tenant"] = fmt.Sprintf("tenant-tiller-%s", tenantParams.TenantName)
-	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: tenantParams.TenantName,
-			Name: tenantParams.TenantName,
-			Labels: tenantLabel,
-			Annotations: tenantParams.TenantAnnotitions,
-		},
-	}
-
-	_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantParams.TenantName)
+func CreateTenant(tenantName string, tenantParams *TenantParams) error {
+	_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
 	if err != nil {
-		_, err2 := handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&namespace)
-		if err2 != nil {
-			logrus.Errorf("CreateTenant GetNamespace %s\n", err2.Error())
-			return err2
+		if adaptor.IsNotFoundErr(err) {
+			tenantLabel := make(map[string]string, 0)
+			for k, v := range tenantParams.TenantLabels {
+				tenantLabel[k] = v
+			}
+			tenantLabel["multi-tenant"] = fmt.Sprintf("tenant-tiller-%s", tenantName)
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   tenantName,
+					Name:        tenantName,
+					Labels:      tenantLabel,
+					Annotations: tenantParams.TenantAnnotitions,
+				},
+			}
+			_, err = handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&namespace)
+			if err != nil {
+				logrus.Errorf("failed to create namespace %s : %s", tenantName, err.Error())
+				return err
+			}
+
+			err = doCreateTenant(tenantName, tenantParams)
+			if err != nil {
+				// rollback
+				handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(tenantName)
+				return err
+			}
+			logrus.Infof("succeed to create tenant %s", tenantName)
+			return nil
+		}
+		logrus.Errorf("failed to get namespace : %s", err.Error())
+		return err
+
+	} else {
+		logrus.Warnf("namespace %s exists", tenantName)
+		return nil
+	}
+}
+
+func doCreateTenant(tenantName string, tenantParams *TenantParams) error {
+	for _, tenantQuota := range tenantParams.TenantQuotas {
+		err := createResourceQuota(tenantName, tenantQuota)
+		if err != nil {
+			logrus.Errorf("failed to create resource quota : %s", err.Error())
+			return err
 		}
 	}
 
-	err = helm.GetDefaultHelmClient().DeployTillerCharts(tenantParams.TenantName)
+	err := helm.GetDefaultHelmClient().DeployTillerCharts(tenantName)
 	if err != nil {
-		logrus.Errorf("CreateTenant DeployTillerCharts %s\n", err.Error())
+		logrus.Errorf("failed to deploy tenant tiller : %s", err.Error())
 		return err
 	}
+	return nil
+}
 
+func createResourceQuota(tenantName string, tenantQuota *TenantQuotaInfo) error{
+	walmResourceQuota := adaptor.WalmResourceQuota{
+		WalmMeta: adaptor.WalmMeta{
+			Namespace: tenantName,
+			Name:      tenantQuota.QuotaName,
+			Kind:      "ResourceQuota",
+		},
+		ResourceLimits: map[corev1.ResourceName]string{
+			corev1.ResourcePods:            tenantQuota.Pods,
+			corev1.ResourceLimitsCPU:       tenantQuota.LimitCpu,
+			corev1.ResourceLimitsMemory:    tenantQuota.LimitMemory,
+			corev1.ResourceRequestsCPU:     tenantQuota.RequestsCPU,
+			corev1.ResourceRequestsMemory:  tenantQuota.RequestsMemory,
+			corev1.ResourceRequestsStorage: tenantQuota.RequestsStorage,
+		},
+	}
+
+	resourceQuota, err := adaptor.BuildResourceQuota(&walmResourceQuota)
+	if err != nil {
+		logrus.Errorf("failed to build resource quota : %s", err.Error())
+		return err
+	}
+	_, err = handler.GetDefaultHandlerSet().GetResourceQuotaHandler().CreateResourceQuota(tenantName, resourceQuota)
+	if err != nil {
+		logrus.Errorf("failed to create resource quota : %s", err.Error())
+		return err
+	}
 	return nil
 }
 
 func DeleteTenant(tenantName string) error {
-	logrus.Infof("DeleteTenant %s start\n", tenantName)
-
-	err := helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true)
-	if err != nil {
-		logrus.Errorf("DeleteTenant %s error %v", tenantName, err)
-	}
-
-	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
+	_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
 	if err != nil {
 		if adaptor.IsNotFoundErr(err) {
 			return nil
@@ -110,24 +189,97 @@ func DeleteTenant(tenantName string) error {
 		}
 	}
 
+	err = helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true)
+	if err != nil {
+		logrus.Errorf("failed to delete tenant tiller release : %s", err.Error())
+	}
+
 	err = handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(tenantName)
 	if err != nil {
-		logrus.Errorf("DeleteTenant %s error %v", namespace.Name, err)
+		logrus.Errorf("failed to delete namespace : %s", err.Error())
 		return err
 	}
 
+	logrus.Infof("succeed to delete tenant %s", tenantName)
 	return nil
 }
 
-func UpdateTenant(tenantParams *TenantParams) error {
-	tenantInfo, err := GetTenant(tenantParams.TenantName)
+func UpdateTenant(tenantName string, tenantParams *TenantParams) error {
+	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
 	if err != nil {
-		logrus.Errorf("UpdateTenant getTenant %s error %v", tenantParams.TenantName, err)
+		logrus.Errorf("failed to get namespace : %s", err.Error())
 		return err
 	}
-	if tenantInfo == nil {
-		return fmt.Errorf("UpdateTenant tenant %s not found", tenantParams.TenantName)
+	if len(tenantParams.TenantAnnotitions) > 0 {
+		if namespace.Annotations == nil {
+			namespace.Annotations = map[string]string{}
+		}
+		for key, value := range tenantParams.TenantAnnotitions {
+			namespace.Annotations[key] = value
+		}
 	}
 
+	if len(tenantParams.TenantLabels) > 0 {
+		if namespace.Labels == nil {
+			namespace.Labels = map[string]string{}
+		}
+		for key, value := range tenantParams.TenantLabels {
+			namespace.Labels[key] = value
+		}
+	}
+
+	_, err = handler.GetDefaultHandlerSet().GetNamespaceHandler().UpdateNamespace(namespace)
+	if err != nil {
+		logrus.Errorf("failed to update namespace : %s", err.Error())
+		return err
+	}
+
+	if len(tenantParams.TenantQuotas) > 0 {
+		resourceQuotas, err := handler.GetDefaultHandlerSet().GetResourceQuotaHandler().ListResourceQuota(tenantName, nil)
+		if err != nil {
+			logrus.Errorf("failed to get resource quotas : %s", err.Error())
+			return err
+		}
+
+		resourceQuotaMap := map[string]*corev1.ResourceQuota{}
+		for _, resourceQuota := range resourceQuotas {
+			resourceQuotaMap[resourceQuota.Name] = resourceQuota
+		}
+
+		for _, tenantQuota := range tenantParams.TenantQuotas {
+			if resourceQuota, ok := resourceQuotaMap[tenantQuota.QuotaName] ; ok {
+				hard := map[corev1.ResourceName]string{
+					corev1.ResourcePods:            tenantQuota.Pods,
+					corev1.ResourceLimitsCPU:       tenantQuota.LimitCpu,
+					corev1.ResourceLimitsMemory:    tenantQuota.LimitMemory,
+					corev1.ResourceRequestsCPU:     tenantQuota.RequestsCPU,
+					corev1.ResourceRequestsMemory:  tenantQuota.RequestsMemory,
+					corev1.ResourceRequestsStorage: tenantQuota.RequestsStorage,
+				}
+
+				for key, value := range hard {
+					resourceQuota.Spec.Hard[key], err = resource.ParseQuantity(value)
+					if err != nil {
+						logrus.Errorf("failed to parse quota quantity %s: %s", value, err.Error())
+						return err
+					}
+				}
+
+				_, err = handler.GetDefaultHandlerSet().GetResourceQuotaHandler().UpdateResourceQuota(tenantName, resourceQuota)
+				if err != nil {
+					logrus.Errorf("failed to update resource quota %s: %s", tenantQuota.QuotaName, err.Error())
+					return err
+				}
+			} else {
+				err = createResourceQuota(tenantName, tenantQuota)
+				if err != nil {
+					logrus.Errorf("failed to create resource quota : %s", err.Error())
+					return err
+				}
+			}
+		}
+	}
+
+	logrus.Infof("succeed to update tenant %s", tenantName)
 	return nil
 }
