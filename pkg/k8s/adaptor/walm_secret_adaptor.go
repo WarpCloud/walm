@@ -47,7 +47,29 @@ func (adaptor *WalmSecretAdaptor) CreateSecret(walmSecret *WalmSecret) (err erro
 	_, err = adaptor.handler.CreateSecret(walmSecret.Namespace, BuildSecret(walmSecret))
 	if err != nil {
 		logrus.Errorf("failed to create secret : %s", err.Error())
+		return
 	}
+	logrus.Infof("succeed to create secret %s/%s", walmSecret.Namespace, walmSecret.Name)
+	return
+}
+
+func (adaptor *WalmSecretAdaptor) UpdateSecret(walmSecret *WalmSecret) (err error) {
+	secret, err := adaptor.handler.GetSecret(walmSecret.Namespace, walmSecret.Name)
+	if err != nil {
+		logrus.Errorf("failed to get secret %s/%s : %s", walmSecret.Namespace, walmSecret.Name, err.Error())
+		return err
+	}
+
+	newSecret := BuildSecret(walmSecret)
+	secret.Data = newSecret.Data
+	secret.Type = newSecret.Type
+
+	_, err = adaptor.handler.UpdateSecret(walmSecret.Namespace, secret)
+	if err != nil {
+		logrus.Errorf("failed to update secret : %s", err.Error())
+		return
+	}
+	logrus.Infof("succeed to update secret %s/%s", walmSecret.Namespace, walmSecret.Name)
 	return
 }
 
