@@ -50,6 +50,7 @@ func GetStructArrayByString(c *gin.Context) {
 // @Param   file formData file true  "this is a test file"
 // @Success 200 {string} string "ok"
 // @Failure 400 {object} web.APIError "We need ID!!"
+// @Failure 401 {array} string
 // @Failure 404 {object} web.APIError "Can not find ID"
 // @Router /file/upload [post]
 func Upload(ctx *gin.Context) {
@@ -66,6 +67,11 @@ func AnonymousField() {
 // @Success 200 {object} web.Pet2 "ok"
 func Pet2() {
 
+}
+
+// @Summary Use IndirectRecursiveTest
+// @Success 200 {object} web.IndirectRecursiveTest
+func IndirectRecursiveTest() {
 }
 
 type Pet3 struct {

@@ -247,6 +247,9 @@
         },
         "web.Pet": {
             "type": "object",
+            "required": [
+                "price"
+            ],
             "properties": {
                 "category": {
                     "type": "object",
@@ -272,6 +275,9 @@
                         },
                         "small_category": {
                             "type": "object",
+                            "required": [
+                                "name"
+                            ],
                             "properties": {
                                 "id": {
                                     "type": "integer",
@@ -295,6 +301,21 @@
                         }
                     }
                 },
+                "coeffs": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "custom_string": {
+                    "type": "string"
+                },
+                "custom_string_arr": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "data": {
                     "type": "object"
                 },
@@ -313,6 +334,9 @@
                 "name": {
                     "type": "string",
                     "example": "poti"
+                },
+                "null_int": {
+                    "type": "integer"
                 },
                 "pets": {
                     "type": "array",

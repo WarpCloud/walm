@@ -1,5 +1,5 @@
-hash: f7951b2bdb11d756a1b9377d0c178a31f41a1f33827f0d829ba5d3db69a0a06e
-updated: 2018-11-01T16:59:40.632313932+08:00
+hash: 81c05312840df2468c0120f2fe3fb112a5a25a2cca6ae50f95fe1b5143039f7b
+updated: 2018-11-14T14:03:33.315249045+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -75,7 +75,7 @@ imports:
   subpackages:
   - breaker
 - name: github.com/eapache/go-xerial-snappy
-  version: 040cc1a32f578808623071247fdbd5cc43f37f5f
+  version: 776d5712da21bc4762676d614db1d8a64f4238b0
 - name: github.com/eapache/queue
   version: 093482f3f8ce946c05bcba64badd2c82369e084d
 - name: github.com/emicklei/go-restful
@@ -151,7 +151,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -218,9 +218,11 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 6b9367c9ff401dbc54fabce3fb8d972e799b702d
+  version: 623b5a2f4d2a41e411730dcdfbfdaeb5c0c4564e
   subpackages:
   - internal/xxh32
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/prometheus/client_golang
   version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
@@ -244,7 +246,9 @@ imports:
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/rcrowley/go-metrics
-  version: e2704e165165ec55d062f5919b4b29494e9fa790
+  version: 3113b8401b8a98917cde58f8bbd42a1b1c03b1fd
+- name: github.com/RichardKnop/machinery
+  version: 06b091303633c7ed7ebff3a08a72c572f3b8d1a3
 - name: github.com/russross/blackfriday
   version: 300106c228d52c8941d4b3de6054a6062a86dda3
 - name: github.com/Shopify/sarama
@@ -258,9 +262,9 @@ imports:
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/swaggo/swag
-  version: db2ee6c14a35e4fca95b0d75054296ef2b699050
+  version: 64ab6b048992665f5899e23f83cbd35a812d5fb0
 - name: github.com/thoas/stats
-  version: 772d6bc584ef4367a73ec981604c0c3010ba07b6
+  version: fc5c06ed3df0e436bc483ccc97053cd98930ca61
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
@@ -318,6 +322,13 @@ imports:
   version: f51c12702a4d776e4c1fa9b0fabab841babae631
   subpackages:
   - rate
+- name: golang.org/x/tools
+  version: 2382e3994d48b1d22acc2c86bcad0a2aff028e32
+  subpackages:
+  - go/ast/astutil
+  - go/buildutil
+  - go/loader
+  - imports
 - name: google.golang.org/genproto
   version: 09f6ed296fc66555a25fe4ce95173148778dfa85
   subpackages:
@@ -391,7 +402,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: f584b16eb23bd2a3fd292a027d698d95db427c5d
+  version: 139f2d538c1f074173bce15597e889471113c182
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
@@ -633,7 +644,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 53b81660fd233d3440522a801540fb6bf011f3b0
+  version: be1a908c6aa47e0ae1b1dc861a1de6ccfe963aa2
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme

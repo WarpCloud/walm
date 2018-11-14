@@ -62,6 +62,7 @@ type ReleaseRequest struct {
 	ChartVersion string                 `json:"chart_version" description:"chart repo"`
 	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
+	ReleasePrettyParams PrettyChartParams `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type ProjectParams struct {
@@ -104,6 +105,7 @@ type HelmExtraLabels struct {
 type HelmValues struct {
 	HelmExtraLabels *HelmExtraLabels         `json:"HelmExtraLabels"`
 	AppHelmValues   *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
+	ReleasePrettyParams PrettyChartParams    `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type RepoInfo struct {
@@ -191,16 +193,16 @@ type ResourceConfig struct {
 }
 
 type BaseConfig struct{
-	ValueName string `json:"variable"`
-	DefaultValue interface{} `json:"default"`
-	ValueDescription string `json:"description"`
-	ValueType string `json:"type"`
+	ValueName string `json:"variable" description:"variable name"`
+	DefaultValue interface{} `json:"default" description:"variable default value"`
+	ValueDescription string `json:"description" description:"variable description"`
+	ValueType string `json:"type" description:"variable type"`
 }
 
 type RoleConfig struct {
 	Name string `json:"name"`
 	Description string `json:"description"`
-	RoleBaseConfig []BaseConfig `json:"baseConfig"`
+	RoleBaseConfig []*BaseConfig `json:"baseConfig"`
 	RoleResourceConfig ResourceConfig `json:"resouceConfig"`
 }
 

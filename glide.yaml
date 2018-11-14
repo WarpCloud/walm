@@ -50,5 +50,7 @@ import:
 - package: github.com/eapache/queue
 - package: github.com/pierrec/lz4
 - package: github.com/rcrowley/go-metrics
+- package: github.com/RichardKnop/machinery
+  version: v1.5.1
 testImport:
 - package: gopkg.in/check.v1
