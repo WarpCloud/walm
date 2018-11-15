@@ -51,6 +51,6 @@ import:
 - package: github.com/pierrec/lz4
 - package: github.com/rcrowley/go-metrics
 - package: github.com/RichardKnop/machinery
-  version: v1.5.1
+  version: v1.4.5
 testImport:
 - package: gopkg.in/check.v1

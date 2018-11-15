@@ -104,7 +104,7 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 	}
 }
 
-// CustomQueue returns Custom Queue of the running worker process
+// Returns Custom Queue of the running worker process
 func (worker *Worker) CustomQueue() string {
 	return worker.Queue
 }
@@ -129,7 +129,7 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 
 	// Update task state to RECEIVED
 	if err = worker.server.GetBackend().SetStateReceived(signature); err != nil {
-		return fmt.Errorf("Set state to 'received' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state received error: %s", err)
 	}
 
 	// Prepare task for processing
@@ -150,7 +150,7 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 
 	// Update task state to STARTED
 	if err = worker.server.GetBackend().SetStateStarted(signature); err != nil {
-		return fmt.Errorf("Set state to 'started' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state started error: %s", err)
 	}
 
 	// Call the task
@@ -179,7 +179,7 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	// Update task state to RETRY
 	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
-		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state retry error: %s", err)
 	}
 
 	// Decrement the retry counter, when it reaches 0, we won't retry again
@@ -203,7 +203,7 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 func (worker *Worker) retryTaskIn(signature *tasks.Signature, retryIn time.Duration) error {
 	// Update task state to RETRY
 	if err := worker.server.GetBackend().SetStateRetry(signature); err != nil {
-		return fmt.Errorf("Set state to 'retry' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state retry error: %s", err)
 	}
 
 	// Delay task by retryIn duration
@@ -222,7 +222,7 @@ func (worker *Worker) retryTaskIn(signature *tasks.Signature, retryIn time.Durat
 func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*tasks.TaskResult) error {
 	// Update task state to SUCCESS
 	if err := worker.server.GetBackend().SetStateSuccess(signature, taskResults); err != nil {
-		return fmt.Errorf("Set state to 'success' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state success error: %s", err)
 	}
 
 	// Log human readable results of the processed task
@@ -262,7 +262,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		signature.GroupTaskCount,
 	)
 	if err != nil {
-		return fmt.Errorf("Completed check for group %s returned error: %s", signature.GroupUUID, err)
+		return fmt.Errorf("Group completed error: %s", err)
 	}
 
 	// If the group has not yet completed, just return
@@ -283,7 +283,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	// Trigger chord callback
 	shouldTrigger, err := worker.server.GetBackend().TriggerChord(signature.GroupUUID)
 	if err != nil {
-		return fmt.Errorf("Triggering chord for group %s returned error: %s", signature.GroupUUID, err)
+		return fmt.Errorf("Trigger chord error: %s", err)
 	}
 
 	// Chord has already been triggered
@@ -330,13 +330,13 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) error {
 	// Update task state to FAILURE
 	if err := worker.server.GetBackend().SetStateFailure(signature, taskErr.Error()); err != nil {
-		return fmt.Errorf("Set state to 'failure' for task %s returned error: %s", signature.UUID, err)
+		return fmt.Errorf("Set state failure error: %s", err)
 	}
 
 	if worker.errorHandler != nil {
 		worker.errorHandler(taskErr)
 	} else {
-		log.ERROR.Printf("Failed processing task %s. Error = %v", signature.UUID, taskErr)
+		log.ERROR.Printf("Failed processing %s. Error = %v", signature.UUID, taskErr)
 	}
 
 	// Trigger error callbacks

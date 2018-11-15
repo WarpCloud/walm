@@ -1,8 +1,41 @@
-hash: 81c05312840df2468c0120f2fe3fb112a5a25a2cca6ae50f95fe1b5143039f7b
-updated: 2018-11-14T14:03:33.315249045+08:00
+hash: 1aaf5175044130fab47cafb925054e336a5531243e1baf3ee971b3f48ab6aac0
+updated: 2018-11-15T16:54:01.523725891+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
+- name: github.com/aws/aws-sdk-go
+  version: 760741802ad40f49ae9fc4a69ef6706d2527d62e
+  subpackages:
+  - aws
+  - aws/awserr
+  - aws/awsutil
+  - aws/client
+  - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/stscreds
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/endpoints
+  - aws/request
+  - aws/session
+  - aws/signer/v4
+  - internal/shareddefaults
+  - private/protocol
+  - private/protocol/json/jsonutil
+  - private/protocol/jsonrpc
+  - private/protocol/query
+  - private/protocol/query/queryutil
+  - private/protocol/rest
+  - private/protocol/xml/xmlutil
+  - service/dynamodb
+  - service/dynamodb/dynamodbattribute
+  - service/dynamodb/dynamodbiface
+  - service/sqs
+  - service/sqs/sqsiface
+  - service/sts
 - name: github.com/Azure/go-ansiterm
   version: 19f72df4d05d31cbe1c56bfc8045c96babff6c7e
   subpackages:
@@ -11,6 +44,10 @@ imports:
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
+- name: github.com/bradfitz/gomemcache
+  version: bc664df9673713a0ccf26e3b55a673ec7301088b
+  subpackages:
+  - memcache
 - name: github.com/bsm/sarama-cluster
   version: c618e605e15c0d7535f6c96ff8efbb0dba4fd66c
 - name: github.com/BurntSushi/toml
@@ -92,6 +129,8 @@ imports:
   version: f6a740d52f961c60348ebb109adde9f4635d7540
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
+- name: github.com/go-ini/ini
+  version: 300e940a926eb277d3901b20bdfcc54928ad3642
 - name: github.com/go-openapi/jsonpointer
   version: 46af16f9f7b149af66e5d1bd010e3574dc06de98
 - name: github.com/go-openapi/jsonreference
@@ -141,6 +180,10 @@ imports:
   - ptypes/timestamp
 - name: github.com/golang/snappy
   version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+- name: github.com/gomodule/redigo
+  version: e8fc0692a7e26a05b06517348ed466349062eb47
+  subpackages:
+  - redis
 - name: github.com/google/btree
   version: 7d79101e329e5a3adf994758c578dab82b90c017
 - name: github.com/google/go-jsonnet
@@ -151,7 +194,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 064e2069ce9c359c118179501254f67d7d37ba24
+  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -178,8 +221,12 @@ imports:
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/jmespath/go-jmespath
+  version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/json-iterator/go
   version: f2b4162afba35581b6d4a50d3b8f34e33c144682
+- name: github.com/kelseyhightower/envconfig
+  version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
 - name: github.com/mailru/easyjson
@@ -213,6 +260,11 @@ imports:
   subpackages:
   - specs-go
   - specs-go/v1
+- name: github.com/opentracing/opentracing-go
+  version: be550b025b433cdfa2f11efb962afa2ea3c4d967
+  subpackages:
+  - ext
+  - log
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/peterbourgon/diskv
@@ -247,8 +299,34 @@ imports:
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/rcrowley/go-metrics
   version: 3113b8401b8a98917cde58f8bbd42a1b1c03b1fd
+- name: github.com/RichardKnop/logging
+  version: b1d5d44c82d6c9fb6c8e8dad28412163586fd8ac
 - name: github.com/RichardKnop/machinery
-  version: 06b091303633c7ed7ebff3a08a72c572f3b8d1a3
+  version: 759f2c738035edd4a21b846ae6aafcf5d02c5026
+  subpackages:
+  - v1
+  - v1/backends/amqp
+  - v1/backends/dynamodb
+  - v1/backends/eager
+  - v1/backends/iface
+  - v1/backends/memcache
+  - v1/backends/mongo
+  - v1/backends/redis
+  - v1/backends/result
+  - v1/brokers/amqp
+  - v1/brokers/eager
+  - v1/brokers/errs
+  - v1/brokers/iface
+  - v1/brokers/redis
+  - v1/brokers/sqs
+  - v1/common
+  - v1/config
+  - v1/log
+  - v1/retry
+  - v1/tasks
+  - v1/tracing
+- name: github.com/RichardKnop/redsync
+  version: 54b27db64c180751e7049321a2e109ff220ccdcc
 - name: github.com/russross/blackfriday
   version: 300106c228d52c8941d4b3de6054a6062a86dda3
 - name: github.com/Shopify/sarama
@@ -261,6 +339,8 @@ imports:
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
+- name: github.com/streadway/amqp
+  version: 27835f1a64e97101d95306211f03c0620ffa295d
 - name: github.com/swaggo/swag
   version: 64ab6b048992665f5899e23f83cbd35a812d5fb0
 - name: github.com/thoas/stats
@@ -328,7 +408,6 @@ imports:
   - go/ast/astutil
   - go/buildutil
   - go/loader
-  - imports
 - name: google.golang.org/genproto
   version: 09f6ed296fc66555a25fe4ce95173148778dfa85
   subpackages:
@@ -360,6 +439,13 @@ imports:
   - sockjs
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+- name: gopkg.in/mgo.v2
+  version: 9856a29383ce1c59f308dd1cf0363a79b5bef6b5
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
 - name: gopkg.in/square/go-jose.v2
   version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
   subpackages:
@@ -644,7 +730,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: be1a908c6aa47e0ae1b1dc861a1de6ccfe963aa2
+  version: a9df8263ae9febed9f6e3bfd2470c0a5e8be9ce8
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme

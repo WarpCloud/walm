@@ -412,6 +412,7 @@ func getQueue(config *config.Config, taskProcessor iface.TaskProcessor) string {
 	customQueue := taskProcessor.CustomQueue()
 	if customQueue == "" {
 		return config.DefaultQueue
+	} else {
+		return customQueue
 	}
-	return customQueue
 }
