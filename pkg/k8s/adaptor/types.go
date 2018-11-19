@@ -378,13 +378,13 @@ type WalmSecretList struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels            map[string]string   `json:"labels" description:"node labels"`
-	Annotations       map[string]string   `json:"annotations" description:"node annotations"`
-	NodeIp            string              `json:"node_ip" description:"ip of node"`
-	Capacity          map[string]string   `json:"capacity" description:"resource capacity"`
-	Allocatable       map[string]string   `json:"allocatable" description:"resource allocatable"`
-	RequestsAllocated map[string]string   `json:"requests_allocated" description:"requests resource allocated"`
-	LimitsAllocated   map[string]string   `json:"limits_allocated" description:"limits resource allocated"`
+	Labels            map[string]string `json:"labels" description:"node labels"`
+	Annotations       map[string]string `json:"annotations" description:"node annotations"`
+	NodeIp            string            `json:"node_ip" description:"ip of node"`
+	Capacity          map[string]string `json:"capacity" description:"resource capacity"`
+	Allocatable       map[string]string `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated map[string]string `json:"requests_allocated" description:"requests resource allocated"`
+	LimitsAllocated   map[string]string `json:"limits_allocated" description:"limits resource allocated"`
 }
 
 func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
@@ -400,6 +400,7 @@ type WalmNodeList struct {
 type WalmResourceQuota struct {
 	WalmMeta
 	ResourceLimits map[corev1.ResourceName]string `json:"limits" description:"resource quota hard limits"`
+	ResourceUsed   map[corev1.ResourceName]string `json:"used" description:"resource quota used"`
 }
 
 func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

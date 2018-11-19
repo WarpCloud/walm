@@ -46,7 +46,7 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 		TenantLabels:       namespace.Labels,
 		TenantAnnotitions:  namespace.Annotations,
 		TenantStatus:       namespace.Status.String(),
-		TenantQuotas:       []*TenantQuotaInfo{},
+		TenantQuotas:       []*TenantQuota{},
 	}
 
 	if tenantInfo.TenantLabels == nil {
@@ -74,8 +74,7 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 	}
 
 	for _, walmResourceQuota := range walmResourceQuotas {
-		tenantQuotaInfo := TenantQuotaInfo{
-			QuotaName:       walmResourceQuota.Name,
+		hard := TenantQuotaInfo{
 			Pods:            walmResourceQuota.ResourceLimits[corev1.ResourcePods],
 			LimitCpu:        walmResourceQuota.ResourceLimits[corev1.ResourceLimitsCPU],
 			LimitMemory:     walmResourceQuota.ResourceLimits[corev1.ResourceLimitsMemory],
@@ -83,7 +82,15 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 			RequestsMemory:  walmResourceQuota.ResourceLimits[corev1.ResourceRequestsMemory],
 			RequestsCPU:     walmResourceQuota.ResourceLimits[corev1.ResourceRequestsCPU],
 		}
-		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &tenantQuotaInfo)
+		used := TenantQuotaInfo{
+			Pods:            walmResourceQuota.ResourceUsed[corev1.ResourcePods],
+			LimitCpu:        walmResourceQuota.ResourceUsed[corev1.ResourceLimitsCPU],
+			LimitMemory:     walmResourceQuota.ResourceUsed[corev1.ResourceLimitsMemory],
+			RequestsStorage: walmResourceQuota.ResourceUsed[corev1.ResourceRequestsStorage],
+			RequestsMemory:  walmResourceQuota.ResourceUsed[corev1.ResourceRequestsMemory],
+			RequestsCPU:     walmResourceQuota.ResourceUsed[corev1.ResourceRequestsCPU],
+		}
+		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &TenantQuota{walmResourceQuota.Name,&hard, &used})
 	}
 
 	return &tenantInfo, nil
@@ -149,7 +156,7 @@ func doCreateTenant(tenantName string, tenantParams *TenantParams) error {
 	return nil
 }
 
-func createResourceQuota(tenantName string, tenantQuota *TenantQuotaInfo) error{
+func createResourceQuota(tenantName string, tenantQuota *TenantQuotaParams) error{
 	walmResourceQuota := adaptor.WalmResourceQuota{
 		WalmMeta: adaptor.WalmMeta{
 			Namespace: tenantName,
@@ -157,12 +164,12 @@ func createResourceQuota(tenantName string, tenantQuota *TenantQuotaInfo) error{
 			Kind:      "ResourceQuota",
 		},
 		ResourceLimits: map[corev1.ResourceName]string{
-			corev1.ResourcePods:            tenantQuota.Pods,
-			corev1.ResourceLimitsCPU:       tenantQuota.LimitCpu,
-			corev1.ResourceLimitsMemory:    tenantQuota.LimitMemory,
-			corev1.ResourceRequestsCPU:     tenantQuota.RequestsCPU,
-			corev1.ResourceRequestsMemory:  tenantQuota.RequestsMemory,
-			corev1.ResourceRequestsStorage: tenantQuota.RequestsStorage,
+			corev1.ResourcePods:            tenantQuota.Hard.Pods,
+			corev1.ResourceLimitsCPU:       tenantQuota.Hard.LimitCpu,
+			corev1.ResourceLimitsMemory:    tenantQuota.Hard.LimitMemory,
+			corev1.ResourceRequestsCPU:     tenantQuota.Hard.RequestsCPU,
+			corev1.ResourceRequestsMemory:  tenantQuota.Hard.RequestsMemory,
+			corev1.ResourceRequestsStorage: tenantQuota.Hard.RequestsStorage,
 		},
 	}
 
@@ -249,12 +256,12 @@ func UpdateTenant(tenantName string, tenantParams *TenantParams) error {
 		for _, tenantQuota := range tenantParams.TenantQuotas {
 			if resourceQuota, ok := resourceQuotaMap[tenantQuota.QuotaName] ; ok {
 				hard := map[corev1.ResourceName]string{
-					corev1.ResourcePods:            tenantQuota.Pods,
-					corev1.ResourceLimitsCPU:       tenantQuota.LimitCpu,
-					corev1.ResourceLimitsMemory:    tenantQuota.LimitMemory,
-					corev1.ResourceRequestsCPU:     tenantQuota.RequestsCPU,
-					corev1.ResourceRequestsMemory:  tenantQuota.RequestsMemory,
-					corev1.ResourceRequestsStorage: tenantQuota.RequestsStorage,
+					corev1.ResourcePods:            tenantQuota.Hard.Pods,
+					corev1.ResourceLimitsCPU:       tenantQuota.Hard.LimitCpu,
+					corev1.ResourceLimitsMemory:    tenantQuota.Hard.LimitMemory,
+					corev1.ResourceRequestsCPU:     tenantQuota.Hard.RequestsCPU,
+					corev1.ResourceRequestsMemory:  tenantQuota.Hard.RequestsMemory,
+					corev1.ResourceRequestsStorage: tenantQuota.Hard.RequestsStorage,
 				}
 
 				for key, value := range hard {
