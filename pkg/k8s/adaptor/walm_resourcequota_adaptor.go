@@ -49,6 +49,7 @@ func BuildWalmResourceQuota(resourceQuota *corev1.ResourceQuota) *WalmResourceQu
 	walmResourceQuota := WalmResourceQuota{
 		WalmMeta:       buildWalmMeta("ResourceQuota", resourceQuota.Namespace, resourceQuota.Name, buildWalmState("Ready", "", "")),
 		ResourceLimits: buildResourceLimits(resourceQuota),
+		ResourceUsed:   buildResourceUsed(resourceQuota),
 	}
 	return &walmResourceQuota
 }
@@ -56,6 +57,14 @@ func BuildWalmResourceQuota(resourceQuota *corev1.ResourceQuota) *WalmResourceQu
 func buildResourceLimits(quota *corev1.ResourceQuota) map[corev1.ResourceName]string {
 	limits := map[corev1.ResourceName]string{}
 	for key, value := range quota.Spec.Hard {
+		limits[key] = value.String()
+	}
+	return limits
+}
+
+func buildResourceUsed(quota *corev1.ResourceQuota) map[corev1.ResourceName]string {
+	limits := map[corev1.ResourceName]string{}
+	for key, value := range quota.Status.Used {
 		limits[key] = value.String()
 	}
 	return limits
