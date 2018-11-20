@@ -42,6 +42,18 @@ func getAsyncQueryParam(request *restful.Request) (async bool, err error) {
 	return
 }
 
+func getTimeoutSecQueryParam(request *restful.Request) (timeoutSec int64, err error) {
+	timeoutStr := request.QueryParameter("timeoutSec")
+	if len(timeoutStr) > 0 {
+		timeoutSec, err = strconv.ParseInt(timeoutStr, 10, 64)
+		if err != nil {
+			logrus.Errorf("failed to parse query parameter timeoutSec %s : %s", timeoutStr, err.Error())
+			return
+		}
+	}
+	return
+}
+
 func DeployProject(request *restful.Request, response *restful.Response) {
 	projectParams := new(releasetypes.ProjectParams)
 	tenantName := request.PathParameter("namespace")
@@ -49,6 +61,12 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 	async, err := getAsyncQueryParam(request)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
 
@@ -74,7 +92,7 @@ func DeployProject(request *restful.Request, response *restful.Response) {
 		}
 	}
 
-	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams, async)
+	err = project.GetDefaultProjectManager().CreateProject(tenantName, projectName, projectParams, async, timeoutSec)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to create project : %s", err.Error()))
 		return
@@ -104,7 +122,12 @@ func DeleteProject(request *restful.Request, response *restful.Response) {
 		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async)
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async, timeoutSec)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete project : %s", err.Error()))
 		return
@@ -119,13 +142,18 @@ func DeployInstanceInProject(request *restful.Request, response *restful.Respons
 		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
 		return
 	}
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
 	releaseRequest := &releasetypes.ReleaseRequest{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().AddReleaseInProject(tenantName, projectName, releaseRequest, async)
+	err = project.GetDefaultProjectManager().AddReleaseInProject(tenantName, projectName, releaseRequest, async, timeoutSec)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to add release in project : %s", err.Error()))
 		return
@@ -140,13 +168,18 @@ func DeployProjectInProject(request *restful.Request, response *restful.Response
 		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
 		return
 	}
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
 	projectParams := &releasetypes.ProjectParams{}
 	err = request.ReadEntity(projectParams)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().AddReleasesInProject(tenantName, projectName, projectParams, async)
+	err = project.GetDefaultProjectManager().AddReleasesInProject(tenantName, projectName, projectParams, async, timeoutSec)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to add releases in project : %s", err.Error()))
 		return
@@ -162,7 +195,12 @@ func DeleteInstanceInProject(request *restful.Request, response *restful.Respons
 		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async)
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async, timeoutSec)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release in project : %s", err.Error()))
 		return

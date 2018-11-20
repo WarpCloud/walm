@@ -54,12 +54,19 @@ type KafkaConfig struct {
 }
 
 type MultiTenantConfig struct {
-	Enable    bool     `json:"enable"`
+	Enable      bool   `json:"enable"`
 	TillerImage string `json:"tillerImage"`
-	CertFile  string   `json:"certFile"`
-	KeyFile   string   `json:"keyFile"`
-	CaFile    string   `json:"caFile"`
-	VerifySsl bool     `json:"verifySsl"`
+	CertFile    string `json:"certFile"`
+	KeyFile     string `json:"keyFile"`
+	CaFile      string `json:"caFile"`
+	VerifySsl   bool   `json:"verifySsl"`
+}
+
+type TaskConfig struct {
+	Broker          string       `json:"broker"`
+	DefaultQueue    string       `json:"default_queue"`
+	ResultBackend   string       `json:"result_backend"`
+	ResultsExpireIn int          `json:"results_expire_in"`
 }
 
 type WalmConfig struct {
@@ -72,6 +79,7 @@ type WalmConfig struct {
 	RedisConfig       *RedisConfig       `json:"redisConfig"`
 	KafkaConfig       *KafkaConfig       `json:"kafkaConfig"`
 	MultiTenantConfig *MultiTenantConfig `json:"multiTenant"`
+	TaskConfig        *TaskConfig     `json:"taskConfig"`
 }
 
 // StartResyncReleaseCaches sets values from the environment.

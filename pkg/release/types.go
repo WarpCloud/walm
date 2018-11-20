@@ -3,6 +3,10 @@ package release
 import (
 	"walm/pkg/k8s/adaptor"
 	"k8s.io/helm/pkg/transwarp"
+	"time"
+	"github.com/RichardKnop/machinery/v1/tasks"
+	"walm/pkg/task"
+	"github.com/sirupsen/logrus"
 )
 
 type ReleaseInfoList struct {
@@ -56,13 +60,13 @@ type ChartValicationInfo struct {
 }
 
 type ReleaseRequest struct {
-	Name         string                 `json:"name" description:"name of the release"`
-	RepoName     string                 `json:"repo_name" description:"chart name"`
-	ChartName    string                 `json:"chart_name" description:"chart name"`
-	ChartVersion string                 `json:"chart_version" description:"chart repo"`
-	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
-	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ReleasePrettyParams PrettyChartParams `json:"release_pretty_params" description:"pretty chart params for market"`
+	Name                string                 `json:"name" description:"name of the release"`
+	RepoName            string                 `json:"repo_name" description:"chart name"`
+	ChartName           string                 `json:"chart_name" description:"chart name"`
+	ChartVersion        string                 `json:"chart_version" description:"chart repo"`
+	ConfigValues        map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
+	Dependencies        map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
+	ReleasePrettyParams PrettyChartParams      `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type ProjectParams struct {
@@ -72,25 +76,37 @@ type ProjectParams struct {
 
 type ProjectInfo struct {
 	ProjectCache
-	Releases []*ReleaseInfo `json:"releases" description:"list of release of the project"`
-	Ready    bool           `json:"ready" description:"whether all the project releases are ready"`
+	Releases        []*ReleaseInfo   `json:"releases" description:"list of release of the project"`
+	Ready           bool             `json:"ready" description:"whether all the project releases are ready"`
+	LatestTaskState *tasks.TaskState `json:"latest_task_state" description:"latest task state"`
 }
 
 type ProjectCache struct {
-	Name                  string          `json:"name" description:"project name"`
-	Namespace             string          `json:"namespace" description:"project namespace"`
-	LatestProjectJobState ProjectJobState `json:"latest_project_job_state" description:"latest project job state"`
+	Name                 string           `json:"name" description:"project name"`
+	Namespace            string           `json:"namespace" description:"project namespace"`
+	LatestTaskSignature  *tasks.Signature `json:"latest_task_signature" description:"latest task signature"`
+	LatestTaskTimeoutSec int64    `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
 }
 
-func (projectCache *ProjectCache) IsProjectJobNotFinished() bool {
-	return projectCache.LatestProjectJobState.Status == "Running" || projectCache.LatestProjectJobState.Status == "Pending"
+func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
+	if projectCache.LatestTaskSignature == nil {
+		return nil
+	}
+	return task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature).GetState()
 }
 
-type ProjectJobState struct {
-	Async   bool   `json:"async" description:"whether project job is async"`
-	Type    string `json:"type" description:"project job type: create, add_releases, remove_releases, delete"`
-	Status  string `json:"status" description:"project job status: pending, running, failed, succeed"`
-	Message string `json:"message" description:"project job message"`
+func (projectCache *ProjectCache) IsLatestTaskNotFinished() bool {
+	taskState := projectCache.GetLatestTaskState()
+	// task state has ttl, maybe task state can not be got
+	if taskState == nil || taskState.TaskName == "" {
+		return false
+	} else if taskState.IsCompleted() {
+		return false
+	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(projectCache.LatestTaskTimeoutSec) * time.Second {
+		logrus.Warnf("task %s-%s time out", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
+		return false
+	}
+	return true
 }
 
 type ProjectInfoList struct {
@@ -103,9 +119,9 @@ type HelmExtraLabels struct {
 }
 
 type HelmValues struct {
-	HelmExtraLabels *HelmExtraLabels         `json:"HelmExtraLabels"`
-	AppHelmValues   *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
-	ReleasePrettyParams PrettyChartParams    `json:"release_pretty_params" description:"pretty chart params for market"`
+	HelmExtraLabels     *HelmExtraLabels         `json:"HelmExtraLabels"`
+	AppHelmValues       *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
+	ReleasePrettyParams PrettyChartParams        `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type RepoInfo struct {
@@ -118,13 +134,13 @@ type RepoInfoList struct {
 }
 
 type ChartInfo struct {
-	ChartName         string   `json:"chart_name"`
-	ChartVersion      string   `json:"chart_version"`
-	ChartDescription  string   `json:"chart_description"`
-	ChartAppVersion   string   `json:"chart_appVersion"`
-	ChartEngine       string   `json:"chart_engine"`
-	DefaultValue      string   `json:"default_value" description:"default values.yaml defined by the chart"`
-	DependencyCharts  []string `json:"dependency_charts" description:"dependency chart name"`
+	ChartName         string            `json:"chart_name"`
+	ChartVersion      string            `json:"chart_version"`
+	ChartDescription  string            `json:"chart_description"`
+	ChartAppVersion   string            `json:"chart_appVersion"`
+	ChartEngine       string            `json:"chart_engine"`
+	DefaultValue      string            `json:"default_value" description:"default values.yaml defined by the chart"`
+	DependencyCharts  []string          `json:"dependency_charts" description:"dependency chart name"`
 	ChartPrettyParams PrettyChartParams `json:"chart_pretty_params" description:"pretty chart params for market"`
 }
 
@@ -174,35 +190,35 @@ type DummyServiceConfigImmediateValue struct {
 
 // Pretty Paramters
 type ResourceStorageConfig struct {
-	Name string `json:"name"`
-	StorageType string `json:"storageType"`
-	StorageClass string `json:"storageClass"`
-	Size string `json:"size"`
-	AccessModes []string `json:"accessModes"`
-	AccessMode string `json:"accessMode"`
+	Name         string   `json:"name"`
+	StorageType  string   `json:"storageType"`
+	StorageClass string   `json:"storageClass"`
+	Size         string   `json:"size"`
+	AccessModes  []string `json:"accessModes"`
+	AccessMode   string   `json:"accessMode"`
 }
 
 type ResourceConfig struct {
-	CpuLimit float64 `json:"cpu_limit"`
-	CpuRequest float64 `json:"cpu_request"`
-	MemoryLimit float64 `json:"memory_limit"`
-	MemoryRequest float64 `json:"memory_request"`
-	GpuLimit int `json:"gpu_limit"`
-	GpuRequest int `json:"gpu_request"`
+	CpuLimit            float64                 `json:"cpu_limit"`
+	CpuRequest          float64                 `json:"cpu_request"`
+	MemoryLimit         float64                 `json:"memory_limit"`
+	MemoryRequest       float64                 `json:"memory_request"`
+	GpuLimit            int                     `json:"gpu_limit"`
+	GpuRequest          int                     `json:"gpu_request"`
 	ResourceStorageList []ResourceStorageConfig `json:"storage"`
 }
 
-type BaseConfig struct{
-	ValueName string `json:"variable" description:"variable name"`
-	DefaultValue interface{} `json:"default" description:"variable default value"`
-	ValueDescription string `json:"description" description:"variable description"`
-	ValueType string `json:"type" description:"variable type"`
+type BaseConfig struct {
+	ValueName        string      `json:"variable" description:"variable name"`
+	DefaultValue     interface{} `json:"default" description:"variable default value"`
+	ValueDescription string      `json:"description" description:"variable description"`
+	ValueType        string      `json:"type" description:"variable type"`
 }
 
 type RoleConfig struct {
-	Name string `json:"name"`
-	Description string `json:"description"`
-	RoleBaseConfig []*BaseConfig `json:"baseConfig"`
+	Name               string         `json:"name"`
+	Description        string         `json:"description"`
+	RoleBaseConfig     []*BaseConfig  `json:"baseConfig"`
 	RoleResourceConfig ResourceConfig `json:"resouceConfig"`
 }
 
@@ -211,9 +227,9 @@ type CommonConfig struct {
 }
 
 type PrettyChartParams struct {
-	CommonConfig CommonConfig `json:"commonConfig"`
+	CommonConfig        CommonConfig  `json:"commonConfig"`
 	TranswarpBaseConfig []*BaseConfig `json:"transwarpBundleConfig"`
-	AdvanceConfig []*BaseConfig `json:"advanceConfig"`
+	AdvanceConfig       []*BaseConfig `json:"advanceConfig"`
 }
 
 type TranswarpAppInfo struct {
