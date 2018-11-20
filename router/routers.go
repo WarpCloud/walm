@@ -314,6 +314,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(releasetypes.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -324,6 +325,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
@@ -333,6 +335,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(releasetypes.ReleaseRequest{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -343,6 +346,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(releasetypes.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -354,6 +358,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -429,7 +434,7 @@ func InitPodRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("pod", "pod名字").DataType("string")).
 		Param(ws.QueryParameter("container", "container名字").DataType("string")).
-		Param(ws.QueryParameter("tail", "最后几行").DataType("int")).
+		Param(ws.QueryParameter("tail", "最后几行").DataType("integer")).
 		Writes("").
 		Returns(200, "OK", "").
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))

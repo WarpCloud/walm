@@ -2,50 +2,12 @@ package project
 
 import (
 	"walm/pkg/release"
-	"walm/pkg/release/manager/helm"
-	"github.com/sirupsen/logrus"
 	"time"
 	"fmt"
 )
 
-func setProjectCacheToRedisUntilSuccess(projectCache *release.ProjectCache) {
-	for {
-		err := helm.GetDefaultHelmClient().GetHelmCache().CreateOrUpdateProjectCache(projectCache)
-		if err != nil {
-			logrus.Errorf("failed to set project cache of %s/%s to redis: %s", projectCache.Namespace, projectCache.Name, err.Error())
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		break
-	}
-}
-
-func deleteProjectCacheUntilSuccess(namespace, name string) {
-	for {
-		err := helm.GetDefaultHelmClient().GetHelmCache().DeleteProjectCache(namespace, name)
-		if err != nil {
-			logrus.Errorf("failed to delete project cache of %s/%s from redis: %s", namespace, name, err.Error())
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		break
-	}
-}
-
 func buildProjectReleaseName(projectName, releaseName string) string {
 	return fmt.Sprintf("%s--%s", projectName, releaseName)
-}
-
-func buildProjectCache(namespace, project, jobType, jobStatus string, async bool) (projectCache *release.ProjectCache) {
-	return &release.ProjectCache{
-		Namespace: namespace,
-		Name:      project,
-		LatestProjectJobState: release.ProjectJobState{
-			Async:  async,
-			Type:   jobType,
-			Status: jobStatus,
-		},
-	}
 }
 
 func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {

@@ -44,3 +44,8 @@ multiTenant:
   keyFile: ""
   caFile: ""
   VerifySsl: false
+taskConfig:
+  broker: "redis://walmtest@172.16.1.45:6379"
+  default_queue: "machinery_tasks"
+  result_backend: "redis://walmtest@172.16.1.45:6379"
+  results_expire_in: 360000

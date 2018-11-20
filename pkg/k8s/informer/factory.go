@@ -12,16 +12,15 @@ import (
 	batchv1 "k8s.io/client-go/listers/batch/v1"
 	"k8s.io/client-go/listers/apps/v1beta1"
 	"walm/pkg/k8s/client"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"github.com/sirupsen/logrus"
 )
 
 var defaultFactory *InformerFactory
 
-func StartInformer() {
+func StartInformer(stopCh <-chan struct{}) {
 	defaultFactory = newInformerFactory(client.GetDefaultClient(), client.GetDefaultClientEx(), 0)
-	defaultFactory.Start(wait.NeverStop)
-	defaultFactory.WaitForCacheSync(wait.NeverStop)
+	defaultFactory.Start(stopCh)
+	defaultFactory.WaitForCacheSync(stopCh)
 	logrus.Info("informer started")
 }
 

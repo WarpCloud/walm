@@ -270,11 +270,6 @@ func (cache *HelmCache) Resync() {
 						projectCacheStr, err := json.Marshal(&release.ProjectCache{
 							Namespace: releaseCache.Namespace,
 							Name:      projectName,
-							LatestProjectJobState: release.ProjectJobState{
-								Type:    "NotKnown",
-								Status:  "Succeed",
-								Message: "This project is synced from helm",
-							},
 						})
 						if err != nil {
 							logrus.Errorf("failed to marshal project cache of %s/%s: %s", releaseCache.Namespace, projectName, err.Error())
@@ -301,7 +296,7 @@ func (cache *HelmCache) Resync() {
 						logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
 						return err
 					}
-					if !projectCache.IsProjectJobNotFinished() {
+					if !projectCache.IsLatestTaskNotFinished() {
 						projectCachesToDel = append(projectCachesToDel, projectCacheKey)
 					}
 				}

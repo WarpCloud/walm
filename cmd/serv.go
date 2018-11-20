@@ -17,10 +17,14 @@ import (
 	"os"
 	"walm/pkg/k8s/elect"
 	"walm/pkg/k8s/client"
-	"walm/pkg/job"
 	"encoding/json"
 	"walm/pkg/k8s/informer/handlers"
 	"walm/pkg/k8s/informer"
+	"os/signal"
+	"syscall"
+	"walm/pkg/task"
+	"context"
+	"time"
 )
 
 const servDesc = `
@@ -58,19 +62,38 @@ func NewServCmd() *cobra.Command {
 }
 
 func (sc *ServCmd) run() error {
-	initConfig(sc)
-	informer.StartInformer()
+	sc.initConfig()
+	stopChan := make(chan struct{})
+	informer.StartInformer(stopChan)
+	task.GetDefaultTaskManager().StartWorker()
 	startElect()
 	initRestApi()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
-	logrus.Fatalln(server.ListenAndServe())
+	go func() {
+		logrus.Error(server.ListenAndServe())
+	}()
+	logrus.Info("walm server started")
 	// server.ListenAndServeTLS()
 
+	//shut down gracefully
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
+
+	err := server.Shutdown(context.Background())
+	if err != nil {
+		logrus.Error(err.Error())
+	}
+	task.GetDefaultTaskManager().StopWorker()
+	close(stopChan)
+    logrus.Info("waiting for informer stopping")
+	time.Sleep(2 * time.Second)
+	logrus.Info("walm server stopped gracefully")
 	return nil
 }
 
-func initConfig(sc *ServCmd) {
+func (sc *ServCmd)initConfig() {
 	logrus.Infof("loading configuration from [%s]", sc.cfgFile)
 	setting.InitConfig(sc.cfgFile)
 	settingConfig, err := json.Marshal(setting.Config)
@@ -108,7 +131,7 @@ func initRestApi() {
 	restful.DefaultContainer.Add(restfulspec.NewOpenAPIService(config))
 	http.Handle("/swagger-ui/", http.StripPrefix("/swagger-ui/", http.FileServer(http.Dir("swagger-ui/dist"))))
 	http.Handle("/swagger/", http.RedirectHandler("/swagger-ui/?url=/apidocs.json", http.StatusFound))
-	logrus.Infoln("ready to serve on")
+	logrus.Infof("ready to serve on port %d", setting.Config.HttpConfig.HTTPPort)
 }
 
 func startElect() {
@@ -121,7 +144,6 @@ func startElect() {
 	onStartedLeadingFunc := func(stop <-chan struct{}) {
 		logrus.Info("Succeed to elect leader")
 		helm.GetDefaultHelmClient().StartResyncReleaseCaches(stop)
-		job.GetDefaultWalmJobManager().Start(stop)
 		handlers.EnableHandlers()
 	}
 	onNewLeaderFunc := func(identity string) {
@@ -129,7 +151,6 @@ func startElect() {
 	}
 	onStoppedLeadingFunc := func() {
 		logrus.Info("Stopped being a leader")
-		job.GetDefaultWalmJobManager().Stop()
 		handlers.DisableHandlers()
 	}
 
