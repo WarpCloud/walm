@@ -160,7 +160,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 		timeoutSec = defaultTimeoutSec
 	}
 
-	_, err := manager.validateProjectTask(namespace, project, true)
+	oldProjectCache, err := manager.validateProjectTask(namespace, project, true)
 	if err != nil {
 		logrus.Errorf("failed to validate project task : %s", err.Error())
 		return err
@@ -188,6 +188,13 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 		return err
 	}
 
+	if oldProjectCache != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
+	}
+
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
@@ -202,7 +209,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 }
 
 func (manager *ProjectManager) DeleteProject(namespace string, project string, async bool, timeoutSec int64) error {
-	_, err := manager.validateProjectTask(namespace, project, false)
+	oldProjectCache, err := manager.validateProjectTask(namespace, project, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			logrus.Warnf("project %s/%s is not found", namespace, project)
@@ -237,6 +244,13 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 		return err
 	}
 
+	if oldProjectCache != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
+	}
+
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
@@ -255,7 +269,7 @@ func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName
 }
 
 func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string, async bool, timeoutSec int64) error {
-	projectCache, err := manager.validateProjectTask(namespace, projectName, false)
+	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			logrus.Warnf("project %s/%s is not found", namespace, projectName)
@@ -265,7 +279,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 		return err
 	}
 
-	projectInfo, err := manager.buildProjectInfo(projectCache)
+	projectInfo, err := manager.buildProjectInfo(oldProjectCache)
 	if err != nil {
 		logrus.Errorf("failed to build project info : %s", err.Error())
 		return err
@@ -298,7 +312,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 		return err
 	}
 
-	projectCache = &release.ProjectCache{
+	projectCache := &release.ProjectCache{
 		Namespace:            namespace,
 		Name:                 projectName,
 		LatestTaskSignature:  removeReleaseTaskSig,
@@ -308,6 +322,13 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, projectName, err.Error())
 		return err
+	}
+
+	if oldProjectCache != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
 	}
 
 	if !async {
@@ -470,7 +491,7 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 		return errors.New("project releases can not be empty")
 	}
 
-	_, err := manager.validateProjectTask(namespace, projectName, true)
+	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, true)
 	if err != nil {
 		logrus.Errorf("failed to validate project job : %s", err.Error())
 		return err
@@ -500,6 +521,13 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 	if err != nil {
 		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, projectName, err.Error())
 		return err
+	}
+
+	if oldProjectCache != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
 	}
 
 	if !async {

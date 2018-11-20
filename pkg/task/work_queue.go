@@ -76,6 +76,13 @@ func (manager *TaskManager) SendTask(signature *tasks.Signature) (err error) {
 	return
 }
 
+func (manager *TaskManager) PurgeTaskState(signature *tasks.Signature) (err error) {
+	if signature != nil {
+		return manager.server.GetBackend().PurgeState(signature.UUID)
+	}
+	return nil
+}
+
 func (manager *TaskManager) NewAsyncResult(signature *tasks.Signature) (*result.AsyncResult) {
 	return result.NewAsyncResult(signature, manager.server.GetBackend())
 }
