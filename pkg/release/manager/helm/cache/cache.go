@@ -451,15 +451,16 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 		return
 	}
 	releaseSpec.ConfigValues = cvals
-	err = yaml.Unmarshal([]byte(helmRelease.GetChart().GetValues().GetRaw()), &helmVals)
-	if err == nil {
-		if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
-			releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
-			logrus.Debugf("buildReleaseCache %s/%s Dep %+v\n", releaseSpec.Namespace, releaseSpec.Name, helmVals.AppHelmValues.Dependencies)
+	if helmRelease.GetConfig() != nil {
+		err = yaml.Unmarshal([]byte(helmRelease.GetConfig().GetRaw()), &helmVals)
+		if err == nil {
+			if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
+				releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
+				logrus.Debugf("buildReleaseCache %s/%s Dep %+v\n", releaseSpec.Namespace, releaseSpec.Name, helmVals.AppHelmValues.Dependencies)
+			}
+			releaseSpec.HelmValues = helmVals
 		}
-		releaseSpec.HelmValues = helmVals
 	}
-
 	releaseCache = &release.ReleaseCache{
 		ReleaseSpec: releaseSpec,
 	}
