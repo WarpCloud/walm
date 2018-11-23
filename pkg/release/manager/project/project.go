@@ -113,19 +113,34 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 	}
 
 	if projectInfo.LatestTaskState == nil || projectInfo.LatestTaskState.TaskName == ""{
-		projectInfo.Ready = true
+		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
+
 	} else if projectInfo.LatestTaskState.IsSuccess() {
 		if projectInfo.LatestTaskState.TaskName == deleteProjectTaskName {
 			return nil, walmerr.NotFoundError{}
 		}
 
-		projectInfo.Ready = true
-		for _, releaseInfo := range projectInfo.Releases {
+		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
+	} else if projectInfo.LatestTaskState.IsFailure() {
+		projectInfo.Message = fmt.Sprintf("the project latest task %s-%s failed : %s", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID, projectInfo.LatestTaskState.Error)
+	} else {
+		projectInfo.Message = fmt.Sprintf("please wait for the project latest task %s-%s finished", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
+	}
+	return
+}
+
+func isProjectReadyByReleases(releases []*release.ReleaseInfo) (ready bool, message string) {
+	if len(releases) > 0 {
+		ready = true
+		for _, releaseInfo := range releases {
 			if !releaseInfo.Ready {
-				projectInfo.Ready = false
+				ready = false
+				message = releaseInfo.Message
 				break
 			}
 		}
+	} else {
+		message = "no release can be found"
 	}
 	return
 }
@@ -142,8 +157,8 @@ func (manager *ProjectManager) validateProjectTask(namespace, name string, allow
 			err = nil
 		}
 	} else {
-		if projectCache.IsLatestTaskNotFinished() {
-			err = fmt.Errorf("please wait for the project latest task %s-%s ending", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
+		if !projectCache.IsLatestTaskFinishedOrTimeout() {
+			err = fmt.Errorf("please wait for the project latest task %s-%s finished or timeout", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
 			logrus.Error(err.Error())
 			return
 		}

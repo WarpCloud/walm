@@ -33,18 +33,18 @@ func (resourceSet *WalmResourceSet) GetPodsNeedRestart() []*WalmPod {
 	return walmPods
 }
 
-func (resourceSet *WalmResourceSet) IsReady() bool {
-	if ready, _ := resourceSet.WalmInstanceResourceSet.IsReady(); !ready {
-		return false
+func (resourceSet *WalmResourceSet) IsReady() (bool, WalmResource) {
+	if ready, notReadyResource := resourceSet.WalmInstanceResourceSet.IsReady(); !ready {
+		return false, notReadyResource
 	}
 
 	for _, instance := range resourceSet.Instances {
 		if instance.State.Status != "Ready" {
-			return false
+			return false, instance
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 func NewWalmResourceSet() *WalmResourceSet {

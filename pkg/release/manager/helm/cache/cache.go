@@ -296,7 +296,7 @@ func (cache *HelmCache) Resync() {
 						logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
 						return err
 					}
-					if !projectCache.IsLatestTaskNotFinished() {
+					if projectCache.IsLatestTaskFinishedOrTimeout() {
 						projectCachesToDel = append(projectCachesToDel, projectCacheKey)
 					}
 				}
