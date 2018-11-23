@@ -19,7 +19,12 @@ func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.
 		logrus.Errorf(fmt.Sprintf("Failed to build the status of releaseInfo: %s", releaseInfo.Name))
 		return
 	}
-	releaseInfo.Ready = releaseInfo.Status.IsReady()
+	ready, notReadyResource := releaseInfo.Status.IsReady()
+	if ready {
+		releaseInfo.Ready = true
+	} else {
+		releaseInfo.Message = fmt.Sprintf("%s %s/%s is in state %s", notReadyResource.GetKind(), notReadyResource.GetNamespace(), notReadyResource.GetName(), notReadyResource.GetState().Status)
+	}
 
 	return
 }

@@ -16,8 +16,9 @@ type ReleaseInfoList struct {
 
 type ReleaseInfo struct {
 	ReleaseSpec
-	Ready  bool                     `json:"ready" description:"whether release is ready"`
-	Status *adaptor.WalmResourceSet `json:"release_status" description:"status of release"`
+	Ready   bool                     `json:"ready" description:"whether release is ready"`
+	Message string                   `json:"message" description:"why release is not ready"`
+	Status  *adaptor.WalmResourceSet `json:"release_status" description:"status of release"`
 }
 
 type ReleaseSpec struct {
@@ -78,6 +79,7 @@ type ProjectInfo struct {
 	ProjectCache
 	Releases        []*ReleaseInfo   `json:"releases" description:"list of release of the project"`
 	Ready           bool             `json:"ready" description:"whether all the project releases are ready"`
+	Message         string           `json:"message" description:"why project is not ready"`
 	LatestTaskState *tasks.TaskState `json:"latest_task_state" description:"latest task state"`
 }
 
@@ -85,7 +87,7 @@ type ProjectCache struct {
 	Name                 string           `json:"name" description:"project name"`
 	Namespace            string           `json:"namespace" description:"project namespace"`
 	LatestTaskSignature  *tasks.Signature `json:"latest_task_signature" description:"latest task signature"`
-	LatestTaskTimeoutSec int64    `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
+	LatestTaskTimeoutSec int64            `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
 }
 
 func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
@@ -95,18 +97,18 @@ func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
 	return task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature).GetState()
 }
 
-func (projectCache *ProjectCache) IsLatestTaskNotFinished() bool {
+func (projectCache *ProjectCache) IsLatestTaskFinishedOrTimeout() bool {
 	taskState := projectCache.GetLatestTaskState()
 	// task state has ttl, maybe task state can not be got
 	if taskState == nil || taskState.TaskName == "" {
-		return false
+		return true
 	} else if taskState.IsCompleted() {
-		return false
-	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(projectCache.LatestTaskTimeoutSec) * time.Second {
+		return true
+	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(projectCache.LatestTaskTimeoutSec)*time.Second {
 		logrus.Warnf("task %s-%s time out", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 type ProjectInfoList struct {
