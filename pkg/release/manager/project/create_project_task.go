@@ -26,7 +26,7 @@ func CreateProjectTask(createProjectTaskArgsStr string) error {
 	return createProjectTaskArgs.createProject()
 }
 
-func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*tasks.Signature, error) {
+func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*release.ProjectTaskSignature, error) {
 	createProjectTaskArgsStr, err := json.Marshal(createProjectTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal create project job : %s", err.Error())
@@ -46,7 +46,11 @@ func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*tasks
 		logrus.Errorf("failed to send create project task : %s", err.Error())
 		return nil, err
 	}
-	return createProjectTaskSig, nil
+	return  &release.ProjectTaskSignature{
+		Name: createProjectTaskName,
+		UUID: createProjectTaskSig.UUID,
+		Arg:  string(createProjectTaskArgsStr),
+	}, nil
 }
 
 type CreateProjectTaskArgs struct {

@@ -77,24 +77,51 @@ type ProjectParams struct {
 
 type ProjectInfo struct {
 	ProjectCache
-	Releases        []*ReleaseInfo   `json:"releases" description:"list of release of the project"`
-	Ready           bool             `json:"ready" description:"whether all the project releases are ready"`
-	Message         string           `json:"message" description:"why project is not ready"`
-	LatestTaskState *tasks.TaskState `json:"latest_task_state" description:"latest task state"`
+	Releases        []*ReleaseInfo    `json:"releases" description:"list of release of the project"`
+	Ready           bool              `json:"ready" description:"whether all the project releases are ready"`
+	Message         string            `json:"message" description:"why project is not ready"`
+	LatestTaskState *ProjectTaskState `json:"latest_task_state" description:"latest task state"`
+}
+
+type ProjectTaskState struct {
+	TaskUUID  string    `json:"task_uuid" description:"task uuid"`
+	TaskName  string    `json:"task_name" description:"task name"`
+	State     string    `json:"task_state" description:"task state"`
+	Error     string    `json:"task_error" description:"task error"`
+	CreatedAt time.Time `json:"created_at" description:"task creation time"`
 }
 
 type ProjectCache struct {
-	Name                 string           `json:"name" description:"project name"`
-	Namespace            string           `json:"namespace" description:"project namespace"`
-	LatestTaskSignature  *tasks.Signature `json:"latest_task_signature" description:"latest task signature"`
-	LatestTaskTimeoutSec int64            `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
+	Name                 string                `json:"name" description:"project name"`
+	Namespace            string                `json:"namespace" description:"project namespace"`
+	LatestTaskSignature  *ProjectTaskSignature `json:"latest_task_signature" description:"latest task signature"`
+	LatestTaskTimeoutSec int64                 `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
+}
+
+type ProjectTaskSignature struct {
+	UUID string `json:"uuid" description:"task uuid"`
+	Name string `json:"name" description:"task name"`
+	Arg  string `json:"arg" description:"task arg"`
+}
+
+func (projectCache *ProjectCache) GetLatestTaskSignature() *tasks.Signature {
+	return &tasks.Signature{
+		Name: projectCache.LatestTaskSignature.Name,
+		UUID: projectCache.LatestTaskSignature.UUID,
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: projectCache.LatestTaskSignature.Arg,
+			},
+		},
+	}
 }
 
 func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
 	if projectCache.LatestTaskSignature == nil {
 		return nil
 	}
-	return task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature).GetState()
+	return task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature()).GetState()
 }
 
 func (projectCache *ProjectCache) IsLatestTaskFinishedOrTimeout() bool {
@@ -211,10 +238,10 @@ type ResourceConfig struct {
 }
 
 type BaseConfig struct {
-	ValueName        string      `json:"variable" description:"variable name"`
-	DefaultValue     interface{} `json:"default" description:"variable default value"`
-	ValueDescription string      `json:"description" description:"variable description"`
-	ValueType        string      `json:"type" description:"variable type"`
+	ValueName        string                 `json:"variable" description:"variable name"`
+	DefaultValue     map[string]interface{} `json:"default" description:"variable default value"`
+	ValueDescription string                 `json:"description" description:"variable description"`
+	ValueType        string                 `json:"type" description:"variable type"`
 }
 
 type RoleConfig struct {
