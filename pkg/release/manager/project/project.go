@@ -91,10 +91,19 @@ func (manager *ProjectManager) GetProjectInfo(namespace, projectName string) (*r
 }
 
 func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCache) (projectInfo *release.ProjectInfo, err error) {
+	taskState := projectCache.GetLatestTaskState()
 	projectInfo = &release.ProjectInfo{
 		ProjectCache:    *projectCache,
 		Releases:        []*release.ReleaseInfo{},
-		LatestTaskState: projectCache.GetLatestTaskState(),
+	}
+	if taskState != nil {
+		projectInfo.LatestTaskState = &release.ProjectTaskState{
+			TaskUUID: taskState.TaskUUID,
+			TaskName: taskState.TaskName,
+			Error: taskState.Error,
+			CreatedAt: taskState.CreatedAt,
+			State: taskState.State,
+		}
 	}
 
 	releaseList, err := manager.helmClient.ListReleases(projectCache.Namespace, projectCache.Name+"--*")
@@ -112,17 +121,17 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 		}
 	}
 
-	if projectInfo.LatestTaskState == nil || projectInfo.LatestTaskState.TaskName == ""{
+	if taskState == nil || taskState.TaskName == ""{
 		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
 
-	} else if projectInfo.LatestTaskState.IsSuccess() {
-		if projectInfo.LatestTaskState.TaskName == deleteProjectTaskName {
+	} else if taskState.IsSuccess() {
+		if taskState.TaskName == deleteProjectTaskName {
 			return nil, walmerr.NotFoundError{}
 		}
 
 		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
-	} else if projectInfo.LatestTaskState.IsFailure() {
-		projectInfo.Message = fmt.Sprintf("the project latest task %s-%s failed : %s", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID, projectInfo.LatestTaskState.Error)
+	} else if taskState.IsFailure() {
+		projectInfo.Message = fmt.Sprintf("the project latest task %s-%s failed : %s", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID, taskState.Error)
 	} else {
 		projectInfo.Message = fmt.Sprintf("please wait for the project latest task %s-%s finished", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
 	}
@@ -204,14 +213,14 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 	}
 
 	if oldProjectCache != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.GetLatestTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
 		}
 	}
 
 	if !async {
-		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
+		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to create project  %s/%s: %s", namespace, project, err.Error())
@@ -260,14 +269,14 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	}
 
 	if oldProjectCache != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.GetLatestTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
 		}
 	}
 
 	if !async {
-		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
+		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to delete project  %s/%s : %s", namespace, project, err.Error())
@@ -340,14 +349,14 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	}
 
 	if oldProjectCache != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.GetLatestTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
 		}
 	}
 
 	if !async {
-		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
+		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to remove release %s in project %s/%s : %s", releaseName, namespace, projectName, err.Error())
@@ -539,14 +548,14 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 	}
 
 	if oldProjectCache != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.LatestTaskSignature)
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.GetLatestTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
 		}
 	}
 
 	if !async {
-		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.LatestTaskSignature)
+		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
 		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to add releases in project %s/%s : %s", namespace, projectName, err.Error())

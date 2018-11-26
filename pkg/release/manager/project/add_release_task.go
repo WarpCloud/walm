@@ -27,7 +27,7 @@ func AddReleaseTask(addReleaseTaskArgsStr string) error {
 	return addReleaseTaskArgs.addRelease()
 }
 
-func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*tasks.Signature, error) {
+func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
 	addReleaseTaskArgsStr, err := json.Marshal(addReleaseTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal add release task args : %s", err.Error())
@@ -47,7 +47,12 @@ func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*tasks.Signatur
 		logrus.Errorf("failed to send add release task : %s", err.Error())
 		return nil, err
 	}
-	return addReleaseTaskSig, nil
+
+	return &release.ProjectTaskSignature{
+		Name: addReleaseTaskName,
+		UUID: addReleaseTaskSig.UUID,
+		Arg:  string(addReleaseTaskArgsStr),
+	}, nil
 }
 
 type AddReleaseTaskArgs struct {

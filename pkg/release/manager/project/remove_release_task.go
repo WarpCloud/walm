@@ -6,6 +6,7 @@ import (
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"fmt"
+	"walm/pkg/release"
 )
 
 const (
@@ -26,7 +27,7 @@ func RemoveReleaseTask(removeReleaseTaskArgsStr string) error {
 	return removeReleaseTaskArgs.removeRelease()
 }
 
-func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*tasks.Signature, error) {
+func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
 	removeReleaseTaskArgsStr, err := json.Marshal(removeReleaseTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal remove release task args: %s", err.Error())
@@ -46,7 +47,11 @@ func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*tasks
 		logrus.Errorf("failed to send remove release task : %s", err.Error())
 		return nil, err
 	}
-	return removeReleaseTaskSig, nil
+	return  &release.ProjectTaskSignature{
+		Name: removeReleaseTaskName,
+		UUID: removeReleaseTaskSig.UUID,
+		Arg:  string(removeReleaseTaskArgsStr),
+	}, nil
 }
 
 type RemoveReleaseTaskArgs struct {
