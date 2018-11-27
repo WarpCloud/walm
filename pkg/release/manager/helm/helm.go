@@ -250,7 +250,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 		return err
 	}
 
-	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
+	logrus.Infof("succeed to update release %s", releaseRequest.Name)
 	return nil
 }
 
@@ -456,7 +456,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			return nil, err
 		}
 
-		logrus.Infof("UpdateChart %s DepLinks %+v ConfigValues %+v, previousValues %+v", releaseName, depLinks, mergedValues, previousValues)
+		logrus.Infof("UpdateChart %s ConfigValues %+v, previousValues %+v DepLinks %+v ", releaseName, mergedValues, previousValues, depLinks)
 		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
 		if err != nil {
 			return nil, err

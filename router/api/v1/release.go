@@ -28,7 +28,21 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 	}
 	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install or upgrade release: %s", err.Error()))
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
+	}
+}
+
+func UpgradeRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	releaseRequest := &release.ReleaseRequest{}
+	err := request.ReadEntity(releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	err = helm.GetDefaultHelmClient().UpgradeRealese(namespace, releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
 	}
 }
 
@@ -77,8 +91,4 @@ func RestartRelease(request *restful.Request, response *restful.Response) {
 }
 
 func RollBackRelease(request *restful.Request, response *restful.Response) {
-}
-
-func UpgradeRelease(request *restful.Request, response *restful.Response) {
-	InstallRelease(request, response)
 }
