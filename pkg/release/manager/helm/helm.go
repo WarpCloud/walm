@@ -237,8 +237,10 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	}
 	logrus.Infof("releaseInfo.Dependencies OLD(%+v) NEW(%+v) %+v %+v\n", releaseInfo.Dependencies, releaseRequest.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
 	releaseInfo.Dependencies = releaseRequest.Dependencies
-	mergeValues(releaseRequest.ConfigValues, releaseInfo.ConfigValues)
-	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested, false)
+	tempConfigValues := make(map[string]interface{}, 0)
+	mergeValues(tempConfigValues, releaseInfo.ConfigValues)
+	mergeValues(tempConfigValues, releaseRequest.ConfigValues)
+	helmRelease, err := client.installChart(releaseRequest.Name, namespace, tempConfigValues, depLinks, chartRequested, false)
 	if err != nil {
 		logrus.Errorf("failed to install chart : %s", err.Error())
 		return err
