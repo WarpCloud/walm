@@ -446,7 +446,7 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			)
 		}
 		previousValues := map[string]interface{}{}
-		if err := yaml.Unmarshal([]byte(releaseHistory.Releases[0].Chart.Values.Raw), &previousValues); err != nil {
+		if err := yaml.Unmarshal([]byte(releaseHistory.Releases[0].GetConfig().GetRaw()), &previousValues); err != nil {
 			return nil, fmt.Errorf("failed to parse rawValues: %s", err)
 		}
 		mergedValues := map[string]interface{}{}
