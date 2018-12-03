@@ -105,6 +105,9 @@ type ProjectTaskSignature struct {
 }
 
 func (projectCache *ProjectCache) GetLatestTaskSignature() *tasks.Signature {
+	if projectCache.LatestTaskSignature == nil {
+		return nil
+	}
 	return &tasks.Signature{
 		Name: projectCache.LatestTaskSignature.Name,
 		UUID: projectCache.LatestTaskSignature.UUID,
