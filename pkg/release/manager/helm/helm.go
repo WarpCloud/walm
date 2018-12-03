@@ -236,7 +236,13 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 		return err
 	}
 	logrus.Infof("releaseInfo.Dependencies OLD(%+v) NEW(%+v) %+v %+v\n", releaseInfo.Dependencies, releaseRequest.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
-	releaseInfo.Dependencies = releaseRequest.Dependencies
+	for k, v := range releaseInfo.Dependencies {
+		depLinks[k] = v
+	}
+	for k, v := range releaseRequest.Dependencies {
+		depLinks[k] = v
+	}
+	//releaseInfo.Dependencies = releaseRequest.Dependencies
 	tempConfigValues := make(map[string]interface{}, 0)
 	mergeValues(tempConfigValues, releaseInfo.ConfigValues)
 	mergeValues(tempConfigValues, releaseRequest.ConfigValues)
