@@ -134,6 +134,11 @@ func CreateTenant(tenantName string, tenantParams *TenantParams) error {
 		return err
 
 	} else {
+		err := helm.GetDefaultHelmClient().DeployTillerCharts(tenantName)
+		if err != nil {
+			logrus.Errorf("failed to deploy tenant tiller : %s", err.Error())
+			return err
+		}
 		logrus.Warnf("namespace %s exists", tenantName)
 		return nil
 	}
