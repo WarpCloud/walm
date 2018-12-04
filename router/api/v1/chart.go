@@ -32,7 +32,7 @@ func GetChartInfo(request *restful.Request, response *restful.Response) {
 			WriteNotFoundResponse(response, -1, fmt.Sprintf("Chart %s-%s is not found in repo %s", chartName, chartVersion, repoName))
 			return
 		}
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart list: %s", err.Error()))
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart: %s", err.Error()))
 		return
 	}
 	response.WriteEntity(chartInfo)
