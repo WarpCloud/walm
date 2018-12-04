@@ -241,10 +241,10 @@ type ResourceConfig struct {
 }
 
 type BaseConfig struct {
-	ValueName        string                 `json:"variable" description:"variable name"`
-	DefaultValue     map[string]interface{} `json:"default" description:"variable default value"`
-	ValueDescription string                 `json:"description" description:"variable description"`
-	ValueType        string                 `json:"type" description:"variable type"`
+	ValueName        string      `json:"variable" description:"variable name"`
+	DefaultValue     interface{} `json:"default" description:"variable default value"`
+	ValueDescription string      `json:"description" description:"variable description"`
+	ValueType        string      `json:"type" description:"variable type"`
 }
 
 type RoleConfig struct {
