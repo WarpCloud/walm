@@ -238,6 +238,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Reads(releasetypes.ReleaseRequest{}).
 		Returns(200, "OK", nil).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteRelease).
@@ -264,6 +265,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("version", "版本号").DataType("string")).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	ws.Route(ws.POST("/{namespace}/name/{release}/restart").To(v1.RestartRelease).
 		Doc("Restart　Release关联的所有pod").
 		Metadata(restfulspec.KeyOpenAPITags, tags).

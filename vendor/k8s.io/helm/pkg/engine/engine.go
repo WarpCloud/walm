@@ -225,8 +225,12 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 	keys := sortTemplates(tpls)
 
 	files := []string{}
-
+	rendered = make(map[string]string, len(files))
 	for _, fname := range keys {
+		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+			rendered[fname] = tpls[fname].tpl
+			continue
+		}
 		r := tpls[fname]
 		t = t.New(fname).Funcs(funcMap)
 		if _, err := t.Parse(r.tpl); err != nil {
@@ -238,6 +242,9 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 	// Adding the engine's currentTemplates to the template context
 	// so they can be referenced in the tpl function
 	for fname, r := range e.CurrentTemplates {
+		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+			continue
+		}
 		if t.Lookup(fname) == nil {
 			t = t.New(fname).Funcs(funcMap)
 			if _, err := t.Parse(r.tpl); err != nil {
@@ -246,7 +253,6 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 		}
 	}
 
-	rendered = make(map[string]string, len(files))
 	var buf bytes.Buffer
 	for _, file := range files {
 		// Don't render partials. We don't care out the direct output of partials.

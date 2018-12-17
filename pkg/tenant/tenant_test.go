@@ -6,18 +6,12 @@ import (
 	"walm/pkg/setting"
 	"encoding/json"
 	"os"
-	"walm/pkg/kafka"
-	"walm/pkg/redis"
-	"walm/pkg/job"
-	"walm/pkg/k8s/informer"
-	"walm/pkg/release/manager/helm"
-	"walm/pkg/release/manager/project"
 	"fmt"
 )
 
 func Test_CreateTenant(t *testing.T) {
 	tenantParams := TenantParams{}
-	tenantParams.TenantName = "walmbytest"
+	//tenantParams.TenantName = "walmbytest"
 	err := CreateTenant(&tenantParams)
 	logrus.Errorf("%+v\n", err)
 }
@@ -48,12 +42,12 @@ func TestMain(m *testing.M) {
 	setting.Config.KubeConfig.Config = gopath + "/src/walm/test/k8sconfig/kubeconfig"
 	logrus.Infof("finished loading configuration: %s", string(settingConfig))
 
-	kafka.InitKafkaClient(setting.Config.KafkaConfig)
-	redis.InitRedisClient()
-	job.InitWalmJobManager()
-	informer.StartInformer()
-	helm.InitHelm()
-	project.InitProject()
+	//kafka.InitKafkaClient(setting.Config.KafkaConfig)
+	//redis.InitRedisClient()
+	//job.InitWalmJobManager()
+	//informer.StartInformer()
+	//helm.InitHelm()
+	//project.InitProject()
 
 	os.Exit(m.Run())
 }

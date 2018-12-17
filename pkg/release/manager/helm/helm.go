@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"walm/pkg/hook"
 
 	"walm/pkg/setting"
 	"walm/pkg/release"
@@ -269,6 +270,7 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 	if releaseRequest.Dependencies == nil {
 		releaseRequest.Dependencies = map[string]string{}
 	}
+	hook.ProcessPrettyParams(releaseRequest)
 	chartRequested, err := client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	if err != nil {
 		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)

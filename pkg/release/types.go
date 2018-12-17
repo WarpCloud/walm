@@ -165,15 +165,21 @@ type RepoInfoList struct {
 	Items []*RepoInfo `json:"items" description:"chart repo list"`
 }
 
+type ChartDependencyInfo struct {
+	ChartName   string `json:"chart_name"`
+	MaxVersion	float32 `json:"max_version"`
+	MinVersion  float32 `json:"min_version"`
+}
+
 type ChartInfo struct {
-	ChartName         string            `json:"chart_name"`
-	ChartVersion      string            `json:"chart_version"`
-	ChartDescription  string            `json:"chart_description"`
-	ChartAppVersion   string            `json:"chart_appVersion"`
-	ChartEngine       string            `json:"chart_engine"`
-	DefaultValue      string            `json:"default_value" description:"default values.yaml defined by the chart"`
-	DependencyCharts  []string          `json:"dependency_charts" description:"dependency chart name"`
-	ChartPrettyParams PrettyChartParams `json:"chart_pretty_params" description:"pretty chart params for market"`
+	ChartName         string                `json:"chart_name"`
+	ChartVersion      string                `json:"chart_version"`
+	ChartDescription  string                `json:"chart_description"`
+	ChartAppVersion   string                `json:"chart_appVersion"`
+	ChartEngine       string                `json:"chart_engine"`
+	DefaultValue      string                `json:"default_value" description:"default values.yaml defined by the chart"`
+	DependencyCharts  []ChartDependencyInfo `json:"dependency_charts" description:"dependency chart name"`
+	ChartPrettyParams PrettyChartParams     `json:"chart_pretty_params" description:"pretty chart params for market"`
 }
 
 type ChartInfoList struct {
@@ -201,7 +207,7 @@ type ReleaseConfig struct {
 
 type ReleaseConfigSet struct {
 	Name        string              `json:"name" description:"name"`
-	CreatedBy   string              `json:""created_by" description:"created by"`
+	CreatedBy   string              `json:"created_by" description:"created by"`
 	ConfigItems []ReleaseConfigItem `json:"config_items" description:"config items"`
 	Format      string              `json:"format" description:"format"`
 }
@@ -223,7 +229,7 @@ type DummyServiceConfigImmediateValue struct {
 // Pretty Paramters
 type ResourceStorageConfig struct {
 	Name         string   `json:"name"`
-	StorageType  string   `json:"storageType"`
+	StorageType  string   `json:"type"`
 	StorageClass string   `json:"storageClass"`
 	Size         string   `json:"size"`
 	AccessModes  []string `json:"accessModes"`
@@ -250,6 +256,7 @@ type BaseConfig struct {
 type RoleConfig struct {
 	Name               string         `json:"name"`
 	Description        string         `json:"description"`
+	Replicas           int            `json:"replicas"`
 	RoleBaseConfig     []*BaseConfig  `json:"baseConfig"`
 	RoleResourceConfig ResourceConfig `json:"resouceConfig"`
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"walm/pkg/kafka"
 	"walm/pkg/redis"
-	"walm/pkg/job"
 	"encoding/json"
 )
 
@@ -239,12 +238,12 @@ func TestMain(m *testing.M) {
 	setting.Config.KubeConfig.Config = gopath + "/src/walm/test/k8sconfig/kubeconfig"
 	logrus.Infof("finished loading configuration: %s", string(settingConfig))
 
-	kafka.InitKafkaClient(setting.Config.KafkaConfig)
-	redis.InitRedisClient()
-	job.InitWalmJobManager()
-	informer.StartInformer()
-	helm.InitHelm()
-	InitProject()
+	//kafka.InitKafkaClient(setting.Config.KafkaConfig)
+	//redis.InitRedisClient()
+	//job.InitWalmJobManager()
+	//informer.StartInformer()
+	//helm.InitHelm()
+	//InitProject()
 
 	os.Exit(m.Run())
 }

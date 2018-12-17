@@ -167,7 +167,7 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	if chartRequest.Values != nil {
 		chartInfo.DefaultValue = chartRequest.Values.Raw
 	}
-	chartInfo.DependencyCharts = make([]string, 0)
+	chartInfo.DependencyCharts = make([]release.ChartDependencyInfo, 0)
 	for _, file := range chartRequest.Files {
 		if file.TypeUrl == "transwarp-app-yaml" {
 			err := yaml.Unmarshal(file.Value, &appMetaInfo)
@@ -176,7 +176,12 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 			}
 			for _, dependency := range appMetaInfo.Dependencies {
 				logrus.Infof("%+v", dependency)
-				chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency.Name)
+				dependency := release.ChartDependencyInfo {
+					ChartName: dependency.Name,
+					MaxVersion: dependency.MaxVersion,
+					MinVersion: dependency.MinVersion,
+				}
+				chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
 			}
 		}
 	}

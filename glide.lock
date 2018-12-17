@@ -1,5 +1,5 @@
 hash: aeb3c80aaec0ee268a4b4a22ea2b7288819bc472f2e5ec2cc3fcd13c75893490
-updated: 2018-12-17T13:28:09.368599228+08:00
+updated: 2018-12-17T21:52:09.827502859+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -696,7 +696,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: e149c11d21ec178806757b664cc3c00841e10de6
+  version: f6ffa56466a95d248890a1d52f36cbb752de759d
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/chartutil
