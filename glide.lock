@@ -1,5 +1,5 @@
-hash: 1aaf5175044130fab47cafb925054e336a5531243e1baf3ee971b3f48ab6aac0
-updated: 2018-11-15T16:54:01.523725891+08:00
+hash: aeb3c80aaec0ee268a4b4a22ea2b7288819bc472f2e5ec2cc3fcd13c75893490
+updated: 2018-12-17T13:28:09.368599228+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -108,7 +108,7 @@ imports:
   subpackages:
   - spdy
 - name: github.com/eapache/go-resiliency
-  version: ea41b0fad31007accc7f806884dcdf3da98b79ce
+  version: 487be0453c7b062bff8dcd0ca2570f09e780a9e2
   subpackages:
   - breaker
 - name: github.com/eapache/go-xerial-snappy
@@ -136,7 +136,7 @@ imports:
 - name: github.com/go-openapi/jsonreference
   version: 13c6e3589ad90f49bd3e3bbe2c2cb3d7a4142272
 - name: github.com/go-openapi/spec
-  version: 1de3e0542de65ad8d75452a595886fdd0befb363
+  version: 5bae59e25b21498baea7f9d46e9c147ec106a42e
 - name: github.com/go-openapi/swag
   version: f3f9494671f93fcff853e3c6e9e948b3eb71e590
 - name: github.com/go-redis/redis
@@ -181,7 +181,7 @@ imports:
 - name: github.com/golang/snappy
   version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
 - name: github.com/gomodule/redigo
-  version: e8fc0692a7e26a05b06517348ed466349062eb47
+  version: 02dc2736dbc3a4a56907b0d5a9fead2f71b499db
   subpackages:
   - redis
 - name: github.com/google/btree
@@ -218,7 +218,7 @@ imports:
 - name: github.com/huandu/xstrings
   version: 8bbcf2f9ccb55755e748b7644164cd4bdce94c1d
 - name: github.com/imdario/mergo
-  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+  version: 9f23e2d6bd2a77f959b2bf6acdbefd708a83a4a4
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jmespath/go-jmespath
@@ -261,7 +261,7 @@ imports:
   - specs-go
   - specs-go/v1
 - name: github.com/opentracing/opentracing-go
-  version: be550b025b433cdfa2f11efb962afa2ea3c4d967
+  version: 8b5a441dc60e8d9bb9bf9d22060b6d94fa599983
   subpackages:
   - ext
   - log
@@ -340,9 +340,9 @@ imports:
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/streadway/amqp
-  version: 27835f1a64e97101d95306211f03c0620ffa295d
+  version: a314942b2fd9dde7a3f70ba3f1062848ce6eb392
 - name: github.com/swaggo/swag
-  version: 64ab6b048992665f5899e23f83cbd35a812d5fb0
+  version: 0e12fd5eb026e6074484415fb65181e2ea77f5c9
 - name: github.com/thoas/stats
   version: fc5c06ed3df0e436bc483ccc97053cd98930ca61
 - name: golang.org/x/crypto
@@ -365,15 +365,12 @@ imports:
   version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
-  - html
-  - html/atom
   - http2
   - http2/hpack
   - idna
   - internal/timeseries
   - lex/httplex
   - trace
-  - websocket
 - name: golang.org/x/sys
   version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
@@ -492,7 +489,7 @@ imports:
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
-  version: e386b2658ed20923da8cc9250e552f082899a1ee
+  version: 688d824527473e1e3f6c3f0b01171308393bdfe3
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -549,7 +546,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: c0373f43cffe58a0a99215236c4bbec8be78be09
+  version: 56f0d9f8f1c3d4e170132aeb935134b9da006c79
   subpackages:
   - pkg/apis/audit
   - pkg/authentication/authenticator
@@ -730,7 +727,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: a9df8263ae9febed9f6e3bfd2470c0a5e8be9ce8
+  version: c757b93cf034d49af3a3b8ecee3b9639a7a11df7
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme

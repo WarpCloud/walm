@@ -52,5 +52,7 @@ import:
 - package: github.com/rcrowley/go-metrics
 - package: github.com/RichardKnop/machinery
   version: v1.4.5
+- package: github.com/imdario/mergo
+  version: 0.3.6
 testImport:
 - package: gopkg.in/check.v1

@@ -483,6 +483,31 @@ func TestParseSimpleApi(t *testing.T) {
                 }
             }
         },
+        "web.AnonymousStructArray": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "foo": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "web.CrossAlias": {
+            "type": "object",
+            "properties": {
+                "Array": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "String": {
+                    "type": "string"
+                }
+            }
+        },
         "web.IndirectRecursiveTest": {
             "type": "object",
             "properties": {
@@ -656,6 +681,21 @@ func TestParseSimpleApi(t *testing.T) {
                 }
             }
         },
+        "web.Pet5": {
+            "type": "object",
+            "required": [
+                "name",
+                "odd"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "odd": {
+                    "type": "boolean"
+                }
+            }
+        },
         "web.RevValue": {
             "type": "object",
             "properties": {
@@ -694,6 +734,27 @@ func TestParseSimpleApi(t *testing.T) {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/web.Pet"
+                    }
+                }
+            }
+        },
+        "web.Tags": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "pets": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/web.Pet"
+                        }
                     }
                 }
             }
@@ -2269,5 +2330,37 @@ func TestParseDeterministic(t *testing.T) {
 				assert.Equal(t, expected, string(b))
 			}
 		})
+	}
+}
+
+func TestApiParseTag(t *testing.T) {
+	searchDir := "testdata/tags"
+	mainAPIFile := "main.go"
+	p := New()
+	p.PropNamingStrategy = PascalCase
+	p.ParseAPI(searchDir, mainAPIFile)
+
+	if len(p.swagger.Tags) != 2 {
+		t.Log("Number of tags did not match")
+		t.Fail()
+	}
+
+	dogs := p.swagger.Tags[0]
+	if dogs.TagProps.Name != "dogs" || dogs.TagProps.Description != "Dogs are cool" {
+		t.Log("Failed to parse dogs name or description")
+		t.Fail()
+	}
+
+	cats := p.swagger.Tags[1]
+	if cats.TagProps.Name != "cats" || cats.TagProps.Description != "Cats are the devil" {
+		t.Log("Failed to parse cats name or description")
+		t.Fail()
+	}
+
+	if cats.TagProps.ExternalDocs.URL != "https://google.de" || cats.TagProps.ExternalDocs.Description != "google is super useful to find out that cats are evil!" {
+		t.Log("URL: ", cats.TagProps.ExternalDocs.URL)
+		t.Log("Description: ", cats.TagProps.ExternalDocs.Description)
+		t.Log("Failed to parse cats external documentation")
+		t.Fail()
 	}
 }

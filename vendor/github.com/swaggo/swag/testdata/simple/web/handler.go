@@ -42,6 +42,14 @@ type Tag struct {
 	Pets []Pet  `json:"pets"`
 }
 
+type Tags []*Tag
+
+type AnonymousStructArray []struct {
+	Foo string `json:"foo"`
+}
+
+type CrossAlias cross.Cross
+
 type Pet2 struct {
 	ID         int        `json:"id"`
 	MiddleName *string    `json:"middlename"`
@@ -69,4 +77,13 @@ type RevValue struct {
 	Data    int           `json:"Data"`
 	Cross   cross.Cross   `json:"cross"`
 	Crosses []cross.Cross `json:"crosses"`
+}
+
+type Pet4 struct {
+	Name string `json:"name" binding:"required"`
+}
+
+type Pet5 struct {
+	*Pet4
+	Odd bool `json:"odd" binding:"required"`
 }
