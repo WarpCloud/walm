@@ -1,5 +1,5 @@
-hash: aeb3c80aaec0ee268a4b4a22ea2b7288819bc472f2e5ec2cc3fcd13c75893490
-updated: 2018-12-17T21:52:09.827502859+08:00
+hash: aa49e005063cd4a54713354d772dd33f7144e0d208e3aedcc79f2fc21b97db66
+updated: 2018-12-18T13:34:52.543679138+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -120,7 +120,8 @@ imports:
   subpackages:
   - log
 - name: github.com/emicklei/go-restful-openapi
-  version: 51bf251d405ad1e23511fef0a2dbe40bc70ce2c6
+  version: f6154fc4effc2950a299faa5ac752ebf8b44a86e
+  repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
 - name: github.com/evanphx/json-patch
   version: 94e38aa1586e8a6c8a75770bddf5ff84c48a106b
 - name: github.com/exponent-io/jsonpath

@@ -4,6 +4,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	"os"
+	"reflect"
 	"testing"
 	"walm/pkg/release"
 )
@@ -24,6 +25,9 @@ func Test_Merge(t *testing.T) {
 
 	ProcessPrettyParams(&request)
 	logrus.Printf("ConfigValues %+v\n", request.ConfigValues)
+
+	var a interface{}
+	logrus.Printf("%v %v\n", reflect.TypeOf(a), reflect.ValueOf(a).Kind().String())
 }
 
 func TestMain(m *testing.M) {
