@@ -17,6 +17,7 @@ func TestInstallRelease(t *testing.T) {
 			URL:      "http://172.16.1.41:8882/stable/",
 		}},
 	}
+	commonTemplateFilesPath = "../../../../test/ksonnet-lib"
 
 	releaseRequest := &release.ReleaseRequest{
 		Name: "cy-redis-test",

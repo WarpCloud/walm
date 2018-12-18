@@ -7,7 +7,7 @@
           "storage": {
             "data": {
               "size": "1G",
-              "storageClass": "opt-local-disk"
+              "storageClass": "silver"
             }
           }
         }

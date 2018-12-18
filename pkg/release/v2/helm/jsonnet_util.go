@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
+	"path"
 )
 
 func renderJsonnetFiles(templateFiles map[string]string, configValues map[string]interface{}) (nativeChartTemplates []*chart.Template, err error) {
@@ -50,11 +51,16 @@ func renderJsonnetFiles(templateFiles map[string]string, configValues map[string
 			return nil, err
 		}
 		nativeChartTemplates = append(nativeChartTemplates, &chart.Template{
-			Name: fileName,
+			Name: buildNotRenderedFileName(fileName),
 			Data: k8sResourceBytes,
 		})
 	}
 
+	return
+}
+
+func buildNotRenderedFileName(fileName string) (notRenderFileName string) {
+	notRenderFileName = path.Join(path.Dir(fileName),  "NOTRENDER-" + path.Base(fileName))
 	return
 }
 

@@ -40,7 +40,7 @@ type HelmClient struct {
 
 var helmClient *HelmClient
 
-func GetDefaultHelmClient() *HelmClient {
+func GetDefaultHelmClientV2() *HelmClient {
 	if helmClient == nil {
 		tillerHost := setting.Config.SysHelm.TillerHost
 		client1 := helm.NewClient(helm.Host(tillerHost))
@@ -115,9 +115,7 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 	mergeValues(valueOverride, releaseRequest.ConfigValues)
 	valueOverrideBytes, err := yaml.Marshal(valueOverride)
 
-	logrus.Infof("convert takes %v", time.Now().Sub(now))
-	now = time.Now()
-
+	logrus.Debugf("convert %s takes %v",releaseRequest.Name, time.Now().Sub(now))
 	_, err = hc.systemClient.InstallReleaseFromChart(
 		chart,
 		namespace,
@@ -138,7 +136,6 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 		}
 		return err
 	}
-	logrus.Infof("install takes %v", time.Now().Sub(now))
 
 	return nil
 }

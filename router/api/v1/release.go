@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/emicklei/go-restful"
 	"walm/pkg/release/manager/helm"
+	helmv2 "walm/pkg/release/v2/helm"
 	"walm/pkg/release"
 	"fmt"
 	walmerr "walm/pkg/util/error"
@@ -45,7 +46,7 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false)
+	err = helmv2.GetDefaultHelmClientV2().InstallRelease(namespace, releaseRequest, false)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
 	}

@@ -7,10 +7,18 @@ import (
 	"path/filepath"
 	"os"
 	"io/ioutil"
-	"github.com/golang/glog"
 	"github.com/ghodss/yaml"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	"path"
+	"walm/pkg/setting"
 )
+
+const (
+	commonTemplateDir = "templates/applib/ksonnet-lib"
+)
+
+var commonTemplateFilesPath string
+var commonTemplateFiles map[string]string
 
 func isJsonnetChart(chart *chart.Chart) (isJsonnetChart bool, jsonnetChart *chart.Chart, appYaml []byte, err error) {
 	jsonnetTemplatesFound, appYamlFound := false, false
@@ -117,14 +125,29 @@ func loadJsonnetFilesFromJsonnetChart(jsonnetChart *chart.Chart, templateFiles m
 	return nil
 }
 
-func loadCommonJsonnetLib(templates map[string]string) error {
-	//TODO
+func loadCommonJsonnetLib(templates map[string]string) (err error) {
+	if commonTemplateFiles == nil {
+		if len(commonTemplateFilesPath) == 0 && setting.Config.V2Config != nil && setting.Config.V2Config.JsonnetConfig != nil{
+			commonTemplateFilesPath = setting.Config.V2Config.JsonnetConfig.CommonTemplateFilesPath
+		}
+		if commonTemplateFilesPath == "" {
+			return
+		}
+		commonTemplateFiles, err = loadFilesFromDisk(commonTemplateFilesPath)
+		if err != nil {
+			logrus.Errorf("failed to load common template files : %s", err.Error())
+			return
+		}
+	}
+	for key, value := range commonTemplateFiles {
+		templates[path.Join(commonTemplateDir, filepath.Base(key))] = value
+	}
 	return nil
 }
 
 // LoadFilesFromDisk loads all files inside baseDir directory and its subdirectory recursively,
 // mapping each file's path/content as a key/value into a map.
-func LoadFilesFromDisk(baseDir string) (map[string]string, error) {
+func loadFilesFromDisk(baseDir string) (map[string]string, error) {
 	cacheFiles := make(map[string]string)
 	err := filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -133,7 +156,7 @@ func LoadFilesFromDisk(baseDir string) (map[string]string, error) {
 		if !info.IsDir() {
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
-				glog.Errorf("Read file \"%s\", err: %v", path, err)
+				logrus.Errorf("Read file \"%s\", err: %v", path, err)
 				return err
 			}
 			cacheFiles[path] = string(b)
