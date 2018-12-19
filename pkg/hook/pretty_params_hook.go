@@ -1,8 +1,11 @@
 package hook
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/imdario/mergo"
 	"github.com/sirupsen/logrus"
+	"io"
 	"walm/pkg/release"
 )
 
@@ -89,34 +92,86 @@ func ProcessPrettyParams(releaseRequest *release.ReleaseRequest) {
 		}
 	}
 
-//		roleConfig.Name; "App.<name>"
-//		roleConfig.Replicas; "App.<name>.replicas"
-//		for _, roleBaseConfig := range roleConfig.RoleBaseConfig {
-//			roleBaseConfig.DefaultValue
-//			roleBaseConfig.ValueDescription
-//			roleBaseConfig.ValueName
-//			roleBaseConfig.ValueType
-//			"App.<name>.<valuename>: <defaultvalue>"
-//		}
-//		roleConfig.RoleResourceConfig.MemoryRequest "App.<name>.resources.memory_request"
-//		roleConfig.RoleResourceConfig.MemoryLimit "App.<name>.resources.memory_limit"
-//		roleConfig.RoleResourceConfig.CpuRequest "App.<name>.resources.cpu_request"
-//		roleConfig.RoleResourceConfig.CpuLimit "App.<name>.resources.cpu_limit"
-//		roleConfig.RoleResourceConfig.GpuRequest "App.<name>.resources.gpu_request"
-//		roleConfig.RoleResourceConfig.GpuLimit "App.<name>.resources.gpu_limit"
-//
-//		for _, storageConfig := range roleConfig.RoleResourceConfig.ResourceStorageList {
-//			storageConfig.StorageType == "tosDisk"
-//			storageConfig.Name =
-//			storageConfig.StorageClass = "App.<name>.resources.storage.<storageConfig.Name>.storageClass"
-//			storageConfig.Size = "App.<name>.resources.storage.<storageConfig.Name>.size"
-//			storageConfig.AccessMode = ""
-//
-//			storageConfig.StorageType == "tosPVC"
-//			storageConfig.Name =
-//			storageConfig.StorageClass = "App.<name>.resources.storage.<storageConfig.Name>.storageClass"
-//			storageConfig.Size = "App.<name>.resources.storage.<storageConfig.Name>.size"
-//			storageConfig.AccessModes = ""
-//		}
-//	}
+	if releaseRequest.ReleasePrettyParams.AdvanceConfig != nil {
+		for _, baseConfig := range releaseRequest.ReleasePrettyParams.AdvanceConfig {
+			logrus.Infof("### %v", baseConfig)
+			configValues := make(map[string]interface{}, 0)
+			mapKey(baseConfig.ValueName, baseConfig.DefaultValue, configValues)
+
+			err := mergo.Merge(&defaultConfigValue, configValues, mergo.WithOverride)
+			if err != nil {
+				logrus.Errorf("mergo.Merge error src %+v, dest %+v, err %+v\n", configValues, defaultConfigValue, err)
+			}
+		}
+	}
+
+	if releaseRequest.ReleasePrettyParams.TranswarpBaseConfig != nil {
+		for _, baseConfig := range releaseRequest.ReleasePrettyParams.TranswarpBaseConfig {
+			configValues := make(map[string]interface{}, 0)
+			mapKey(baseConfig.ValueName, baseConfig.DefaultValue, configValues)
+
+			err := mergo.Merge(&defaultConfigValue, configValues, mergo.WithOverride)
+			if err != nil {
+				logrus.Errorf("mergo.Merge error src %+v, dest %+v, err %+v\n", configValues, defaultConfigValue, err)
+			}
+		}
+	}
+}
+
+func mapKey(key string, value interface{}, data map[string]interface{}) error {
+	scanner := bytes.NewBufferString(key)
+	keyName := ""
+	var pMap map[string]interface{}
+	pMap = data
+	for {
+		switch r, _, e := scanner.ReadRune(); {
+		case e != nil:
+			if e == io.EOF {
+				pMap[keyName] = value
+				keyName = ""
+				return nil
+			}
+			return e
+		case r == '[':
+			if len(keyName) > 0 {
+				pMap[keyName] = make(map[string]interface{}, 0)
+				pMap = pMap[keyName].(map[string]interface{})
+			}
+			keyName = ""
+			next, _, e := scanner.ReadRune()
+			if next != '"' || e != nil {
+				return fmt.Errorf("invalid key %s err %v", key, e)
+			}
+			for {
+				next, _, e = scanner.ReadRune()
+				if next == '"' || e != nil {
+					next, _, e := scanner.ReadRune()
+					if next != ']' || e != nil {
+						return fmt.Errorf("invalid key %s err %v", key, e)
+					} else {
+						_, _, e = scanner.ReadRune();
+						if e == io.EOF {
+							pMap[keyName] = value
+							return nil
+						} else if len(keyName) > 0 {
+							pMap[keyName] = make(map[string]interface{}, 0)
+							pMap = pMap[keyName].(map[string]interface{})
+							scanner.UnreadRune()
+						}
+						keyName = ""
+						break
+					}
+				}
+				keyName += string(next)
+			}
+		case r == '.':
+			if len(keyName) > 0 {
+				pMap[keyName] = make(map[string]interface{}, 0)
+				pMap = pMap[keyName].(map[string]interface{})
+			}
+			keyName = ""
+		default:
+			keyName += string(r)
+		}
+	}
 }

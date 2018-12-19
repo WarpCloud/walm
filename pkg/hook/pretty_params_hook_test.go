@@ -30,6 +30,18 @@ func Test_Merge(t *testing.T) {
 	logrus.Printf("%v %v\n", reflect.TypeOf(a), reflect.ValueOf(a).Kind().String())
 }
 
+func Test_ParseInto(t *testing.T) {
+	val := make(map[string]interface{}, 0)
+	err := mapKey("Advance_Config.zookeeper[\"zookeeper.leader.elect.port\"].kkk", 2200, val)
+	logrus.Printf("val %+v err %+v", val, err)
+
+	err = mapKey("Advance_Config.zookeeper[\"zookeeper.leader.elect.port\"]", 200, val)
+	logrus.Printf("val %+v err %+v", val, err)
+
+	err = mapKey("Advance_Config.zookeeper", 200, val)
+	logrus.Printf("val %+v err %+v", val, err)
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
