@@ -11,6 +11,7 @@ import (
 	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
 	"k8s.io/helm/pkg/kube"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )
 
 const (
@@ -103,6 +104,28 @@ func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientse
 	Log.Infof("Creating API clientEx for %s", cfg.Host)
 
 	client, err := clientsetex.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// k8s client to deal with release config, only for k8s 1.9+
+func createReleaseConfigClient(apiserverHost string, kubeConfig string) (*releaseconfigclientset.Clientset, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg.QPS = defaultQPS
+	cfg.Burst = defaultBurst
+	//TODO to investigate protobuf
+	//cfg.ContentType = "application/vnd.kubernetes.protobuf"
+
+	Log.Infof("Creating API release config client for %s", cfg.Host)
+
+	client, err := releaseconfigclientset.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}

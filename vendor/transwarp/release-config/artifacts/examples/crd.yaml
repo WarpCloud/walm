@@ -1,0 +1,79 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  # name must match the spec fields below, and be in the form: <plural>.<group>
+  name: applicationinstances.apiextensions.transwarp.io
+spec:
+  # group name to use for REST API: /apis/<group>/<version>
+  group: apiextensions.transwarp.io
+  # version name to use for REST API: /apis/<group>/<version>
+  version: v1beta1
+  # either Namespaced or Cluster
+  scope: Namespaced
+  names:
+    # plural name to be used in the URL: /apis/<group>/<version>/<plural>
+    plural: applicationinstances
+    # singular name to be used as an alias on the CLI and for display
+    singular: instance
+    # kind is normally the CamelCased singular type. Your resource manifests use this.
+    kind: ApplicationInstance
+    # shortNames allow shorter string to match your resource on the CLI
+    shortNames:
+    - instance
+  validation:
+   # openAPIV3Schema is the schema for validating custom objects.
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            applicationRef:
+              type: object
+              properties:
+                name:
+                  type: string
+                version:
+                  type: string
+              required:
+              - name
+              - version
+#              additionalProperties: false
+            configs:
+              type: object
+            instanceId:
+              type: string
+          required:
+          - applicationRef
+        status:
+          properties:
+            observedGeneration:
+              type: number
+            phase:
+              type: string
+              enum:
+              - running
+              - pending
+              - deploying
+            ready:
+              type: boolean
+            modules:
+              type: array
+            modules:
+              type: array
+              items:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                  resourceRef:
+                    type: object
+                    properties:
+                      apiVersion:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      uid:
+                        type: string

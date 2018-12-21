@@ -8,9 +8,9 @@ import (
 	"os"
 	"io/ioutil"
 	"github.com/ghodss/yaml"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"path"
 	"walm/pkg/setting"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 )
 
 const (
@@ -96,9 +96,11 @@ func buildConfigValuesToRender(namespace string, jsonnetChart *chart.Chart, user
 	mergeValues(configValues, defaultValue)
 	//TODO merge system values
 	mergeValues(configValues, dependencyConfigs)
-	mergeValues(configValues, userConfigs)
 	configValues["Transwarp_Install_ID"] = utilrand.String(5)
 	configValues["Transwarp_Install_Namespace"] = namespace
+	configValues["TosVersion"] = "1.9"
+	mergeValues(configValues, userConfigs)
+
 	return
 }
 

@@ -8,29 +8,46 @@ import (
 	"walm/pkg/kafka"
 	"time"
 	"encoding/json"
-	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
+	"walm/pkg/k8s/informer"
 )
 
 type releaseConfigHandler struct {
-	releaseConfigHandler *cache.ResourceEventHandlerFuncs
-	kafkaClient          *kafka.KafkaClient
-	helmClient           *helm.HelmClient
-	enabled              bool
+	handlerFuncs *cache.ResourceEventHandlerFuncs
+	kafkaClient  *kafka.KafkaClient
+	helmClient   *helm.HelmClient
+	stopped      bool
 }
 
-func (handler *releaseConfigHandler) enable() {
-	handler.enabled = true
-	if handler.releaseConfigHandler == nil {
-		handler.releaseConfigHandler = &cache.ResourceEventHandlerFuncs{
+func newReleaseConfigHandler() *releaseConfigHandler {
+	handler := &releaseConfigHandler{
+		helmClient:  helm.GetDefaultHelmClient(),
+		kafkaClient: kafka.GetDefaultKafkaClient(),
+		stopped:     true,
+	}
+
+	return handler
+}
+
+func (handler *releaseConfigHandler) Start(stopChan <-chan struct{}) {
+	defer func() {
+		handler.stopped = true
+		logrus.Info("v1 release config handler stopped")
+	}()
+
+	logrus.Info("v1 release config handler started")
+	handler.stopped = false
+
+	if handler.handlerFuncs == nil {
+		handler.handlerFuncs = &cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				if !handler.enabled {
+				if handler.stopped {
 					return
 				}
 				handler.handleReleaseConfigEvent(obj, release.CreateOrUpdate)
 			},
 			UpdateFunc: func(old, cur interface{}) {
-				if !handler.enabled {
+				if handler.stopped {
 					return
 				}
 				svc := cur.(*v1.Service)
@@ -41,22 +58,19 @@ func (handler *releaseConfigHandler) enable() {
 					if transwarpMetaStr != oldTranswarpMetaStr {
 						handler.sendReleaseConfigDeltaEventToKafka(namespace, releaseName, transwarpMetaStr, release.CreateOrUpdate)
 					}
-
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
-				if !handler.enabled {
+				if handler.stopped {
 					return
 				}
 				handler.handleReleaseConfigEvent(obj, release.Delete)
 			},
 		}
-		informer.GetDefaultFactory().Factory.Core().V1().Services().Informer().AddEventHandler(*(handler.releaseConfigHandler))
+		informer.GetDefaultFactory().Factory.Core().V1().Services().Informer().AddEventHandler(handler.handlerFuncs)
 	}
-}
 
-func (handler *releaseConfigHandler) disable() {
-	handler.enabled = false
+	<-stopChan
 }
 
 func (handler *releaseConfigHandler) handleReleaseConfigEvent(obj interface{}, deltaType release.ReleaseConfigDeltaEventType) {

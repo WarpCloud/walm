@@ -146,14 +146,13 @@ func startElect() {
 	onStartedLeadingFunc := func(stop <-chan struct{}) {
 		logrus.Info("Succeed to elect leader")
 		helm.GetDefaultHelmClient().StartResyncReleaseCaches(stop)
-		handlers.EnableHandlers()
+		handlers.StartHandlers(stop)
 	}
 	onNewLeaderFunc := func(identity string) {
 		logrus.Infof("Now leader is changed to %s", identity)
 	}
 	onStoppedLeadingFunc := func() {
 		logrus.Info("Stopped being a leader")
-		handlers.DisableHandlers()
 	}
 
 	config := &elect.ElectorConfig{

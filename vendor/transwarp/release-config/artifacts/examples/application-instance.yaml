@@ -1,0 +1,76 @@
+apiVersion: "apiextensions.transwarp.io/v1beta1"
+kind: ApplicationInstance
+metadata:
+  labels:
+    transwarp.alias: zookeeper_abb1
+    transwarp.app: zookeeper
+    transwarp.install: "1"
+    transwarp.name: zookeeper
+  name: zookeeper1
+  namespace: default
+spec:
+  applicationRef:
+    name: zookeeper
+    version: '1.0'
+  configs:
+    zk_cpu_limit: 0.5
+    LICENSE_ADDRESS: '172.16.1.42:2191,172.16.1.43:2191,172.16.1.44:2191'
+    Transwarp_Install_ID: '1'
+    Transwarp_App_Meta:
+      version: '5.1'
+      id: 32
+      name: zookeeper
+    Transwarp_Cni_Network: overlay
+    Transwarp_Managed_By_AddonsMgr: true
+    Transwarp_Alias: zookeeper_abb1
+    TosVersion: '1.5'
+    _TOS_network_name: overlay
+    Transwarp_Network_Limit:
+      ingress: 0Kbps
+      egress: 0Kbps
+    Transwarp_Registry_Server: 172.16.1.42
+    zk_memory_limit: 1
+    instance_dependency: []
+    Transwarp_Install_Namespace: docker
+    Transwarp_Customized_Extend:
+      - module_name: core-site.xml
+        configs:
+          - value: 'zookeeper51:2181'
+            key: ha.zookeeper.quorum
+    Transwarp_Principal_Suffix: transwarp.local
+    zk_priority: 0
+    Transwarp_App_Scope: namespace
+    Transwarp_Realm: TOS
+    Transwarp_Customized_Volumes:
+      - iops_limit: 0
+        mount_points:
+          - sub_path: ''
+            path: /var/transwarp
+            readOnly: false
+            container_name: zookeeper
+        class_name: silver
+        configs: null
+        volume_name: zkdir
+        type: pvc
+        module: zookeeper
+        size: 3Gi
+    zk_use_host_network: false
+    Transwarp_App_Labels:
+      transwarp.app: zookeeper
+      scope: tdh
+    zk_mounted_kerberos: true
+    zk_kerberos_password: ''
+    zk_env_list: []
+    zk_replicas: 3
+    Transwarp_Auto_Injected_Volumes:
+      - volumeName: keytab
+        kind: Secret
+        selector:
+          transwarp.name: default
+          transwarp.secret: keytab
+    zk_image: '172.16.1.99/transwarp/zookeeper:transwarp-5.1.0-rc6'
+    zk_kerberos: ''
+    Transwarp_Guardian_Address: '172.16.1.42:18080'
+    Transwarp_App_Name: zookeeper
+    Transwarp_DEBUG: true
+  instanceId: aaaa

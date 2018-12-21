@@ -1,35 +1,25 @@
 package handlers
 
 import (
-	"walm/pkg/release/manager/helm"
-	"walm/pkg/kafka"
 	"github.com/sirupsen/logrus"
+	"walm/pkg/release/v2/config"
 )
 
-var handlers []handler
+var handlers []Handler
 
-type handler interface {
-	enable()
-	disable()
+type Handler interface {
+	Start(stopChan <-chan struct{})
 }
 
-func EnableHandlers() {
+func StartHandlers(stopChan <-chan struct{}) {
 	if handlers == nil {
-		handlers = append(handlers, &releaseConfigHandler{
-			helmClient: helm.GetDefaultHelmClient(),
-			kafkaClient: kafka.GetDefaultKafkaClient(),
-		})
+		handlers = append(handlers, newReleaseConfigHandler())
+		handlers = append(handlers, config.NewReleaseConfigController())
 	}
 
 	for _, handler := range handlers {
-		handler.enable()
+		go handler.Start(stopChan)
 	}
-	logrus.Info("informer handlers enabled")
+	logrus.Info("informer handlers started")
 }
 
-func DisableHandlers() {
-	for _, handler := range handlers {
-		handler.disable()
-	}
-	logrus.Info("informer handlers disabled")
-}

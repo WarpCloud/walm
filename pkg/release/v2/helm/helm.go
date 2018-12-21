@@ -71,6 +71,10 @@ func GetDefaultHelmClientV2() *HelmClient {
 	return helmClient
 }
 
+func (hc *HelmClient) UpgradeRelease(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
+	return nil
+}
+
 func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
 	now := time.Now()
 	if releaseRequest.ConfigValues == nil {
