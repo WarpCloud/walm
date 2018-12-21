@@ -15,6 +15,9 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 	helmv1 "walm/pkg/release/manager/helm"
 	"gopkg.in/yaml.v2"
+	"strings"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/k8s/adaptor"
 )
 
 const (
@@ -36,6 +39,7 @@ type HelmClient struct {
 	dryRun                  bool
 	helmCache               *cache.HelmCache
 	helmCacheResyncInterval time.Duration
+	releaseConfigHandler    *handler.ReleaseConfigHandler
 }
 
 var helmClient *HelmClient
@@ -66,9 +70,15 @@ func GetDefaultHelmClientV2() *HelmClient {
 			dryRun:                  false,
 			helmCache:               helmCache,
 			helmCacheResyncInterval: helmCacheDefaultResyncInterval,
+			releaseConfigHandler:    handler.GetDefaultHandlerSet().GetReleaseConfigHandler(),
 		}
 	}
 	return helmClient
+}
+
+// reload dependencies config values, if changes, upgrade release
+func (hc *HelmClient) ReloadRelease(namespace, name string) error {
+	return nil
 }
 
 func (hc *HelmClient) UpgradeRelease(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
@@ -93,7 +103,7 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 	}
 
 	// get all the dependency releases' output configs
-	dependencyConfigs, err := getDependencyConfigs(releaseRequest.Dependencies)
+	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, releaseRequest.Dependencies)
 	if err != nil {
 		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
 		return err
@@ -107,19 +117,18 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 	}
 
 	if isJsonnetChart {
-		chart, err = convertJsonnetChart(namespace, jsonnetChart, releaseRequest.ConfigValues, dependencyConfigs)
+		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, releaseRequest.ConfigValues, dependencyConfigs)
 		if err != nil {
 			logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
 			return err
 		}
 	}
 
-	valueOverride := map[string]interface{}{}
-	mergeValues(valueOverride, dependencyConfigs)
+	valueOverride := map[string]interface{}{"Dependency_Configs": dependencyConfigs}
 	mergeValues(valueOverride, releaseRequest.ConfigValues)
 	valueOverrideBytes, err := yaml.Marshal(valueOverride)
 
-	logrus.Debugf("convert %s takes %v",releaseRequest.Name, time.Now().Sub(now))
+	logrus.Debugf("convert %s takes %v", releaseRequest.Name, time.Now().Sub(now))
 	_, err = hc.systemClient.InstallReleaseFromChart(
 		chart,
 		namespace,
@@ -144,8 +153,33 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 	return nil
 }
 
-func getDependencyConfigs(dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {
-	//TODO
+func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {
+	dependencyConfigs = map[string]interface{}{}
+	for _, dependency := range dependencies {
+		ss := strings.Split(dependency, ".")
+		if len(ss) > 2 {
+			err = fmt.Errorf("dependency value %s should not contains more than 1 \".\"", dependency)
+			return
+		}
+		dependencyNamespace, dependencyName := "", ""
+		if len(ss) == 2 {
+			dependencyNamespace = ss[0]
+			dependencyName = ss[1]
+		} else {
+			dependencyNamespace = namespace
+			dependencyName = ss[0]
+		}
+		dependencyReleaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(dependencyNamespace, dependencyName)
+		if err != nil {
+			if adaptor.IsNotFoundErr(err) {
+				continue
+			}
+			logrus.Errorf("failed to get release config %s/%s : %s", dependencyNamespace, dependencyName, err.Error())
+			return nil, err
+		}
+		// TODO how to deal with key conflict?
+		mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
+	}
 	return
 }
 
@@ -189,12 +223,3 @@ func (hc *HelmClient) downloadChart(repoName, charName, version string) (string,
 
 	return filename, nil
 }
-
-
-
-
-
-
-
-
-

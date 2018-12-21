@@ -2,9 +2,7 @@ package helm
 
 import (
 	"github.com/sirupsen/logrus"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"encoding/json"
-	"github.com/ghodss/yaml"
 	"strings"
 	"fmt"
 	"github.com/google/go-jsonnet"
@@ -16,46 +14,24 @@ import (
 	"path"
 )
 
-func renderJsonnetFiles(templateFiles map[string]string, configValues map[string]interface{}) (nativeChartTemplates []*chart.Template, err error) {
+func renderJsonnetFiles(templateFiles map[string]string, configValues map[string]interface{}) (jsonStr string, err error) {
 	mainJsonFileName, err := getMainJsonnetFile(templateFiles)
 	if err != nil {
 		logrus.Errorf("failed to get main jsonnet file : %s", err.Error())
-		return nil, err
+		return "", err
 	}
 
 	tlaValue, err := json.Marshal(configValues)
 	if err != nil {
 		logrus.Errorf("failed to marshal config values : %s", err.Error())
-		return nil, err
+		return "", err
 	}
 
-	jsonStr, err := parseTemplateWithTLAString(mainJsonFileName, "config", string(tlaValue), templateFiles)
+	jsonStr, err = parseTemplateWithTLAString(mainJsonFileName, "config", string(tlaValue), templateFiles)
 	if err != nil {
 		logrus.Errorf("failed to parse main jsonnet template file : %s", err.Error())
-		return nil, err
+		return "", err
 	}
-
-	k8sResources, err := buildK8sResourcesByJsonStr(jsonStr)
-	if err != nil {
-		logrus.Errorf("failed to build native chart templates : %s", err.Error())
-		return nil, err
-	}
-
-	//TODO walm pre hook : do something after rendering k8s resources, before making them into native chart templates and install them
-
-	nativeChartTemplates = []*chart.Template{}
-	for fileName, k8sResource := range k8sResources {
-		k8sResourceBytes, err := yaml.Marshal(k8sResource)
-		if err != nil {
-			logrus.Errorf("failed to marshal k8s resource : %s", err.Error())
-			return nil, err
-		}
-		nativeChartTemplates = append(nativeChartTemplates, &chart.Template{
-			Name: buildNotRenderedFileName(fileName),
-			Data: k8sResourceBytes,
-		})
-	}
-
 	return
 }
 

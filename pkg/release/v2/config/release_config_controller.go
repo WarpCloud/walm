@@ -10,6 +10,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"strings"
 	"walm/pkg/k8s/informer"
+	"encoding/json"
 )
 
 // 动态依赖管理核心需求：
@@ -75,12 +76,12 @@ func (controller *ReleaseConfigController) Start(stopChan <-chan struct{}) {
 				if !controller.started {
 					return
 				}
-				oldReleaseConfig, ok := old.(v1beta1.ReleaseConfig)
+				oldReleaseConfig, ok := old.(*v1beta1.ReleaseConfig)
 				if !ok {
 					logrus.Error("old object is not release config")
 					return
 				}
-				curReleaseConfig, ok := cur.(v1beta1.ReleaseConfig)
+				curReleaseConfig, ok := cur.(*v1beta1.ReleaseConfig)
 				if !ok {
 					logrus.Error("cur object is not release config")
 					return
@@ -147,20 +148,36 @@ func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
 	}
 }
 
-func (controller *ReleaseConfigController) needsUpdate(old v1beta1.ReleaseConfig, cur v1beta1.ReleaseConfig) bool {
-	if releaseOutputConfigChanges(cur.Spec.OutputConfig, old.Spec.OutputConfig) {
+func (controller *ReleaseConfigController) needsUpdate(old *v1beta1.ReleaseConfig, cur *v1beta1.ReleaseConfig) bool {
+	if releaseOutputConfigChanges(old.Spec.OutputConfig, cur.Spec.OutputConfig) {
 		return true
 	}
 	return false
 }
 
-func releaseOutputConfigChanges(newOutputConfig map[string]interface{}, curOutputConfig map[string]interface{}) bool {
-	//TODO
-	return true
+func releaseOutputConfigChanges(oldOutputConfig map[string]interface{}, curOutputConfig map[string]interface{}) bool {
+	//TODO can be opt
+	curOutputConfigStr, err := json.Marshal(curOutputConfig)
+	if err != nil {
+		logrus.Errorf("failed to marshal: %s", err.Error())
+		return false
+	}
+
+	oldOutputConfigStr, err := json.Marshal(oldOutputConfig)
+	if err != nil {
+		logrus.Errorf("failed to marshal: %s", err.Error())
+		return false
+	}
+
+	if string(curOutputConfigStr) != string(oldOutputConfigStr) {
+		return true
+	}
+
+	return false
 }
 
 func (controller *ReleaseConfigController) reloadDependingRelease(releaseKey string) error {
-	logrus.Infof("start tp reload release %s", releaseKey)
+	logrus.Infof("start to reload release %s", releaseKey)
 	//TODO
 	return nil
 }

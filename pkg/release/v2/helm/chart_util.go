@@ -11,6 +11,11 @@ import (
 	"path"
 	"walm/pkg/setting"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	corev1 "k8s.io/api/core/v1"
+	"encoding/json"
 )
 
 const (
@@ -54,7 +59,7 @@ func isJsonnetChart(chart *chart.Chart) (isJsonnetChart bool, jsonnetChart *char
 //     c. merge dependency release output configs
 //     d. merge configs user provided
 // 3. render jsonnet template files to generate native chart templates
-func convertJsonnetChart(namespace string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}) (nativeChart *chart.Chart, err error) {
+func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[string]string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}) (nativeChart *chart.Chart, err error) {
 	nativeChart = &chart.Chart{
 		Metadata: jsonnetChart.Metadata,
 		Files:    jsonnetChart.Files,
@@ -68,18 +73,98 @@ func convertJsonnetChart(namespace string, jsonnetChart *chart.Chart, userConfig
 		return nil, err
 	}
 
-	configValues, err := buildConfigValuesToRender(namespace, jsonnetChart, userConfigs, dependencyConfigs)
+	configValues, err := buildConfigValuesToRender(releaseNamespace, jsonnetChart, userConfigs, dependencyConfigs)
 	if err != nil {
 		logrus.Errorf("failed to build config values to render jsonnet template files : %s", err.Error())
 		return nil, err
 	}
 
-	nativeChart.Templates, err = renderJsonnetFiles(templateFiles, configValues)
+	jsonStr, err := renderJsonnetFiles(templateFiles, configValues)
 	if err != nil {
 		logrus.Errorf("failed to render jsonnet files : %s", err.Error())
 		return nil, err
 	}
 
+	k8sResources, err := buildK8sResourcesByJsonStr(jsonStr)
+	if err != nil {
+		logrus.Errorf("failed to build native chart templates : %s", err.Error())
+		return nil, err
+	}
+
+	//TODO walm pre hook : do something after rendering k8s resources, before making them into native chart templates and install them
+
+	nativeChart.Templates = []*chart.Template{}
+	for fileName, k8sResource := range k8sResources {
+		ok, outputConfig, err := isAppDummyService(k8sResource)
+		if err != nil {
+			logrus.Errorf("failed to check whether %s is app dummy service : %s", fileName, err.Error())
+			return nil, err
+		}
+		if ok {
+			releaseConfig := &v1beta1.ReleaseConfig{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "ReleaseConfig",
+					APIVersion: "apiextensions.transwarp.io/v1beta1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: releaseNamespace,
+					Name:      releaseName,
+				},
+				Spec: v1beta1.ReleaseConfigSpec{
+					DependenciesConfigValues: dependencyConfigs,
+					ChartVersion:             nativeChart.Metadata.Version,
+					ChartName:                nativeChart.Metadata.Name,
+					ChartAppVersion:          nativeChart.Metadata.AppVersion,
+					ConfigValues:             userConfigs,
+					Dependencies:             dependencies,
+					OutputConfig:             outputConfig,
+				},
+			}
+			k8sResource = releaseConfig
+		}
+
+		k8sResourceBytes, err := yaml.Marshal(k8sResource)
+		if err != nil {
+			logrus.Errorf("failed to marshal k8s resource : %s", err.Error())
+			return nil, err
+		}
+		nativeChart.Templates = append(nativeChart.Templates, &chart.Template{
+			Name: buildNotRenderedFileName(fileName),
+			Data: k8sResourceBytes,
+		})
+	}
+
+	return
+}
+
+func isAppDummyService(k8sResource runtime.Object) (is bool, outputConfig map[string]interface{}, err error) {
+	if k8sResource.GetObjectKind().GroupVersionKind().Kind == "Service" {
+		service := k8sResource.(*corev1.Service)
+		if len(service.Labels) > 0 && service.Labels["transwarp.meta"] == "true" {
+			is = true
+			if len(service.Annotations) > 0 {
+				transwarpMetaStr := service.Annotations["transwarp.meta"]
+				outputConfig = map[string]interface{}{}
+				err = json.Unmarshal([]byte(transwarpMetaStr), &outputConfig)
+				if err != nil {
+					logrus.Errorf("failed to unmarshal transwarp meta string : %s", err.Error())
+					return
+				}
+			}
+		}
+	}
+	return
+}
+
+func parseSvc(svc *corev1.Service) (isDummyService bool, transwarpMetaStr, releaseName, namespace string) {
+	if len(svc.Labels) > 0 && svc.Labels["transwarp.meta"] == "true" {
+		isDummyService = true
+		releaseName = svc.Labels["release"]
+		namespace = svc.Namespace
+		if len(svc.Annotations) > 0 {
+			transwarpMetaStr = svc.Annotations["transwarp.meta"]
+		}
+	}
 	return
 }
 
@@ -129,7 +214,7 @@ func loadJsonnetFilesFromJsonnetChart(jsonnetChart *chart.Chart, templateFiles m
 
 func loadCommonJsonnetLib(templates map[string]string) (err error) {
 	if commonTemplateFiles == nil {
-		if len(commonTemplateFilesPath) == 0 && setting.Config.V2Config != nil && setting.Config.V2Config.JsonnetConfig != nil{
+		if len(commonTemplateFilesPath) == 0 && setting.Config.V2Config != nil && setting.Config.V2Config.JsonnetConfig != nil {
 			commonTemplateFilesPath = setting.Config.V2Config.JsonnetConfig.CommonTemplateFilesPath
 		}
 		if commonTemplateFilesPath == "" {
