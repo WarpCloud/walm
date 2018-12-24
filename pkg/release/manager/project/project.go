@@ -292,6 +292,83 @@ func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName
 	return manager.AddReleasesInProject(namespace, projectName, &release.ProjectParams{Releases: []*release.ReleaseRequest{releaseParams}}, async, timeoutSec)
 }
 
+func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest, async bool, timeoutSec int64) error {
+	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("project %s/%s is not found", namespace, projectName)
+			return nil
+		}
+		logrus.Errorf("failed to validate project job : %s", err.Error())
+		return err
+	}
+
+	projectInfo, err := manager.buildProjectInfo(oldProjectCache)
+	if err != nil {
+		logrus.Errorf("failed to build project info : %s", err.Error())
+		return err
+	}
+
+	releaseExistsInProject := false
+	for _, releaseInfo := range projectInfo.Releases {
+		if releaseInfo.Name == releaseParams.Name {
+			releaseExistsInProject = true
+			break
+		}
+	}
+
+	if !releaseExistsInProject {
+		err = fmt.Errorf("release %s is not found in project %s", releaseParams.Name, projectName)
+		logrus.Error(err.Error())
+		return err
+	}
+
+	if timeoutSec == 0 {
+		timeoutSec = defaultTimeoutSec
+	}
+
+	upgradeReleaseTaskSig, err := SendUpgradeReleaseTask(&UpgradeReleaseTaskArgs{
+		Namespace:   namespace,
+		ProjectName:        projectName,
+		ReleaseParams: releaseParams,
+	})
+	if err != nil {
+		logrus.Errorf("failed to send upgrade release %s in project %s/%s task : %s", releaseParams.Name, namespace, projectName, err.Error())
+		return err
+	}
+
+	projectCache := &release.ProjectCache{
+		Namespace:            namespace,
+		Name:                 projectName,
+		LatestTaskSignature:  upgradeReleaseTaskSig,
+		LatestTaskTimeoutSec: timeoutSec,
+	}
+	err = manager.helmClient.GetHelmCache().CreateOrUpdateProjectCache(projectCache)
+	if err != nil {
+		logrus.Errorf("failed to set project cache of %s/%s to redis: %s", namespace, projectName, err.Error())
+		return err
+	}
+
+	if oldProjectCache != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldProjectCache.GetLatestTaskSignature())
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
+	}
+
+	if !async {
+		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		if err != nil {
+			logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", releaseParams.Name, namespace, projectName, err.Error())
+			return err
+		}
+	}
+	logrus.Infof("succeed to upgrade release %s in project %s/%s", releaseParams.Name, namespace, projectName)
+
+	return nil
+}
+
 func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string, async bool, timeoutSec int64) error {
 	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
 	if err != nil {

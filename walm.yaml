@@ -11,7 +11,7 @@ serverConfig:
 sysHelmConfig:
   helmHome: ""
   tillerTimeout: 0
-  tillerHost: "172.16.3.200:31394"
+  tillerHost: "172.26.0.5:31225"
   tls: false
   tlsKey: ""
   tlsCert: ""
@@ -30,7 +30,7 @@ redisConfig:
   password: "walmtest"
   db: 0
 kafkaConfig:
-  enable: true
+  enable: false
   brokers:
     - "172.26.0.5:9092"
   certFile: ""
@@ -45,7 +45,7 @@ multiTenant:
   caFile: ""
   VerifySsl: false
 taskConfig:
-  broker: "redis://walmtest@172.16.1.45:6379"
+  broker: "redis://walmtest@172.16.1.45:6379/2"
   default_queue: "machinery_tasks"
-  result_backend: "redis://walmtest@172.16.1.45:6379"
+  result_backend: "redis://walmtest@172.16.1.45:6379/2"
   results_expire_in: 360000

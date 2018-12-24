@@ -342,6 +342,17 @@ func InitProjectRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.PUT("/{namespace}/name/{project}/instance").To(v1.UpgradeInstanceInProject).
+		Doc("升级一个Project组件").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Reads(releasetypes.ReleaseRequest{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	ws.Route(ws.POST("/{namespace}/name/{project}/project").To(v1.DeployProjectInProject).
 		Doc("添加多个Project组件").
 		Metadata(restfulspec.KeyOpenAPITags, tags).

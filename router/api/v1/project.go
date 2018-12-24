@@ -160,6 +160,32 @@ func DeployInstanceInProject(request *restful.Request, response *restful.Respons
 	}
 }
 
+func UpgradeInstanceInProject(request *restful.Request, response *restful.Response) {
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
+	releaseRequest := &releasetypes.ReleaseRequest{}
+	err = request.ReadEntity(releaseRequest)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().UpgradeReleaseInProject(tenantName, projectName, releaseRequest, async, timeoutSec)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release in project : %s", err.Error()))
+		return
+	}
+}
+
 func DeployProjectInProject(request *restful.Request, response *restful.Response) {
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
