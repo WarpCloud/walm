@@ -1,0 +1,70 @@
+package project
+
+import (
+	"github.com/sirupsen/logrus"
+	"encoding/json"
+	"walm/pkg/task"
+	"github.com/RichardKnop/machinery/v1/tasks"
+	"walm/pkg/release"
+)
+
+const (
+	upgradeReleaseTaskName = "Upgrade-Release-Task"
+)
+
+func init() {
+	task.RegisterTasks(upgradeReleaseTaskName, UpgradeReleaseTask)
+}
+
+func UpgradeReleaseTask(upgradeReleaseTaskArgsStr string) error {
+	upgradeReleaseTaskArgs := &UpgradeReleaseTaskArgs{}
+	err := json.Unmarshal([]byte(upgradeReleaseTaskArgsStr), upgradeReleaseTaskArgs)
+	if err != nil {
+		logrus.Errorf("upgrade release task arg is not valid : %s", err.Error())
+		return err
+	}
+	return upgradeReleaseTaskArgs.upgradeRelease()
+}
+
+func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
+	upgradeReleaseTaskArgsStr, err := json.Marshal(upgradeReleaseTaskArgs)
+	if err != nil {
+		logrus.Errorf("failed to marshal upgrade release task args: %s", err.Error())
+		return nil, err
+	}
+	upgradeReleaseTaskSig := &tasks.Signature{
+		Name: upgradeReleaseTaskName,
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: string(upgradeReleaseTaskArgsStr),
+			},
+		},
+	}
+	err = task.GetDefaultTaskManager().SendTask(upgradeReleaseTaskSig)
+	if err != nil {
+		logrus.Errorf("failed to send upgrade release task : %s", err.Error())
+		return nil, err
+	}
+	return &release.ProjectTaskSignature{
+		Name: upgradeReleaseTaskName,
+		UUID: upgradeReleaseTaskSig.UUID,
+		Arg:  string(upgradeReleaseTaskArgsStr),
+	}, nil
+}
+
+type UpgradeReleaseTaskArgs struct {
+	Namespace     string
+	ProjectName          string
+	ReleaseParams *release.ReleaseRequest
+}
+
+func (upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) upgradeRelease() (err error) {
+	upgradeReleaseTaskArgs.ReleaseParams.Name = buildProjectReleaseName(upgradeReleaseTaskArgs.ProjectName, upgradeReleaseTaskArgs.ReleaseParams.Name)
+	err = GetDefaultProjectManager().helmClient.UpgradeRealese(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams)
+	if err != nil {
+		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName)
+		return
+	}
+	return
+}

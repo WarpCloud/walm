@@ -163,6 +163,15 @@ func (handler *releaseConfigHandler) getReleaseConfig(namespace, releaseName, tr
 		return releaseConfig, err
 	}
 	releaseConfig.ConfigSets = append(releaseConfig.ConfigSets, outputConfigSet)
+	releaseConfig.ConfigSets = append(releaseConfig.ConfigSets, release.ReleaseConfigSet{
+		Name:        "input",
+		CreatedBy:   "walm",
+		ConfigItems: []release.ReleaseConfigItem{{
+			Name: "config",
+			Value: releaseInfo.ConfigValues,
+			Type: "json",
+		}},
+	})
 
 	return
 }
