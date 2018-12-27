@@ -42,7 +42,7 @@ func buildWalmServicePorts(service *corev1.Service) []WalmServicePort {
 			Port:       port.Port,
 			NodePort:   port.NodePort,
 			Protocol:   port.Protocol,
-			TargetPort: port.TargetPort,
+			TargetPort: port.TargetPort.String(),
 		})
 	}
 	return ports

@@ -117,6 +117,7 @@ func initRestApi() {
 	restful.Add(router.InitRootRouter())
 	restful.Add(router.InitNodeRouter())
 	restful.Add(router.InitSecretRouter())
+	restful.Add(router.InitPvcRouter())
 	restful.Add(router.InitTenantRouter())
 	restful.Add(router.InitProjectRouter())
 	restful.Add(router.InitReleaseRouter())

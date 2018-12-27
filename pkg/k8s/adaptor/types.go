@@ -2,7 +2,6 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -271,11 +270,11 @@ func (resource WalmService) AddToWalmInstanceResourceSet(resourceSet *WalmInstan
 }
 
 type WalmServicePort struct {
-	Name       string             `json:"name" description:"service port name"`
-	Protocol   corev1.Protocol    `json:"protocol" description:"service port protocol"`
-	Port       int32              `json:"port" description:"service port"`
-	TargetPort intstr.IntOrString `json:"target_port" description:"backend pod port"`
-	NodePort   int32              `json:"node_port" description:"node port"`
+	Name       string          `json:"name" description:"service port name"`
+	Protocol   corev1.Protocol `json:"protocol" description:"service port protocol"`
+	Port       int32           `json:"port" description:"service port"`
+	TargetPort string          `json:"target_port" description:"backend pod port"`
+	NodePort   int32           `json:"node_port" description:"node port"`
 }
 
 type WalmStatefulSet struct {
@@ -407,4 +406,24 @@ func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResource
 }
 
 func (resource WalmResourceQuota) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+}
+
+type WalmPersistentVolumeClaim struct {
+	WalmMeta
+	StorageClass string
+	VolumeName   string
+	Capacity     string
+	AccessModes  []corev1.PersistentVolumeAccessMode
+	VolumeMode   string
+}
+
+func (resource WalmPersistentVolumeClaim) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmPersistentVolumeClaim) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+}
+
+type WalmPersistentVolumeClaimList struct {
+	Num   int                          `json:"num" description:"pvc num"`
+	Items []*WalmPersistentVolumeClaim `json:"items" description:"pvcs"`
 }

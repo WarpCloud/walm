@@ -97,6 +97,54 @@ func InitTenantRouter() *restful.WebService {
 	return ws
 }
 
+func InitPvcRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/pvc").
+		Doc("Kubernetes Pvc相关操作").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"pvc"}
+
+	ws.Route(ws.GET("/{namespace}").To(v1.GetPvcs).
+		Doc("获取Namepace下的Pvc列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.QueryParameter("labelselector", "节点标签过滤").DataType("string")).
+		Writes(k8stypes.WalmPersistentVolumeClaimList{}).
+		Returns(200, "OK", k8stypes.WalmPersistentVolumeClaimList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{namespace}/name/{pvcname}").To(v1.GetPvc).
+		Doc("获取对应Pvc的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("pvcname", "pvc名字").DataType("string")).
+		Writes(k8stypes.WalmPersistentVolumeClaim{}).
+		Returns(200, "OK", k8stypes.WalmPersistentVolumeClaim{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{pvcname}").To(v1.DeletePvc).
+		Doc("删除一个Pvc").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("pvcname", "Pvc名字").DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.DELETE("/{namespace}").To(v1.DeletePvcs).
+		Doc("删除namespace下满足labelselector的Pvc列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.QueryParameter("labelselector", "pvc标签过滤").Required(true).DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	return ws
+}
+
 func InitSecretRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
