@@ -279,11 +279,12 @@ type WalmServicePort struct {
 
 type WalmStatefulSet struct {
 	WalmMeta
-	ExpectedReplicas int32      `json:"expected_replicas" description:"expected replicas"`
-	ReadyReplicas    int32      `json:"ready_replicas" description:"ready replicas"`
-	CurrentVersion   string     `json:"current_version" description:"stateful set pods"`
-	UpdateVersion    string     `json:"update_version" description:"stateful set pods"`
-	Pods             []*WalmPod `json:"pods" description:"stateful set pods"`
+	ExpectedReplicas int32                 `json:"expected_replicas" description:"expected replicas"`
+	ReadyReplicas    int32                 `json:"ready_replicas" description:"ready replicas"`
+	CurrentVersion   string                `json:"current_version" description:"stateful set pods"`
+	UpdateVersion    string                `json:"update_version" description:"stateful set pods"`
+	Pods             []*WalmPod            `json:"pods" description:"stateful set pods"`
+	Selector         *metav1.LabelSelector `json:"-" description:"stateful set label selector"`
 }
 
 func (resource WalmStatefulSet) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

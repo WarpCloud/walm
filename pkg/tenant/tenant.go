@@ -201,7 +201,7 @@ func DeleteTenant(tenantName string) error {
 		}
 	}
 
-	err = helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true)
+	err = helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true, false)
 	if err != nil {
 		logrus.Errorf("failed to delete tenant tiller release : %s", err.Error())
 	}
