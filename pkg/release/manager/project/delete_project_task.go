@@ -67,7 +67,7 @@ func (deleteProjectTaskArgs *DeleteProjectTaskArgs) deleteProject() error {
 
 	for _, releaseInfo := range projectInfo.Releases {
 		releaseName := buildProjectReleaseName(projectInfo.Name, releaseInfo.Name)
-		err = GetDefaultProjectManager().helmClient.DeleteRelease(deleteProjectTaskArgs.Namespace, releaseName, false)
+		err = GetDefaultProjectManager().helmClient.DeleteRelease(deleteProjectTaskArgs.Namespace, releaseName, false, false)
 		if err != nil {
 			logrus.Errorf("failed to delete release %s : %s", releaseName, err.Error())
 			return err

@@ -32,6 +32,7 @@ func (adaptor *WalmStatefulSetAdaptor) buildWalmStatefulSet(statefulSet *appsv1b
 		ReadyReplicas: statefulSet.Status.ReadyReplicas,
 		CurrentVersion: statefulSet.Status.CurrentRevision,
 		UpdateVersion: statefulSet.Status.UpdateRevision,
+		Selector: statefulSet.Spec.Selector,
 	}
 
 	if statefulSet.Spec.Replicas == nil {

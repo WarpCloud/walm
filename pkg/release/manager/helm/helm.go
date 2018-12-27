@@ -300,7 +300,7 @@ func (client *HelmClient) RollbackRealese(namespace, releaseName, version string
 	return nil
 }
 
-func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool) error {
+func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool, deletePvcs bool) error {
 	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
 	currentHelmClient := client.systemClient
 
@@ -315,7 +315,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 		}
 	}
 
-	_, err := client.GetRelease(namespace, releaseName)
+	releaseInfo, err := client.GetRelease(namespace, releaseName)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			logrus.Warnf("release %s is not found in redis", releaseName)
@@ -347,6 +347,29 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 	if err != nil {
 		logrus.Errorf("failed to delete release cache of %s : %s", releaseName, err.Error())
 		return err
+	}
+
+	for _, statefulSet := range releaseInfo.Status.StatefulSets {
+		if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0){
+			pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
+			if err != nil {
+				logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
+				return err
+			}
+
+			for _, pvc := range pvcs {
+				err = handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
+				if err != nil {
+					if adaptor.IsNotFoundErr(err) {
+						logrus.Warnf("pvc %s/%s related to stateful set %s/%s is not found", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+						continue
+					}
+					logrus.Errorf("failed to delete pvc %s/%s related to stateful set %s/%s : %s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name, err.Error())
+					return err
+				}
+				logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+			}
+		}
 	}
 
 	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)

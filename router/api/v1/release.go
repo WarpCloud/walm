@@ -6,16 +6,35 @@ import (
 	"walm/pkg/release"
 	"fmt"
 	walmerr "walm/pkg/util/error"
+	"strconv"
+	"github.com/sirupsen/logrus"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("release")
-	err := helm.GetDefaultHelmClient().DeleteRelease(namespace, name, false)
+	deletePvcs, err := getDeletePvcsQueryParam(request)
+	if err != nil {
+		WriteErrorResponse(response, -1, fmt.Sprintf("query param deletePvcs value is not valid : %s", err.Error()))
+		return
+	}
+	err = helm.GetDefaultHelmClient().DeleteRelease(namespace, name, false, deletePvcs)
 	if err != nil {
 		WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release: %s", err.Error()))
 		return
 	}
+}
+
+func getDeletePvcsQueryParam(request *restful.Request) (deletePvcs bool, err error) {
+	deletePvcsStr := request.QueryParameter("deletePvcs")
+	if len(deletePvcsStr) > 0 {
+		deletePvcs, err = strconv.ParseBool(deletePvcsStr)
+		if err != nil {
+			logrus.Errorf("failed to parse query parameter deletePvcs %s : %s", deletePvcsStr, err.Error())
+			return
+		}
+	}
+	return
 }
 
 func InstallRelease(request *restful.Request, response *restful.Response) {
