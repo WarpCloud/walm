@@ -24,6 +24,7 @@ type HandlerSet struct {
 	serviceHandler *ServiceHandler
 	statefulSetHandler *StatefulSetHandler
 	resourceQuotaHandler *ResourceQuotaHandler
+	persistentVolumeClaimHandler *PersistentVolumeClaimHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -122,4 +123,11 @@ func (set *HandlerSet)GetResourceQuotaHandler() *ResourceQuotaHandler {
 		set.resourceQuotaHandler = &ResourceQuotaHandler{client: set.client, lister: set.factory.ResourceQuotaLister}
 	}
 	return set.resourceQuotaHandler
+}
+
+func (set *HandlerSet)GetPersistentVolumeClaimHandler() *PersistentVolumeClaimHandler {
+	if set.persistentVolumeClaimHandler == nil {
+		set.persistentVolumeClaimHandler = &PersistentVolumeClaimHandler{client: set.client, lister: set.factory.PersistentVolumeClaimLister}
+	}
+	return set.persistentVolumeClaimHandler
 }

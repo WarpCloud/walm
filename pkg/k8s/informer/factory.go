@@ -29,19 +29,20 @@ func GetDefaultFactory() *InformerFactory {
 }
 
 type InformerFactory struct {
-	Factory             informers.SharedInformerFactory
-	DeploymentLister    listv1beta1.DeploymentLister
-	ConfigMapLister     v1.ConfigMapLister
-	DaemonSetLister     listv1beta1.DaemonSetLister
-	IngressLister       listv1beta1.IngressLister
-	JobLister           batchv1.JobLister
-	PodLister           v1.PodLister
-	SecretLister        v1.SecretLister
-	ServiceLister       v1.ServiceLister
-	StatefulSetLister   v1beta1.StatefulSetLister
-	NodeLister          v1.NodeLister
-	NamespaceLister     v1.NamespaceLister
-	ResourceQuotaLister v1.ResourceQuotaLister
+	Factory                     informers.SharedInformerFactory
+	DeploymentLister            listv1beta1.DeploymentLister
+	ConfigMapLister             v1.ConfigMapLister
+	DaemonSetLister             listv1beta1.DaemonSetLister
+	IngressLister               listv1beta1.IngressLister
+	JobLister                   batchv1.JobLister
+	PodLister                   v1.PodLister
+	SecretLister                v1.SecretLister
+	ServiceLister               v1.ServiceLister
+	StatefulSetLister           v1beta1.StatefulSetLister
+	NodeLister                  v1.NodeLister
+	NamespaceLister             v1.NamespaceLister
+	ResourceQuotaLister         v1.ResourceQuotaLister
+	PersistentVolumeClaimLister v1.PersistentVolumeClaimLister
 
 	factoryEx      externalversions.SharedInformerFactory
 	InstanceLister tranv1beta1.ApplicationInstanceLister
@@ -59,7 +60,7 @@ func (factory *InformerFactory) WaitForCacheSync(stopCh <-chan struct{}) {
 
 func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
 	factory := &InformerFactory{}
-	factory.Factory =  informers.NewSharedInformerFactory(client, resyncPeriod)
+	factory.Factory = informers.NewSharedInformerFactory(client, resyncPeriod)
 	factory.DeploymentLister = factory.Factory.Extensions().V1beta1().Deployments().Lister()
 	factory.ConfigMapLister = factory.Factory.Core().V1().ConfigMaps().Lister()
 	factory.DaemonSetLister = factory.Factory.Extensions().V1beta1().DaemonSets().Lister()
@@ -72,6 +73,7 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 	factory.NodeLister = factory.Factory.Core().V1().Nodes().Lister()
 	factory.NamespaceLister = factory.Factory.Core().V1().Namespaces().Lister()
 	factory.ResourceQuotaLister = factory.Factory.Core().V1().ResourceQuotas().Lister()
+	factory.PersistentVolumeClaimLister = factory.Factory.Core().V1().PersistentVolumeClaims().Lister()
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()
