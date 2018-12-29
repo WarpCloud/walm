@@ -428,3 +428,22 @@ type WalmPersistentVolumeClaimList struct {
 	Num   int                          `json:"num" description:"pvc num"`
 	Items []*WalmPersistentVolumeClaim `json:"items" description:"pvcs"`
 }
+
+type WalmStorageClass struct {
+	WalmMeta
+	Provisioner          string `json:"provisioner"description:"sc provisioner"`
+	ReclaimPolicy        string `json:"reclaim_policy" description:"sc reclaim policy"`
+	AllowVolumeExpansion bool  `json:"allow_volume_expansion" description:"sc allow volume expansion"`
+	VolumeBindingMode    string `json:"volume_binding_mode" description:"sc volume binding mode"`
+}
+
+func (resource WalmStorageClass) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
+}
+
+func (resource WalmStorageClass) AddToWalmInstanceResourceSet(resourceSet *WalmInstanceResourceSet) {
+}
+
+type WalmStorageClassList struct {
+	Num   int                 `json:"num" description:"storage class num"`
+	Items []*WalmStorageClass `json:"items" description:"storage classes"`
+}
