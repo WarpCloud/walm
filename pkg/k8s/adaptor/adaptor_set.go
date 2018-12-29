@@ -29,6 +29,7 @@ type AdaptorSet struct {
 	walmResourceQuotaAdaptor *WalmResourceQuotaAdaptor
 	walmNamespaceAdaptor *WalmNamespaceAdaptor
 	walmPersistentVolumeClaimAdaptor *WalmPersistentVolumeClaimAdaptor
+	walmStorageClassAdaptor *WalmStorageClassAdaptor
 }
 
 func(set *AdaptorSet) GetHandlerSet() *handler.HandlerSet{
@@ -103,6 +104,11 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 			set.walmPersistentVolumeClaimAdaptor = &WalmPersistentVolumeClaimAdaptor{set.handlerSet.GetPersistentVolumeClaimHandler(), set.handlerSet.GetStatefulSetHandler()}
 		}
 		resourceAdaptor = set.walmPersistentVolumeClaimAdaptor
+	case "StorageClass":
+		if set.walmStorageClassAdaptor == nil {
+			set.walmStorageClassAdaptor = &WalmStorageClassAdaptor{set.handlerSet.GetStorageClassHandler()}
+		}
+		resourceAdaptor = set.walmStorageClassAdaptor
 	case "Namespace":
 		if set.walmNamespaceAdaptor == nil {
 			set.walmNamespaceAdaptor = &WalmNamespaceAdaptor{set.handlerSet.GetNamespaceHandler()}

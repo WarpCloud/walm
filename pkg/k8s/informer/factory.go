@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/listers/apps/v1beta1"
 	"walm/pkg/k8s/client"
 	"github.com/sirupsen/logrus"
+	storagev1 "k8s.io/client-go/listers/storage/v1"
 )
 
 var defaultFactory *InformerFactory
@@ -43,6 +44,7 @@ type InformerFactory struct {
 	NamespaceLister             v1.NamespaceLister
 	ResourceQuotaLister         v1.ResourceQuotaLister
 	PersistentVolumeClaimLister v1.PersistentVolumeClaimLister
+	StorageClassLister          storagev1.StorageClassLister
 
 	factoryEx      externalversions.SharedInformerFactory
 	InstanceLister tranv1beta1.ApplicationInstanceLister
@@ -74,6 +76,7 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 	factory.NamespaceLister = factory.Factory.Core().V1().Namespaces().Lister()
 	factory.ResourceQuotaLister = factory.Factory.Core().V1().ResourceQuotas().Lister()
 	factory.PersistentVolumeClaimLister = factory.Factory.Core().V1().PersistentVolumeClaims().Lister()
+	factory.StorageClassLister = factory.Factory.Storage().V1().StorageClasses().Lister()
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()

@@ -200,6 +200,35 @@ func InitSecretRouter() *restful.WebService {
 	return ws
 }
 
+func InitStorageClassRouter() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(APIPATH + "/storageclass").
+		Doc("Kubernetes StorageClass相关操作").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"storageclass"}
+
+	ws.Route(ws.GET("/").To(v1.GetStorageClasses).
+		Doc("获取StorageClass列表").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes(k8stypes.WalmStorageClassList{}).
+		Returns(200, "OK", k8stypes.WalmStorageClassList{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{name}").To(v1.GetStorageClass).
+		Doc("获取StorageClass详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("name", "StorageClass名字").DataType("string")).
+		Writes(k8stypes.WalmStorageClass{}).
+		Returns(200, "OK", k8stypes.WalmStorageClass{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	return ws
+}
+
 func InitNodeRouter() *restful.WebService {
 	ws := new(restful.WebService)
 

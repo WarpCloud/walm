@@ -25,6 +25,7 @@ type HandlerSet struct {
 	statefulSetHandler *StatefulSetHandler
 	resourceQuotaHandler *ResourceQuotaHandler
 	persistentVolumeClaimHandler *PersistentVolumeClaimHandler
+	storageClassHandler *StorageClassHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -130,4 +131,11 @@ func (set *HandlerSet)GetPersistentVolumeClaimHandler() *PersistentVolumeClaimHa
 		set.persistentVolumeClaimHandler = &PersistentVolumeClaimHandler{client: set.client, lister: set.factory.PersistentVolumeClaimLister}
 	}
 	return set.persistentVolumeClaimHandler
+}
+
+func (set *HandlerSet)GetStorageClassHandler() *StorageClassHandler {
+	if set.storageClassHandler == nil {
+		set.storageClassHandler = &StorageClassHandler{client: set.client, lister: set.factory.StorageClassLister}
+	}
+	return set.storageClassHandler
 }
