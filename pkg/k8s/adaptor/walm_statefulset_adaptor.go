@@ -28,11 +28,13 @@ func (adaptor *WalmStatefulSetAdaptor) GetResource(namespace string, name string
 
 func (adaptor *WalmStatefulSetAdaptor) buildWalmStatefulSet(statefulSet *appsv1beta1.StatefulSet) (walmStatefulSet WalmStatefulSet, err error) {
 	walmStatefulSet = WalmStatefulSet{
-		WalmMeta: buildWalmMetaWithoutState("StatefulSet", statefulSet.Namespace, statefulSet.Name),
-		ReadyReplicas: statefulSet.Status.ReadyReplicas,
+		WalmMeta:       buildWalmMetaWithoutState("StatefulSet", statefulSet.Namespace, statefulSet.Name),
+		Labels:         statefulSet.Labels,
+		Annotations:    statefulSet.Annotations,
+		ReadyReplicas:  statefulSet.Status.ReadyReplicas,
 		CurrentVersion: statefulSet.Status.CurrentRevision,
-		UpdateVersion: statefulSet.Status.UpdateRevision,
-		Selector: statefulSet.Spec.Selector,
+		UpdateVersion:  statefulSet.Status.UpdateRevision,
+		Selector:       statefulSet.Spec.Selector,
 	}
 
 	if statefulSet.Spec.Replicas == nil {

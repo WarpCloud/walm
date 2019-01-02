@@ -28,6 +28,8 @@ func (adaptor *WalmDaemonSetAdaptor) GetResource(namespace string, name string) 
 func (adaptor *WalmDaemonSetAdaptor) BuildWalmDaemonSet(daemonSet *extv1beta1.DaemonSet) (walmDaemonSet WalmDaemonSet, err error) {
 	walmDaemonSet = WalmDaemonSet{
 		WalmMeta:               buildWalmMetaWithoutState("DaemonSet", daemonSet.Namespace, daemonSet.Name),
+		Labels:                 daemonSet.Labels,
+		Annotations:            daemonSet.Annotations,
 		DesiredNumberScheduled: daemonSet.Status.DesiredNumberScheduled,
 		UpdatedNumberScheduled: daemonSet.Status.UpdatedNumberScheduled,
 		NumberAvailable:        daemonSet.Status.NumberAvailable,
