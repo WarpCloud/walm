@@ -28,6 +28,8 @@ func (adaptor *WalmDeploymentAdaptor) GetResource(namespace string, name string)
 func (adaptor *WalmDeploymentAdaptor) BuildWalmDeployment(deployment *extv1beta1.Deployment) (walmDeployment WalmDeployment, err error) {
 	walmDeployment = WalmDeployment{
 		WalmMeta:          buildWalmMetaWithoutState("Deployment", deployment.Namespace, deployment.Name),
+		Labels:            deployment.Labels,
+		Annotations:       deployment.Annotations,
 		UpdatedReplicas:   deployment.Status.UpdatedReplicas,
 		CurrentReplicas:   deployment.Status.Replicas,
 		AvailableReplicas: deployment.Status.AvailableReplicas,
