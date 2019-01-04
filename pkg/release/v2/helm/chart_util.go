@@ -10,7 +10,6 @@ import (
 	"github.com/ghodss/yaml"
 	"path"
 	"walm/pkg/setting"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -63,9 +62,7 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 	nativeChart = &chart.Chart{
 		Metadata: jsonnetChart.Metadata,
 		Files:    jsonnetChart.Files,
-		Values:   jsonnetChart.Values,
 	}
-	//TODO build nativeChart.Values: config.jsonnet + jsonnetChart.Values
 
 	templateFiles, err := loadJsonnetFilesToRender(jsonnetChart)
 	if err != nil {
@@ -73,13 +70,30 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 		return nil, err
 	}
 
-	configValues, err := buildConfigValuesToRender(releaseNamespace, jsonnetChart, userConfigs, dependencyConfigs)
+	defaultValues := map[string]interface{}{}
+	configJsonStr, _ := renderConfigJsonnetFile(templateFiles)
+	if configJsonStr != "" {
+		err = json.Unmarshal([]byte(configJsonStr), &defaultValues)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal config json string : %s", err.Error())
+			return nil, err
+		}
+	}
+
+	configValues, err := buildConfigValuesToRender(releaseNamespace, releaseName, jsonnetChart, userConfigs, dependencyConfigs, defaultValues)
 	if err != nil {
 		logrus.Errorf("failed to build config values to render jsonnet template files : %s", err.Error())
 		return nil, err
 	}
 
-	jsonStr, err := renderJsonnetFiles(templateFiles, configValues)
+	defaultValuesBytes, err := yaml.Marshal(defaultValues)
+	if err != nil {
+		logrus.Errorf("failed to marshal default config values : %s", err.Error())
+		return nil, err
+	}
+	nativeChart.Values = &chart.Config{Raw: string(defaultValuesBytes)}
+
+	jsonStr, err := renderMainJsonnetFile(templateFiles, configValues)
 	if err != nil {
 		logrus.Errorf("failed to render jsonnet files : %s", err.Error())
 		return nil, err
@@ -168,7 +182,7 @@ func parseSvc(svc *corev1.Service) (isDummyService bool, transwarpMetaStr, relea
 	return
 }
 
-func buildConfigValuesToRender(namespace string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}) (configValues map[string]interface{}, err error) {
+func buildConfigValuesToRender(namespace string, name string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}, jsonDefaultValues map[string]interface{}) (configValues map[string]interface{}, err error) {
 	configValues = map[string]interface{}{}
 	defaultValue := map[string]interface{}{}
 	if jsonnetChart.Values != nil {
@@ -180,12 +194,16 @@ func buildConfigValuesToRender(namespace string, jsonnetChart *chart.Chart, user
 	}
 	mergeValues(configValues, defaultValue)
 	//TODO merge system values
+
 	mergeValues(configValues, dependencyConfigs)
-	configValues["Transwarp_Install_ID"] = utilrand.String(5)
+
+	configValues["Transwarp_Install_ID"] = name
 	configValues["Transwarp_Install_Namespace"] = namespace
 	configValues["TosVersion"] = "1.9"
+	configValues["Customized_Namespace"] = namespace
 	mergeValues(configValues, userConfigs)
 
+	mergeValues(jsonDefaultValues, configValues)
 	return
 }
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"github.com/sirupsen/logrus"
 	"walm/pkg/k8s/handler"
+	"walm/router/api"
 )
 
 func ExecShell(request *restful.Request, response *restful.Response) {
@@ -17,7 +18,7 @@ func RestartPod(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("pod")
 	err := handler.GetDefaultHandlerSet().GetPodHandler().DeletePod(namespace, name)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to restart pod %s: %s", name, err.Error()))
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to restart pod %s: %s", name, err.Error()))
 		return
 	}
 }
@@ -27,7 +28,7 @@ func GetPodEvents(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("pod")
 	events, err := adaptor.GetDefaultAdaptorSet().GetAdaptor("Pod").(*adaptor.WalmPodAdaptor).GetWalmPodEventList(namespace, name)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pod events %s: %s", name, err.Error()))
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pod events %s: %s", name, err.Error()))
 		return
 	}
 	response.WriteEntity(*events)
@@ -39,13 +40,13 @@ func GetPodLogs(request *restful.Request, response *restful.Response) {
 	containerName := request.QueryParameter("container")
 	tailLines, err := getTailLinesQueryParam(request)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("query param tail is not valid : %s", err.Error()))
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param tail is not valid : %s", err.Error()))
 		return
 	}
 
 	logs, err := adaptor.GetDefaultAdaptorSet().GetAdaptor("Pod").(*adaptor.WalmPodAdaptor).GetWalmPodLogs(namespace, name, containerName, tailLines)
 	if err != nil {
-		WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pod logs %s: %s", name, err.Error()))
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pod logs %s: %s", name, err.Error()))
 		return
 	}
 	response.WriteEntity(logs)

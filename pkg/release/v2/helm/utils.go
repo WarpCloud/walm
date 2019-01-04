@@ -1,5 +1,7 @@
 package helm
 
+import "reflect"
+
 func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
@@ -24,4 +26,11 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 		dest[k] = mergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+func ConfigValuesDiff(configValue1 map[string]interface{}, configValue2 map[string]interface{}) bool {
+	if len(configValue1) == 0 && len(configValue2) == 0 {
+		return false
+	}
+	return !reflect.DeepEqual(configValue1, configValue2)
 }

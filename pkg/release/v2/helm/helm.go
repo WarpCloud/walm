@@ -2,13 +2,13 @@ package helm
 
 import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	hapirelease "k8s.io/helm/pkg/proto/hapi/release"
 	"walm/pkg/release/manager/helm/cache"
 	"walm/pkg/redis"
 	"walm/pkg/k8s/client"
 	"time"
 	"k8s.io/helm/pkg/helm"
 	"walm/pkg/setting"
-	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"io/ioutil"
@@ -18,6 +18,8 @@ import (
 	"strings"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
+	releasev2 "walm/pkg/release/v2"
+	walmerr "walm/pkg/util/error"
 )
 
 const (
@@ -77,15 +79,170 @@ func GetDefaultHelmClientV2() *HelmClient {
 }
 
 // reload dependencies config values, if changes, upgrade release
-func (hc *HelmClient) ReloadRelease(namespace, name string) error {
+func (hc *HelmClient) GetRelease(namespace, name string) (releaseV2 *releasev2.ReleaseInfoV2, err error) {
+	releaseCache, err := hc.helmCache.GetReleaseCache(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		return nil, err
+	}
+	releaseV1, err := helmv1.BuildReleaseInfo(releaseCache)
+	if err != nil {
+		logrus.Errorf("failed to build release info: %s", err.Error())
+		return nil, err
+	}
+	releaseV2 = &releasev2.ReleaseInfoV2{ReleaseInfo: *releaseV1}
+	releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(namespace, name)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			//TODO
+		}
+		logrus.Errorf("failed to get release config : %s", err.Error())
+		return nil, err
+	}
+	releaseV2.ConfigValues = releaseConfig.Spec.ConfigValues
+	releaseV2.Dependencies = releaseConfig.Spec.Dependencies
+	releaseV2.DependenciesConfigValues = releaseConfig.Spec.DependenciesConfigValues
+	releaseV2.OutputConfigValues = releaseConfig.Spec.OutputConfig
+    releaseV2.ComputedValues = releaseCache.ComputedValues
+
+	return
+}
+
+// reload dependencies config values, if changes, upgrade release
+func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error {
+	_, err := hc.helmCache.GetReleaseCache(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	releaseConfig, err := handler.GetDefaultHandlerSet().GetReleaseConfigHandler().GetReleaseConfig(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get release config of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	oldDependenciesConfigValues := releaseConfig.Spec.DependenciesConfigValues
+	newDependenciesConfigValues, err := hc.getDependencyOutputConfigs(namespace, releaseConfig.Spec.Dependencies)
+	if err != nil {
+		logrus.Errorf("failed to get dependencies output configs of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	if ConfigValuesDiff(oldDependenciesConfigValues, newDependenciesConfigValues) {
+		//TODO add spec RepoName
+		chart, err := hc.loadChartFromRepo("", releaseConfig.Spec.ChartName, releaseConfig.Spec.ChartVersion)
+		if err != nil {
+			logrus.Errorf("failed to load chart %s-%s from %s : %s", releaseConfig.Spec.ChartName, releaseConfig.Spec.ChartVersion, "", err.Error())
+			return err
+		}
+
+		isJsonnetChart, jsonnetChart, _, err := isJsonnetChart(chart)
+		if err != nil {
+			logrus.Errorf("failed to check whether is jsonnet chart : %s", err.Error())
+			return err
+		}
+
+		if isJsonnetChart {
+			chart, err = convertJsonnetChart(namespace, name, releaseConfig.Spec.Dependencies, jsonnetChart, releaseConfig.Spec.ConfigValues, newDependenciesConfigValues)
+			if err != nil {
+				logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseConfig.Spec.ChartName, releaseConfig.Spec.ChartVersion, "", err.Error())
+				return err
+			}
+		}
+
+		valueOverride := map[string]interface{}{}
+		mergeValues(valueOverride, releaseConfig.Spec.ConfigValues)
+		valueOverrideBytes, err := yaml.Marshal(valueOverride)
+
+		currentHelmClient, err := hc.getCurrentHelmClient(namespace, isSystem)
+		if err != nil {
+			logrus.Errorf("failed to get current helm client : %s", err.Error())
+			return err
+		}
+
+		resp, err := currentHelmClient.UpdateReleaseFromChart(
+			name,
+			chart,
+			helm.UpdateValueOverrides(valueOverrideBytes),
+			helm.ReuseValues(true),
+			helm.UpgradeDryRun(hc.dryRun),
+		)
+		if err != nil {
+			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, name, err.Error())
+			return err
+		}
+		err = hc.helmCache.CreateOrUpdateReleaseCache(resp.GetRelease())
+		if err != nil {
+			logrus.Errorf("failed to update release cache of %s/%s : %s", namespace, name, err.Error())
+			return err
+		}
+
+		logrus.Infof("succeed to reload release %s/%s", namespace, name)
+	} else {
+		logrus.Infof("ignore reloading release %s/%s : dependencies config value does not change", namespace, name)
+	}
+
 	return nil
 }
 
-func (hc *HelmClient) UpgradeRelease(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
+func (hc *HelmClient) DeleteRelease(namespace, name string, isSystem bool) error {
+	_, err := hc.helmCache.GetReleaseCache(namespace, name)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release %s/%s is not found", namespace, name)
+			return nil
+		}
+		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	currentHelmClient, err := hc.getCurrentHelmClient(namespace, isSystem)
+	if err != nil {
+		logrus.Errorf("failed to get current helm client : %s", err.Error())
+		return err
+	}
+
+	opts := []helm.DeleteOption{
+		helm.DeletePurge(true),
+	}
+	res, err := currentHelmClient.DeleteRelease(
+		name, opts...,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			logrus.Warnf("release %s is not found in tiller", name)
+		} else {
+			logrus.Errorf("failed to delete release : %s", err.Error())
+			return err
+		}
+	}
+	if res != nil && res.Info != "" {
+		logrus.Println(res.Info)
+	}
+
+	err = hc.helmCache.DeleteReleaseCache(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to delete release cache of %s : %s", name, err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to delete release %s/%s", namespace, name)
 	return nil
 }
 
-func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
+func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *releasev2.ReleaseRequestV2, isSystem bool) error {
+	update := true
+	_, err := hc.helmCache.GetReleaseCache(namespace, releaseRequest.Name)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			update = false
+		} else {
+			logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+			return err
+		}
+	}
+
 	now := time.Now()
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
@@ -117,40 +274,119 @@ func (hc *HelmClient) InstallRelease(namespace string, releaseRequest *release.R
 	}
 
 	if isJsonnetChart {
-		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, releaseRequest.ConfigValues, dependencyConfigs)
+		configValues := map[string]interface{}{}
+		if update {
+			releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(namespace, releaseRequest.Name)
+			if err != nil {
+				if adaptor.IsNotFoundErr(err) {
+					logrus.Warnf("release config %s/%s is not found", namespace, releaseRequest.Name)
+				} else {
+					logrus.Errorf("failed to get release config : %s", err.Error())
+					return err
+				}
+			}
+			mergeValues(configValues, releaseConfig.Spec.ConfigValues)
+		}
+		mergeValues(configValues, releaseRequest.ConfigValues)
+
+		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, configValues, dependencyConfigs)
 		if err != nil {
 			logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
 			return err
 		}
+	} else {
+		//TODO native helm chart如何处理？
 	}
 
-	valueOverride := map[string]interface{}{"Dependency_Configs": dependencyConfigs}
+
+	valueOverride := map[string]interface{}{}
 	mergeValues(valueOverride, releaseRequest.ConfigValues)
 	valueOverrideBytes, err := yaml.Marshal(valueOverride)
+	logrus.Infof("convert %s takes %v", releaseRequest.Name, time.Now().Sub(now))
 
-	logrus.Debugf("convert %s takes %v", releaseRequest.Name, time.Now().Sub(now))
-	_, err = hc.systemClient.InstallReleaseFromChart(
-		chart,
-		namespace,
-		helm.ValueOverrides(valueOverrideBytes),
-		helm.ReleaseName(releaseRequest.Name),
-		helm.InstallDryRun(hc.dryRun),
-	)
+	currentHelmClient, err := hc.getCurrentHelmClient(namespace, isSystem)
 	if err != nil {
-		logrus.Errorf("failed to install release %s from chart : %s", releaseRequest.Name, err.Error())
-		opts := []helm.DeleteOption{
-			helm.DeletePurge(true),
-		}
-		_, err1 := hc.systemClient.DeleteRelease(
-			releaseRequest.Name, opts...,
-		)
-		if err1 != nil {
-			logrus.Errorf("failed to rollback to delete release %s : %s", releaseRequest.Name, err1.Error())
-		}
+		logrus.Errorf("failed to get current helm client : %s", err.Error())
 		return err
 	}
 
+	var release *hapirelease.Release
+	if update {
+		//TODO update chart value.yaml does not take effect
+		resp, err := currentHelmClient.UpdateReleaseFromChart(
+			releaseRequest.Name,
+			chart,
+			helm.UpdateValueOverrides(valueOverrideBytes),
+			helm.ReuseValues(true),
+			helm.UpgradeDryRun(hc.dryRun),
+		)
+		if err != nil {
+			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
+			return err
+		}
+		release = resp.GetRelease()
+	} else {
+		resp, err := currentHelmClient.InstallReleaseFromChart(
+			chart,
+			namespace,
+			helm.ValueOverrides(valueOverrideBytes),
+			helm.ReleaseName(releaseRequest.Name),
+			helm.InstallDryRun(hc.dryRun),
+		)
+		if err != nil {
+			logrus.Errorf("failed to install release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
+			opts := []helm.DeleteOption{
+				helm.DeletePurge(true),
+			}
+			_, err1 := hc.systemClient.DeleteRelease(
+				releaseRequest.Name, opts...,
+			)
+			if err1 != nil {
+				logrus.Errorf("failed to rollback to delete release %s/%s : %s", namespace, releaseRequest.Name, err1.Error())
+			}
+			return err
+		}
+		release = resp.GetRelease()
+	}
+
+	err = hc.helmCache.CreateOrUpdateReleaseCache(release)
+	if err != nil {
+		logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
+
 	return nil
+}
+
+func(hc *HelmClient) getCurrentHelmClient(namespace string, isSystem bool) (*helm.Client, error) {
+	currentHelmClient := hc.systemClient
+	if !isSystem {
+		multiTenant, err := cache.IsMultiTenant(namespace)
+		if err != nil {
+			logrus.Errorf("failed to check whether is multi tenant", err.Error())
+			return nil, err
+		}
+		if multiTenant {
+			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
+			currentHelmClient = hc.multiTenantClients.Get(tillerHosts)
+		}
+	}
+
+	//TODO improve
+	retry := 20
+	for i := 0; i < retry; i++ {
+		err := currentHelmClient.PingTiller()
+		if err == nil {
+			break
+		}
+		if i == retry-1 {
+			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return currentHelmClient, nil
 }
 
 func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {
@@ -177,8 +413,25 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 			logrus.Errorf("failed to get release config %s/%s : %s", dependencyNamespace, dependencyName, err.Error())
 			return nil, err
 		}
+
 		// TODO how to deal with key conflict?
-		mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
+		if len(dependencyReleaseConfig.Spec.OutputConfig) > 0 {
+			// compatible
+			provideConfigValues, ok := dependencyReleaseConfig.Spec.OutputConfig["provides"].(map[string]interface{})
+			if ok {
+				valueToMerge := make(map[string]interface{}, len(provideConfigValues))
+				for key, value := range provideConfigValues {
+					if immediateValue, ok := value.(map[string]interface{}); ok {
+						if immediateValue["immediate_value"] != nil {
+							valueToMerge[key] = immediateValue["immediate_value"]
+						}
+					}
+				}
+				mergeValues(dependencyConfigs, valueToMerge)
+			} else {
+				mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
+			}
+		}
 	}
 	return
 }

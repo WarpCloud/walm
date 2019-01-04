@@ -10,7 +10,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"strings"
 	"walm/pkg/k8s/informer"
-	"encoding/json"
+	"walm/pkg/release/v2/helm"
 )
 
 // 动态依赖管理核心需求：
@@ -149,36 +149,23 @@ func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
 }
 
 func (controller *ReleaseConfigController) needsUpdate(old *v1beta1.ReleaseConfig, cur *v1beta1.ReleaseConfig) bool {
-	if releaseOutputConfigChanges(old.Spec.OutputConfig, cur.Spec.OutputConfig) {
+	if helm.ConfigValuesDiff(old.Spec.OutputConfig, cur.Spec.OutputConfig) {
 		return true
 	}
-	return false
-}
-
-func releaseOutputConfigChanges(oldOutputConfig map[string]interface{}, curOutputConfig map[string]interface{}) bool {
-	//TODO can be opt
-	curOutputConfigStr, err := json.Marshal(curOutputConfig)
-	if err != nil {
-		logrus.Errorf("failed to marshal: %s", err.Error())
-		return false
-	}
-
-	oldOutputConfigStr, err := json.Marshal(oldOutputConfig)
-	if err != nil {
-		logrus.Errorf("failed to marshal: %s", err.Error())
-		return false
-	}
-
-	if string(curOutputConfigStr) != string(oldOutputConfigStr) {
-		return true
-	}
-
 	return false
 }
 
 func (controller *ReleaseConfigController) reloadDependingRelease(releaseKey string) error {
 	logrus.Infof("start to reload release %s", releaseKey)
-	//TODO
+	namespace, name, err := cache.SplitMetaNamespaceKey(releaseKey)
+	if err != nil {
+		return err
+	}
+	err = helm.GetDefaultHelmClientV2().ReloadRelease(namespace, name, false)
+	if err != nil {
+		logrus.Errorf("failed to reload release %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
 	return nil
 }
 

@@ -122,6 +122,7 @@ func initRestApi() {
 	restful.Add(router.InitTenantRouter())
 	restful.Add(router.InitProjectRouter())
 	restful.Add(router.InitReleaseRouter())
+	restful.Add(router.InitReleaseV2Router())
 	restful.Add(router.InitPodRouter())
 	restful.Add(router.InitChartRouter())
 	logrus.Infoln("Add Route Success")

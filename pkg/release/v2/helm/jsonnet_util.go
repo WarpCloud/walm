@@ -14,7 +14,7 @@ import (
 	"path"
 )
 
-func renderJsonnetFiles(templateFiles map[string]string, configValues map[string]interface{}) (jsonStr string, err error) {
+func renderMainJsonnetFile(templateFiles map[string]string, configValues map[string]interface{}) (jsonStr string, err error) {
 	mainJsonFileName, err := getMainJsonnetFile(templateFiles)
 	if err != nil {
 		logrus.Errorf("failed to get main jsonnet file : %s", err.Error())
@@ -30,6 +30,21 @@ func renderJsonnetFiles(templateFiles map[string]string, configValues map[string
 	jsonStr, err = parseTemplateWithTLAString(mainJsonFileName, "config", string(tlaValue), templateFiles)
 	if err != nil {
 		logrus.Errorf("failed to parse main jsonnet template file : %s", err.Error())
+		return "", err
+	}
+	return
+}
+
+func renderConfigJsonnetFile(templateFiles map[string]string) (jsonStr string, err error) {
+	configJsonFileName, err := getConfigJsonnetFile(templateFiles)
+	if err != nil {
+		logrus.Errorf("failed to get config jsonnet file : %s", err.Error())
+		return "", err
+	}
+
+	jsonStr, err = parseTemplateWithTLAString(configJsonFileName, "", "", templateFiles)
+	if err != nil {
+		logrus.Errorf("failed to parse config jsonnet template file : %s", err.Error())
 		return "", err
 	}
 	return
@@ -123,6 +138,15 @@ func getMainJsonnetFile(templateFiles map[string]string) (string, error) {
 	return "", fmt.Errorf("failed to find main jsonnet file")
 }
 
+func getConfigJsonnetFile(templateFiles map[string]string) (string, error) {
+	for fileName := range templateFiles {
+		if strings.HasSuffix(fileName, "config.jsonnet") {
+			return fileName, nil
+		}
+	}
+	return "", fmt.Errorf("failed to find config jsonnet file")
+}
+
 type MemoryImporter struct {
 	Data map[string]string
 }
@@ -147,7 +171,10 @@ func MakeMemoryVM(data map[string]string) *jsonnet.VM {
 // The TLAs comes from external json string.
 func parseTemplateWithTLAString(templatePath string, tlaVar string, tlaValue string, templateData map[string]string) (string, error) {
 	vm := MakeMemoryVM(templateData)
-	vm.TLACode(tlaVar, tlaValue)
+	if tlaVar != "" {
+		vm.TLACode(tlaVar, tlaValue)
+	}
+
 	if _, ok := templateData[templatePath]; !ok {
 		logrus.Errorf("failed to find entrance of template : %s", templatePath)
 		return "", fmt.Errorf("failed to find entrance of template : %s", templatePath)

@@ -108,7 +108,7 @@ func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.Rel
 		wg.Add(1)
 		go func(releaseCache *release.ReleaseCache) {
 			defer wg.Done()
-			info, err1 := buildReleaseInfo(releaseCache)
+			info, err1 := BuildReleaseInfo(releaseCache)
 			if err1 != nil {
 				err = errors.New(fmt.Sprintf("failed to build release info: %s", err1.Error()))
 				logrus.Error(err.Error())
@@ -140,7 +140,7 @@ func (client *HelmClient) GetReleasesByNames(namespace string, names ...string) 
 		wg.Add(1)
 		go func(releaseCache *release.ReleaseCache) {
 			defer wg.Done()
-			info, err1 := buildReleaseInfo(releaseCache)
+			info, err1 := BuildReleaseInfo(releaseCache)
 			if err1 != nil {
 				err = errors.New(fmt.Sprintf("failed to build release info: %s\n", err1.Error()))
 				logrus.Error(err.Error())
@@ -165,7 +165,7 @@ func (client *HelmClient) GetRelease(namespace, releaseName string) (release *re
 		logrus.Errorf("failed to get release cache of %s : %s", releaseName, err.Error())
 		return nil, err
 	}
-	release, err = buildReleaseInfo(releaseCache)
+	release, err = BuildReleaseInfo(releaseCache)
 	if err != nil {
 		logrus.Errorf("failed to build release info: %s\n", err.Error())
 		return
