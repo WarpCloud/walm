@@ -12,7 +12,7 @@ import (
 func Test_CreateTenant(t *testing.T) {
 	tenantParams := TenantParams{}
 	//tenantParams.TenantName = "walmbytest"
-	err := CreateTenant(&tenantParams)
+	err := CreateTenant(tenantParams)
 	logrus.Errorf("%+v\n", err)
 }
 

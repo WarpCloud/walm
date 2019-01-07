@@ -1,62 +1,72 @@
-package project
+package release
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"walm/pkg/release"
 	"strings"
-	consulapi "github.com/hashicorp/consul/api"
-	. "walm/pkg/release/manager/project"
-	"github.com/ghodss/yaml"
+	"walm/pkg/release"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"encoding/json"
+	"walm/pkg/k8s/handler"
 	"walm/pkg/release/manager/helm"
+	. "walm/pkg/release/manager/project"
+
+	"go/build"
+	"io/ioutil"
+	"os"
+
 	"github.com/bitly/go-simplejson"
+	"github.com/ghodss/yaml"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
-
-var _ = Describe("Project", func() {
+var _ = Describe("Release", func() {
 
 	var (
-		consulBaseKey string
-		consulServerUrl string
-		consulClient *consulapi.Client
-		namespace string
-		project string
-		releaseName string
-		err error
-		isExists bool
+		namespace     string
+		project       string
+		releaseName   string
+		isExists      bool
 		updatedConfig int
+		gopath        string
 	)
 
-	const testSimpleCommonValuesStr = `
-			Transwarp_License_Address: 172.16.1.41:2181
-			Transwarp_Cni_Network: overlay
-			Transwarp_Config:
-  			security:
-    			auth_type: "none"
-	`
 	BeforeEach(func() {
 
-		consulBaseKey = "/zhiyang_test"
-		consulServerUrl = "http://172.16.1.73:8500"
-		namespace = "p1131"
-		project = "p1131-app"
-		releaseName = "p1131-app--yarn"
-		config := consulapi.DefaultConfig()
-		config.Address = consulServerUrl
-		consulClient, _ = consulapi.NewClient(config)
+		By("create namespace")
+		randomId := uuid.Must(uuid.NewV4()).String()
+		namespace = "test-" + randomId[:8]
 
-		By("fetch the consul key-value")
-		consulKV := consulClient.KV()
-		consulKValue, _, err := consulKV.Get(consulBaseKey + "/HDFS/releases", nil)
+		ns := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: namespace,
+				Name:      namespace,
+			},
+		}
+		_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&ns)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("construct projectParams")
+		By("params construct")
+		project = namespace + "-app"
+		releaseName = project + "--yarn"
+		gopath = os.Getenv("GOPATH")
+		if gopath == "" {
+			gopath = build.Default.GOPATH
+		}
+
 		commonValuesVal := map[string]interface{}{}
+		commonValuesValStr, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/commonValues.yaml")
+		yaml.Unmarshal(commonValuesValStr, &commonValuesVal)
+
 		var data []release.ReleaseRequest
-		json.Unmarshal(consulKValue.Value, &data)
-		yaml.Unmarshal([]byte(testSimpleCommonValuesStr), &commonValuesVal)
+		releaseValue, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/HDFS/releases.yaml")
+		Expect(err).NotTo(HaveOccurred())
+		json.Unmarshal(releaseValue, &data)
 
 		projectParams := release.ProjectParams{
 			CommonValues: commonValuesVal,
@@ -88,16 +98,20 @@ var _ = Describe("Project", func() {
 		Expect(isExists).To(BeTrue())
 	})
 
-
+	AfterEach(func() {
+		err := handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(namespace)
+		Expect(err).NotTo(HaveOccurred())
+	})
 
 	Describe("update project release", func() {
 
 		It("update project release success", func() {
 			By("get project release")
-			releasesValue, _, err := consulClient.KV().Get(consulBaseKey + "/HDFS/releases", nil)
+
+			releasesValue, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/HDFS/releases.yaml")
 			Expect(err).NotTo(HaveOccurred())
 			var releasesInfo []release.ReleaseRequest
-			json.Unmarshal(releasesValue.Value, &releasesInfo)
+			json.Unmarshal(releasesValue, &releasesInfo)
 
 			By("update project release")
 			for index := range releasesInfo {
@@ -115,12 +129,13 @@ var _ = Describe("Project", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					releasesInfo[index].Name = releaseName
-					err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, &releasesInfo[index], false)
+					err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, &releasesInfo[index], true)
 					Expect(err).NotTo(HaveOccurred())
 				}
 			}
 			By("validate project release")
 			newRelease, err := helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
+			logrus.Infof("%s", err)
 			Expect(err).NotTo(HaveOccurred())
 
 			newConfigValue, err := json.Marshal(newRelease.ConfigValues)
@@ -134,18 +149,15 @@ var _ = Describe("Project", func() {
 
 			By("update project release success")
 			Expect(updatedConfig).To(Equal(10))
-		})
 
-	})
-
-	Describe("delete project", func() {
-
-		It("delete project success", func() {
+			By("delete project")
 			err = GetDefaultProjectManager().DeleteProject(namespace, project, true, 5000)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = GetDefaultProjectManager().GetProjectInfo(namespace, project)
 			Expect(err).NotTo(HaveOccurred())
+
 		})
+
 	})
 
 })

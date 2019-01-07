@@ -1,0 +1,23 @@
+{
+  "name": "txsql",
+  "repo_name": "stable",
+  "chart_name": "txsql",
+  "chart_version": "5.2.0",
+  "dependencies": {
+    "guardian": "tosshengfen.guardian-tosshengfen"
+  },
+  "config_values": {
+    "App": {
+      "txsql": {
+        "replicas": 1,
+        "image": "172.16.1.99/transwarp/txsql:transwarp-5.2.2-final",
+        "resources": {
+          "cpu_limit": 2,
+          "cpu_request": 1,
+          "memory_limit": 3,
+          "memory_request": 1
+        }
+      }
+    }
+  }
+}
