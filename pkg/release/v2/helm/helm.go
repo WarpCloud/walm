@@ -143,7 +143,9 @@ func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error
 			return err
 		}
 
+		reuseValues := true
 		if isJsonnetChart {
+			reuseValues = false
 			chart, err = convertJsonnetChart(namespace, name, releaseConfig.Spec.Dependencies, jsonnetChart, releaseConfig.Spec.ConfigValues, newDependenciesConfigValues)
 			if err != nil {
 				logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseConfig.Spec.ChartName, releaseConfig.Spec.ChartVersion, "", err.Error())
@@ -165,7 +167,7 @@ func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error
 			name,
 			chart,
 			helm.UpdateValueOverrides(valueOverrideBytes),
-			helm.ReuseValues(true),
+			helm.ReuseValues(reuseValues),
 			helm.UpgradeDryRun(hc.dryRun),
 		)
 		if err != nil {
@@ -273,7 +275,9 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 		return err
 	}
 
+	reuseValue := true
 	if isJsonnetChart {
+		reuseValue = false
 		configValues := map[string]interface{}{}
 		if update {
 			releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(namespace, releaseRequest.Name)
@@ -317,7 +321,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 			releaseRequest.Name,
 			chart,
 			helm.UpdateValueOverrides(valueOverrideBytes),
-			helm.ReuseValues(true),
+			helm.ReuseValues(reuseValue),
 			helm.UpgradeDryRun(hc.dryRun),
 		)
 		if err != nil {
