@@ -1,0 +1,28 @@
+{
+  "Advance_Config": {},
+  "App": {
+    "hdfsdatanode": {
+      "image": "172.16.1.99/gold/hdfs:transwarp-5.2",
+      "replicas": 3
+    },
+    "hdfsjournalnode": {
+      "image": "172.16.1.99/gold/hdfs:transwarp-5.2"
+    },
+    "hdfsnamenode": {
+      "image": "172.16.1.99/gold/hdfs:transwarp-5.2"
+    },
+    "hdfszkfc": {
+      "image": "172.16.1.99/gold/hdfs:transwarp-5.2"
+    },
+    "httpfs": {
+      "image": "172.16.1.99/gold/httpfs:transwarp-5.2"
+    }
+  },
+  "Security": {
+    "Transwarp_Auto_Injected_Volumes": {},
+    "auth_type": "none",
+    "msl_plugin_enable": false
+  },
+  "Transwarp_Cni_Network": "overlay",
+  "Transwarp_License_Address": "172.16.1.41:2181"
+}

@@ -14,12 +14,15 @@ import (
 	"walm/pkg/k8s/client"
 	"github.com/sirupsen/logrus"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
+	releaseconfigexternalversions "transwarp/release-config/pkg/client/informers/externalversions"
+	releaseconfigv1beta1 "transwarp/release-config/pkg/client/listers/transwarp/v1beta1"
+	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )
 
 var defaultFactory *InformerFactory
 
 func StartInformer(stopCh <-chan struct{}) {
-	defaultFactory = newInformerFactory(client.GetDefaultClient(), client.GetDefaultClientEx(), 0)
+	defaultFactory = newInformerFactory(client.GetDefaultClient(), client.GetDefaultClientEx(), client.GetDefaultReleaseConfigClient(), 0)
 	defaultFactory.Start(stopCh)
 	defaultFactory.WaitForCacheSync(stopCh)
 	logrus.Info("informer started")
@@ -48,19 +51,24 @@ type InformerFactory struct {
 
 	factoryEx      externalversions.SharedInformerFactory
 	InstanceLister tranv1beta1.ApplicationInstanceLister
+
+	ReleaseConifgFactory releaseconfigexternalversions.SharedInformerFactory
+	ReleaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
 }
 
 func (factory *InformerFactory) Start(stopCh <-chan struct{}) {
 	factory.Factory.Start(stopCh)
 	factory.factoryEx.Start(stopCh)
+	factory.ReleaseConifgFactory.Start(stopCh)
 }
 
 func (factory *InformerFactory) WaitForCacheSync(stopCh <-chan struct{}) {
 	factory.Factory.WaitForCacheSync(stopCh)
 	factory.factoryEx.WaitForCacheSync(stopCh)
+	factory.ReleaseConifgFactory.WaitForCacheSync(stopCh)
 }
 
-func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
+func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, releaseConfigClient *releaseconfigclientset.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
 	factory := &InformerFactory{}
 	factory.Factory = informers.NewSharedInformerFactory(client, resyncPeriod)
 	factory.DeploymentLister = factory.Factory.Extensions().V1beta1().Deployments().Lister()
@@ -80,10 +88,13 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()
+
+	factory.ReleaseConifgFactory = releaseconfigexternalversions.NewSharedInformerFactory(releaseConfigClient, resyncPeriod)
+	factory.ReleaseConfigLister = factory.ReleaseConifgFactory.Transwarp().V1beta1().ReleaseConfigs().Lister()
 	return factory
 }
 
 // for test
-func NewFakeInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
-	return newInformerFactory(client, clientEx, resyncPeriod)
+func NewFakeInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clientset, releaseConfigClient *releaseconfigclientset.Clientset, resyncPeriod time.Duration) (*InformerFactory) {
+	return newInformerFactory(client, clientEx, releaseConfigClient, resyncPeriod)
 }

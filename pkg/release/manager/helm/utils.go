@@ -10,7 +10,7 @@ import (
 	"k8s.io/helm/pkg/transwarp"
 )
 
-func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
+func BuildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
 	releaseInfo = &release.ReleaseInfo{}
 	releaseInfo.ReleaseSpec = releaseCache.ReleaseSpec
 

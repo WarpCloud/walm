@@ -29,6 +29,10 @@ type HelmCache struct {
 }
 
 func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapiRelease.Release) error {
+	if helmRelease == nil {
+		logrus.Warn("failed to create or update cache as helm release is nil")
+		return nil
+	}
 	releaseCache, err := cache.buildReleaseCaches([]*hapiRelease.Release{helmRelease})
 	if err != nil {
 		logrus.Errorf("failed to build release cache of %s : %s", helmRelease.Name, err.Error())
@@ -58,7 +62,7 @@ func (cache *HelmCache) GetReleaseCache(namespace, name string) (releaseCache *r
 	releaseCacheStr, err := cache.redisClient.GetClient().HGet(redis.WalmReleasesKey, buildWalmReleaseFieldName(namespace, name)).Result()
 	if err != nil {
 		if err.Error() == redis.KeyNotFoundErrMsg {
-			logrus.Errorf("release cache of %s is not found in redis", name)
+			logrus.Warnf("release cache of %s is not found in redis", name)
 			return nil, walmerr.NotFoundError{}
 		}
 		logrus.Errorf("failed to get release cache of %s from redis: %s", name, err.Error())
@@ -463,6 +467,12 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 	}
 	releaseCache = &release.ReleaseCache{
 		ReleaseSpec: releaseSpec,
+	}
+
+	releaseCache.ComputedValues, err = chartutil.CoalesceValues(helmRelease.Chart, helmRelease.Config)
+	if err != nil {
+		logrus.Errorf("failed to get computed values : %s", err.Error())
+		return nil, err
 	}
 
 	releaseCache.ReleaseResourceMetas, err = cache.getReleaseResourceMetas(helmRelease)

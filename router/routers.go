@@ -7,12 +7,17 @@ import (
 	"walm/router/api/v1"
 	"walm/router/middleware"
 	releasetypes "walm/pkg/release"
+	releasetypesv2 "walm/pkg/release/v2"
 	walmtypes "walm/router/api"
 	tenanttypes "walm/pkg/tenant"
 	k8stypes "walm/pkg/k8s/adaptor"
+	"walm/router/api/v2"
 )
 
-var APIPATH = "/api/v1"
+const (
+	apiV1Path = "/api/v1"
+	apiV2Path = "/api/v2"
+)
 
 func InitRootRouter() *restful.WebService {
 	ws := new(restful.WebService)
@@ -47,7 +52,7 @@ func InitRootRouter() *restful.WebService {
 func InitTenantRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/tenant").
+	ws.Path(apiV1Path + "/tenant").
 		Doc("租户相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -100,7 +105,7 @@ func InitTenantRouter() *restful.WebService {
 func InitPvcRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/pvc").
+	ws.Path(apiV1Path + "/pvc").
 		Doc("Kubernetes Pvc相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -148,7 +153,7 @@ func InitPvcRouter() *restful.WebService {
 func InitSecretRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/secret").
+	ws.Path(apiV1Path + "/secret").
 		Doc("Kubernetes Secret相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -203,7 +208,7 @@ func InitSecretRouter() *restful.WebService {
 func InitStorageClassRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/storageclass").
+	ws.Path(apiV1Path + "/storageclass").
 		Doc("Kubernetes StorageClass相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -232,7 +237,7 @@ func InitStorageClassRouter() *restful.WebService {
 func InitNodeRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/node").
+	ws.Path(apiV1Path + "/node").
 		Doc("Kubernetes节点相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -278,7 +283,7 @@ func InitNodeRouter() *restful.WebService {
 func InitReleaseRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/release").
+	ws.Path(apiV1Path + "/release").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
@@ -355,10 +360,87 @@ func InitReleaseRouter() *restful.WebService {
 	return ws
 }
 
+func InitReleaseV2Router() *restful.WebService {
+	ws := new(restful.WebService)
+
+	ws.Path(apiV2Path + "/release").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON, restful.MIME_XML)
+
+	tags := []string{"releaseV2"}
+
+	//ws.Route(ws.GET("/").To(v1.ListRelease).
+	//	Doc("获取所有Release列表").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Writes(releasetypes.ReleaseInfoList{}).
+	//	Returns(200, "OK", releasetypes.ReleaseInfoList{}).
+	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+	//
+	//ws.Route(ws.GET("/{namespace}").To(v1.ListReleaseByNamespace).
+	//	Doc("获取Namepaces下的所有Release列表").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+	//	Writes(releasetypes.ReleaseInfoList{}).
+	//	Returns(200, "OK", releasetypes.ReleaseInfoList{}).
+	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{namespace}/name/{release}").To(v2.GetRelease).
+		Doc("获取对应Release的详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Writes(releasetypesv2.ReleaseInfoV2{}).
+		Returns(200, "OK", releasetypesv2.ReleaseInfoV2{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.PUT("/{namespace}").To(v2.UpgradeRelease).
+		Doc("升级一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v2.DeleteRelease).
+		Doc("删除一个ReleaseV2").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}").To(v2.InstallRelease).
+		Doc("安装一个ReleaseV2").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	//ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackRelease).
+	//	Doc("RollBack　Release版本").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+	//	Param(ws.PathParameter("release", "Release名字").DataType("string")).
+	//	Param(ws.PathParameter("version", "版本号").DataType("string")).
+	//	Returns(200, "OK", nil).
+	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+	//ws.Route(ws.POST("/{namespace}/name/{release}/restart").To(v1.RestartRelease).
+	//	Doc("Restart　Release关联的所有pod").
+	//	Metadata(restfulspec.KeyOpenAPITags, tags).
+	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+	//	Param(ws.PathParameter("release", "Release名字").DataType("string")).
+	//	Returns(200, "OK", nil).
+	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	return ws
+}
+
 func InitProjectRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/project").
+	ws.Path(apiV1Path + "/project").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
@@ -459,7 +541,7 @@ func InitProjectRouter() *restful.WebService {
 func InitChartRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/chart").
+	ws.Path(apiV1Path + "/chart").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
@@ -497,7 +579,7 @@ func InitChartRouter() *restful.WebService {
 func InitPodRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/pod").
+	ws.Path(apiV1Path + "/pod").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 

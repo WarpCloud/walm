@@ -9,6 +9,8 @@ import:
 - package: github.com/emicklei/go-restful-openapi
   repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
   version: master
+- package: transwarp/release-config
+  repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
 - package: github.com/dgrijalva/jwt-go
   version: ^3.2.0
 - package: github.com/ghodss/yaml

@@ -4,11 +4,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"transwarp/application-instance/pkg/client/clientset/versioned"
 	"walm/pkg/k8s/informer"
+	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )
 
 type HandlerSet struct {
 	client *kubernetes.Clientset
 	clientEx *versioned.Clientset
+	releaseConfigClient *releaseconfigclientset.Clientset
 	factory *informer.InformerFactory
 	configMapHandler *ConfigMapHandler
 	daemonSetHandler *DaemonSetHandler
@@ -26,6 +28,7 @@ type HandlerSet struct {
 	resourceQuotaHandler *ResourceQuotaHandler
 	persistentVolumeClaimHandler *PersistentVolumeClaimHandler
 	storageClassHandler *StorageClassHandler
+	releaseConfigHandler *ReleaseConfigHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -138,4 +141,11 @@ func (set *HandlerSet)GetStorageClassHandler() *StorageClassHandler {
 		set.storageClassHandler = &StorageClassHandler{client: set.client, lister: set.factory.StorageClassLister}
 	}
 	return set.storageClassHandler
+}
+
+func (set *HandlerSet)GetReleaseConfigHandler() *ReleaseConfigHandler {
+	if set.releaseConfigHandler == nil {
+		set.releaseConfigHandler = &ReleaseConfigHandler{client: set.releaseConfigClient, lister: set.factory.ReleaseConfigLister}
+	}
+	return set.releaseConfigHandler
 }

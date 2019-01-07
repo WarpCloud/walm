@@ -36,7 +36,8 @@ type ReleaseSpec struct {
 
 type ReleaseCache struct {
 	ReleaseSpec
-	ReleaseResourceMetas []ReleaseResourceMeta `json:"release_resource_metas" description:"release resource metas"`
+	ReleaseResourceMetas []ReleaseResourceMeta  `json:"release_resource_metas" description:"release resource metas"`
+	ComputedValues        map[string]interface{} `json:"computed_values" description:"release computed values"`
 }
 
 type ReleaseResourceMeta struct {

@@ -14,6 +14,7 @@ func GetDefaultHandlerSet() *HandlerSet {
 		handlerSets = &HandlerSet{
 			client: client.GetDefaultClient(),
 			clientEx: client.GetDefaultClientEx(),
+			releaseConfigClient: client.GetDefaultReleaseConfigClient(),
 			factory: informer.GetDefaultFactory(),
 		}
 	}

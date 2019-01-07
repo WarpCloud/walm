@@ -63,10 +63,10 @@ type MultiTenantConfig struct {
 }
 
 type TaskConfig struct {
-	Broker          string       `json:"broker"`
-	DefaultQueue    string       `json:"default_queue"`
-	ResultBackend   string       `json:"result_backend"`
-	ResultsExpireIn int          `json:"results_expire_in"`
+	Broker          string `json:"broker"`
+	DefaultQueue    string `json:"default_queue"`
+	ResultBackend   string `json:"result_backend"`
+	ResultsExpireIn int    `json:"results_expire_in"`
 }
 
 type WalmConfig struct {
@@ -79,7 +79,16 @@ type WalmConfig struct {
 	RedisConfig       *RedisConfig       `json:"redisConfig"`
 	KafkaConfig       *KafkaConfig       `json:"kafkaConfig"`
 	MultiTenantConfig *MultiTenantConfig `json:"multiTenant"`
-	TaskConfig        *TaskConfig     `json:"taskConfig"`
+	TaskConfig        *TaskConfig        `json:"taskConfig"`
+	V2Config          *V2Config          `json:"v2"`
+}
+
+type JsonnetConfig struct {
+	CommonTemplateFilesPath string `json:"commonTemplateFilesPath"`
+}
+
+type V2Config struct {
+	JsonnetConfig *JsonnetConfig `json:"jsonnetConfig"`
 }
 
 // StartResyncReleaseCaches sets values from the environment.
