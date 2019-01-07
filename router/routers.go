@@ -105,7 +105,7 @@ func InitTenantRouter() *restful.WebService {
 func InitPvcRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/pvc").
+	ws.Path(apiV1Path + "/pvc").
 		Doc("Kubernetes Pvc相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -208,7 +208,7 @@ func InitSecretRouter() *restful.WebService {
 func InitStorageClassRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(APIPATH + "/storageclass").
+	ws.Path(apiV1Path + "/storageclass").
 		Doc("Kubernetes StorageClass相关操作").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
