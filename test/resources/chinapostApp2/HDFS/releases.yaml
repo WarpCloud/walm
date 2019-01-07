@@ -1,0 +1,312 @@
+[
+  {
+    "name": "zookeeper",
+    "repo_name": "stable",
+    "chart_name": "zookeeper",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "zookeeper": {
+          "replicas": 3,
+          "image": "172.16.1.99/transwarp/zookeeper:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 0.5,
+            "memory_limit": 2,
+            "memory_request": 2
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "hdfs",
+    "repo_name": "stable",
+    "chart_name": "hdfs",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "hdfsnamenode": {
+          "replicas": 2,
+          "image": "172.16.1.99/transwarp/hdfs:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 5,
+            "memory_request": 5,
+            "storage": {
+              "data": {
+                "storageClass": "silver",
+                "size": "100Gi"
+              }
+            }
+          }
+        },
+        "hdfszkfc": {
+          "image": "172.16.1.99/transwarp/hdfs:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 0.5,
+            "cpu_request": 0.1,
+            "memory_limit": 1,
+            "memory_request": 0.5
+          }
+        },
+        "hdfsjournalnode": {
+          "replicas": 3,
+          "image": "172.16.1.99/transwarp/hdfs:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 0.5,
+            "memory_limit": 4,
+            "memory_request": 2,
+            "storage": {
+              "data": {
+                "storageClass": "silver",
+                "size": "300Gi"
+              }
+            }
+          }
+        },
+        "hdfsdatanode": {
+          "replicas": 3,
+          "image": "172.16.1.99/transwarp/hdfs:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 2,
+            "memory_limit": 3,
+            "memory_request": 3,
+            "storage": {
+              "data": {
+                "storageClass": "silver",
+                "size": "500Gi"
+              }
+            }
+          }
+        },
+        "httpfs": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/httpfs:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 0.5,
+            "memory_limit": 4,
+            "memory_request": 2
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "yarn",
+    "repo_name": "stable",
+    "chart_name": "yarn",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "yarnrm": {
+          "replicas": 2,
+          "image": "172.16.1.99/transwarp/yarn:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 8,
+            "memory_request": 4
+          }
+        },
+        "yarnnm": {
+          "replicas": 3,
+          "image": "172.16.1.99/transwarp/yarn:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 4,
+            "cpu_request": 2,
+            "memory_limit": 16,
+            "memory_request": 8
+          }
+        },
+        "yarnts": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/yarn:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 0.5,
+            "cpu_request": 0.1,
+            "memory_limit": 2,
+            "memory_request": 1
+          }
+        },
+        "yarnhs": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/yarn:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 0.5,
+            "cpu_request": 0.1,
+            "memory_limit": 2,
+            "memory_request": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "terminal",
+    "repo_name": "stable",
+    "chart_name": "terminal",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "terminal": {
+          "replicas": 1,
+          "image": "172.16.1.99/gold/terminal:dev",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 6,
+            "memory_request": 3,
+            "storage": {
+              "data": {
+                "storageClass": "silver",
+                "size": "40Gi"
+              },
+              "cron22": {
+                "storageClass": "silver",
+                "size": "40Gi"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "filerobot",
+    "repo_name": "stable",
+    "chart_name": "filerobot",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "filerobot": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/filerobot:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 1,
+            "cpu_request": 0.5,
+            "memory_limit": 3,
+            "memory_request": 1,
+            "storage": {
+              "data": {
+                "storageClass": "silver",
+                "size": "30Gi"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "txsql",
+    "repo_name": "stable",
+    "chart_name": "txsql",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "txsql": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/txsql:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 3,
+            "memory_request": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "metastore",
+    "repo_name": "stable",
+    "chart_name": "metastore",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "metastore": {
+          "replicas": 2,
+          "image": "172.16.1.99/transwarp/inceptor:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 8,
+            "memory_request": 4
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "pilot",
+    "repo_name": "stable",
+    "chart_name": "pilot",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "pilot": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/pilot:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 4,
+            "memory_request": 2
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "authorityjobhdfs",
+    "repo_name": "stable",
+    "chart_name": "authorityjob",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "authorityjob": {
+          "replicas": 1,
+          "image": "172.16.1.99/gold/authorityjob:dev",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 4,
+            "memory_request": 2
+          }
+        }
+      }
+    }
+  }
+]

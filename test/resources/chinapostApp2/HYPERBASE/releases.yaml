@@ -1,0 +1,68 @@
+[
+  {
+    "name": "hyperbase",
+    "repo_name": "stable",
+    "chart_name": "hyperbase",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "master": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/hbase:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 4,
+            "memory_request": 2
+          }
+        },
+        "regionserver": {
+          "replicas": 3,
+          "image": "172.16.1.99/transwarp/hbase:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 4,
+            "cpu_request": 2,
+            "memory_limit": 15,
+            "memory_request": 7
+          }
+        },
+        "thrift": {
+          "replicas": 1,
+          "image": "172.16.1.99/transwarp/hbase:transwarp-5.2.2-final",
+          "resources": {
+            "cpu_limit": 0.5,
+            "cpu_request": 0.1,
+            "memory_limit": 3,
+            "memory_request": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "authorityjobhyperbase",
+    "repo_name": "stable",
+    "chart_name": "authorityjob",
+    "chart_version": "5.2.0",
+    "dependencies": {
+      "guardian": "tosshengfen.guardian-tosshengfen"
+    },
+    "config_values": {
+      "App": {
+        "authorityjob": {
+          "replicas": 1,
+          "image": "172.16.1.99/gold/authorityjob:dev",
+          "resources": {
+            "cpu_limit": 2,
+            "cpu_request": 1,
+            "memory_limit": 4,
+            "memory_request": 2
+          }
+        }
+      }
+    }
+  }
+]
