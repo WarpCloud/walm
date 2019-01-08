@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"walm/pkg/release"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -26,7 +26,7 @@ func DeleteProjectTask(deleteProjectTaskArgsStr string) error {
 	return deleteProjectTaskArgs.deleteProject()
 }
 
-func SendDeleteProjectTask(deleteProjectTaskArgs *DeleteProjectTaskArgs) (*release.ProjectTaskSignature, error) {
+func SendDeleteProjectTask(deleteProjectTaskArgs *DeleteProjectTaskArgs) (*cache.ProjectTaskSignature, error) {
 	deleteProjectTaskArgsStr, err := json.Marshal(deleteProjectTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal delete project job : %s", err.Error())
@@ -46,7 +46,8 @@ func SendDeleteProjectTask(deleteProjectTaskArgs *DeleteProjectTaskArgs) (*relea
 		logrus.Errorf("failed to send delete project task : %s", err.Error())
 		return nil, err
 	}
-	return  &release.ProjectTaskSignature{
+
+	return  &cache.ProjectTaskSignature{
 		Name: deleteProjectTaskName,
 		UUID: deleteProjectTaskSig.UUID,
 		Arg:  string(deleteProjectTaskArgsStr),

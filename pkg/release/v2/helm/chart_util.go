@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
 	"encoding/json"
+	helmv1 "walm/pkg/release/manager/helm"
 )
 
 const (
@@ -192,18 +193,18 @@ func buildConfigValuesToRender(namespace string, name string, jsonnetChart *char
 			return nil, err
 		}
 	}
-	mergeValues(configValues, defaultValue)
+	helmv1.MergeValues(configValues, defaultValue)
 	//TODO merge system values
 
-	mergeValues(configValues, dependencyConfigs)
+	helmv1.MergeValues(configValues, dependencyConfigs)
 
 	configValues["Transwarp_Install_ID"] = name
 	configValues["Transwarp_Install_Namespace"] = namespace
 	configValues["TosVersion"] = "1.9"
 	configValues["Customized_Namespace"] = namespace
-	mergeValues(configValues, userConfigs)
+	helmv1.MergeValues(configValues, userConfigs)
 
-	mergeValues(jsonDefaultValues, configValues)
+	helmv1.MergeValues(jsonDefaultValues, configValues)
 	return
 }
 

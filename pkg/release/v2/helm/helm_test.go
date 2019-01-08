@@ -6,7 +6,7 @@ import (
 )
 
 //func TestInstallRelease(t *testing.T) {
-//	hc := &HelmClient{
+//	hc := &HelmClientV2{
 //		systemClient: helm.NewClient(helm.Host("172.26.0.5:31225")),
 //		chartRepoMap: map[string]*ChartRepository{"stable" : &ChartRepository{
 //			Name:     "stable",

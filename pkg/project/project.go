@@ -5,8 +5,8 @@ import (
 	"errors"
 	"github.com/sirupsen/logrus"
 
-	"walm/pkg/release"
-	"walm/pkg/release/manager/helm"
+	"walm/pkg/release/v2"
+	"walm/pkg/release/v2/helm"
 	"walm/pkg/redis"
 	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
@@ -14,6 +14,7 @@ import (
 	"strings"
 	"walm/pkg/task"
 	"time"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 )
 
 type ProjectManager struct {
-	helmClient     *helm.HelmClient
+	helmClient     *helm.HelmClientV2
 	redisClient    *redis.RedisClient
 }
 
@@ -31,29 +32,29 @@ var projectManager *ProjectManager
 func GetDefaultProjectManager() *ProjectManager {
 	if projectManager == nil {
 		projectManager = &ProjectManager{
-			helmClient:     helm.GetDefaultHelmClient(),
+			helmClient:     helm.GetDefaultHelmClientV2(),
 			redisClient:    redis.GetDefaultRedisClient(),
 		}
 	}
 	return projectManager
 }
 
-func (manager *ProjectManager) ListProjects(namespace string) (*release.ProjectInfoList, error) {
+func (manager *ProjectManager) ListProjects(namespace string) (*ProjectInfoList, error) {
 	projectCaches, err := manager.helmClient.GetHelmCache().GetProjectCaches(namespace)
 	if err != nil {
 		logrus.Errorf("failed to get project caches in namespace %s : %s", namespace, err.Error())
 		return nil, err
 	}
 
-	projectInfoList := &release.ProjectInfoList{
-		Items: []*release.ProjectInfo{},
+	projectInfoList := &ProjectInfoList{
+		Items: []*ProjectInfo{},
 	}
 
 	mux := &sync.Mutex{}
 	var wg sync.WaitGroup
 	for _, projectCache := range projectCaches {
 		wg.Add(1)
-		go func(projectCache *release.ProjectCache) {
+		go func(projectCache *cache.ProjectCache) {
 			defer wg.Done()
 			projectInfo, err1 := manager.buildProjectInfo(projectCache)
 			if err1 != nil {
@@ -80,7 +81,7 @@ func (manager *ProjectManager) ListProjects(namespace string) (*release.ProjectI
 	return projectInfoList, nil
 }
 
-func (manager *ProjectManager) GetProjectInfo(namespace, projectName string) (*release.ProjectInfo, error) {
+func (manager *ProjectManager) GetProjectInfo(namespace, projectName string) (*ProjectInfo, error) {
 	projectCache, err := manager.helmClient.GetHelmCache().GetProjectCache(namespace, projectName)
 	if err != nil {
 		logrus.Errorf("failed to get project cache of %s/%s : %s", namespace, projectName, err.Error())
@@ -90,14 +91,14 @@ func (manager *ProjectManager) GetProjectInfo(namespace, projectName string) (*r
 	return manager.buildProjectInfo(projectCache)
 }
 
-func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCache) (projectInfo *release.ProjectInfo, err error) {
+func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache) (projectInfo *ProjectInfo, err error) {
 	taskState := projectCache.GetLatestTaskState()
-	projectInfo = &release.ProjectInfo{
+	projectInfo = &ProjectInfo{
 		ProjectCache:    *projectCache,
-		Releases:        []*release.ReleaseInfo{},
+		Releases:        []*v2.ReleaseInfoV2{},
 	}
 	if taskState != nil {
-		projectInfo.LatestTaskState = &release.ProjectTaskState{
+		projectInfo.LatestTaskState = &ProjectTaskState{
 			TaskUUID: taskState.TaskUUID,
 			TaskName: taskState.TaskName,
 			Error: taskState.Error,
@@ -106,7 +107,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 		}
 	}
 
-	releaseList, err := manager.helmClient.ListReleases(projectCache.Namespace, projectCache.Name+"--*")
+	releaseList, err := manager.helmClient.ListReleasesV2(projectCache.Namespace, projectCache.Name+"--*")
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *release.ProjectCac
 	return
 }
 
-func isProjectReadyByReleases(releases []*release.ReleaseInfo) (ready bool, message string) {
+func isProjectReadyByReleases(releases []*v2.ReleaseInfoV2) (ready bool, message string) {
 	if len(releases) > 0 {
 		ready = true
 		for _, releaseInfo := range releases {
@@ -154,7 +155,7 @@ func isProjectReadyByReleases(releases []*release.ReleaseInfo) (ready bool, mess
 	return
 }
 
-func (manager *ProjectManager) validateProjectTask(namespace, name string, allowProjectNotExist bool) (projectCache *release.ProjectCache, err error) {
+func (manager *ProjectManager) validateProjectTask(namespace, name string, allowProjectNotExist bool) (projectCache *cache.ProjectCache, err error) {
 	projectCache, err = manager.helmClient.GetHelmCache().GetProjectCache(namespace, name)
 	if err != nil {
 		if !walmerr.IsNotFoundError(err) {
@@ -175,7 +176,7 @@ func (manager *ProjectManager) validateProjectTask(namespace, name string, allow
 	return
 }
 
-func (manager *ProjectManager) CreateProject(namespace string, project string, projectParams *release.ProjectParams, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) CreateProject(namespace string, project string, projectParams *ProjectParams, async bool, timeoutSec int64) error {
 	if len(projectParams.Releases) == 0 {
 		return errors.New("project releases can not be empty")
 	}
@@ -200,7 +201,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 		return err
 	}
 
-	projectCache := &release.ProjectCache{
+	projectCache := &cache.ProjectCache{
 		Namespace:            namespace,
 		Name:                 project,
 		LatestTaskSignature:  createProjectTaskSig,
@@ -256,7 +257,7 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 		return err
 	}
 
-	projectCache := &release.ProjectCache{
+	projectCache := &cache.ProjectCache{
 		Namespace:            namespace,
 		Name:                 project,
 		LatestTaskSignature:  deleteProjectTaskSig,
@@ -288,11 +289,11 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	return nil
 }
 
-func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest, async bool, timeoutSec int64) error {
-	return manager.AddReleasesInProject(namespace, projectName, &release.ProjectParams{Releases: []*release.ReleaseRequest{releaseParams}}, async, timeoutSec)
+func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *v2.ReleaseRequestV2, async bool, timeoutSec int64) error {
+	return manager.AddReleasesInProject(namespace, projectName, &ProjectParams{Releases: []*v2.ReleaseRequestV2{releaseParams}}, async, timeoutSec)
 }
 
-func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequest, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, projectName string, releaseParams *v2.ReleaseRequestV2, async bool, timeoutSec int64) error {
 	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -337,7 +338,7 @@ func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, project
 		return err
 	}
 
-	projectCache := &release.ProjectCache{
+	projectCache := &cache.ProjectCache{
 		Namespace:            namespace,
 		Name:                 projectName,
 		LatestTaskSignature:  upgradeReleaseTaskSig,
@@ -413,7 +414,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 		return err
 	}
 
-	projectCache := &release.ProjectCache{
+	projectCache := &cache.ProjectCache{
 		Namespace:            namespace,
 		Name:                 projectName,
 		LatestTaskSignature:  removeReleaseTaskSig,
@@ -445,9 +446,9 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	return nil
 }
 
-func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *release.ProjectInfo, releaseParams *release.ReleaseRequest, isRemove bool) ([]*release.ReleaseRequest, error) {
+func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo, releaseParams *v2.ReleaseRequestV2, isRemove bool) ([]*v2.ReleaseRequestV2, error) {
 	var g dag.AcyclicGraph
-	affectReleases := make([]*release.ReleaseRequest, 0)
+	affectReleases := make([]*v2.ReleaseRequestV2, 0)
 
 	// init node
 	for _, helmRelease := range projectInfo.Releases {
@@ -533,9 +534,9 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *release.Pro
 	return affectReleases, nil
 }
 
-func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.ProjectParams) ([]*release.ReleaseRequest, error) {
-	projectParamsMap := make(map[string]*release.ReleaseRequest)
-	releaseParsed := make([]*release.ReleaseRequest, 0)
+func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectParams) ([]*v2.ReleaseRequestV2, error) {
+	projectParamsMap := make(map[string]*v2.ReleaseRequestV2)
+	releaseParsed := make([]*v2.ReleaseRequestV2, 0)
 	var g dag.AcyclicGraph
 
 	for _, releaseInfo := range projectParams.Releases {
@@ -572,9 +573,9 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 	err = g.Walk(func(v dag.Vertex) error {
 		lock.Lock()
 		defer lock.Unlock()
-		releaseRequest := v.(*release.ReleaseRequest)
+		releaseRequest := v.(*v2.ReleaseRequestV2)
 		for _, dv := range g.DownEdges(releaseRequest).List() {
-			releaseInfo := dv.(*release.ReleaseRequest)
+			releaseInfo := dv.(*v2.ReleaseRequestV2)
 			releaseRequest.Dependencies[releaseInfo.ChartName] = releaseInfo.Name
 		}
 		releaseParsed = append(releaseParsed, releaseRequest)
@@ -587,7 +588,7 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *release.Pro
 	return releaseParsed, nil
 }
 
-func (manager *ProjectManager) AddReleasesInProject(namespace string, projectName string, projectParams *release.ProjectParams, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) AddReleasesInProject(namespace string, projectName string, projectParams *ProjectParams, async bool, timeoutSec int64) error {
 	if len(projectParams.Releases) == 0 {
 		return errors.New("project releases can not be empty")
 	}
@@ -612,7 +613,7 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 		return err
 	}
 
-	projectCache := &release.ProjectCache{
+	projectCache := &cache.ProjectCache{
 		Namespace:            namespace,
 		Name:                 projectName,
 		LatestTaskSignature:  addReleaseTaskSig,

@@ -11,7 +11,7 @@ import (
 	walmtypes "walm/router/api"
 	tenanttypes "walm/pkg/tenant"
 	k8stypes "walm/pkg/k8s/adaptor"
-	"walm/router/api/v2"
+	"walm/pkg/project"
 )
 
 const (
@@ -292,16 +292,16 @@ func InitReleaseRouter() *restful.WebService {
 	ws.Route(ws.GET("/").To(v1.ListRelease).
 		Doc("获取所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(releasetypes.ReleaseInfoList{}).
-		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
+		Writes(releasetypesv2.ReleaseInfoV2List{}).
+		Returns(200, "OK", releasetypesv2.ReleaseInfoV2List{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}").To(v1.ListReleaseByNamespace).
 		Doc("获取Namepaces下的所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Writes(releasetypes.ReleaseInfoList{}).
-		Returns(200, "OK", releasetypes.ReleaseInfoList{}).
+		Writes(releasetypesv2.ReleaseInfoV2List{}).
+		Returns(200, "OK", releasetypesv2.ReleaseInfoV2List{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}/name/{release}").To(v1.GetRelease).
@@ -309,8 +309,8 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Writes(releasetypes.ReleaseInfo{}).
-		Returns(200, "OK", releasetypes.ReleaseInfo{}).
+		Writes(releasetypesv2.ReleaseInfoV2{}).
+		Returns(200, "OK", releasetypesv2.ReleaseInfoV2{}).
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -318,9 +318,18 @@ func InitReleaseRouter() *restful.WebService {
 		Doc("升级一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Reads(releasetypes.ReleaseRequest{}).
+		Reads(releasetypesv2.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
-		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.PUT("/{namespace}/withchart").To(v1.UpgradeReleaseWithChart).
+		Consumes("multipart/form-data").
+		Doc("用本地chart升级一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
+		Param(ws.FormParameter("body", "request").DataType("string").Required(true)).
+		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteRelease).
@@ -336,7 +345,17 @@ func InitReleaseRouter() *restful.WebService {
 		Doc("安装一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Reads(releasetypes.ReleaseRequest{}).
+		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/withchart").Consumes().To(v1.InstallReleaseWithChart).
+		Consumes("multipart/form-data").
+		Doc("用本地chart安装一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
+		Param(ws.FormParameter("body", "request").DataType("string").Required(true)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -360,83 +379,6 @@ func InitReleaseRouter() *restful.WebService {
 	return ws
 }
 
-func InitReleaseV2Router() *restful.WebService {
-	ws := new(restful.WebService)
-
-	ws.Path(apiV2Path + "/release").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML)
-
-	tags := []string{"releaseV2"}
-
-	//ws.Route(ws.GET("/").To(v1.ListRelease).
-	//	Doc("获取所有Release列表").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Writes(releasetypes.ReleaseInfoList{}).
-	//	Returns(200, "OK", releasetypes.ReleaseInfoList{}).
-	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-	//
-	//ws.Route(ws.GET("/{namespace}").To(v1.ListReleaseByNamespace).
-	//	Doc("获取Namepaces下的所有Release列表").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-	//	Writes(releasetypes.ReleaseInfoList{}).
-	//	Returns(200, "OK", releasetypes.ReleaseInfoList{}).
-	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	ws.Route(ws.GET("/{namespace}/name/{release}").To(v2.GetRelease).
-		Doc("获取对应Release的详细信息").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Writes(releasetypesv2.ReleaseInfoV2{}).
-		Returns(200, "OK", releasetypesv2.ReleaseInfoV2{}).
-		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
-		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	ws.Route(ws.PUT("/{namespace}").To(v2.UpgradeRelease).
-		Doc("升级一个Release").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
-		Returns(200, "OK", nil).
-		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v2.DeleteRelease).
-		Doc("删除一个ReleaseV2").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Returns(200, "OK", nil).
-		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	ws.Route(ws.POST("/{namespace}").To(v2.InstallRelease).
-		Doc("安装一个ReleaseV2").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
-		Returns(200, "OK", nil).
-		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	//ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackRelease).
-	//	Doc("RollBack　Release版本").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-	//	Param(ws.PathParameter("release", "Release名字").DataType("string")).
-	//	Param(ws.PathParameter("version", "版本号").DataType("string")).
-	//	Returns(200, "OK", nil).
-	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-	//ws.Route(ws.POST("/{namespace}/name/{release}/restart").To(v1.RestartRelease).
-	//	Doc("Restart　Release关联的所有pod").
-	//	Metadata(restfulspec.KeyOpenAPITags, tags).
-	//	Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-	//	Param(ws.PathParameter("release", "Release名字").DataType("string")).
-	//	Returns(200, "OK", nil).
-	//	Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
-
-	return ws
-}
-
 func InitProjectRouter() *restful.WebService {
 	ws := new(restful.WebService)
 
@@ -449,16 +391,16 @@ func InitProjectRouter() *restful.WebService {
 	ws.Route(ws.GET("/").To(v1.ListProjectAllNamespaces).
 		Doc("获取所有Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(releasetypes.ProjectInfoList{}).
-		Returns(200, "OK", releasetypes.ProjectInfoList{}).
+		Writes(project.ProjectInfoList{}).
+		Returns(200, "OK", project.ProjectInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}").To(v1.ListProjectByNamespace).
 		Doc("获取对应租户的Project列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Writes(releasetypes.ProjectInfoList{}).
-		Returns(200, "OK", releasetypes.ProjectInfoList{}).
+		Writes(project.ProjectInfoList{}).
+		Returns(200, "OK", project.ProjectInfoList{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}/name/{project}").To(v1.GetProjectInfo).
@@ -466,7 +408,7 @@ func InitProjectRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
-		Returns(200, "OK", releasetypes.ProjectInfo{}).
+		Returns(200, "OK", project.ProjectInfo{}).
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -477,7 +419,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypes.ProjectParams{}).
+		Reads(project.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -520,7 +462,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypes.ProjectParams{}).
+		Reads(project.ProjectParams{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

@@ -6,6 +6,7 @@ import (
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"walm/pkg/release"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -26,7 +27,7 @@ func CreateProjectTask(createProjectTaskArgsStr string) error {
 	return createProjectTaskArgs.createProject()
 }
 
-func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*release.ProjectTaskSignature, error) {
+func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*cache.ProjectTaskSignature, error) {
 	createProjectTaskArgsStr, err := json.Marshal(createProjectTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal create project job : %s", err.Error())
@@ -46,7 +47,7 @@ func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*relea
 		logrus.Errorf("failed to send create project task : %s", err.Error())
 		return nil, err
 	}
-	return  &release.ProjectTaskSignature{
+	return  &cache.ProjectTaskSignature{
 		Name: createProjectTaskName,
 		UUID: createProjectTaskSig.UUID,
 		Arg:  string(createProjectTaskArgsStr),
@@ -56,7 +57,7 @@ func SendCreateProjectTask(createProjectTaskArgs *CreateProjectTaskArgs) (*relea
 type CreateProjectTaskArgs struct {
 	Namespace     string
 	Name          string
-	ProjectParams *release.ProjectParams
+	ProjectParams *ProjectParams
 }
 
 func (createProjectTaskArgs *CreateProjectTaskArgs) createProject() error {
@@ -81,7 +82,7 @@ func (createProjectTaskArgs *CreateProjectTaskArgs) createProject() error {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(createProjectTaskArgs.Namespace, releaseParams, false)
+		err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(createProjectTaskArgs.Namespace, releaseParams, false, nil)
 		if err != nil {
 			logrus.Errorf("failed to create project release %s/%s : %s", createProjectTaskArgs.Namespace, releaseParams.Name, err)
 			return err

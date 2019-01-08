@@ -3,7 +3,7 @@ package release
 import (
 	"walm/pkg/k8s/handler"
 
-	. "walm/pkg/release/manager/project"
+	. "walm/pkg/project"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -110,7 +110,7 @@ var _ = Describe("Release", func() {
 			releaseRequest := release.ReleaseRequest{}
 			json.Unmarshal(releaseRaw, &releaseRequest)
 
-			err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, &releaseRequest, true)
+			err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releaseRequest, true)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("get release info fail, install success")

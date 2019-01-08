@@ -12,3 +12,8 @@ type ReleaseInfoV2 struct {
 type ReleaseRequestV2 struct {
 	release.ReleaseRequest
 }
+
+type ReleaseInfoV2List struct {
+	Num   int              `json:"num" description:"release num"`
+	Items []*ReleaseInfoV2 `json:"items" description:"release infos"`
+}

@@ -6,7 +6,7 @@ import (
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	walmerr "walm/pkg/util/error"
-	"walm/pkg/release"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -27,7 +27,7 @@ func AddReleaseTask(addReleaseTaskArgsStr string) error {
 	return addReleaseTaskArgs.addRelease()
 }
 
-func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
+func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*cache.ProjectTaskSignature, error) {
 	addReleaseTaskArgsStr, err := json.Marshal(addReleaseTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal add release task args : %s", err.Error())
@@ -48,7 +48,7 @@ func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*release.Projec
 		return nil, err
 	}
 
-	return &release.ProjectTaskSignature{
+	return &cache.ProjectTaskSignature{
 		Name: addReleaseTaskName,
 		UUID: addReleaseTaskSig.UUID,
 		Arg:  string(addReleaseTaskArgsStr),
@@ -58,7 +58,7 @@ func SendAddReleaseTask(addReleaseTaskArgs *AddReleaseTaskArgs) (*release.Projec
 type AddReleaseTaskArgs struct {
 	Namespace     string
 	Name          string
-	ProjectParams *release.ProjectParams
+	ProjectParams *ProjectParams
 }
 
 func (addReleaseTaskArgs *AddReleaseTaskArgs) addRelease() error {
@@ -90,21 +90,21 @@ func (addReleaseTaskArgs *AddReleaseTaskArgs) addRelease() error {
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2
 			}
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, releaseParams, false, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
 			}
 			for _, affectReleaseParams := range affectReleaseRequest {
 				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-				err = GetDefaultProjectManager().helmClient.UpgradeRealese(addReleaseTaskArgs.Namespace, affectReleaseParams)
+				err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, affectReleaseParams, false, nil)
 				if err != nil {
 					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 					return err
 				}
 			}
 		} else {
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, releaseParams, false, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
