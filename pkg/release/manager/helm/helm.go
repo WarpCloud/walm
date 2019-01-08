@@ -27,6 +27,7 @@ import (
 	"k8s.io/helm/pkg/transwarp"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
+	"mime/multipart"
 )
 
 const (
@@ -216,14 +217,20 @@ func (client *HelmClient) RestartRelease(namespace, releaseName string) error {
 	return nil
 }
 
-func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest) error {
+func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, chartArchive multipart.File) (err error) {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
 	}
 	if releaseRequest.Dependencies == nil {
 		releaseRequest.Dependencies = map[string]string{}
 	}
-	chartRequested, err := client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+
+	var chartRequested *chart.Chart
+	if chartArchive != nil {
+		chartRequested, err = GetChart(chartArchive)
+	} else {
+		chartRequested, err = client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	}
 	if err != nil {
 		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 		return err
@@ -263,7 +270,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	return nil
 }
 
-func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool) error {
+func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool, chartArchive multipart.File) (err error) {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
 	}
@@ -271,11 +278,17 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 		releaseRequest.Dependencies = map[string]string{}
 	}
 	hook.ProcessPrettyParams(releaseRequest)
-	chartRequested, err := client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	var chartRequested *chart.Chart
+	if chartArchive != nil {
+		chartRequested, err = GetChart(chartArchive)
+	} else {
+		chartRequested, err = client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	}
 	if err != nil {
 		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 		return err
 	}
+
 	depLinks := make(map[string]interface{})
 	for k, v := range releaseRequest.Dependencies {
 		depLinks[k] = v
@@ -426,6 +439,16 @@ func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion stri
 		return nil, err
 	}
 	chartRequested, err := chartutil.Load(chartPath)
+	if err != nil {
+		logrus.Errorf("failed to load chart : %s", err.Error())
+		return nil, err
+	}
+
+	return chartRequested, nil
+}
+
+func GetChart(chartArchive multipart.File) (*chart.Chart, error) {
+	chartRequested, err := chartutil.LoadArchive(chartArchive)
 	if err != nil {
 		logrus.Errorf("failed to load chart : %s", err.Error())
 		return nil, err
@@ -588,7 +611,7 @@ func (client *HelmClient) DeployTillerCharts(namespace string) error {
 	tillerRelease.ConfigValues["tiller"] = map[string]string{
 		"image": setting.Config.MultiTenantConfig.TillerImage,
 	}
-	err := client.InstallUpgradeRealese(namespace, &tillerRelease, true)
+	err := client.InstallUpgradeRealese(namespace, &tillerRelease, true, nil)
 	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
 
 	return err

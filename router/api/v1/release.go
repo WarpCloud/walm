@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"github.com/sirupsen/logrus"
 	"walm/router/api"
+	"encoding/json"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
@@ -46,7 +47,28 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false, nil)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
+	}
+}
+
+func InstallReleaseWithChart(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	chartArchive, _, err := request.Request.FormFile("chart")
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
+		return
+	}
+	body := request.Request.FormValue("body")
+	releaseRequest := &release.ReleaseRequest{}
+	err = json.Unmarshal([]byte(body), releaseRequest)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
+		return
+	}
+
+	err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, releaseRequest, false, chartArchive)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
 	}
@@ -60,7 +82,28 @@ func UpgradeRelease(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helm.GetDefaultHelmClient().UpgradeRealese(namespace, releaseRequest)
+	err = helm.GetDefaultHelmClient().UpgradeRealese(namespace, releaseRequest, nil)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
+	}
+}
+
+func UpgradeReleaseWithChart(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	chartArchive, _, err := request.Request.FormFile("chart")
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
+		return
+	}
+	body := request.Request.FormValue("body")
+	releaseRequest := &release.ReleaseRequest{}
+	err = json.Unmarshal([]byte(body), releaseRequest)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
+		return
+	}
+
+	err = helm.GetDefaultHelmClient().UpgradeRealese(namespace, releaseRequest, chartArchive)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
 	}

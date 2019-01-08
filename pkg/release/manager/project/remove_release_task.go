@@ -79,7 +79,7 @@ func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = GetDefaultProjectManager().helmClient.UpgradeRealese(removeReleaseTaskArgs.Namespace, affectReleaseParams)
+			err = GetDefaultProjectManager().helmClient.UpgradeRealese(removeReleaseTaskArgs.Namespace, affectReleaseParams, nil)
 			if err != nil {
 				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err

@@ -90,21 +90,21 @@ func (addReleaseTaskArgs *AddReleaseTaskArgs) addRelease() error {
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2
 			}
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
 			}
 			for _, affectReleaseParams := range affectReleaseRequest {
 				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-				err = GetDefaultProjectManager().helmClient.UpgradeRealese(addReleaseTaskArgs.Namespace, affectReleaseParams)
+				err = GetDefaultProjectManager().helmClient.UpgradeRealese(addReleaseTaskArgs.Namespace, affectReleaseParams, nil)
 				if err != nil {
 					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 					return err
 				}
 			}
 		} else {
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRealese(addReleaseTaskArgs.Namespace, releaseParams, false, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err

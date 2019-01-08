@@ -323,6 +323,16 @@ func InitReleaseRouter() *restful.WebService {
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.PUT("/{namespace}/withchart").To(v1.UpgradeReleaseWithChart).
+		Consumes("multipart/form-data").
+		Doc("用本地chart升级一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
+		Param(ws.FormParameter("body", "request").DataType("string").Required(true)).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	ws.Route(ws.DELETE("/{namespace}/name/{release}").To(v1.DeleteRelease).
 		Doc("删除一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -337,6 +347,16 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Reads(releasetypes.ReleaseRequest{}).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/withchart").Consumes().To(v1.InstallReleaseWithChart).
+		Consumes("multipart/form-data").
+		Doc("用本地chart安装一个Release").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
+		Param(ws.FormParameter("body", "request").DataType("string").Required(true)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
