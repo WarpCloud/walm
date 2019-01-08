@@ -6,7 +6,7 @@ import (
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"fmt"
-	"walm/pkg/release"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -27,7 +27,7 @@ func RemoveReleaseTask(removeReleaseTaskArgsStr string) error {
 	return removeReleaseTaskArgs.removeRelease()
 }
 
-func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
+func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*cache.ProjectTaskSignature, error) {
 	removeReleaseTaskArgsStr, err := json.Marshal(removeReleaseTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal remove release task args: %s", err.Error())
@@ -47,7 +47,7 @@ func SendRemoveReleaseTask(removeReleaseTaskArgs *RemoveReleaseTaskArgs) (*relea
 		logrus.Errorf("failed to send remove release task : %s", err.Error())
 		return nil, err
 	}
-	return  &release.ProjectTaskSignature{
+	return  &cache.ProjectTaskSignature{
 		Name: removeReleaseTaskName,
 		UUID: removeReleaseTaskSig.UUID,
 		Arg:  string(removeReleaseTaskArgsStr),
@@ -79,7 +79,7 @@ func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = GetDefaultProjectManager().helmClient.UpgradeRealese(removeReleaseTaskArgs.Namespace, affectReleaseParams, nil)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(removeReleaseTaskArgs.Namespace, affectReleaseParams, false, nil)
 			if err != nil {
 				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err

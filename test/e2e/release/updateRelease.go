@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/release/manager/helm"
-	. "walm/pkg/release/manager/project"
+	. "walm/pkg/project"
 
 	"go/build"
 	"io/ioutil"
@@ -129,7 +129,7 @@ var _ = Describe("Release", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					releasesInfo[index].Name = releaseName
-					err = helm.GetDefaultHelmClient().InstallUpgradeRealese(namespace, &releasesInfo[index], true)
+					err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releasesInfo[index], true)
 					Expect(err).NotTo(HaveOccurred())
 				}
 			}

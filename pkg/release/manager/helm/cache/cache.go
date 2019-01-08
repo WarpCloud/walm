@@ -271,7 +271,7 @@ func (cache *HelmCache) Resync() {
 					projectName := projectNameArray[0]
 					_, ok := projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)]
 					if !ok {
-						projectCacheStr, err := json.Marshal(&release.ProjectCache{
+						projectCacheStr, err := json.Marshal(&ProjectCache{
 							Namespace: releaseCache.Namespace,
 							Name:      projectName,
 						})
@@ -294,7 +294,7 @@ func (cache *HelmCache) Resync() {
 			projectCachesToDel := []string{}
 			for projectCacheKey, projectCacheStr := range projectCacheInRedis {
 				if _, ok := projectCachesFromHelm[projectCacheKey]; !ok {
-					projectCache := &release.ProjectCache{}
+					projectCache := &ProjectCache{}
 					err = json.Unmarshal([]byte(projectCacheStr), projectCache)
 					if err != nil {
 						logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
@@ -343,7 +343,7 @@ func (cache *HelmCache) Resync() {
 	}
 }
 
-func (cache *HelmCache) CreateOrUpdateProjectCache(projectCache *release.ProjectCache) (err error) {
+func (cache *HelmCache) CreateOrUpdateProjectCache(projectCache *ProjectCache) (err error) {
 	projectCacheStr, err := json.Marshal(projectCache)
 	if err != nil {
 		logrus.Errorf("failed to marshal project cache of %s/%s: %s", projectCache.Namespace, projectCache.Name, err.Error())
@@ -367,7 +367,7 @@ func (cache *HelmCache) DeleteProjectCache(namespace, name string) (err error) {
 	return
 }
 
-func (cache *HelmCache) GetProjectCache(namespace, name string) (projectCache *release.ProjectCache, err error) {
+func (cache *HelmCache) GetProjectCache(namespace, name string) (projectCache *ProjectCache, err error) {
 	projectCacheStr, err := cache.redisClient.GetClient().HGet(redis.WalmProjectsKey, buildWalmProjectFieldName(namespace, name)).Result()
 	if err != nil {
 		if err.Error() == redis.KeyNotFoundErrMsg {
@@ -378,7 +378,7 @@ func (cache *HelmCache) GetProjectCache(namespace, name string) (projectCache *r
 		return nil, err
 	}
 
-	projectCache = &release.ProjectCache{}
+	projectCache = &ProjectCache{}
 	err = json.Unmarshal([]byte(projectCacheStr), projectCache)
 	if err != nil {
 		logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())
@@ -387,7 +387,7 @@ func (cache *HelmCache) GetProjectCache(namespace, name string) (projectCache *r
 	return
 }
 
-func (cache *HelmCache) GetProjectCaches(namespace string) (projectCaches []*release.ProjectCache, err error) {
+func (cache *HelmCache) GetProjectCaches(namespace string) (projectCaches []*ProjectCache, err error) {
 	filter := namespace + "/*"
 	if namespace == "" {
 		filter = "*/*"
@@ -403,9 +403,9 @@ func (cache *HelmCache) GetProjectCaches(namespace string) (projectCaches []*rel
 		projectCacheStrs = append(projectCacheStrs, scanResult[i])
 	}
 
-	projectCaches = []*release.ProjectCache{}
+	projectCaches = []*ProjectCache{}
 	for _, projectCacheStr := range projectCacheStrs {
-		projectCache := &release.ProjectCache{}
+		projectCache := &ProjectCache{}
 		err = json.Unmarshal([]byte(projectCacheStr), projectCache)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal projectCacheStr %s : %s", projectCacheStr, err.Error())

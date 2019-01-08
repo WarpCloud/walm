@@ -94,6 +94,10 @@ func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepositor
 	}
 }
 
+func (client *HelmClient) GetDryRun() bool {
+	return client.dryRun
+}
+
 func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfo, error) {
 	logrus.Debugf("Enter ListReleases namespace=%s filter=%s\n", namespace, filter)
 	releaseCaches, err := client.helmCache.GetReleaseCaches(namespace, filter, 0)
@@ -229,7 +233,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	if chartArchive != nil {
 		chartRequested, err = GetChart(chartArchive)
 	} else {
-		chartRequested, err = client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+		chartRequested, err = client.GetChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	}
 	if err != nil {
 		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
@@ -252,8 +256,8 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	}
 	//releaseInfo.Dependencies = releaseRequest.Dependencies
 	tempConfigValues := make(map[string]interface{}, 0)
-	mergeValues(tempConfigValues, releaseInfo.ConfigValues)
-	mergeValues(tempConfigValues, releaseRequest.ConfigValues)
+	MergeValues(tempConfigValues, releaseInfo.ConfigValues)
+	MergeValues(tempConfigValues, releaseRequest.ConfigValues)
 	helmRelease, err := client.installChart(releaseRequest.Name, namespace, tempConfigValues, depLinks, chartRequested, false)
 	if err != nil {
 		logrus.Errorf("failed to install chart : %s", err.Error())
@@ -282,7 +286,7 @@ func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest
 	if chartArchive != nil {
 		chartRequested, err = GetChart(chartArchive)
 	} else {
-		chartRequested, err = client.getChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+		chartRequested, err = client.GetChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	}
 	if err != nil {
 		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
@@ -391,7 +395,7 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 
 func (client *HelmClient) GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
 	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
-	chartRequested, err := client.getChartRequest(repoName, chartName, chartVersion)
+	chartRequested, err := client.GetChartRequest(repoName, chartName, chartVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -404,6 +408,35 @@ func (client *HelmClient) GetDependencies(repoName, chartName, chartVersion stri
 
 func (client *HelmClient) GetHelmCache() *cache.HelmCache {
 	return client.helmCache
+}
+
+func(client *HelmClient) GetCurrentHelmClient(namespace string, isSystem bool) (*helm.Client, error) {
+	currentHelmClient := client.systemClient
+	if !isSystem {
+		multiTenant, err := cache.IsMultiTenant(namespace)
+		if err != nil {
+			logrus.Errorf("failed to check whether is multi tenant", err.Error())
+			return nil, err
+		}
+		if multiTenant {
+			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
+			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
+		}
+	}
+
+	//TODO improve
+	retry := 20
+	for i := 0; i < retry; i++ {
+		err := currentHelmClient.PingTiller()
+		if err == nil {
+			break
+		}
+		if i == retry-1 {
+			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return currentHelmClient, nil
 }
 
 func (client *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
@@ -432,7 +465,7 @@ func (client *HelmClient) downloadChart(repoName, charName, version string) (str
 	return filename, nil
 }
 
-func (client *HelmClient) getChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
+func (client *HelmClient) GetChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
 	chartPath, err := client.downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		logrus.Errorf("failed to download chart : %s", err.Error())
@@ -504,8 +537,8 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 			return nil, fmt.Errorf("failed to parse rawValues: %s", err)
 		}
 		mergedValues := map[string]interface{}{}
-		mergedValues = mergeValues(mergedValues, configValues)
-		mergedValues = mergeValues(previousValues, mergedValues)
+		mergedValues = MergeValues(mergedValues, configValues)
+		mergedValues = MergeValues(previousValues, mergedValues)
 		mergedVals, err := yaml.Marshal(mergedValues)
 		if err != nil {
 			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())
@@ -617,28 +650,4 @@ func (client *HelmClient) DeployTillerCharts(namespace string) error {
 	return err
 }
 
-func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
-	for k, v := range src {
-		// If the key doesn't exist already, then just set the key to that value
-		if _, exists := dest[k]; !exists {
-			dest[k] = v
-			continue
-		}
-		nextMap, ok := v.(map[string]interface{})
-		// If it isn't another map, overwrite the value
-		if !ok {
-			dest[k] = v
-			continue
-		}
-		// Edge case: If the key exists in the destination, but isn't a map
-		destMap, isMap := dest[k].(map[string]interface{})
-		// If the source map has a map for this key, prefer it
-		if !isMap {
-			dest[k] = v
-			continue
-		}
-		// If we got to this point, it is a map in both, so merge them
-		dest[k] = mergeValues(destMap, nextMap)
-	}
-	return dest
-}
+

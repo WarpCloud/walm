@@ -3,7 +3,7 @@ package release
 import (
 	"walm/pkg/k8s/handler"
 
-	. "walm/pkg/release/manager/project"
+	. "walm/pkg/project"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

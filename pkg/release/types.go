@@ -3,10 +3,6 @@ package release
 import (
 	"walm/pkg/k8s/adaptor"
 	"k8s.io/helm/pkg/transwarp"
-	"time"
-	"github.com/RichardKnop/machinery/v1/tasks"
-	"walm/pkg/task"
-	"github.com/sirupsen/logrus"
 )
 
 type ReleaseInfoList struct {
@@ -69,82 +65,6 @@ type ReleaseRequest struct {
 	ConfigValues        map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
 	Dependencies        map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 	ReleasePrettyParams PrettyChartParams      `json:"release_pretty_params" description:"pretty chart params for market"`
-}
-
-type ProjectParams struct {
-	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
-	Releases     []*ReleaseRequest      `json:"releases" description:"list of release of the project"`
-}
-
-type ProjectInfo struct {
-	ProjectCache
-	Releases        []*ReleaseInfo    `json:"releases" description:"list of release of the project"`
-	Ready           bool              `json:"ready" description:"whether all the project releases are ready"`
-	Message         string            `json:"message" description:"why project is not ready"`
-	LatestTaskState *ProjectTaskState `json:"latest_task_state" description:"latest task state"`
-}
-
-type ProjectTaskState struct {
-	TaskUUID  string    `json:"task_uuid" description:"task uuid"`
-	TaskName  string    `json:"task_name" description:"task name"`
-	State     string    `json:"task_state" description:"task state"`
-	Error     string    `json:"task_error" description:"task error"`
-	CreatedAt time.Time `json:"created_at" description:"task creation time"`
-}
-
-type ProjectCache struct {
-	Name                 string                `json:"name" description:"project name"`
-	Namespace            string                `json:"namespace" description:"project namespace"`
-	LatestTaskSignature  *ProjectTaskSignature `json:"latest_task_signature" description:"latest task signature"`
-	LatestTaskTimeoutSec int64                 `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
-}
-
-type ProjectTaskSignature struct {
-	UUID string `json:"uuid" description:"task uuid"`
-	Name string `json:"name" description:"task name"`
-	Arg  string `json:"arg" description:"task arg"`
-}
-
-func (projectCache *ProjectCache) GetLatestTaskSignature() *tasks.Signature {
-	if projectCache.LatestTaskSignature == nil {
-		return nil
-	}
-	return &tasks.Signature{
-		Name: projectCache.LatestTaskSignature.Name,
-		UUID: projectCache.LatestTaskSignature.UUID,
-		Args: []tasks.Arg{
-			{
-				Type:  "string",
-				Value: projectCache.LatestTaskSignature.Arg,
-			},
-		},
-	}
-}
-
-func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
-	if projectCache.LatestTaskSignature == nil {
-		return nil
-	}
-	return task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature()).GetState()
-}
-
-func (projectCache *ProjectCache) IsLatestTaskFinishedOrTimeout() bool {
-	taskState := projectCache.GetLatestTaskState()
-	// task state has ttl, maybe task state can not be got
-	if taskState == nil || taskState.TaskName == "" {
-		return true
-	} else if taskState.IsCompleted() {
-		return true
-	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(projectCache.LatestTaskTimeoutSec)*time.Second {
-		logrus.Warnf("task %s-%s time out", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
-		return true
-	}
-	return false
-}
-
-type ProjectInfoList struct {
-	Num   int            `json:"num" description:"project number"`
-	Items []*ProjectInfo `json:"items" description:"project info list"`
 }
 
 type HelmExtraLabels struct {

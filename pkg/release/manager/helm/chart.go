@@ -152,7 +152,7 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo := new(release.ChartInfo)
 	appMetaInfo := release.TranswarpAppInfo{}
 
-	chartRequest, err := GetDefaultHelmClient().getChartRequest(TenantRepoName, ChartName, ChartVersion)
+	chartRequest, err := GetDefaultHelmClient().GetChartRequest(TenantRepoName, ChartName, ChartVersion)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") {
 			err = walmerr.NotFoundError{}

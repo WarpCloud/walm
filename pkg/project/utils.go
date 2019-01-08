@@ -1,9 +1,9 @@
 package project
 
 import (
-	"walm/pkg/release"
 	"time"
 	"fmt"
+	"walm/pkg/release/v2"
 )
 
 func buildProjectReleaseName(projectName, releaseName string) string {
@@ -37,8 +37,8 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 	return dest
 }
 
-func buildReleaseRequest(projectInfo *release.ProjectInfo, releaseName string) *release.ReleaseRequest {
-	var releaseRequest release.ReleaseRequest
+func buildReleaseRequest(projectInfo *ProjectInfo, releaseName string) *v2.ReleaseRequestV2 {
+	var releaseRequest v2.ReleaseRequestV2
 	found := false
 	for _, releaseInfo := range projectInfo.Releases {
 		if releaseInfo.Name != releaseName {

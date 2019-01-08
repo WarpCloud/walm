@@ -3,13 +3,13 @@ package v1
 import (
 	"github.com/emicklei/go-restful"
 
-	"walm/pkg/release/manager/project"
-	releasetypes "walm/pkg/release"
+	"walm/pkg/project"
 	"fmt"
 	walmerr "walm/pkg/util/error"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"walm/router/api"
+	"walm/pkg/release/v2"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
@@ -56,7 +56,7 @@ func getTimeoutSecQueryParam(request *restful.Request) (timeoutSec int64, err er
 }
 
 func DeployProject(request *restful.Request, response *restful.Response) {
-	projectParams := new(releasetypes.ProjectParams)
+	projectParams := new(project.ProjectParams)
 	tenantName := request.PathParameter("namespace")
 	projectName := request.PathParameter("project")
 	async, err := getAsyncQueryParam(request)
@@ -148,7 +148,7 @@ func DeployInstanceInProject(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &releasetypes.ReleaseRequest{}
+	releaseRequest := &v2.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
@@ -174,7 +174,7 @@ func UpgradeInstanceInProject(request *restful.Request, response *restful.Respon
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &releasetypes.ReleaseRequest{}
+	releaseRequest := &v2.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
@@ -200,7 +200,7 @@ func DeployProjectInProject(request *restful.Request, response *restful.Response
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	projectParams := &releasetypes.ProjectParams{}
+	projectParams := &project.ProjectParams{}
 	err = request.ReadEntity(projectParams)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))

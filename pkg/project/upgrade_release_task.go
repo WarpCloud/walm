@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"walm/pkg/release"
+	"walm/pkg/release/v2"
+	"walm/pkg/release/manager/helm/cache"
 )
 
 const (
@@ -26,7 +27,7 @@ func UpgradeReleaseTask(upgradeReleaseTaskArgsStr string) error {
 	return upgradeReleaseTaskArgs.upgradeRelease()
 }
 
-func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*release.ProjectTaskSignature, error) {
+func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*cache.ProjectTaskSignature, error) {
 	upgradeReleaseTaskArgsStr, err := json.Marshal(upgradeReleaseTaskArgs)
 	if err != nil {
 		logrus.Errorf("failed to marshal upgrade release task args: %s", err.Error())
@@ -46,7 +47,7 @@ func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*re
 		logrus.Errorf("failed to send upgrade release task : %s", err.Error())
 		return nil, err
 	}
-	return &release.ProjectTaskSignature{
+	return &cache.ProjectTaskSignature{
 		Name: upgradeReleaseTaskName,
 		UUID: upgradeReleaseTaskSig.UUID,
 		Arg:  string(upgradeReleaseTaskArgsStr),
@@ -56,12 +57,12 @@ func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*re
 type UpgradeReleaseTaskArgs struct {
 	Namespace     string
 	ProjectName          string
-	ReleaseParams *release.ReleaseRequest
+	ReleaseParams *v2.ReleaseRequestV2
 }
 
 func (upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) upgradeRelease() (err error) {
 	upgradeReleaseTaskArgs.ReleaseParams.Name = buildProjectReleaseName(upgradeReleaseTaskArgs.ProjectName, upgradeReleaseTaskArgs.ReleaseParams.Name)
-	err = GetDefaultProjectManager().helmClient.UpgradeRealese(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, nil)
+	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil)
 	if err != nil {
 		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName)
 		return
