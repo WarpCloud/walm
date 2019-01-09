@@ -98,6 +98,7 @@ func (client *HelmClient) GetDryRun() bool {
 	return client.dryRun
 }
 
+//Deprecated
 func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfo, error) {
 	logrus.Debugf("Enter ListReleases namespace=%s filter=%s\n", namespace, filter)
 	releaseCaches, err := client.helmCache.GetReleaseCaches(namespace, filter, 0)
@@ -131,6 +132,7 @@ func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.Rel
 	return releaseInfos, nil
 }
 
+//Deprecated
 func (client *HelmClient) GetReleasesByNames(namespace string, names ...string) ([]*release.ReleaseInfo, error) {
 	releaseCaches, err := client.helmCache.GetReleaseCachesByNames(namespace, names...)
 	if err != nil {
@@ -163,6 +165,7 @@ func (client *HelmClient) GetReleasesByNames(namespace string, names ...string) 
 	return releaseInfos, nil
 }
 
+//Deprecated
 func (client *HelmClient) GetRelease(namespace, releaseName string) (release *release.ReleaseInfo, err error) {
 	logrus.Debugf("Enter GetRelease %s %s\n", namespace, releaseName)
 	releaseCache, err := client.helmCache.GetReleaseCache(namespace, releaseName)
@@ -175,11 +178,6 @@ func (client *HelmClient) GetRelease(namespace, releaseName string) (release *re
 		logrus.Errorf("failed to build release info: %s\n", err.Error())
 		return
 	}
-	return
-}
-
-//TODO
-func (client *HelmClient) GetReleaseConfigs() (releaseConfigs []*release.ReleaseConfig, err error) {
 	return
 }
 
@@ -221,6 +219,7 @@ func (client *HelmClient) RestartRelease(namespace, releaseName string) error {
 	return nil
 }
 
+//Deprecated
 func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, chartArchive multipart.File) (err error) {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
@@ -274,6 +273,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	return nil
 }
 
+//Deprecated
 func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool, chartArchive multipart.File) (err error) {
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
@@ -634,20 +634,6 @@ func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
 		}
 		client.helmCache.Resync()
 	}, client.helmCacheResyncInterval, stopCh)
-}
-
-func (client *HelmClient) DeployTillerCharts(namespace string) error {
-	tillerRelease := release.ReleaseRequest{}
-	tillerRelease.Name = fmt.Sprintf("tenant-tiller-%s", namespace)
-	tillerRelease.ChartName = "helm-tiller-tenant"
-	tillerRelease.ConfigValues = make(map[string]interface{}, 0)
-	tillerRelease.ConfigValues["tiller"] = map[string]string{
-		"image": setting.Config.MultiTenantConfig.TillerImage,
-	}
-	err := client.InstallUpgradeRealese(namespace, &tillerRelease, true, nil)
-	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
-
-	return err
 }
 
 
