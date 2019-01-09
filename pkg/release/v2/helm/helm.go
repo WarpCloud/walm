@@ -18,6 +18,7 @@ import (
 	"errors"
 	"mime/multipart"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"walm/pkg/hook"
 )
 
 type HelmClientV2 struct {
@@ -211,6 +212,8 @@ func (hc *HelmClientV2) InstallUpgradeReleaseV2(namespace string, releaseRequest
 	if releaseRequest.Dependencies == nil {
 		releaseRequest.Dependencies = map[string]string{}
 	}
+
+	hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
 
 	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
 	// app.yaml : used to define chart dependency relations
