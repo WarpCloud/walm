@@ -4,12 +4,15 @@ import (
 	"walm/pkg/k8s/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/release/manager/helm"
+	"walm/pkg/release/v2/helm"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"walm/pkg/k8s/adaptor"
 	walmerr "walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"walm/pkg/release"
+	"walm/pkg/setting"
+	"walm/pkg/release/v2"
 )
 
 func ListTenants() (TenantInfoList, error) {
@@ -134,7 +137,7 @@ func CreateTenant(tenantName string, tenantParams *TenantParams) error {
 		return err
 
 	} else {
-		err := helm.GetDefaultHelmClient().DeployTillerCharts(tenantName)
+		err := deployTillerCharts(tenantName)
 		if err != nil {
 			logrus.Errorf("failed to deploy tenant tiller : %s", err.Error())
 			return err
@@ -153,12 +156,27 @@ func doCreateTenant(tenantName string, tenantParams *TenantParams) error {
 		}
 	}
 
-	err := helm.GetDefaultHelmClient().DeployTillerCharts(tenantName)
+	err := deployTillerCharts(tenantName)
 	if err != nil {
 		logrus.Errorf("failed to deploy tenant tiller : %s", err.Error())
 		return err
 	}
 	return nil
+}
+
+func deployTillerCharts(namespace string) error {
+	tillerRelease := release.ReleaseRequest{}
+	tillerRelease.Name = fmt.Sprintf("tenant-tiller-%s", namespace)
+	tillerRelease.ChartName = "helm-tiller-tenant"
+	tillerRelease.ConfigValues = make(map[string]interface{}, 0)
+	tillerRelease.ConfigValues["tiller"] = map[string]string{
+		"image": setting.Config.MultiTenantConfig.TillerImage,
+	}
+
+	err := helm.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &v2.ReleaseRequestV2{ReleaseRequest: tillerRelease}, true, nil)
+	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
+
+	return err
 }
 
 func createResourceQuota(tenantName string, tenantQuota *TenantQuotaParams) error{
@@ -201,7 +219,7 @@ func DeleteTenant(tenantName string) error {
 		}
 	}
 
-	err = helm.GetDefaultHelmClient().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true, false)
+	err = helm.GetDefaultHelmClientV2().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true, false)
 	if err != nil {
 		logrus.Errorf("failed to delete tenant tiller release : %s", err.Error())
 	}
