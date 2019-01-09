@@ -314,6 +314,13 @@ func InitReleaseRouter() *restful.WebService {
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.POST("/{namespace}/migratev1").To(v1.MigrateV1Releases).
+		Doc("迁移namespace下的v1 releases").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	ws.Route(ws.PUT("/{namespace}").To(v1.UpgradeRelease).
 		Doc("升级一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
