@@ -153,14 +153,5 @@ func RestartRelease(request *restful.Request, response *restful.Response) {
 	}
 }
 
-func MigrateV1Releases(request *restful.Request, response *restful.Response) {
-	namespace := request.PathParameter("namespace")
-	err := helmv2.MigrateV1Releases(namespace)
-	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to migrate v1 releases in %s: %s", namespace, err.Error()))
-		return
-	}
-}
-
 func RollBackRelease(request *restful.Request, response *restful.Response) {
 }

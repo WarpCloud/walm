@@ -150,9 +150,7 @@ func (hc *HelmClientV2) ReloadRelease(namespace, name string, isSystem bool) err
 			return err
 		}
 
-		reuseValues := true
 		if isJsonnetChart {
-			reuseValues = false
 			chart, err = convertJsonnetChart(namespace, name, releaseConfig.Spec.Dependencies, jsonnetChart, releaseConfig.Spec.ConfigValues, newDependenciesConfigValues)
 			if err != nil {
 				logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseConfig.Spec.ChartName, releaseConfig.Spec.ChartVersion, "", err.Error())
@@ -174,7 +172,6 @@ func (hc *HelmClientV2) ReloadRelease(namespace, name string, isSystem bool) err
 			name,
 			chart,
 			helm.UpdateValueOverrides(valueOverrideBytes),
-			helm.ReuseValues(reuseValues),
 			helm.UpgradeDryRun(hc.GetDryRun()),
 		)
 		if err != nil {
@@ -197,7 +194,7 @@ func (hc *HelmClientV2) ReloadRelease(namespace, name string, isSystem bool) err
 
 func (hc *HelmClientV2) InstallUpgradeReleaseV2(namespace string, releaseRequest *releasev2.ReleaseRequestV2, isSystem bool, chartArchive multipart.File) error {
 	update := true
-	releaseCache, err := hc.GetHelmCache().GetReleaseCache(namespace, releaseRequest.Name)
+	releaseInfo, err := hc.GetReleaseV2(namespace, releaseRequest.Name)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			update = false
@@ -251,8 +248,11 @@ func (hc *HelmClientV2) InstallUpgradeReleaseV2(namespace string, releaseRequest
 		if err != nil {
 			if adaptor.IsNotFoundErr(err) {
 				logrus.Warnf("release config %s/%s is not found", namespace, releaseRequest.Name)
-				//compatible
-				helmv1.MergeValues(configValues, releaseCache.ConfigValues)
+				helmv1.MergeValues(configValues, releaseInfo.ConfigValues)
+				if len(releaseInfo.Status.Instances) > 0 {
+					err = fmt.Errorf("now v1 release %s/%s with instances is not support to upgrade", namespace, releaseRequest.Name)
+					return err
+				}
 			} else {
 				logrus.Errorf("failed to get release config : %s", err.Error())
 				return err
