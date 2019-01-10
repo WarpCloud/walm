@@ -366,25 +366,38 @@ func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem 
 		return err
 	}
 
-	for _, statefulSet := range releaseInfo.Status.StatefulSets {
-		if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0){
-			pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
-			if err != nil {
-				logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
-				return err
-			}
+	if deletePvcs {
+		statefulSets := []adaptor.WalmStatefulSet{}
+		if len(releaseInfo.Status.StatefulSets) > 0 {
+			statefulSets = append(statefulSets, releaseInfo.Status.StatefulSets...)
+		}
 
-			for _, pvc := range pvcs {
-				err = handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
+		for _, instance := range releaseInfo.Status.Instances {
+			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0{
+				statefulSets = append(statefulSets, instance.Modules.StatefulSets...)
+			}
+		}
+
+		for _, statefulSet := range statefulSets {
+			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0){
+				pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
 				if err != nil {
-					if adaptor.IsNotFoundErr(err) {
-						logrus.Warnf("pvc %s/%s related to stateful set %s/%s is not found", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
-						continue
-					}
-					logrus.Errorf("failed to delete pvc %s/%s related to stateful set %s/%s : %s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name, err.Error())
+					logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
 					return err
 				}
-				logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+
+				for _, pvc := range pvcs {
+					err = handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
+					if err != nil {
+						if adaptor.IsNotFoundErr(err) {
+							logrus.Warnf("pvc %s/%s related to stateful set %s/%s is not found", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+							continue
+						}
+						logrus.Errorf("failed to delete pvc %s/%s related to stateful set %s/%s : %s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name, err.Error())
+						return err
+					}
+					logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+				}
 			}
 		}
 	}
