@@ -1,44 +1,35 @@
 package release
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
-	"strings"
-	"walm/pkg/release"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"encoding/json"
-	"walm/pkg/k8s/handler"
-	"walm/pkg/release/manager/helm"
-	. "walm/pkg/project"
-
 	"go/build"
 	"io/ioutil"
 	"os"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/release/v2"
+	helmv2 "walm/pkg/release/v2/helm"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/ghodss/yaml"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
-	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Release", func() {
 
 	var (
-		namespace     string
-		project       string
-		releaseName   string
-		isExists      bool
-		updatedConfig int
-		gopath        string
+		namespace      string
+		gopath         string
+		releaseName    string
+		releaseRequest v2.ReleaseRequestV2
 	)
 
 	BeforeEach(func() {
 
 		By("create namespace")
+
 		randomId := uuid.Must(uuid.NewV4()).String()
 		namespace = "test-" + randomId[:8]
 
@@ -51,113 +42,80 @@ var _ = Describe("Release", func() {
 		_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&ns)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("params construct")
-		project = namespace + "-app"
-		releaseName = project + "--yarn"
+		By("create a release")
+
 		gopath = os.Getenv("GOPATH")
 		if gopath == "" {
 			gopath = build.Default.GOPATH
 		}
-
-		commonValuesVal := map[string]interface{}{}
-		commonValuesValStr, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/commonValues.yaml")
-		yaml.Unmarshal(commonValuesValStr, &commonValuesVal)
-
-		var data []release.ReleaseRequest
-		releaseValue, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/HDFS/releases.yaml")
-		Expect(err).NotTo(HaveOccurred())
-		json.Unmarshal(releaseValue, &data)
-
-		projectParams := release.ProjectParams{
-			CommonValues: commonValuesVal,
-			Releases:     make([]*release.ReleaseRequest, len(data)),
-		}
-
-		instanceMap := make(map[string]int)
-		for index := range data {
-			projectParams.Releases[index] = &data[index]
-			instanceMap[strings.Join([]string{project, projectParams.Releases[index].Name}, "--")] = 1
-		}
-
-		By("start create project")
-		err = GetDefaultProjectManager().CreateProject(namespace, project, &projectParams, false, 50000)
-		projectInfo, err := GetDefaultProjectManager().GetProjectInfo(namespace, project)
+		releaseChartByte, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/TXSQL/release.yaml")
 		Expect(err).NotTo(HaveOccurred())
 
-	Loop:
-		for i := range projectInfo.Releases {
-			walmApplicationInstance := projectInfo.Releases[i].Status.Instances
-			for j := range walmApplicationInstance {
-				instance := walmApplicationInstance[j].WalmMeta.GetName()
-				if _, isExists = instanceMap[instance]; !isExists {
-					break Loop
-				}
-			}
-		}
+		err = json.Unmarshal(releaseChartByte, &releaseRequest)
+		Expect(err).NotTo(HaveOccurred())
 
-		Expect(isExists).To(BeTrue())
+		releaseRequest.Name = releaseRequest.Name + "-" + randomId[:8]
+		releaseName = releaseRequest.Name
+		helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil)
+
+		releaseInfo, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+		Expect(releaseInfo.Name).To(Equal(releaseName))
 	})
 
 	AfterEach(func() {
-		err := handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(namespace)
+
+		By("delete release")
+		err := helmv2.GetDefaultHelmClientV2().DeleteRelease(namespace, releaseName, false, true)
 		Expect(err).NotTo(HaveOccurred())
+
+		_, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+		Expect(err).To(HaveOccurred())
+
+		By("delete namespace")
+		err = handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(namespace)
+		Expect(err).NotTo(HaveOccurred())
+
 	})
 
-	Describe("update project release", func() {
+	Describe("update release", func() {
 
-		It("update project release success", func() {
-			By("get project release")
+		It("update release success", func() {
 
-			releasesValue, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/HDFS/releases.yaml")
+			By("update release value")
+
+			ConfigValue, err := json.Marshal(releaseRequest.ConfigValues)
 			Expect(err).NotTo(HaveOccurred())
-			var releasesInfo []release.ReleaseRequest
-			json.Unmarshal(releasesValue, &releasesInfo)
-
-			By("update project release")
-			for index := range releasesInfo {
-				if releasesInfo[index].ChartName == "yarn" {
-
-					ConfigValue, _ := json.Marshal(releasesInfo[index].ConfigValues)
-					jsonConfigValue, err := simplejson.NewJson(ConfigValue)
-					Expect(err).NotTo(HaveOccurred())
-
-					jsonConfigValue.Get("App").Get("yarnnm").Get("resources").Set("memory_request", 10)
-					ConfigValue, err = jsonConfigValue.MarshalJSON()
-					Expect(err).NotTo(HaveOccurred())
-
-					err = json.Unmarshal(ConfigValue, &releasesInfo[index].ConfigValues)
-					Expect(err).NotTo(HaveOccurred())
-
-					releasesInfo[index].Name = releaseName
-					err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releasesInfo[index], true)
-					Expect(err).NotTo(HaveOccurred())
-				}
-			}
-			By("validate project release")
-			newRelease, err := helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
-			logrus.Infof("%s", err)
+			jsonConfigValue, err := simplejson.NewJson(ConfigValue)
 			Expect(err).NotTo(HaveOccurred())
 
+			jsonConfigValue.Get("App").Get("txsql").Set("replicas", 2)
+			jsonConfigValue.Get("App").Get("txsql").Get("resources").Set("memory_request", 2)
+
+			ConfigValue, err = jsonConfigValue.MarshalJSON()
+			Expect(err).NotTo(HaveOccurred())
+			err = json.Unmarshal(ConfigValue, &releaseRequest.ConfigValues)
+			Expect(err).NotTo(HaveOccurred())
+
+			helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil)
+
+			By("validate release value")
+
+			newRelease, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+			Expect(err).NotTo(HaveOccurred())
 			newConfigValue, err := json.Marshal(newRelease.ConfigValues)
 			Expect(err).NotTo(HaveOccurred())
-
 			newJsonConfigValue, err := simplejson.NewJson(newConfigValue)
 			Expect(err).NotTo(HaveOccurred())
 
-			updatedConfig, err = newJsonConfigValue.Get("App").Get("yarnnm").Get("resources").Get("memory_request").Int()
+			replicasValue, err := newJsonConfigValue.Get("App").Get("txsql").Get("replicas").Int()
+			Expect(err).NotTo(HaveOccurred())
+			memoryValue, err := newJsonConfigValue.Get("App").Get("txsql").Get("resources").Get("memory_request").Int()
 			Expect(err).NotTo(HaveOccurred())
 
-			By("update project release success")
-			Expect(updatedConfig).To(Equal(10))
-
-			By("delete project")
-			err = GetDefaultProjectManager().DeleteProject(namespace, project, true, 5000)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = GetDefaultProjectManager().GetProjectInfo(namespace, project)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(replicasValue).To(Equal(2))
+			Expect(memoryValue).To(Equal(2))
 
 		})
 
 	})
-
 })
