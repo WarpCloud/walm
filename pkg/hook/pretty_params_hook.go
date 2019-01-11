@@ -21,32 +21,32 @@ func ProcessPrettyParams(releaseRequest *release.ReleaseRequest) {
 		}
 
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"memory_request": roleConfig.RoleResourceConfig.MemoryRequest,
 			},
 		})
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"memory_limit": roleConfig.RoleResourceConfig.MemoryLimit,
 			},
 		})
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"cpu_request": roleConfig.RoleResourceConfig.CpuRequest,
 			},
 		})
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"cpu_limit": roleConfig.RoleResourceConfig.CpuLimit,
 			},
 		})
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"gpu_request": roleConfig.RoleResourceConfig.GpuRequest,
 			},
 		})
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-			"resources": map[string]interface{} {
+			"resources": map[string]interface{}{
 				"gpu_limit": roleConfig.RoleResourceConfig.GpuLimit,
 			},
 		})
@@ -69,7 +69,7 @@ func ProcessPrettyParams(releaseRequest *release.ReleaseRequest) {
 		}
 		if len(commonAppRoleStorage) > 0 {
 			mergo.Merge(&commonAppRoleValues, map[string]interface{}{
-				"resources": map[string]interface{} {
+				"resources": map[string]interface{}{
 					"storage": commonAppRoleStorage,
 				},
 			})
@@ -84,7 +84,7 @@ func ProcessPrettyParams(releaseRequest *release.ReleaseRequest) {
 
 	logrus.Debugf("commonAppValues %+v\n", commonAppValues)
 	if len(commonAppValues) > 0 {
-		err := mergo.Merge(&defaultConfigValue, map[string]interface{} {
+		err := mergo.Merge(&defaultConfigValue, map[string]interface{}{
 			"App": commonAppValues,
 		}, mergo.WithOverride)
 		if err != nil {

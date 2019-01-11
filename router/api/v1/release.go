@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/emicklei/go-restful"
 	"fmt"
 	walmerr "walm/pkg/util/error"
@@ -90,6 +92,7 @@ func UpgradeRelease(request *restful.Request, response *restful.Response) {
 
 func UpgradeReleaseWithChart(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
+	releaseName := request.PathParameter("release")
 	chartArchive, _, err := request.Request.FormFile("chart")
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
@@ -102,6 +105,7 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
 		return
 	}
+	releaseRequest.Name = releaseName
 
 	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false, chartArchive)
 	if err != nil {

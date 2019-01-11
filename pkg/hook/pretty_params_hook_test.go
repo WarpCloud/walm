@@ -97,7 +97,7 @@ commonConfig:
     description: "hdfszkfc服务"
     baseConfig:
     - variable: image
-      default: 172.16.1.99/gold/hdfs:transwarp-5.2
+      default: 172.16.1.99/transwarp1111111111/hdfs:transwarp-5.2
       description: "镜像"
       type: string
     - variable: env_list

@@ -227,7 +227,7 @@ func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *relea
 	if releaseRequest.Dependencies == nil {
 		releaseRequest.Dependencies = map[string]string{}
 	}
-
+	hook.ProcessPrettyParams(releaseRequest)
 	var chartRequested *chart.Chart
 	if chartArchive != nil {
 		chartRequested, err = GetChart(chartArchive)
