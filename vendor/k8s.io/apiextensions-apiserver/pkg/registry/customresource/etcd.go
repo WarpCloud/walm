@@ -17,17 +17,16 @@ limitations under the License.
 package customresource
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -40,8 +39,9 @@ type CustomResourceStorage struct {
 	Scale          *ScaleREST
 }
 
-func NewStorage(resource schema.GroupResource, kind, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) CustomResourceStorage {
-	customResourceREST, customResourceStatusREST := newREST(resource, kind, listKind, strategy, optsGetter, categories, tableConvertor)
+func NewStorage(resource schema.GroupResource, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) CustomResourceStorage {
+	customResourceREST, customResourceStatusREST := newREST(resource, listKind, strategy, optsGetter, categories, tableConvertor)
+	customResourceRegistry := NewRegistry(customResourceREST)
 
 	s := CustomResourceStorage{
 		CustomResource: customResourceREST,
@@ -58,7 +58,7 @@ func NewStorage(resource schema.GroupResource, kind, listKind schema.GroupVersio
 		}
 
 		s.Scale = &ScaleREST{
-			store:              customResourceREST.Store,
+			registry:           customResourceRegistry,
 			specReplicasPath:   scale.SpecReplicasPath,
 			statusReplicasPath: scale.StatusReplicasPath,
 			labelSelectorPath:  labelSelectorPath,
@@ -75,14 +75,9 @@ type REST struct {
 }
 
 // newREST returns a RESTStorage object that will work against API services.
-func newREST(resource schema.GroupResource, kind, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) (*REST, *StatusREST) {
+func newREST(resource schema.GroupResource, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) (*REST, *StatusREST) {
 	store := &genericregistry.Store{
-		NewFunc: func() runtime.Object {
-			// set the expected group/version/kind in the new object as a signal to the versioning decoder
-			ret := &unstructured.Unstructured{}
-			ret.SetGroupVersionKind(kind)
-			return ret
-		},
+		NewFunc: func() runtime.Object { return &unstructured.Unstructured{} },
 		NewListFunc: func() runtime.Object {
 			// lists are never stored, only manufactured, so stomp in the right kind
 			ret := &unstructured.UnstructuredList{}
@@ -111,59 +106,6 @@ func newREST(resource schema.GroupResource, kind, listKind schema.GroupVersionKi
 // Implement CategoriesProvider
 var _ rest.CategoriesProvider = &REST{}
 
-// List returns a list of items matching labels and field according to the store's PredicateFunc.
-func (e *REST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
-	l, err := e.Store.List(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	// Shallow copy ObjectMeta in returned list for each item. Native types have `Items []Item` fields and therefore
-	// implicitly shallow copy ObjectMeta. The generic store sets the self-link for each item. So this is necessary
-	// to avoid mutation of the objects from the cache.
-	if ul, ok := l.(*unstructured.UnstructuredList); ok {
-		for i := range ul.Items {
-			shallowCopyObjectMeta(&ul.Items[i])
-		}
-	}
-
-	return l, nil
-}
-
-func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	o, err := r.Store.Get(ctx, name, options)
-	if err != nil {
-		return nil, err
-	}
-	if u, ok := o.(*unstructured.Unstructured); ok {
-		shallowCopyObjectMeta(u)
-	}
-	return o, nil
-}
-
-func shallowCopyObjectMeta(u runtime.Unstructured) {
-	obj := shallowMapDeepCopy(u.UnstructuredContent())
-	if metadata, ok := obj["metadata"]; ok {
-		if metadata, ok := metadata.(map[string]interface{}); ok {
-			obj["metadata"] = shallowMapDeepCopy(metadata)
-			u.SetUnstructuredContent(obj)
-		}
-	}
-}
-
-func shallowMapDeepCopy(in map[string]interface{}) map[string]interface{} {
-	if in == nil {
-		return nil
-	}
-
-	out := make(map[string]interface{}, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-
-	return out
-}
-
 // Categories implements the CategoriesProvider interface. Returns a list of categories a resource is part of.
 func (r *REST) Categories() []string {
 	return r.categories
@@ -174,26 +116,22 @@ type StatusREST struct {
 	store *genericregistry.Store
 }
 
-var _ = rest.Patcher(&StatusREST{})
-
 func (r *StatusREST) New() runtime.Object {
 	return &unstructured.Unstructured{}
 }
 
 // Get retrieves the object from the storage. It is required to support Patch.
-func (r *StatusREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (r *StatusREST) Get(ctx genericapirequest.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	return r.store.Get(ctx, name, options)
 }
 
 // Update alters the status subset of an object.
-func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
-	// We are explicitly setting forceAllowCreate to false in the call to the underlying storage because
-	// subresources should never allow create on update.
-	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation, false, options)
+func (r *StatusREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc) (runtime.Object, bool, error) {
+	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation)
 }
 
 type ScaleREST struct {
-	store              *genericregistry.Store
+	registry           Registry
 	specReplicasPath   string
 	statusReplicasPath string
 	labelSelectorPath  string
@@ -212,12 +150,11 @@ func (r *ScaleREST) New() runtime.Object {
 	return &autoscalingv1.Scale{}
 }
 
-func (r *ScaleREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	obj, err := r.store.Get(ctx, name, options)
+func (r *ScaleREST) Get(ctx genericapirequest.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	cr, err := r.registry.GetCustomResource(ctx, name, options)
 	if err != nil {
 		return nil, err
 	}
-	cr := obj.(*unstructured.Unstructured)
 
 	scaleObject, replicasFound, err := scaleFromCustomResource(cr, r.specReplicasPath, r.statusReplicasPath, r.labelSelectorPath)
 	if err != nil {
@@ -229,12 +166,11 @@ func (r *ScaleREST) Get(ctx context.Context, name string, options *metav1.GetOpt
 	return scaleObject, err
 }
 
-func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
-	obj, err := r.store.Get(ctx, name, &metav1.GetOptions{})
+func (r *ScaleREST) Update(ctx genericapirequest.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc) (runtime.Object, bool, error) {
+	cr, err := r.registry.GetCustomResource(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
-	cr := obj.(*unstructured.Unstructured)
 
 	const invalidSpecReplicas = -2147483648 // smallest int32
 	oldScale, replicasFound, err := scaleFromCustomResource(cr, r.specReplicasPath, r.statusReplicasPath, r.labelSelectorPath)
@@ -245,7 +181,7 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 		oldScale.Spec.Replicas = invalidSpecReplicas // signal that this was not set before
 	}
 
-	obj, err = objInfo.UpdatedObject(ctx, oldScale)
+	obj, err := objInfo.UpdatedObject(ctx, oldScale)
 	if err != nil {
 		return nil, false, err
 	}
@@ -268,11 +204,10 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 	}
 	cr.SetResourceVersion(scale.ResourceVersion)
 
-	obj, _, err = r.store.Update(ctx, cr.GetName(), rest.DefaultUpdatedObjectInfo(cr), createValidation, updateValidation, false, options)
+	cr, err = r.registry.UpdateCustomResource(ctx, cr, createValidation, updateValidation)
 	if err != nil {
 		return nil, false, err
 	}
-	cr = obj.(*unstructured.Unstructured)
 
 	newScale, _, err := scaleFromCustomResource(cr, r.specReplicasPath, r.statusReplicasPath, r.labelSelectorPath)
 	if err != nil {

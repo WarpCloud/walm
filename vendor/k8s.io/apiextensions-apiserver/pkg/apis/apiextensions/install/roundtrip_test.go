@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	apiextensionsfuzzer "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/fuzzer"
-	"k8s.io/apimachinery/pkg/api/apitesting/roundtrip"
+	"k8s.io/apimachinery/pkg/api/testing/roundtrip"
 )
 
 func TestRoundTrip(t *testing.T) {

@@ -92,8 +92,8 @@ func (parser *Parser) ParseAPI(searchDir string, mainAPIFile string) error {
 		parser.ParseType(astFile)
 	}
 
-	for _, astFile := range parser.files {
-		parser.ParseRouterAPIInfo(astFile)
+	for fileName, astFile := range parser.files {
+		parser.ParseRouterAPIInfo(fileName, astFile)
 	}
 
 	parser.ParseDefinitions()
@@ -130,7 +130,11 @@ func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 				case "@title":
 					parser.swagger.Info.Title = strings.TrimSpace(commentLine[len(attribute):])
 				case "@description":
-					parser.swagger.Info.Description = strings.TrimSpace(commentLine[len(attribute):])
+					if parser.swagger.Info.Description == "{{.Description}}" {
+						parser.swagger.Info.Description = strings.TrimSpace(commentLine[len(attribute):])
+					} else {
+						parser.swagger.Info.Description += "\n" + strings.TrimSpace(commentLine[len(attribute):])
+					}
 				case "@termsofservice":
 					parser.swagger.Info.TermsOfService = strings.TrimSpace(commentLine[len(attribute):])
 				case "@contact.name":
@@ -331,7 +335,7 @@ func GetSchemes(commentLine string) []string {
 }
 
 // ParseRouterAPIInfo parses router api info for given astFile
-func (parser *Parser) ParseRouterAPIInfo(astFile *ast.File) {
+func (parser *Parser) ParseRouterAPIInfo(fileName string, astFile *ast.File) {
 	for _, astDescription := range astFile.Decls {
 		switch astDeclaration := astDescription.(type) {
 		case *ast.FuncDecl:
@@ -340,7 +344,7 @@ func (parser *Parser) ParseRouterAPIInfo(astFile *ast.File) {
 				operation.parser = parser
 				for _, comment := range astDeclaration.Doc.List {
 					if err := operation.ParseComment(comment.Text, astFile); err != nil {
-						log.Panicf("ParseComment panic:%+v", err)
+						log.Panicf("ParseComment panic in file %s :%+v", fileName, err)
 					}
 				}
 				var pathItem spec.PathItem
@@ -407,7 +411,15 @@ func (parser *Parser) isInStructStack(refTypeName string) bool {
 
 // ParseDefinitions parses Swagger Api definitions.
 func (parser *Parser) ParseDefinitions() {
-	for refTypeName, typeSpec := range parser.registerTypes {
+	// sort the typeNames so that parsing definitions is deterministic
+	typeNames := make([]string, 0, len(parser.registerTypes))
+	for refTypeName := range parser.registerTypes {
+		typeNames = append(typeNames, refTypeName)
+	}
+	sort.Strings(typeNames)
+
+	for _, refTypeName := range typeNames {
+		typeSpec := parser.registerTypes[refTypeName]
 		ss := strings.Split(refTypeName, ".")
 		pkgName := ss[0]
 		parser.structStack = nil
@@ -432,10 +444,10 @@ func (parser *Parser) ParseDefinition(pkgName, typeName string, typeSpec *ast.Ty
 	parser.structStack = append(parser.structStack, refTypeName)
 
 	log.Println("Generating " + refTypeName)
-	parser.swagger.Definitions[refTypeName] = parser.parseTypeExpr(pkgName, typeName, typeSpec.Type, true)
+	parser.swagger.Definitions[refTypeName] = parser.parseTypeExpr(pkgName, typeName, typeSpec.Type)
 }
 
-func (parser *Parser) collectRequiredFields(pkgName string, properties map[string]spec.Schema) (requiredFields []string) {
+func (parser *Parser) collectRequiredFields(pkgName string, properties map[string]spec.Schema, extraRequired []string) (requiredFields []string) {
 	// created sorted list of properties keys so when we iterate over them it's deterministic
 	ks := make([]string, 0, len(properties))
 	for k := range properties {
@@ -461,6 +473,12 @@ func (parser *Parser) collectRequiredFields(pkgName string, properties map[strin
 		properties[k] = prop
 	}
 
+	if extraRequired != nil {
+		requiredFields = append(requiredFields, extraRequired...)
+	}
+
+	sort.Strings(requiredFields)
+
 	return
 }
 
@@ -473,7 +491,7 @@ func fullTypeName(pkgName, typeName string) string {
 
 // parseTypeExpr parses given type expression that corresponds to the type under
 // given name and package, and returns swagger schema for it.
-func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr, flattenRequired bool) spec.Schema {
+func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr) spec.Schema {
 	switch expr := typeExpr.(type) {
 	// type Foo struct {...}
 	case *ast.StructType:
@@ -482,11 +500,14 @@ func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr,
 			return schema
 		}
 
+		extraRequired := make([]string, 0)
 		properties := make(map[string]spec.Schema)
 		for _, field := range expr.Fields.List {
 			var fieldProps map[string]spec.Schema
+			var requiredFromAnon []string
 			if field.Names == nil {
-				fieldProps = parser.parseAnonymousField(pkgName, field)
+				fieldProps, requiredFromAnon = parser.parseAnonymousField(pkgName, field)
+				extraRequired = append(extraRequired, requiredFromAnon...)
 			} else {
 				fieldProps = parser.parseStruct(pkgName, field)
 			}
@@ -496,17 +517,16 @@ func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr,
 			}
 		}
 
-		required := parser.collectRequiredFields(pkgName, properties)
+		// collect requireds from our properties and anonymous fields
+		required := parser.collectRequiredFields(pkgName, properties, extraRequired)
 
-		// unset required from properties because we've aggregated them
-		if flattenRequired {
-			for k, prop := range properties {
-				tname := prop.SchemaProps.Type[0]
-				if tname != "object" {
-					prop.SchemaProps.Required = make([]string, 0)
-				}
-				properties[k] = prop
+		// unset required from properties because we've collected them
+		for k, prop := range properties {
+			tname := prop.SchemaProps.Type[0]
+			if tname != "object" {
+				prop.SchemaProps.Required = make([]string, 0)
 			}
+			properties[k] = prop
 		}
 
 		return spec.Schema{
@@ -528,11 +548,11 @@ func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr,
 
 	// type Foo *Baz
 	case *ast.StarExpr:
-		return parser.parseTypeExpr(pkgName, typeName, expr.X, true)
+		return parser.parseTypeExpr(pkgName, typeName, expr.X)
 
 	// type Foo []Baz
 	case *ast.ArrayType:
-		itemSchema := parser.parseTypeExpr(pkgName, "", expr.Elt, true)
+		itemSchema := parser.parseTypeExpr(pkgName, "", expr.Elt)
 		return spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"array"},
@@ -723,7 +743,7 @@ func (parser *Parser) parseStruct(pkgName string, field *ast.Field) (properties 
 	return
 }
 
-func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) map[string]spec.Schema {
+func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) (map[string]spec.Schema, []string) {
 	properties := make(map[string]spec.Schema)
 
 	fullTypeName := ""
@@ -733,10 +753,17 @@ func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) map[
 	case *ast.StarExpr:
 		if ftypeX, ok := ftype.X.(*ast.Ident); ok {
 			fullTypeName = ftypeX.Name
+		} else if ftypeX, ok := ftype.X.(*ast.SelectorExpr); ok {
+			if packageX, ok := ftypeX.X.(*ast.Ident); ok {
+				fullTypeName = fmt.Sprintf("%s.%s", packageX.Name, ftypeX.Sel.Name)
+			}
+		} else {
+			log.Printf("Composite field type of '%T' is unhandle by parser. Skipping", ftype)
+			return properties, []string{}
 		}
 	default:
 		log.Printf("Field type of '%T' is unsupported. Skipping", ftype)
-		return properties
+		return properties, []string{}
 	}
 
 	typeName := fullTypeName
@@ -746,7 +773,7 @@ func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) map[
 	}
 
 	typeSpec := parser.TypeDefinitions[pkgName][typeName]
-	schema := parser.parseTypeExpr(pkgName, typeName, typeSpec.Type, false)
+	schema := parser.parseTypeExpr(pkgName, typeName, typeSpec.Type)
 
 	schemaType := "unknown"
 	if len(schema.SchemaProps.Type) > 0 {
@@ -764,7 +791,7 @@ func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) map[
 		log.Printf("Can't extract properties from a schema of type '%s'", schemaType)
 	}
 
-	return properties
+	return properties, schema.SchemaProps.Required
 }
 
 func (parser *Parser) parseField(field *ast.Field) *structField {

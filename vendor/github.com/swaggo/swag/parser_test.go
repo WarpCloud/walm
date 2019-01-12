@@ -21,7 +21,7 @@ func TestParser_ParseGeneralApiInfo(t *testing.T) {
 	expected := `{
     "swagger": "2.0",
     "info": {
-        "description": "This is a sample server Petstore server.",
+        "description": "This is a sample server Petstore server.\nIt has a lot of beatiful features.",
         "title": "Swagger Example API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
@@ -212,7 +212,7 @@ func TestGetSchemes(t *testing.T) {
 
 }
 
-func TestParseSimpleApi(t *testing.T) {
+func TestParseSimpleApi1(t *testing.T) {
 	expected := `{
     "swagger": "2.0",
     "info": {
@@ -681,7 +681,33 @@ func TestParseSimpleApi(t *testing.T) {
                 }
             }
         },
-        "web.Pet5": {
+        "web.Pet5a": {
+            "type": "object",
+            "required": [
+                "name",
+                "odd"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "odd": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "web.Pet5b": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "web.Pet5c": {
             "type": "object",
             "required": [
                 "name",
@@ -2088,7 +2114,7 @@ func Test(){
 
 	p := New()
 	assert.Panics(t, func() {
-		p.ParseRouterAPIInfo(f)
+		p.ParseRouterAPIInfo("", f)
 	})
 }
 
@@ -2105,7 +2131,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2128,7 +2154,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2151,7 +2177,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2174,7 +2200,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2197,7 +2223,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2220,7 +2246,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2243,7 +2269,7 @@ func Test(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 
@@ -2274,7 +2300,7 @@ func Test3(){
 		panic(err)
 	}
 	p := New()
-	p.ParseRouterAPIInfo(f)
+	p.ParseRouterAPIInfo("", f)
 
 	ps := p.swagger.Paths.Paths
 

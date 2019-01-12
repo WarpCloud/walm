@@ -95,17 +95,19 @@ var acceptedCondition = apiextensions.CustomResourceDefinitionCondition{
 	Message: "no conflicts found",
 }
 
-var notAcceptedCondition = apiextensions.CustomResourceDefinitionCondition{
-	Type:    apiextensions.NamesAccepted,
-	Status:  apiextensions.ConditionFalse,
-	Reason:  "NotAccepted",
-	Message: "not all names are accepted",
+func nameConflictCondition(reason, message string) apiextensions.CustomResourceDefinitionCondition {
+	return apiextensions.CustomResourceDefinitionCondition{
+		Type:    apiextensions.NamesAccepted,
+		Status:  apiextensions.ConditionFalse,
+		Reason:  reason,
+		Message: message,
+	}
 }
 
-var installingCondition = apiextensions.CustomResourceDefinitionCondition{
+var establishedCondition = apiextensions.CustomResourceDefinitionCondition{
 	Type:    apiextensions.Established,
-	Status:  apiextensions.ConditionFalse,
-	Reason:  "Installing",
+	Status:  apiextensions.ConditionTrue,
+	Reason:  "InitialNamesAccepted",
 	Message: "the initial names have been accepted",
 }
 
@@ -114,15 +116,6 @@ var notEstablishedCondition = apiextensions.CustomResourceDefinitionCondition{
 	Status:  apiextensions.ConditionFalse,
 	Reason:  "NotAccepted",
 	Message: "not all names are accepted",
-}
-
-func nameConflictCondition(reason, message string) apiextensions.CustomResourceDefinitionCondition {
-	return apiextensions.CustomResourceDefinitionCondition{
-		Type:    apiextensions.NamesAccepted,
-		Status:  apiextensions.ConditionFalse,
-		Reason:  reason,
-		Message: message,
-	}
 }
 
 func TestSync(t *testing.T) {
@@ -143,7 +136,7 @@ func TestSync(t *testing.T) {
 				Plural: "alfa",
 			},
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
 			name: "different groups",
@@ -153,7 +146,7 @@ func TestSync(t *testing.T) {
 			},
 			expectedNames:                 names("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2"),
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
 			name: "conflict plural to singular",
@@ -213,7 +206,7 @@ func TestSync(t *testing.T) {
 			},
 			expectedNames:                 names("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2"),
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
 			name: "merge on conflicts",
@@ -255,7 +248,7 @@ func TestSync(t *testing.T) {
 			},
 			expectedNames:                 names("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2"),
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
 			name: "no conflicts on self, remove shortname",
@@ -271,44 +264,44 @@ func TestSync(t *testing.T) {
 			},
 			expectedNames:                 names("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1"),
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
-			name:     "installing before with true condition",
-			in:       newCRD("alfa.bravo.com").Condition(acceptedCondition).NewOrDie(),
+			name:     "established before with true condition",
+			in:       newCRD("alfa.bravo.com").Condition(establishedCondition).NewOrDie(),
 			existing: []*apiextensions.CustomResourceDefinition{},
 			expectedNames: apiextensions.CustomResourceDefinitionNames{
 				Plural: "alfa",
 			},
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
-			name:     "not installing before with false condition",
-			in:       newCRD("alfa.bravo.com").Condition(notAcceptedCondition).NewOrDie(),
+			name:     "not established before with false condition",
+			in:       newCRD("alfa.bravo.com").Condition(notEstablishedCondition).NewOrDie(),
 			existing: []*apiextensions.CustomResourceDefinition{},
 			expectedNames: apiextensions.CustomResourceDefinitionNames{
 				Plural: "alfa",
 			},
 			expectedNameConflictCondition: acceptedCondition,
-			expectedEstablishedCondition:  installingCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
-			name: "conflicting, installing before with true condition",
+			name: "conflicting, established before with true condition",
 			in: newCRD("alfa.bravo.com").SpecNames("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2").
-				Condition(acceptedCondition).
+				Condition(establishedCondition).
 				NewOrDie(),
 			existing: []*apiextensions.CustomResourceDefinition{
 				newCRD("india.bravo.com").StatusNames("india", "alfa", "", "").NewOrDie(),
 			},
 			expectedNames:                 names("", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2"),
 			expectedNameConflictCondition: nameConflictCondition("PluralConflict", `"alfa" is already in use`),
-			expectedEstablishedCondition:  notEstablishedCondition,
+			expectedEstablishedCondition:  establishedCondition,
 		},
 		{
-			name: "conflicting, not installing before with false condition",
+			name: "conflicting, not established before with false condition",
 			in: newCRD("alfa.bravo.com").SpecNames("alfa", "delta-singular", "echo-kind", "foxtrot-listkind", "golf-shortname-1", "hotel-shortname-2").
-				Condition(notAcceptedCondition).
+				Condition(notEstablishedCondition).
 				NewOrDie(),
 			existing: []*apiextensions.CustomResourceDefinition{
 				newCRD("india.bravo.com").StatusNames("india", "alfa", "", "").NewOrDie(),
@@ -329,7 +322,7 @@ func TestSync(t *testing.T) {
 			crdLister:        listers.NewCustomResourceDefinitionLister(crdIndexer),
 			crdMutationCache: cache.NewIntegerResourceVersionMutationCache(crdIndexer, crdIndexer, 60*time.Second, false),
 		}
-		actualNames, actualNameConflictCondition, establishedCondition := c.calculateNamesAndConditions(tc.in)
+		actualNames, actualNameConflictCondition, actualEstablishedCondition := c.calculateNamesAndConditions(tc.in)
 
 		if e, a := tc.expectedNames, actualNames; !reflect.DeepEqual(e, a) {
 			t.Errorf("%v expected %v, got %#v", tc.name, e, a)
@@ -337,7 +330,7 @@ func TestSync(t *testing.T) {
 		if e, a := tc.expectedNameConflictCondition, actualNameConflictCondition; !apiextensions.IsCRDConditionEquivalent(&e, &a) {
 			t.Errorf("%v expected %v, got %v", tc.name, e, a)
 		}
-		if e, a := tc.expectedEstablishedCondition, establishedCondition; !apiextensions.IsCRDConditionEquivalent(&e, &a) {
+		if e, a := tc.expectedEstablishedCondition, actualEstablishedCondition; !apiextensions.IsCRDConditionEquivalent(&e, &a) {
 			t.Errorf("%v expected %v, got %v", tc.name, e, a)
 		}
 	}

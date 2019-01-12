@@ -17,11 +17,10 @@ limitations under the License.
 package customresource
 
 import (
-	"context"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
 type statusStrategy struct {
@@ -32,7 +31,7 @@ func NewStatusStrategy(strategy customResourceStrategy) statusStrategy {
 	return statusStrategy{strategy}
 }
 
-func (a statusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (a statusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
 	// update is only allowed to set status
 	newCustomResourceObject := obj.(*unstructured.Unstructured)
 	newCustomResource := newCustomResourceObject.UnstructuredContent()
@@ -54,6 +53,6 @@ func (a statusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.O
 }
 
 // ValidateUpdate is the default update validation for an end user updating status.
-func (a statusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (a statusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
 	return a.customResourceStrategy.validator.ValidateStatusUpdate(ctx, obj, old, a.scale)
 }

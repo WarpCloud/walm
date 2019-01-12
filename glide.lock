@@ -1,5 +1,5 @@
-hash: aa49e005063cd4a54713354d772dd33f7144e0d208e3aedcc79f2fc21b97db66
-updated: 2018-12-18T13:34:52.543679138+08:00
+hash: 3831d24bf1f035b57cd5dbba281d2fc7f7bd21db7a3d5398dc270575cb091cc3
+updated: 2019-01-12T20:30:30.304972665+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -44,6 +44,8 @@ imports:
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
+- name: github.com/bitly/go-simplejson
+  version: 9db4a59bd4d803ae0c173a7d8a538e056cd59d57
 - name: github.com/bradfitz/gomemcache
   version: bc664df9673713a0ccf26e3b55a673ec7301088b
   subpackages:
@@ -195,7 +197,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -216,8 +218,15 @@ imports:
   - simplelru
 - name: github.com/howeyc/gopass
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
+- name: github.com/hpcloud/tail
+  version: a1dbeea552b7c8df4b542c66073e393de198a800
+  subpackages:
+  - ratelimiter
+  - util
+  - watch
+  - winfile
 - name: github.com/huandu/xstrings
-  version: 8bbcf2f9ccb55755e748b7644164cd4bdce94c1d
+  version: f02667b379e2fb5916c3cda2cf31e0eb885d79f8
 - name: github.com/imdario/mergo
   version: 9f23e2d6bd2a77f959b2bf6acdbefd708a83a4a4
 - name: github.com/inconshreveable/mousetrap
@@ -241,7 +250,7 @@ imports:
 - name: github.com/Masterminds/semver
   version: 517734cc7d6470c0d07130e40fd40bdeb9bcd3fd
 - name: github.com/Masterminds/sprig
-  version: 15f9564e7e9cf0da02a48e0d25f12a7b83559aa6
+  version: 544a9b1d90f323f6509491b389714fbbd126bee3
 - name: github.com/matttproud/golang_protobuf_extensions
   version: fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
   subpackages:
@@ -254,6 +263,40 @@ imports:
   version: 05fbef0ca5da472bbf96c9322b84a53edc03c9fd
 - name: github.com/mohae/deepcopy
   version: 491d3605edfb866af34a48075bd4355ac1bf46ca
+- name: github.com/onsi/ginkgo
+  version: 67b9df7f55fe1165fd9ad49aca7754cce01a42b8
+  subpackages:
+  - config
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/spec_iterator
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
+  - types
+- name: github.com/onsi/gomega
+  version: d59fa0ac68bb5dd932ee8d24eed631cdd519efc3
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
 - name: github.com/opencontainers/go-digest
   version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
 - name: github.com/opencontainers/image-spec
@@ -330,12 +373,14 @@ imports:
   version: 54b27db64c180751e7049321a2e109ff220ccdcc
 - name: github.com/russross/blackfriday
   version: 300106c228d52c8941d4b3de6054a6062a86dda3
+- name: github.com/satori/go.uuid
+  version: b2ce2384e17bbe0c6d34077efa39dbab3e09123b
 - name: github.com/Shopify/sarama
   version: ec843464b50d4c8b56403ec9d589cf41ea30e722
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
 - name: github.com/sirupsen/logrus
-  version: bcd833dfe83d3cebad139e4a29ed79cb2318bf95
+  version: e1e72e9de974bd926e5c56f83753fba2df402ce5
 - name: github.com/spf13/cobra
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/pflag
@@ -343,9 +388,9 @@ imports:
 - name: github.com/streadway/amqp
   version: a314942b2fd9dde7a3f70ba3f1062848ce6eb392
 - name: github.com/swaggo/swag
-  version: 0e12fd5eb026e6074484415fb65181e2ea77f5c9
+  version: 7e407c19a6c0c598c8b8aa0845aca6475ea7b280
 - name: github.com/thoas/stats
-  version: fc5c06ed3df0e436bc483ccc97053cd98930ca61
+  version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
@@ -431,6 +476,8 @@ imports:
   - status
   - tap
   - transport
+- name: gopkg.in/fsnotify/fsnotify.v1
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: gopkg.in/igm/sockjs-go.v2
   version: d276e9ffe5cc5c271b81198cc77a2adf6c4482d2
   subpackages:
@@ -450,6 +497,8 @@ imports:
   - cipher
   - json
   - jwt
+- name: gopkg.in/tomb.v1
+  version: c131134a1947e9afd9cecfe11f4c6dff0732ae58
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
@@ -486,7 +535,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: 139f2d538c1f074173bce15597e889471113c182
+  version: 80db67131e8de08bc0767eaeb9c1fd768a7ca30f
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
@@ -728,7 +777,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: c757b93cf034d49af3a3b8ecee3b9639a7a11df7
+  version: 7b12a7850419804e15cc8ffc206dd9246707e902
   subpackages:
   - pkg/api/events
   - pkg/api/legacyscheme
@@ -901,6 +950,20 @@ imports:
 - name: transwarp/application-instance
   version: f8bb8699ceec6fc1b174e07524baf366ede3965b
   repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
+  subpackages:
+  - pkg/apis/transwarp
+  - pkg/apis/transwarp/v1beta1
+  - pkg/client/clientset/versioned
+  - pkg/client/clientset/versioned/scheme
+  - pkg/client/clientset/versioned/typed/transwarp/v1beta1
+  - pkg/client/informers/externalversions
+  - pkg/client/informers/externalversions/internalinterfaces
+  - pkg/client/informers/externalversions/transwarp
+  - pkg/client/informers/externalversions/transwarp/v1beta1
+  - pkg/client/listers/transwarp/v1beta1
+- name: transwarp/release-config
+  version: fa5870de70b4bed4f07b91a0cd67c8c50ab7de9a
+  repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
   subpackages:
   - pkg/apis/transwarp
   - pkg/apis/transwarp/v1beta1
