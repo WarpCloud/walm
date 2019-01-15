@@ -38,7 +38,6 @@ func GetDefaultHelmClientV2() *HelmClientV2 {
 	return helmClient
 }
 
-// reload dependencies config values, if changes, upgrade release
 func (hc *HelmClientV2) GetReleaseV2(namespace, name string) (releaseV2 *releasev2.ReleaseInfoV2, err error) {
 	releaseCache, err := hc.GetHelmCache().GetReleaseCache(namespace, name)
 	if err != nil {
@@ -264,10 +263,14 @@ func (hc *HelmClientV2) InstallUpgradeReleaseV2(namespace string, releaseRequest
 	helmv1.MergeValues(configValues, releaseRequest.ConfigValues)
 
 	if isJsonnetChart {
+		nativeTemplates := chart.Templates
 		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, configValues, dependencyConfigs)
 		if err != nil {
 			logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
 			return err
+		}
+		if len(nativeTemplates) > 0 {
+			chart.Templates = append(chart.Templates, nativeTemplates...)
 		}
 	} else {
 		//TODO native helm chart如何处理？
