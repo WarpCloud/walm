@@ -51,7 +51,7 @@ func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 		resourceAdaptor = set.walmDeploymentAdaptor
 	case "Service":
 		if set.walmServiceAdaptor == nil {
-			set.walmServiceAdaptor = &WalmServiceAdaptor{set.handlerSet.GetServiceHandler()}
+			set.walmServiceAdaptor = &WalmServiceAdaptor{set.handlerSet.GetServiceHandler(), set.handlerSet.GetEndpointsHandler()}
 		}
 		resourceAdaptor = set.walmServiceAdaptor
 	case "StatefulSet":
