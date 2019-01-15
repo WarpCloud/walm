@@ -277,6 +277,7 @@ type WalmServicePort struct {
 	Port       int32           `json:"port" description:"service port"`
 	TargetPort string          `json:"target_port" description:"backend pod port"`
 	NodePort   int32           `json:"node_port" description:"node port"`
+	Endpoints  []string          `json:"endpoints" description:"service endpoints"`
 }
 
 type WalmStatefulSet struct {

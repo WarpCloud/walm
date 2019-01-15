@@ -48,6 +48,7 @@ type InformerFactory struct {
 	ResourceQuotaLister         v1.ResourceQuotaLister
 	PersistentVolumeClaimLister v1.PersistentVolumeClaimLister
 	StorageClassLister          storagev1.StorageClassLister
+	EndpointsLister             v1.EndpointsLister
 
 	factoryEx      externalversions.SharedInformerFactory
 	InstanceLister tranv1beta1.ApplicationInstanceLister
@@ -85,6 +86,7 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 	factory.ResourceQuotaLister = factory.Factory.Core().V1().ResourceQuotas().Lister()
 	factory.PersistentVolumeClaimLister = factory.Factory.Core().V1().PersistentVolumeClaims().Lister()
 	factory.StorageClassLister = factory.Factory.Storage().V1().StorageClasses().Lister()
+	factory.EndpointsLister = factory.Factory.Core().V1().Endpoints().Lister()
 
 	factory.factoryEx = externalversions.NewSharedInformerFactory(clientEx, resyncPeriod)
 	factory.InstanceLister = factory.factoryEx.Transwarp().V1beta1().ApplicationInstances().Lister()

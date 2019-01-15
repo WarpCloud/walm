@@ -29,6 +29,7 @@ type HandlerSet struct {
 	persistentVolumeClaimHandler *PersistentVolumeClaimHandler
 	storageClassHandler *StorageClassHandler
 	releaseConfigHandler *ReleaseConfigHandler
+	endpointsHandler *EndpointsHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -148,4 +149,11 @@ func (set *HandlerSet)GetReleaseConfigHandler() *ReleaseConfigHandler {
 		set.releaseConfigHandler = &ReleaseConfigHandler{client: set.releaseConfigClient, lister: set.factory.ReleaseConfigLister}
 	}
 	return set.releaseConfigHandler
+}
+
+func (set *HandlerSet)GetEndpointsHandler() *EndpointsHandler {
+	if set.endpointsHandler == nil {
+		set.endpointsHandler = &EndpointsHandler{client: set.client, lister: set.factory.EndpointsLister}
+	}
+	return set.endpointsHandler
 }
