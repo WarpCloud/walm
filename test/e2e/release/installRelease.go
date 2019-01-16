@@ -67,7 +67,7 @@ var _ = Describe("Release", func() {
 	AfterEach(func() {
 
 		By("delete release")
-		err := helmv2.GetDefaultHelmClientV2().DeleteRelease(namespace, releaseName, false, true)
+		err := helmv2.GetDefaultHelmClientV2().DeleteReleaseV2(namespace, releaseName, false, true, false, 0)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
@@ -83,7 +83,7 @@ var _ = Describe("Release", func() {
 		It("install release success", func() {
 
 			By("start create a release")
-			err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil)
+			err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
 			Expect(err).NotTo(HaveOccurred())
 
 			releaseInfo, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)

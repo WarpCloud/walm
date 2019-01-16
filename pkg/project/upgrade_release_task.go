@@ -62,7 +62,7 @@ type UpgradeReleaseTaskArgs struct {
 
 func (upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) upgradeRelease() (err error) {
 	upgradeReleaseTaskArgs.ReleaseParams.Name = buildProjectReleaseName(upgradeReleaseTaskArgs.ProjectName, upgradeReleaseTaskArgs.ReleaseParams.Name)
-	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil)
+	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil, false, 0)
 	if err != nil {
 		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName)
 		return

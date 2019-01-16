@@ -173,7 +173,7 @@ func deployTillerCharts(namespace string) error {
 		"image": setting.Config.MultiTenantConfig.TillerImage,
 	}
 
-	err := helm.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &v2.ReleaseRequestV2{ReleaseRequest: tillerRelease}, true, nil)
+	err := helm.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &v2.ReleaseRequestV2{ReleaseRequest: tillerRelease}, true, nil, false, 0)
 	logrus.Infof("tenant %s deploy tiller %v\n", namespace, err)
 
 	return err
@@ -219,7 +219,7 @@ func DeleteTenant(tenantName string) error {
 		}
 	}
 
-	err = helm.GetDefaultHelmClientV2().DeleteRelease(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true, false)
+	err = helm.GetDefaultHelmClientV2().DeleteReleaseV2(tenantName, fmt.Sprintf("tenant-tiller-%s", tenantName), true, false, false, 0)
 	if err != nil {
 		logrus.Errorf("failed to delete tenant tiller release : %s", err.Error())
 	}

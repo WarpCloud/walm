@@ -318,6 +318,8 @@ func InitReleaseRouter() *restful.WebService {
 		Doc("升级一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(releasetypesv2.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -338,6 +340,8 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Param(ws.QueryParameter("deletePvcs", "是否删除release管理的statefulSet关联的所有pvc").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
@@ -346,6 +350,8 @@ func InitReleaseRouter() *restful.WebService {
 		Doc("安装一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(releasetypesv2.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))

@@ -317,6 +317,7 @@ func (client *HelmClient) RollbackRealese(namespace, releaseName, version string
 	return nil
 }
 
+//Deprecated
 func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool, deletePvcs bool) error {
 	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
 	currentHelmClient := client.systemClient
