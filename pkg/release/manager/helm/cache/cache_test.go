@@ -26,10 +26,7 @@ func TestHelmCache_Resync(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := helmCache.Resync()
-		if err != nil {
-			fmt.Println(err)
-		}
+		helmCache.Resync()
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -65,10 +62,7 @@ func TestHelmCache_GetCache(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := helmCache.Resync()
-		if err != nil {
-			fmt.Println(err)
-		}
+		helmCache.Resync()
 	}()
 	wg.Wait()
 

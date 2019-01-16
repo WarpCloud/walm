@@ -77,7 +77,7 @@ func (manager *TaskManager) SendTask(signature *tasks.Signature) (err error) {
 }
 
 func (manager *TaskManager) PurgeTaskState(signature *tasks.Signature) (err error) {
-	if signature != nil {
+	if signature != nil && signature.UUID != ""{
 		return manager.server.GetBackend().PurgeState(signature.UUID)
 	}
 	return nil

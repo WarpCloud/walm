@@ -98,7 +98,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		Releases:        []*v2.ReleaseInfoV2{},
 	}
 	if taskState != nil {
-		projectInfo.LatestTaskState = &ProjectTaskState{
+		projectInfo.LatestTaskState = &task.WalmTaskState{
 			TaskUUID: taskState.TaskUUID,
 			TaskName: taskState.TaskName,
 			Error: taskState.Error,

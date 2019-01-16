@@ -82,7 +82,7 @@ func (createProjectTaskArgs *CreateProjectTaskArgs) createProject() error {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(createProjectTaskArgs.Namespace, releaseParams, false, nil)
+		err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(createProjectTaskArgs.Namespace, releaseParams, false, nil, false, 0)
 		if err != nil {
 			logrus.Errorf("failed to create project release %s/%s : %s", createProjectTaskArgs.Namespace, releaseParams.Name, err)
 			return err

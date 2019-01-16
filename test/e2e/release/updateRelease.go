@@ -56,7 +56,7 @@ var _ = Describe("Release", func() {
 
 		releaseRequest.Name = releaseRequest.Name + "-" + randomId[:8]
 		releaseName = releaseRequest.Name
-		helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil)
+		helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
 
 		releaseInfo, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
 		Expect(releaseInfo.Name).To(Equal(releaseName))
@@ -65,7 +65,7 @@ var _ = Describe("Release", func() {
 	AfterEach(func() {
 
 		By("delete release")
-		err := helmv2.GetDefaultHelmClientV2().DeleteRelease(namespace, releaseName, false, true)
+		err := helmv2.GetDefaultHelmClientV2().DeleteReleaseV2(namespace, releaseName, false, true, false, 0)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
@@ -96,7 +96,7 @@ var _ = Describe("Release", func() {
 			err = json.Unmarshal(ConfigValue, &releaseRequest.ConfigValues)
 			Expect(err).NotTo(HaveOccurred())
 
-			helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil)
+			helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
 
 			By("validate release value")
 
