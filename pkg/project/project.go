@@ -512,6 +512,9 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 			}
 			_, ok := releaseParams.Dependencies[downRelease.ChartName]
 			if !ok {
+			    if releaseParams.Dependencies == nil {
+					releaseParams.Dependencies = make(map[string]string)
+				}
 				releaseParams.Dependencies[downRelease.ChartName] = downRelease.Name
 				logrus.Infof("RuntimeDepParse release %s Dependencies %+v\n", releaseParams.Name, releaseParams.Dependencies)
 			}
