@@ -179,11 +179,11 @@ type RoleConfig struct {
 	Description        string         `json:"description"`
 	Replicas           int            `json:"replicas"`
 	RoleBaseConfig     []*BaseConfig  `json:"baseConfig"`
-	RoleResourceConfig ResourceConfig `json:"resouceConfig"`
+	RoleResourceConfig *ResourceConfig `json:"resouceConfig"`
 }
 
 type CommonConfig struct {
-	Roles []RoleConfig `json:"roles"`
+	Roles []*RoleConfig `json:"roles"`
 }
 
 type PrettyChartParams struct {

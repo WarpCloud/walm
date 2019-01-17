@@ -20,6 +20,9 @@ func ProcessPrettyParams(releaseRequest *release.ReleaseRequest) {
 			})
 		}
 
+		if roleConfig.RoleResourceConfig == nil {
+			continue
+		}
 		mergo.Merge(&commonAppRoleValues, map[string]interface{}{
 			"resources": map[string]interface{}{
 				"memory_request": roleConfig.RoleResourceConfig.MemoryRequest,
