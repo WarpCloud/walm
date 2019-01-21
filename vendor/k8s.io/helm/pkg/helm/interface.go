@@ -17,23 +17,21 @@ limitations under the License.
 package helm
 
 import (
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	rls "k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 // Interface for helm client for mocking in tests
 type Interface interface {
-	ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error)
-	InstallRelease(chStr, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
-	InstallReleaseFromChart(chart *chart.Chart, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
-	DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error)
-	ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error)
-	UpdateRelease(rlsName, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
-	UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
-	RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error)
-	ReleaseContent(rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
-	ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
-	GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error)
-	RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)
-	PingTiller() error
+	InstallRelease(chStr, namespace string, opts ...InstallOption) (*release.Release, error)
+	InstallReleaseFromChart(chart *chart.Chart, namespace string, opts ...InstallOption) (*release.Release, error)
+	UninstallRelease(rlsName string, opts ...UninstallOption) (*hapi.UninstallReleaseResponse, error)
+	ReleaseStatus(rlsName string, version int) (*hapi.GetReleaseStatusResponse, error)
+	UpdateRelease(rlsName, chStr string, opts ...UpdateOption) (*release.Release, error)
+	UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*release.Release, error)
+	RollbackRelease(rlsName string, opts ...RollbackOption) (*release.Release, error)
+	ReleaseContent(rlsName string, version int) (*release.Release, error)
+	ReleaseHistory(rlsName string, max int) ([]*release.Release, error)
+	RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *hapi.TestReleaseResponse, <-chan error)
 }

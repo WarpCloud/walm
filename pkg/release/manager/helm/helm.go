@@ -16,15 +16,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/storage/driver"
 	"walm/pkg/release/manager/helm/cache"
 	"walm/pkg/redis"
 	"walm/pkg/k8s/client"
 	"k8s.io/apimachinery/pkg/util/wait"
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 	walmerr "walm/pkg/util/error"
-	"k8s.io/helm/pkg/transwarp"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
 	"mime/multipart"
@@ -506,7 +503,6 @@ func GetChart(chartArchive multipart.File) (*chart.Chart, error) {
 
 func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart, isSystem bool) (*hapiRelease.Release, error) {
 	currentHelmClient := client.systemClient
-	configVals, err := yaml.Marshal(configValues)
 	if err != nil {
 		logrus.Errorf("failed to marshal config values: %s", err.Error())
 		return nil, err
@@ -537,97 +533,9 @@ func (client *HelmClient) installChart(releaseName, namespace string, configValu
 
 	logrus.Infof("InstallChart Params %s %s %+v %+v", releaseName, namespace, configValues, depLinks)
 	helmRelease := &hapiRelease.Release{}
-	releaseHistory, err := currentHelmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
+	_, err := currentHelmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
 	if err == nil {
-		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
-		//TODO is it reasonable? it is wield, helm should support the same name in different namespace
-		if previousReleaseNamespace != namespace {
-			logrus.Warnf("namespace %s doesn't match with previous, release will be deployed to %s",
-				namespace, previousReleaseNamespace,
-			)
-		}
-		previousValues := map[string]interface{}{}
-		if err := yaml.Unmarshal([]byte(releaseHistory.Releases[0].GetConfig().GetRaw()), &previousValues); err != nil {
-			return nil, fmt.Errorf("failed to parse rawValues: %s", err)
-		}
-		mergedValues := map[string]interface{}{}
-		mergedValues = MergeValues(mergedValues, configValues)
-		mergedValues = MergeValues(previousValues, mergedValues)
-		mergedVals, err := yaml.Marshal(mergedValues)
-		if err != nil {
-			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())
-			return nil, err
-		}
-
-		logrus.Infof("UpdateChart %s ConfigValues %+v, previousValues %+v DepLinks %+v ", releaseName, mergedValues, previousValues, depLinks)
-		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
-		if err != nil {
-			return nil, err
-		}
-		if transwarpAppType == true {
-			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
-			if err != nil {
-				return nil, err
-			}
-
-			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(mergedVals[:]), appConfigMapName, dependencies)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		resp, err := currentHelmClient.UpdateReleaseFromChart(
-			releaseName,
-			chart,
-			helm.UpdateValueOverrides([]byte(chart.Values.Raw)),
-			helm.ReuseValues(true),
-			helm.UpgradeDryRun(client.dryRun),
-		)
-		if err != nil {
-			//TODO should rollback to prev version?
-			logrus.Errorf("failed to update release %s from chart : %s", releaseName, err.Error())
-			return nil, err
-		}
-		helmRelease = resp.GetRelease()
-	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
-		logrus.Infof("InstallChart %s DepLinks %+v ConfigValues %+v", releaseName, depLinks, configValues)
-		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
-		if err != nil {
-			return nil, err
-		}
-		if transwarpAppType == true {
-			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
-			if err != nil {
-				return nil, err
-			}
-
-			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(configVals[:]), appConfigMapName, dependencies)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		resp, err := currentHelmClient.InstallReleaseFromChart(
-			chart,
-			namespace,
-			helm.ValueOverrides([]byte(chart.Values.Raw)),
-			helm.ReleaseName(releaseName),
-			helm.InstallDryRun(client.dryRun),
-		)
-		if err != nil {
-			logrus.Errorf("failed to install release %s from chart : %s", releaseName, err.Error())
-			opts := []helm.DeleteOption{
-				helm.DeletePurge(true),
-			}
-			_, err1 := currentHelmClient.DeleteRelease(
-				releaseName, opts...,
-			)
-			if err1 != nil {
-				logrus.Errorf("failed to rollback to delete release %s : %s", releaseName, err1.Error())
-			}
-			return nil, err
-		}
-		helmRelease = resp.GetRelease()
+		return nil, nil
 	} else {
 		logrus.Errorf("failed to get release history : %s", err.Error())
 		return nil, err

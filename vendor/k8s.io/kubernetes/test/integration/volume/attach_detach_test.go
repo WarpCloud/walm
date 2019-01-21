@@ -25,12 +25,12 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/api/testapi"
 	fakecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/fake"
 	"k8s.io/kubernetes/pkg/controller/volume/attachdetach"
 	volumecache "k8s.io/kubernetes/pkg/controller/volume/attachdetach/cache"
@@ -387,7 +387,7 @@ func waitForPodFuncInDSWP(t *testing.T, dswp volumecache.DesiredStateOfWorld, ch
 func createAdClients(ns *v1.Namespace, t *testing.T, server *httptest.Server, syncPeriod time.Duration, timers attachdetach.TimerConfig) (*clientset.Clientset, attachdetach.AttachDetachController, *persistentvolume.PersistentVolumeController, informers.SharedInformerFactory) {
 	config := restclient.Config{
 		Host:          server.URL,
-		ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()},
+		ContentConfig: restclient.ContentConfig{GroupVersion: &schema.GroupVersion{Group: "", Version: "v1"}},
 		QPS:           1000000,
 		Burst:         1000000,
 	}
@@ -412,6 +412,7 @@ func createAdClients(ns *v1.Namespace, t *testing.T, server *httptest.Server, sy
 	informers := informers.NewSharedInformerFactory(testClient, resyncPeriod)
 	ctrl, err := attachdetach.NewAttachDetachController(
 		testClient,
+		nil, /* csiClient */
 		informers.Core().V1().Pods(),
 		informers.Core().V1().Nodes(),
 		informers.Core().V1().PersistentVolumeClaims(),
@@ -439,6 +440,7 @@ func createAdClients(ns *v1.Namespace, t *testing.T, server *httptest.Server, sy
 		ClaimInformer:             informers.Core().V1().PersistentVolumeClaims(),
 		ClassInformer:             informers.Storage().V1().StorageClasses(),
 		PodInformer:               informers.Core().V1().Pods(),
+		NodeInformer:              informers.Core().V1().Nodes(),
 		EnableDynamicProvisioning: false,
 	}
 	pvCtrl, err := persistentvolume.NewController(params)

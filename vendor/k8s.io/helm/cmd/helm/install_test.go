@@ -17,146 +17,111 @@ limitations under the License.
 package main
 
 import (
-	"io"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
-	"k8s.io/helm/pkg/helm"
 )
 
 func TestInstall(t *testing.T) {
-	tests := []releaseCase{
+	tests := []cmdTestCase{
 		// Install, base case
 		{
-			name:     "basic install",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name aeneas", " "),
-			expected: "aeneas",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			name:   "basic install",
+			cmd:    "install aeneas testdata/testcharts/empty",
+			golden: "output/install.txt",
 		},
-		// Install, no hooks
-		{
-			name:     "install without hooks",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name aeneas --no-hooks", " "),
-			expected: "aeneas",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
-		},
+
 		// Install, values from cli
 		{
-			name:     "install with values",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name virgil --set foo=bar", " "),
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
-			expected: "virgil",
+			name:   "install with values",
+			cmd:    "install virgil testdata/testcharts/alpine --set test.Name=bar",
+			golden: "output/install-with-values.txt",
 		},
 		// Install, values from cli via multiple --set
 		{
-			name:     "install with multiple values",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name virgil --set foo=bar --set bar=foo", " "),
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
-			expected: "virgil",
+			name:   "install with multiple values",
+			cmd:    "install virgil testdata/testcharts/alpine --set test.Color=yellow --set test.Name=banana",
+			golden: "output/install-with-multiple-values.txt",
 		},
 		// Install, values from yaml
 		{
-			name:     "install with values",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name virgil -f testdata/testcharts/alpine/extra_values.yaml", " "),
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
-			expected: "virgil",
+			name:   "install with values file",
+			cmd:    "install virgil testdata/testcharts/alpine  -f testdata/testcharts/alpine/extra_values.yaml",
+			golden: "output/install-with-values-file.txt",
+		},
+		// Install, no hooks
+		{
+			name:   "install without hooks",
+			cmd:    "install aeneas testdata/testcharts/alpine --no-hooks --set test.Name=hello",
+			golden: "output/install-no-hooks.txt",
 		},
 		// Install, values from multiple yaml
 		{
-			name:     "install with values",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name virgil -f testdata/testcharts/alpine/extra_values.yaml -f testdata/testcharts/alpine/more_values.yaml", " "),
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
-			expected: "virgil",
+			name:   "install with values",
+			cmd:    "install virgil testdata/testcharts/alpine -f testdata/testcharts/alpine/extra_values.yaml -f testdata/testcharts/alpine/more_values.yaml",
+			golden: "output/install-with-multiple-values-files.txt",
 		},
 		// Install, no charts
 		{
-			name: "install with no chart specified",
-			args: []string{},
-			err:  true,
+			name:      "install with no chart specified",
+			cmd:       "install",
+			golden:    "output/install-no-args.txt",
+			wantError: true,
 		},
 		// Install, re-use name
 		{
-			name:     "install and replace release",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name aeneas --replace", " "),
-			expected: "aeneas",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			name:   "install and replace release",
+			cmd:    "install aeneas testdata/testcharts/empty --replace",
+			golden: "output/install-and-replace.txt",
 		},
 		// Install, with timeout
 		{
-			name:     "install with a timeout",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name foobar --timeout 120", " "),
-			expected: "foobar",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "foobar"}),
+			name:   "install with a timeout",
+			cmd:    "install foobar testdata/testcharts/empty --timeout 120",
+			golden: "output/install-with-timeout.txt",
 		},
 		// Install, with wait
 		{
-			name:     "install with a wait",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--name apollo --wait", " "),
-			expected: "apollo",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "apollo"}),
+			name:   "install with a wait",
+			cmd:    "install apollo testdata/testcharts/empty --wait",
+			golden: "output/install-with-wait.txt",
 		},
 		// Install, using the name-template
 		{
-			name:     "install with name-template",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    []string{"--name-template", "{{upper \"foobar\"}}"},
-			expected: "FOOBAR",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "FOOBAR"}),
-		},
-		{
-			name:     "install with custom description",
-			args:     []string{"testdata/testcharts/alpine"},
-			flags:    []string{"--name", "virgil", "--description", "foobar"},
-			expected: "virgil",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil", Description: "foobar"}),
+			name:   "install with name-template",
+			cmd:    "install testdata/testcharts/empty --name-template '{{upper \"foobar\"}}'",
+			golden: "output/install-name-template.txt",
 		},
 		// Install, perform chart verification along the way.
 		{
-			name:  "install with verification, missing provenance",
-			args:  []string{"testdata/testcharts/compressedchart-0.1.0.tgz"},
-			flags: strings.Split("--verify --keyring testdata/helm-test-key.pub", " "),
-			err:   true,
+			name:      "install with verification, missing provenance",
+			cmd:       "install bogus testdata/testcharts/compressedchart-0.1.0.tgz --verify --keyring testdata/helm-test-key.pub",
+			wantError: true,
 		},
 		{
-			name:  "install with verification, directory instead of file",
-			args:  []string{"testdata/testcharts/signtest"},
-			flags: strings.Split("--verify --keyring testdata/helm-test-key.pub", " "),
-			err:   true,
+			name:      "install with verification, directory instead of file",
+			cmd:       "install bogus testdata/testcharts/signtest --verify --keyring testdata/helm-test-key.pub",
+			wantError: true,
 		},
 		{
-			name:  "install with verification, valid",
-			args:  []string{"testdata/testcharts/signtest-0.1.0.tgz"},
-			flags: strings.Split("--verify --keyring testdata/helm-test-key.pub", " "),
+			name: "install with verification, valid",
+			cmd:  "install signtest testdata/testcharts/signtest-0.1.0.tgz --verify --keyring testdata/helm-test-key.pub",
 		},
 		// Install, chart with missing dependencies in /charts
 		{
-			name: "install chart with missing dependencies",
-			args: []string{"testdata/testcharts/chart-missing-deps"},
-			err:  true,
+			name:      "install chart with missing dependencies",
+			cmd:       "install nodeps testdata/testcharts/chart-missing-deps",
+			wantError: true,
 		},
-		// Install, chart with bad requirements.yaml in /charts
+		// Install, chart with bad dependencies in Chart.yaml in /charts
 		{
-			name: "install chart with bad requirements.yaml",
-			args: []string{"testdata/testcharts/chart-bad-requirements"},
-			err:  true,
+			name:      "install chart with bad  dependencies in Chart.yaml",
+			cmd:       "install badreq testdata/testcharts/chart-bad-requirements",
+			wantError: true,
 		},
 	}
 
-	runReleaseCases(t, tests, func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newInstallCmd(c, out)
-	})
+	runTestActionCmd(t, tests)
 }
 
 type nameTemplateTestCase struct {
@@ -201,7 +166,7 @@ func TestNameTemplate(t *testing.T) {
 
 	for _, tc := range testCases {
 
-		n, err := generateName(tc.tpl)
+		n, err := templateName(tc.tpl)
 		if err != nil {
 			if tc.expectedErrorStr == "" {
 				t.Errorf("Was not expecting error, but got: %v", err)

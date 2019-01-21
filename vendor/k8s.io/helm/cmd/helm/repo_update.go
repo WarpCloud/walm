@@ -17,13 +17,14 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/repo"
@@ -39,32 +40,30 @@ future releases.
 
 var errNoRepositories = errors.New("no repositories found. You must add one before updating")
 
-type repoUpdateCmd struct {
+type repoUpdateOptions struct {
 	update func([]*repo.ChartRepository, io.Writer, helmpath.Home)
 	home   helmpath.Home
-	out    io.Writer
 }
 
 func newRepoUpdateCmd(out io.Writer) *cobra.Command {
-	u := &repoUpdateCmd{
-		out:    out,
-		update: updateCharts,
-	}
+	o := &repoUpdateOptions{update: updateCharts}
+
 	cmd := &cobra.Command{
 		Use:     "update",
 		Aliases: []string{"up"},
 		Short:   "update information of available charts locally from chart repositories",
 		Long:    updateDesc,
+		Args:    require.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			u.home = settings.Home
-			return u.run()
+			o.home = settings.Home
+			return o.run(out)
 		},
 	}
 	return cmd
 }
 
-func (u *repoUpdateCmd) run() error {
-	f, err := repo.LoadRepositoriesFile(u.home.RepositoryFile())
+func (o *repoUpdateOptions) run(out io.Writer) error {
+	f, err := repo.LoadFile(o.home.RepositoryFile())
 	if err != nil {
 		return err
 	}
@@ -81,7 +80,7 @@ func (u *repoUpdateCmd) run() error {
 		repos = append(repos, r)
 	}
 
-	u.update(repos, u.out, u.home)
+	o.update(repos, out, o.home)
 	return nil
 }
 
@@ -92,12 +91,7 @@ func updateCharts(repos []*repo.ChartRepository, out io.Writer, home helmpath.Ho
 		wg.Add(1)
 		go func(re *repo.ChartRepository) {
 			defer wg.Done()
-			if re.Config.Name == localRepository {
-				fmt.Fprintf(out, "...Skip %s chart repository\n", re.Config.Name)
-				return
-			}
-			err := re.DownloadIndexFile(home.Cache())
-			if err != nil {
+			if err := re.DownloadIndexFile(home.Cache()); err != nil {
 				fmt.Fprintf(out, "...Unable to get an update from the %q chart repository (%s):\n\t%s\n", re.Config.Name, re.Config.URL, err)
 			} else {
 				fmt.Fprintf(out, "...Successfully got an update from the %q chart repository\n", re.Config.Name)

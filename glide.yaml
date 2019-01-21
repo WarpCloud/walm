@@ -2,7 +2,7 @@ package: walm
 import:
 - package: k8s.io/helm
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
-  version: release-2.10
+  version: dev-v3
 - package: transwarp/application-instance
   repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
   version: release-1.10
@@ -25,15 +25,15 @@ import:
   version: ^1.0.1
 
 - package: k8s.io/kubernetes
-  version: release-1.10
+  version: release-1.13
 - package: k8s.io/client-go
-  version: kubernetes-1.10.0
+  version: kubernetes-1.13.0
 - package: k8s.io/api
-  version: release-1.10
+  version: release-1.13
 - package: k8s.io/apimachinery
-  version: release-1.10
+  version: release-1.13
 - package: k8s.io/apiserver
-  version: release-1.10
+  version: release-1.13
 
 - package: github.com/docker/spdystream
 - package: github.com/go-redis/redis

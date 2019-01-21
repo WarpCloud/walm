@@ -18,7 +18,6 @@ package repo
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -29,9 +28,10 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/chart"
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/provenance"
 	"k8s.io/helm/pkg/urlutil"
 )
@@ -177,7 +177,7 @@ func (i IndexFile) Get(name, version string) (*ChartVersion, error) {
 			return ver, nil
 		}
 	}
-	return nil, fmt.Errorf("No chart version found for %s-%s", name, version)
+	return nil, errors.Errorf("no chart version found for %s-%s", name, version)
 }
 
 // WriteFile writes an index file to the given destination path.
@@ -251,7 +251,7 @@ func IndexDirectory(dir, baseURL string) (*IndexFile, error) {
 			parentURL = filepath.Join(baseURL, parentDir)
 		}
 
-		c, err := chartutil.Load(arch)
+		c, err := loader.Load(arch)
 		if err != nil {
 			// Assume this is not a chart.
 			continue

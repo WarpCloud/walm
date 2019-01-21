@@ -2,7 +2,6 @@ package release
 
 import (
 	"walm/pkg/k8s/adaptor"
-	"k8s.io/helm/pkg/transwarp"
 )
 
 type ReleaseInfoList struct {
@@ -73,7 +72,6 @@ type HelmExtraLabels struct {
 
 type HelmValues struct {
 	HelmExtraLabels     *HelmExtraLabels         `json:"HelmExtraLabels"`
-	AppHelmValues       *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
 	ReleasePrettyParams PrettyChartParams        `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
@@ -193,6 +191,5 @@ type PrettyChartParams struct {
 }
 
 type TranswarpAppInfo struct {
-	transwarp.AppDependency
 	UserInputParams PrettyChartParams `json:"userInputParams"`
 }

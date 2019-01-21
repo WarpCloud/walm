@@ -17,6 +17,8 @@ limitations under the License.
 package deployment
 
 import (
+	"context"
+
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -30,8 +32,8 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/kubernetes/pkg/api/pod"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/apis/extensions/validation"
+	"k8s.io/kubernetes/pkg/apis/apps"
+	"k8s.io/kubernetes/pkg/apis/apps/validation"
 )
 
 // deploymentStrategy implements behavior for Deployments.
@@ -45,7 +47,7 @@ type deploymentStrategy struct {
 var Strategy = deploymentStrategy{legacyscheme.Scheme, names.SimpleNameGenerator}
 
 // DefaultGarbageCollectionPolicy returns OrphanDependents by default. For apps/v1, returns DeleteDependents.
-func (deploymentStrategy) DefaultGarbageCollectionPolicy(ctx genericapirequest.Context) rest.GarbageCollectionPolicy {
+func (deploymentStrategy) DefaultGarbageCollectionPolicy(ctx context.Context) rest.GarbageCollectionPolicy {
 	if requestInfo, found := genericapirequest.RequestInfoFrom(ctx); found {
 		groupVersion := schema.GroupVersion{Group: requestInfo.APIGroup, Version: requestInfo.APIVersion}
 		switch groupVersion {
@@ -65,17 +67,17 @@ func (deploymentStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate clears fields that are not allowed to be set by end users on creation.
-func (deploymentStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
-	deployment := obj.(*extensions.Deployment)
-	deployment.Status = extensions.DeploymentStatus{}
+func (deploymentStrategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	deployment := obj.(*apps.Deployment)
+	deployment.Status = apps.DeploymentStatus{}
 	deployment.Generation = 1
 
 	pod.DropDisabledAlphaFields(&deployment.Spec.Template.Spec)
 }
 
 // Validate validates a new deployment.
-func (deploymentStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
-	deployment := obj.(*extensions.Deployment)
+func (deploymentStrategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	deployment := obj.(*apps.Deployment)
 	return validation.ValidateDeployment(deployment)
 }
 
@@ -89,9 +91,9 @@ func (deploymentStrategy) AllowCreateOnUpdate() bool {
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (deploymentStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
-	newDeployment := obj.(*extensions.Deployment)
-	oldDeployment := old.(*extensions.Deployment)
+func (deploymentStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	newDeployment := obj.(*apps.Deployment)
+	oldDeployment := old.(*apps.Deployment)
 	newDeployment.Status = oldDeployment.Status
 
 	pod.DropDisabledAlphaFields(&newDeployment.Spec.Template.Spec)
@@ -107,9 +109,9 @@ func (deploymentStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, o
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (deploymentStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
-	newDeployment := obj.(*extensions.Deployment)
-	oldDeployment := old.(*extensions.Deployment)
+func (deploymentStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	newDeployment := obj.(*apps.Deployment)
+	oldDeployment := old.(*apps.Deployment)
 	allErrs := validation.ValidateDeploymentUpdate(newDeployment, oldDeployment)
 
 	// Update is not allowed to set Spec.Selector for all groups/versions except extensions/v1beta1.
@@ -142,14 +144,14 @@ type deploymentStatusStrategy struct {
 var StatusStrategy = deploymentStatusStrategy{Strategy}
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update of status
-func (deploymentStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
-	newDeployment := obj.(*extensions.Deployment)
-	oldDeployment := old.(*extensions.Deployment)
+func (deploymentStatusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	newDeployment := obj.(*apps.Deployment)
+	oldDeployment := old.(*apps.Deployment)
 	newDeployment.Spec = oldDeployment.Spec
 	newDeployment.Labels = oldDeployment.Labels
 }
 
 // ValidateUpdate is the default update validation for an end user updating status
-func (deploymentStatusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
-	return validation.ValidateDeploymentStatusUpdate(obj.(*extensions.Deployment), old.(*extensions.Deployment))
+func (deploymentStatusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	return validation.ValidateDeploymentStatusUpdate(obj.(*apps.Deployment), old.(*apps.Deployment))
 }

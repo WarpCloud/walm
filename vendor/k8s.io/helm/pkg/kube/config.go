@@ -16,24 +16,13 @@ limitations under the License.
 
 package kube // import "k8s.io/helm/pkg/kube"
 
-import (
-	"k8s.io/client-go/tools/clientcmd"
-)
+import "k8s.io/cli-runtime/pkg/genericclioptions"
 
-// GetConfig returns a Kubernetes client config for a given context.
-func GetConfig(context string, kubeconfig string) clientcmd.ClientConfig {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	rules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-
-	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
-
-	if context != "" {
-		overrides.CurrentContext = context
-	}
-
-	if kubeconfig != "" {
-		rules.ExplicitPath = kubeconfig
-	}
-
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
+// GetConfig returns a Kubernetes client config.
+func GetConfig(kubeconfig, context, namespace string) *genericclioptions.ConfigFlags {
+	cf := genericclioptions.NewConfigFlags()
+	cf.Namespace = &namespace
+	cf.Context = &context
+	cf.KubeConfig = &kubeconfig
+	return cf
 }

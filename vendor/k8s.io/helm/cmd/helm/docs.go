@@ -16,12 +16,14 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"io"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+
+	"k8s.io/helm/cmd/helm/require"
 )
 
 const docsDesc = `
@@ -37,44 +39,44 @@ It can also generate bash autocompletions.
 	$ helm docs markdown -dir mydocs/
 `
 
-type docsCmd struct {
-	out           io.Writer
+type docsOptions struct {
 	dest          string
 	docTypeString string
 	topCmd        *cobra.Command
 }
 
 func newDocsCmd(out io.Writer) *cobra.Command {
-	dc := &docsCmd{out: out}
+	o := &docsOptions{}
 
 	cmd := &cobra.Command{
 		Use:    "docs",
 		Short:  "Generate documentation as markdown or man pages",
 		Long:   docsDesc,
 		Hidden: true,
+		Args:   require.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dc.topCmd = cmd.Root()
-			return dc.run()
+			o.topCmd = cmd.Root()
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.StringVar(&dc.dest, "dir", "./", "directory to which documentation is written")
-	f.StringVar(&dc.docTypeString, "type", "markdown", "the type of documentation to generate (markdown, man, bash)")
+	f.StringVar(&o.dest, "dir", "./", "directory to which documentation is written")
+	f.StringVar(&o.docTypeString, "type", "markdown", "the type of documentation to generate (markdown, man, bash)")
 
 	return cmd
 }
 
-func (d *docsCmd) run() error {
-	switch d.docTypeString {
+func (o *docsOptions) run(out io.Writer) error {
+	switch o.docTypeString {
 	case "markdown", "mdown", "md":
-		return doc.GenMarkdownTree(d.topCmd, d.dest)
+		return doc.GenMarkdownTree(o.topCmd, o.dest)
 	case "man":
 		manHdr := &doc.GenManHeader{Title: "HELM", Section: "1"}
-		return doc.GenManTree(d.topCmd, manHdr, d.dest)
+		return doc.GenManTree(o.topCmd, manHdr, o.dest)
 	case "bash":
-		return d.topCmd.GenBashCompletionFile(filepath.Join(d.dest, "completions.bash"))
+		return o.topCmd.GenBashCompletionFile(filepath.Join(o.dest, "completions.bash"))
 	default:
-		return fmt.Errorf("unknown doc type %q. Try 'markdown' or 'man'", d.docTypeString)
+		return errors.Errorf("unknown doc type %q. Try 'markdown' or 'man'", o.docTypeString)
 	}
 }

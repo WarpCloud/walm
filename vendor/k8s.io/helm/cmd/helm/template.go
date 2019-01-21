@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,20 +27,16 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/engine"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/proto/hapi/release"
+	"k8s.io/helm/pkg/hapi/release"
 	util "k8s.io/helm/pkg/releaseutil"
 	"k8s.io/helm/pkg/tiller"
-	"k8s.io/helm/pkg/timeconv"
-	tversion "k8s.io/helm/pkg/version"
-
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/strvals"
-	"k8s.io/helm/pkg/transwarp"
 )
 
 const defaultDirectoryPermission = 0755
@@ -66,216 +61,143 @@ To render just one template in a chart, use '-x':
 	$ helm template mychart -x templates/deployment.yaml
 `
 
-type templateCmd struct {
-	namespace        string
-	valueFiles       valueFiles
-	chartPath        string
-	out              io.Writer
-	values           []string
-	stringValues     []string
-	fileValues       []string
-	nameTemplate     string
-	showNotes        bool
-	releaseName      string
-	releaseIsUpgrade bool
-	renderFiles      []string
-	kubeVersion      string
-	outputDir        string
-	links            []string
-	client           helm.Interface
+type templateOptions struct {
+	nameTemplate string   // --name-template
+	showNotes    bool     // --notes
+	releaseName  string   // --name
+	renderFiles  []string // --execute
+	kubeVersion  string   // --kube-version
+	outputDir    string   // --output-dir
+
+	valuesOptions
+
+	chartPath string
 }
 
 func newTemplateCmd(out io.Writer) *cobra.Command {
-
-	t := &templateCmd{
-		out: out,
-	}
+	o := &templateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "template [flags] CHART",
+		Use:   "template CHART",
 		Short: fmt.Sprintf("locally render templates"),
 		Long:  templateDesc,
-		RunE:  t.run,
+		Args:  require.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// verify chart path exists
+			if _, err := os.Stat(args[0]); err == nil {
+				if o.chartPath, err = filepath.Abs(args[0]); err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+			return o.run(out)
+		},
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&t.showNotes, "notes", false, "show the computed NOTES.txt file as well")
-	f.StringVarP(&t.releaseName, "name", "n", "RELEASE-NAME", "release name")
-	f.BoolVar(&t.releaseIsUpgrade, "is-upgrade", false, "set .Release.IsUpgrade instead of .Release.IsInstall")
-	f.StringArrayVarP(&t.renderFiles, "execute", "x", []string{}, "only execute the given templates")
-	f.VarP(&t.valueFiles, "values", "f", "specify values in a YAML file (can specify multiple)")
-	f.StringVar(&t.namespace, "namespace", "", "namespace to install the release into")
-	f.StringArrayVar(&t.values, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&t.stringValues, "set-string", []string{}, "set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&t.fileValues, "set-file", []string{}, "set values from respective files specified via the command line (can specify multiple or separate values with commas: key1=path1,key2=path2)")
-	f.StringVar(&t.nameTemplate, "name-template", "", "specify template used to name the release")
-	f.StringVar(&t.kubeVersion, "kube-version", defaultKubeVersion, "kubernetes version used as Capabilities.KubeVersion.Major/Minor")
-	f.StringVar(&t.outputDir, "output-dir", "", "writes the executed templates to files in output-dir instead of stdout")
-	f.StringArrayVar(&t.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
+	f.BoolVar(&o.showNotes, "notes", false, "show the computed NOTES.txt file as well")
+	f.StringVarP(&o.releaseName, "name", "", "RELEASE-NAME", "release name")
+	f.StringArrayVarP(&o.renderFiles, "execute", "x", []string{}, "only execute the given templates")
+	f.StringVar(&o.nameTemplate, "name-template", "", "specify template used to name the release")
+	f.StringVar(&o.kubeVersion, "kube-version", defaultKubeVersion, "kubernetes version used as Capabilities.KubeVersion.Major/Minor")
+	f.StringVar(&o.outputDir, "output-dir", "", "writes the executed templates to files in output-dir instead of stdout")
+	o.valuesOptions.addFlags(f)
 
 	return cmd
 }
 
-func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 {
-		return errors.New("chart is required")
-	}
-	// verify chart path exists
-	if _, err := os.Stat(args[0]); err == nil {
-		if t.chartPath, err = filepath.Abs(args[0]); err != nil {
-			return err
+func (o *templateOptions) run(out io.Writer) error {
+	// verify specified templates exist relative to chart
+	rf := []string{}
+	var af string
+	var err error
+	if len(o.renderFiles) > 0 {
+		for _, f := range o.renderFiles {
+			if !filepath.IsAbs(f) {
+				af, err = filepath.Abs(filepath.Join(o.chartPath, f))
+				if err != nil {
+					return errors.Wrap(err, "could not resolve template path")
+				}
+			} else {
+				af = f
+			}
+			rf = append(rf, af)
+
+			if _, err := os.Stat(af); err != nil {
+				return errors.Wrap(err, "could not resolve template path")
+			}
 		}
-	} else {
-		return err
 	}
 
 	// verify that output-dir exists if provided
-	if t.outputDir != "" {
-		_, err := os.Stat(t.outputDir)
-		if os.IsNotExist(err) {
-			return fmt.Errorf("output-dir '%s' does not exist", t.outputDir)
+	if o.outputDir != "" {
+		if _, err := os.Stat(o.outputDir); os.IsNotExist(err) {
+			return errors.Errorf("output-dir '%s' does not exist", o.outputDir)
 		}
-	}
-
-	if t.namespace == "" {
-		t.namespace = defaultNamespace()
 	}
 
 	// get combined values and create config
-	rawVals, err := vals(t.valueFiles, t.values, t.stringValues, t.fileValues, "", "", "")
+	config, err := o.mergedValues()
 	if err != nil {
 		return err
 	}
-	config := &chart.Config{Raw: string(rawVals), Values: map[string]*chart.Value{}}
 
 	// If template is specified, try to run the template.
-	if t.nameTemplate != "" {
-		t.releaseName, err = generateName(t.nameTemplate)
+	if o.nameTemplate != "" {
+		o.releaseName, err = templateName(o.nameTemplate)
 		if err != nil {
 			return err
 		}
 	}
 
-	// Check chart requirements to make sure all dependencies are present in /charts
-	chartRequested, err := chartutil.Load(t.chartPath)
+	// Check chart dependencies to make sure all are present in /charts
+	c, err := loader.Load(o.chartPath)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
 
-	jsonnetOut := make(map[string]string)
-	if chartRequested.Metadata.Engine == "jsonnet" {
-
-		fmt.Println("Chart Metadata Engine: jsonnet")
-
-		t.client = ensureHelmClient(t.client)
-		depLinks := map[string]interface{}{}
-		for _, value := range t.links {
-			if err := strvals.ParseInto(value, depLinks); err != nil {
-				return fmt.Errorf("failed parsing --set data: %s", err)
-			}
+	if req := c.Metadata.Dependencies; req != nil {
+		if err := checkDependencies(c, req); err != nil {
+			return err
 		}
-
-		err := transwarp.ProcessAppCharts(t.client, chartRequested, t.releaseName, t.namespace, string(rawVals[:]), depLinks)
-		if err != nil {
-			return prettyError(err)
-		}
-
-		fmt.Println("Begin Render Chart ")
-
-		jsonnetOut, err = transwarp.Render(chartRequested, t.namespace, settings.KubeContext, depLinks)
-		if err != nil {
-			return prettyError(err)
-		}
-
-		if len(jsonnetOut) == 0 {
-			return fmt.Errorf("failed parsing jsonnet file")
-		}
-
-		// remove Templates file which include jsonnet
-		flag := false
-		for removeIdx, file := range chartRequested.Templates {
-
-			if flag == true {
-				removeIdx = removeIdx - 1
-				flag = false
-			}
-
-			if file.Name == "templates/instance-crd.yaml" || file.Name == "templates/transwarp-configmap-reserved.yaml" {
-				chartRequested.Templates[removeIdx] = chartRequested.Templates[len(chartRequested.Templates)-1]
-				chartRequested.Templates = chartRequested.Templates[:len(chartRequested.Templates)-1]
-				flag = true
-			}
-		}
-
+	}
+	options := chartutil.ReleaseOptions{
+		Name: o.releaseName,
 	}
 
-	out := make(map[string]string)
-	if len(chartRequested.Templates) > 0 {
-
-		if req, err := chartutil.LoadRequirements(chartRequested); err == nil {
-			if err := checkDependencies(chartRequested, req); err != nil {
-				return prettyError(err)
-			}
-		} else if err != chartutil.ErrRequirementsNotFound {
-			return fmt.Errorf("cannot load requirements: %v", err)
-		}
-		options := chartutil.ReleaseOptions{
-			Name:      t.releaseName,
-			IsInstall: !t.releaseIsUpgrade,
-			IsUpgrade: t.releaseIsUpgrade,
-			Time:      timeconv.Now(),
-			Namespace: t.namespace,
-		}
-
-		err = chartutil.ProcessRequirementsEnabled(chartRequested, config)
-		if err != nil {
-			return err
-		}
-		err = chartutil.ProcessRequirementsImportValues(chartRequested)
-		if err != nil {
-			return err
-		}
-
-		// Set up engine.
-		renderer := engine.New()
-
-		caps := &chartutil.Capabilities{
-			APIVersions:   chartutil.DefaultVersionSet,
-			KubeVersion:   chartutil.DefaultKubeVersion,
-			TillerVersion: tversion.GetVersionProto(),
-		}
-
-		// kubernetes version
-		kv, err := semver.NewVersion(t.kubeVersion)
-		if err != nil {
-			return fmt.Errorf("could not parse a kubernetes version: %v", err)
-		}
-		caps.KubeVersion.Major = fmt.Sprint(kv.Major())
-		caps.KubeVersion.Minor = fmt.Sprint(kv.Minor())
-		caps.KubeVersion.GitVersion = fmt.Sprintf("v%d.%d.0", kv.Major(), kv.Minor())
-
-		vals, err := chartutil.ToRenderValuesCaps(chartRequested, config, options, caps)
-		if err != nil {
-			return err
-		}
-
-		out, err = renderer.Render(chartRequested, vals)
-		if err != nil {
-			return err
-		}
-
+	if err := chartutil.ProcessDependencies(c, config); err != nil {
+		return err
 	}
 
-	if len(jsonnetOut) > 0 {
-		for k ,v := range jsonnetOut {
-			out[k] = v
-		}
+	// Set up engine.
+	renderer := engine.New()
+
+	// kubernetes version
+	kv, err := semver.NewVersion(o.kubeVersion)
+	if err != nil {
+		return errors.Wrap(err, "could not parse a kubernetes version")
+	}
+
+	caps := chartutil.DefaultCapabilities
+	caps.KubeVersion.Major = fmt.Sprint(kv.Major())
+	caps.KubeVersion.Minor = fmt.Sprint(kv.Minor())
+	caps.KubeVersion.GitVersion = fmt.Sprintf("v%d.%d.0", kv.Major(), kv.Minor())
+
+	vals, err := chartutil.ToRenderValues(c, config, options, caps)
+	if err != nil {
+		return err
+	}
+
+	rendered, err := renderer.Render(c, vals)
+	if err != nil {
+		return err
 	}
 
 	listManifests := []tiller.Manifest{}
 	// extract kind and name
 	re := regexp.MustCompile("kind:(.*)\n")
-	for k, v := range out {
+	for k, v := range rendered {
 		match := re.FindStringSubmatch(v)
 		h := "Unknown"
 		if len(match) == 2 {
@@ -284,92 +206,60 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 		m := tiller.Manifest{Name: k, Content: v, Head: &util.SimpleHead{Kind: h}}
 		listManifests = append(listManifests, m)
 	}
+	in := func(needle string, haystack []string) bool {
+		// make needle path absolute
+		d := strings.Split(needle, string(os.PathSeparator))
+		dd := d[1:]
+		an := filepath.Join(o.chartPath, strings.Join(dd, string(os.PathSeparator)))
+
+		for _, h := range haystack {
+			if h == an {
+				return true
+			}
+		}
+		return false
+	}
 
 	if settings.Debug {
 		rel := &release.Release{
-			Name:      t.releaseName,
-			Chart:     chartRequested,
-			Config:    config,
-			Version:   1,
-			Namespace: t.namespace,
-			Info:      &release.Info{LastDeployed: timeconv.Timestamp(time.Now())},
+			Name:    o.releaseName,
+			Chart:   c,
+			Config:  config,
+			Version: 1,
+			Info:    &release.Info{LastDeployed: time.Now()},
 		}
-		printRelease(os.Stdout, rel)
+		printRelease(out, rel)
 	}
 
-	var manifestsToRender []tiller.Manifest
-
-	// if we have a list of files to render, then check that each of the
-	// provided files exists in the chart.
-	if len(t.renderFiles) > 0 {
-		for _, f := range t.renderFiles {
-			missing := true
-			if !filepath.IsAbs(f) {
-				newF, err := filepath.Abs(filepath.Join(t.chartPath, f))
-				if err != nil {
-					return fmt.Errorf("could not turn template path %s into absolute path: %s", f, err)
-				}
-				f = newF
-			}
-
-			for _, manifest := range listManifests {
-				// manifest.Name is rendered using linux-style filepath separators on Windows as
-				// well as macOS/linux.
-				manifestPathSplit := strings.Split(manifest.Name, "/")
-				// remove the chart name from the path
-				manifestPathSplit = manifestPathSplit[1:]
-				toJoin := append([]string{t.chartPath}, manifestPathSplit...)
-				manifestPath := filepath.Join(toJoin...)
-
-				// if the filepath provided matches a manifest path in the
-				// chart, render that manifest
-				if f == manifestPath {
-					manifestsToRender = append(manifestsToRender, manifest)
-					missing = false
-				}
-			}
-			if missing {
-				return fmt.Errorf("could not find template %s in chart", f)
-			}
-		}
-	} else {
-		// no renderFiles provided, render all manifests in the chart
-		manifestsToRender = listManifests
-	}
-
-	for _, m := range tiller.SortByKind(manifestsToRender) {
-		data := m.Content
+	for _, m := range tiller.SortByKind(listManifests) {
 		b := filepath.Base(m.Name)
-		if !t.showNotes && b == "NOTES.txt" {
+		switch {
+		case len(o.renderFiles) > 0 && !in(m.Name, rf):
 			continue
-		}
-		if strings.HasPrefix(b, "_") {
+		case !o.showNotes && b == "NOTES.txt":
 			continue
-		}
-
-		if t.outputDir != "" {
+		case strings.HasPrefix(b, "_"):
+			continue
+		case whitespaceRegex.MatchString(m.Content):
 			// blank template after execution
-			if whitespaceRegex.MatchString(data) {
-				continue
-			}
-			err = writeToFile(t.outputDir, m.Name, data)
-			if err != nil {
+			continue
+		case o.outputDir != "":
+			if err := writeToFile(out, o.outputDir, m.Name, m.Content); err != nil {
 				return err
 			}
-			continue
+		default:
+			fmt.Fprintf(out, "---\n# Source: %s\n", m.Name)
+			fmt.Fprintln(out, m.Content)
 		}
-		fmt.Printf("---\n# Source: %s\n", m.Name)
-		fmt.Println(data)
 	}
 	return nil
 }
 
 // write the <data> to <output-dir>/<name>
-func writeToFile(outputDir string, name string, data string) error {
+func writeToFile(out io.Writer, outputDir, name, data string) error {
 	outfileName := strings.Join([]string{outputDir, name}, string(filepath.Separator))
 
-	err := ensureDirectoryForFile(outfileName)
-	if err != nil {
+	if err := ensureDirectoryForFile(outfileName); err != nil {
 		return err
 	}
 
@@ -380,21 +270,18 @@ func writeToFile(outputDir string, name string, data string) error {
 
 	defer f.Close()
 
-	_, err = f.WriteString(fmt.Sprintf("---\n# Source: %s\n%s", name, data))
-
-	if err != nil {
+	if _, err = f.WriteString(fmt.Sprintf("##---\n# Source: %s\n%s", name, data)); err != nil {
 		return err
 	}
 
-	fmt.Printf("wrote %s\n", outfileName)
+	fmt.Fprintf(out, "wrote %s\n", outfileName)
 	return nil
 }
 
 // check if the directory exists to create file. creates if don't exists
 func ensureDirectoryForFile(file string) error {
 	baseDir := path.Dir(file)
-	_, err := os.Stat(baseDir)
-	if err != nil && !os.IsNotExist(err) {
+	if _, err := os.Stat(baseDir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 

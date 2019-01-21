@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,16 +25,17 @@ import (
 	"syscall"
 
 	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/helmpath"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/provenance"
-	"k8s.io/helm/pkg/repo"
 )
 
 const packageDesc = `
@@ -49,44 +49,45 @@ Chart.yaml file, and (if found) build the current directory into a chart.
 Versioned chart archives are used by Helm package repositories.
 `
 
-type packageCmd struct {
-	save             bool
-	sign             bool
-	path             string
-	key              string
-	keyring          string
-	version          string
-	appVersion       string
-	destination      string
-	dependencyUpdate bool
+type packageOptions struct {
+	appVersion       string // --app-version
+	dependencyUpdate bool   // --dependency-update
+	destination      string // --destination
+	key              string // --key
+	keyring          string // --keyring
+	sign             bool   // --sign
+	version          string // --version
 
-	out  io.Writer
+	valuesOptions
+
+	path string
+
 	home helmpath.Home
 }
 
 func newPackageCmd(out io.Writer) *cobra.Command {
-	pkg := &packageCmd{out: out}
+	o := &packageOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "package [flags] [CHART_PATH] [...]",
+		Use:   "package [CHART_PATH] [...]",
 		Short: "package a chart directory into a chart archive",
 		Long:  packageDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pkg.home = settings.Home
+			o.home = settings.Home
 			if len(args) == 0 {
-				return fmt.Errorf("need at least one argument, the path to the chart")
+				return errors.Errorf("need at least one argument, the path to the chart")
 			}
-			if pkg.sign {
-				if pkg.key == "" {
+			if o.sign {
+				if o.key == "" {
 					return errors.New("--key is required for signing a package")
 				}
-				if pkg.keyring == "" {
+				if o.keyring == "" {
 					return errors.New("--keyring is required for signing a package")
 				}
 			}
 			for i := 0; i < len(args); i++ {
-				pkg.path = args[i]
-				if err := pkg.run(); err != nil {
+				o.path = args[i]
+				if err := o.run(out); err != nil {
 					return err
 				}
 			}
@@ -95,30 +96,30 @@ func newPackageCmd(out io.Writer) *cobra.Command {
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&pkg.save, "save", true, "save packaged chart to local chart repository")
-	f.BoolVar(&pkg.sign, "sign", false, "use a PGP private key to sign this package")
-	f.StringVar(&pkg.key, "key", "", "name of the key to use when signing. Used if --sign is true")
-	f.StringVar(&pkg.keyring, "keyring", defaultKeyring(), "location of a public keyring")
-	f.StringVar(&pkg.version, "version", "", "set the version on the chart to this semver version")
-	f.StringVar(&pkg.appVersion, "app-version", "", "set the appVersion on the chart to this version")
-	f.StringVarP(&pkg.destination, "destination", "d", ".", "location to write the chart.")
-	f.BoolVarP(&pkg.dependencyUpdate, "dependency-update", "u", false, `update dependencies from "requirements.yaml" to dir "charts/" before packaging`)
+	f.BoolVar(&o.sign, "sign", false, "use a PGP private key to sign this package")
+	f.StringVar(&o.key, "key", "", "name of the key to use when signing. Used if --sign is true")
+	f.StringVar(&o.keyring, "keyring", defaultKeyring(), "location of a public keyring")
+	f.StringVar(&o.version, "version", "", "set the version on the chart to this semver version")
+	f.StringVar(&o.appVersion, "app-version", "", "set the appVersion on the chart to this version")
+	f.StringVarP(&o.destination, "destination", "d", ".", "location to write the chart.")
+	f.BoolVarP(&o.dependencyUpdate, "dependency-update", "u", false, `update dependencies from "Chart.yaml" to dir "charts/" before packaging`)
+	o.valuesOptions.addFlags(f)
 
 	return cmd
 }
 
-func (p *packageCmd) run() error {
-	path, err := filepath.Abs(p.path)
+func (o *packageOptions) run(out io.Writer) error {
+	path, err := filepath.Abs(o.path)
 	if err != nil {
 		return err
 	}
 
-	if p.dependencyUpdate {
+	if o.dependencyUpdate {
 		downloadManager := &downloader.Manager{
-			Out:       p.out,
+			Out:       out,
 			ChartPath: path,
 			HelmHome:  settings.Home,
-			Keyring:   p.keyring,
+			Keyring:   o.keyring,
 			Getters:   getter.All(settings),
 			Debug:     settings.Debug,
 		}
@@ -128,40 +129,42 @@ func (p *packageCmd) run() error {
 		}
 	}
 
-	ch, err := chartutil.LoadDir(path)
+	ch, err := loader.LoadDir(path)
 	if err != nil {
 		return err
 	}
 
+	overrideVals, err := o.mergedValues()
+	if err != nil {
+		return err
+	}
+	combinedVals, err := chartutil.CoalesceValues(ch, overrideVals)
+	if err != nil {
+		return err
+	}
+	ch.Values = combinedVals
+
 	// If version is set, modify the version.
-	if len(p.version) != 0 {
-		if err := setVersion(ch, p.version); err != nil {
+	if len(o.version) != 0 {
+		if err := setVersion(ch, o.version); err != nil {
 			return err
 		}
-		debug("Setting version to %s", p.version)
+		debug("Setting version to %s", o.version)
 	}
 
-	if p.appVersion != "" {
-		ch.Metadata.AppVersion = p.appVersion
-		debug("Setting appVersion to %s", p.appVersion)
+	if o.appVersion != "" {
+		ch.Metadata.AppVersion = o.appVersion
+		debug("Setting appVersion to %s", o.appVersion)
 	}
 
-	if filepath.Base(path) != ch.Metadata.Name {
-		return fmt.Errorf("directory name (%s) and Chart.yaml name (%s) must match", filepath.Base(path), ch.Metadata.Name)
-	}
-
-	if reqs, err := chartutil.LoadRequirements(ch); err == nil {
+	if reqs := ch.Metadata.Dependencies; reqs != nil {
 		if err := checkDependencies(ch, reqs); err != nil {
-			return err
-		}
-	} else {
-		if err != chartutil.ErrRequirementsNotFound {
 			return err
 		}
 	}
 
 	var dest string
-	if p.destination == "." {
+	if o.destination == "." {
 		// Save to the current working directory.
 		dest, err = os.Getwd()
 		if err != nil {
@@ -169,35 +172,24 @@ func (p *packageCmd) run() error {
 		}
 	} else {
 		// Otherwise save to set destination
-		dest = p.destination
+		dest = o.destination
 	}
 
 	name, err := chartutil.Save(ch, dest)
-	if err == nil {
-		fmt.Fprintf(p.out, "Successfully packaged chart and saved it to: %s\n", name)
-	} else {
-		return fmt.Errorf("Failed to save: %s", err)
+	if err != nil {
+		return errors.Wrap(err, "failed to save")
 	}
+	fmt.Fprintf(out, "Successfully packaged chart and saved it to: %s\n", name)
 
-	// Save to $HELM_HOME/local directory. This is second, because we don't want
-	// the case where we saved here, but didn't save to the default destination.
-	if p.save {
-		lr := p.home.LocalRepository()
-		if err := repo.AddChartToLocalRepo(ch, lr); err != nil {
-			return err
-		}
-		debug("Successfully saved %s to %s\n", name, lr)
-	}
-
-	if p.sign {
-		err = p.clearsign(name)
+	if o.sign {
+		err = o.clearsign(name)
 	}
 
 	return err
 }
 
 func setVersion(ch *chart.Chart, ver string) error {
-	// Verify that version is a SemVer, and error out if it is not.
+	// Verify that version is a Version, and error out if it is not.
 	if _, err := semver.NewVersion(ver); err != nil {
 		return err
 	}
@@ -207,9 +199,9 @@ func setVersion(ch *chart.Chart, ver string) error {
 	return nil
 }
 
-func (p *packageCmd) clearsign(filename string) error {
+func (o *packageOptions) clearsign(filename string) error {
 	// Load keyring
-	signer, err := provenance.NewFromKeyring(p.keyring, p.key)
+	signer, err := provenance.NewFromKeyring(o.keyring, o.key)
 	if err != nil {
 		return err
 	}

@@ -19,8 +19,9 @@ package tlsutil
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 // Options represents configurable options used to create client and server TLS configurations.
@@ -33,9 +34,6 @@ type Options struct {
 	CertFile string
 	// Client-only options
 	InsecureSkipVerify bool
-	// Overrides the server name used to verify the hostname on the returned
-	// certificates from the server.
-	ServerName string
 	// Server-only options
 	ClientAuth tls.ClientAuthType
 }
@@ -48,9 +46,9 @@ func ClientConfig(opts Options) (cfg *tls.Config, err error) {
 	if opts.CertFile != "" || opts.KeyFile != "" {
 		if cert, err = CertFromFilePair(opts.CertFile, opts.KeyFile); err != nil {
 			if os.IsNotExist(err) {
-				return nil, fmt.Errorf("could not load x509 key pair (cert: %q, key: %q): %v", opts.CertFile, opts.KeyFile, err)
+				return nil, errors.Wrapf(err, "could not load x509 key pair (cert: %q, key: %q)", opts.CertFile, opts.KeyFile)
 			}
-			return nil, fmt.Errorf("could not read x509 key pair (cert: %q, key: %q): %v", opts.CertFile, opts.KeyFile, err)
+			return nil, errors.Wrapf(err, "could not read x509 key pair (cert: %q, key: %q)", opts.CertFile, opts.KeyFile)
 		}
 	}
 	if !opts.InsecureSkipVerify && opts.CaCertFile != "" {
@@ -58,12 +56,8 @@ func ClientConfig(opts Options) (cfg *tls.Config, err error) {
 			return nil, err
 		}
 	}
-	cfg = &tls.Config{
-		InsecureSkipVerify: opts.InsecureSkipVerify,
-		Certificates:       []tls.Certificate{*cert},
-		ServerName:         opts.ServerName,
-		RootCAs:            pool,
-	}
+
+	cfg = &tls.Config{InsecureSkipVerify: opts.InsecureSkipVerify, Certificates: []tls.Certificate{*cert}, RootCAs: pool}
 	return cfg, nil
 }
 
@@ -74,9 +68,9 @@ func ServerConfig(opts Options) (cfg *tls.Config, err error) {
 
 	if cert, err = CertFromFilePair(opts.CertFile, opts.KeyFile); err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("could not load x509 key pair (cert: %q, key: %q): %v", opts.CertFile, opts.KeyFile, err)
+			return nil, errors.Wrapf(err, "could not load x509 key pair (cert: %q, key: %q)", opts.CertFile, opts.KeyFile)
 		}
-		return nil, fmt.Errorf("could not read x509 key pair (cert: %q, key: %q): %v", opts.CertFile, opts.KeyFile, err)
+		return nil, errors.Wrapf(err, "could not read x509 key pair (cert: %q, key: %q)", opts.CertFile, opts.KeyFile)
 	}
 	if opts.ClientAuth >= tls.VerifyClientCertIfGiven && opts.CaCertFile != "" {
 		if pool, err = CertPoolFromFile(opts.CaCertFile); err != nil {

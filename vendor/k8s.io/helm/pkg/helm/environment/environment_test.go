@@ -31,57 +31,50 @@ func TestEnvSettings(t *testing.T) {
 		name string
 
 		// input
-		args   []string
+		args   string
 		envars map[string]string
 
 		// expected values
-		home, host, ns, kcontext, kconfig, plugins string
-		debug                                      bool
+		home, ns, kcontext, plugins string
+		debug                       bool
 	}{
 		{
 			name:    "defaults",
-			args:    []string{},
-			home:    DefaultHelmHome,
-			plugins: helmpath.Home(DefaultHelmHome).Plugins(),
-			ns:      "kube-system",
+			home:    defaultHelmHome,
+			plugins: helmpath.Home(defaultHelmHome).Plugins(),
+			ns:      "",
 		},
 		{
 			name:    "with flags set",
-			args:    []string{"--home", "/foo", "--host=here", "--debug", "--tiller-namespace=myns", "--kubeconfig", "/bar"},
+			args:    "--home /foo --debug --namespace=myns",
 			home:    "/foo",
 			plugins: helmpath.Home("/foo").Plugins(),
-			host:    "here",
 			ns:      "myns",
-			kconfig: "/bar",
 			debug:   true,
 		},
 		{
 			name:    "with envvars set",
-			args:    []string{},
-			envars:  map[string]string{"HELM_HOME": "/bar", "HELM_HOST": "there", "HELM_DEBUG": "1", "TILLER_NAMESPACE": "yourns"},
+			envars:  map[string]string{"HELM_HOME": "/bar", "HELM_DEBUG": "1", "HELM_NAMESPACE": "yourns"},
 			home:    "/bar",
 			plugins: helmpath.Home("/bar").Plugins(),
-			host:    "there",
 			ns:      "yourns",
 			debug:   true,
 		},
 		{
 			name:    "with flags and envvars set",
-			args:    []string{"--home", "/foo", "--host=here", "--debug", "--tiller-namespace=myns"},
-			envars:  map[string]string{"HELM_HOME": "/bar", "HELM_HOST": "there", "HELM_DEBUG": "1", "TILLER_NAMESPACE": "yourns", "HELM_PLUGIN": "glade"},
+			args:    "--home /foo --debug --namespace=myns",
+			envars:  map[string]string{"HELM_HOME": "/bar", "HELM_DEBUG": "1", "HELM_NAMESPACE": "yourns", "HELM_PLUGIN": "glade"},
 			home:    "/foo",
 			plugins: "glade",
-			host:    "here",
 			ns:      "myns",
 			debug:   true,
 		},
 	}
 
-	cleanup := resetEnv()
-	defer cleanup()
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer resetEnv()()
+
 			for k, v := range tt.envars {
 				os.Setenv(k, v)
 			}
@@ -90,7 +83,7 @@ func TestEnvSettings(t *testing.T) {
 
 			settings := &EnvSettings{}
 			settings.AddFlags(flags)
-			flags.Parse(tt.args)
+			flags.Parse(strings.Split(tt.args, " "))
 
 			settings.Init(flags)
 
@@ -100,23 +93,15 @@ func TestEnvSettings(t *testing.T) {
 			if settings.PluginDirs() != tt.plugins {
 				t.Errorf("expected plugins %q, got %q", tt.plugins, settings.PluginDirs())
 			}
-			if settings.TillerHost != tt.host {
-				t.Errorf("expected host %q, got %q", tt.host, settings.TillerHost)
-			}
 			if settings.Debug != tt.debug {
 				t.Errorf("expected debug %t, got %t", tt.debug, settings.Debug)
 			}
-			if settings.TillerNamespace != tt.ns {
-				t.Errorf("expected tiller-namespace %q, got %q", tt.ns, settings.TillerNamespace)
+			if settings.Namespace != tt.ns {
+				t.Errorf("expected namespace %q, got %q", tt.ns, settings.Namespace)
 			}
 			if settings.KubeContext != tt.kcontext {
 				t.Errorf("expected kube-context %q, got %q", tt.kcontext, settings.KubeContext)
 			}
-			if settings.KubeConfig != tt.kconfig {
-				t.Errorf("expected kubeconfig %q, got %q", tt.kconfig, settings.KubeConfig)
-			}
-
-			cleanup()
 		})
 	}
 }

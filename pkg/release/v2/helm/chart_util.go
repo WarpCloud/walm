@@ -3,7 +3,6 @@ package helm
 import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"path/filepath"
 	"os"
 	"io/ioutil"

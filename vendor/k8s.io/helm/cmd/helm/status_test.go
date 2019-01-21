@@ -17,135 +17,77 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-	"io"
 	"testing"
+	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/spf13/cobra"
-
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/timeconv"
-)
-
-var (
-	date       = timestamp.Timestamp{Seconds: 242085845, Nanos: 0}
-	dateString = timeconv.String(&date)
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 func TestStatusCmd(t *testing.T) {
-	tests := []releaseCase{
-		{
-			name:     "get status of a deployed release",
-			args:     []string{"flummoxed-chickadee"},
-			expected: outputWithStatus("DEPLOYED\n\n"),
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code: release.Status_DEPLOYED,
-				}),
-			},
-		},
-		{
-			name:     "get status of a deployed release with notes",
-			args:     []string{"flummoxed-chickadee"},
-			expected: outputWithStatus("DEPLOYED\n\nNOTES:\nrelease notes\n"),
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code:  release.Status_DEPLOYED,
-					Notes: "release notes",
-				}),
-			},
-		},
-		{
-			name:     "get status of a deployed release with notes in json",
-			args:     []string{"flummoxed-chickadee"},
-			flags:    []string{"-o", "json"},
-			expected: `{"name":"flummoxed-chickadee","info":{"status":{"code":1,"notes":"release notes"},"first_deployed":{"seconds":242085845},"last_deployed":{"seconds":242085845}}}`,
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code:  release.Status_DEPLOYED,
-					Notes: "release notes",
-				}),
-			},
-		},
-		{
-			name:     "get status of a deployed release with resources",
-			args:     []string{"flummoxed-chickadee"},
-			expected: outputWithStatus("DEPLOYED\n\nRESOURCES:\nresource A\nresource B\n\n"),
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code:      release.Status_DEPLOYED,
-					Resources: "resource A\nresource B\n",
-				}),
-			},
-		},
-		{
-			name:     "get status of a deployed release with resources in YAML",
-			args:     []string{"flummoxed-chickadee"},
-			flags:    []string{"-o", "yaml"},
-			expected: "info:\n (.*)first_deployed:\n (.*)seconds: 242085845\n (.*)last_deployed:\n (.*)seconds: 242085845\n (.*)status:\n code: 1\n (.*)resources: |\n (.*)resource A\n (.*)resource B\nname: flummoxed-chickadee\n",
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code:      release.Status_DEPLOYED,
-					Resources: "resource A\nresource B\n",
-				}),
-			},
-		},
-		{
-			name: "get status of a deployed release with test suite",
-			args: []string{"flummoxed-chickadee"},
-			expected: outputWithStatus(
-				fmt.Sprintf("DEPLOYED\n\nTEST SUITE:\nLast Started: %s\nLast Completed: %s\n\n", dateString, dateString) +
-					"TEST      \tSTATUS (.*)\tINFO (.*)\tSTARTED (.*)\tCOMPLETED (.*)\n" +
-					fmt.Sprintf("test run 1\tSUCCESS (.*)\textra info\t%s\t%s\n", dateString, dateString) +
-					fmt.Sprintf("test run 2\tFAILURE (.*)\t (.*)\t%s\t%s\n", dateString, dateString)),
-			rels: []*release.Release{
-				releaseMockWithStatus(&release.Status{
-					Code: release.Status_DEPLOYED,
-					LastTestSuiteRun: &release.TestSuite{
-						StartedAt:   &date,
-						CompletedAt: &date,
-						Results: []*release.TestRun{
-							{
-								Name:        "test run 1",
-								Status:      release.TestRun_SUCCESS,
-								Info:        "extra info",
-								StartedAt:   &date,
-								CompletedAt: &date,
-							},
-							{
-								Name:        "test run 2",
-								Status:      release.TestRun_FAILURE,
-								StartedAt:   &date,
-								CompletedAt: &date,
-							},
-						},
-					},
-				}),
-			},
-		},
+	releasesMockWithStatus := func(info *release.Info) []*release.Release {
+		info.LastDeployed = time.Unix(1452902400, 0).UTC()
+		return []*release.Release{{
+			Name: "flummoxed-chickadee",
+			Info: info,
+		}}
 	}
 
-	runReleaseCases(t, tests, func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newStatusCmd(c, out)
-	})
-
-}
-
-func outputWithStatus(status string) string {
-	return fmt.Sprintf("LAST DEPLOYED: %s\nNAMESPACE: \nSTATUS: %s",
-		dateString,
-		status)
-}
-
-func releaseMockWithStatus(status *release.Status) *release.Release {
-	return &release.Release{
-		Name: "flummoxed-chickadee",
-		Info: &release.Info{
-			FirstDeployed: &date,
-			LastDeployed:  &date,
-			Status:        status,
-		},
-	}
+	tests := []cmdTestCase{{
+		name:   "get status of a deployed release",
+		cmd:    "status flummoxed-chickadee",
+		golden: "output/status.txt",
+		rels: releasesMockWithStatus(&release.Info{
+			Status: release.StatusDeployed,
+		}),
+	}, {
+		name:   "get status of a deployed release with notes",
+		cmd:    "status flummoxed-chickadee",
+		golden: "output/status-with-notes.txt",
+		rels: releasesMockWithStatus(&release.Info{
+			Status: release.StatusDeployed,
+			Notes:  "release notes",
+		}),
+	}, {
+		name:   "get status of a deployed release with notes in json",
+		cmd:    "status flummoxed-chickadee -o json",
+		golden: "output/status.json",
+		rels: releasesMockWithStatus(&release.Info{
+			Status: release.StatusDeployed,
+			Notes:  "release notes",
+		}),
+	}, {
+		name:   "get status of a deployed release with resources",
+		cmd:    "status flummoxed-chickadee",
+		golden: "output/status-with-resource.txt",
+		rels: releasesMockWithStatus(&release.Info{
+			Status:    release.StatusDeployed,
+			Resources: "resource A\nresource B\n",
+		}),
+	}, {
+		name:   "get status of a deployed release with resources in YAML",
+		cmd:    "status flummoxed-chickadee -o yaml",
+		golden: "output/status.yaml",
+		rels: releasesMockWithStatus(&release.Info{
+			Status:    release.StatusDeployed,
+			Resources: "resource A\nresource B\n",
+		}),
+	}, {
+		name:   "get status of a deployed release with test suite",
+		cmd:    "status flummoxed-chickadee",
+		golden: "output/status-with-test-suite.txt",
+		rels: releasesMockWithStatus(&release.Info{
+			Status: release.StatusDeployed,
+			LastTestSuiteRun: &release.TestSuite{
+				Results: []*release.TestRun{{
+					Name:   "test run 1",
+					Status: release.TestRunSuccess,
+					Info:   "extra info",
+				}, {
+					Name:   "test run 2",
+					Status: release.TestRunFailure,
+				}},
+			},
+		}),
+	}}
+	runTestCmd(t, tests)
 }

@@ -22,10 +22,10 @@ import (
 	"log"
 	"time"
 
-	"k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/api/core/v1"
 
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/tiller/environment"
 )
 
@@ -33,29 +33,28 @@ import (
 type Environment struct {
 	Namespace  string
 	KubeClient environment.KubeClient
-	Stream     services.ReleaseService_RunReleaseTestServer
+	Mesages    chan *hapi.TestReleaseResponse
 	Timeout    int64
 }
 
 func (env *Environment) createTestPod(test *test) error {
 	b := bytes.NewBufferString(test.manifest)
 	if err := env.KubeClient.Create(env.Namespace, b, env.Timeout, false); err != nil {
-		log.Printf(err.Error())
 		test.result.Info = err.Error()
-		test.result.Status = release.TestRun_FAILURE
+		test.result.Status = release.TestRunFailure
 		return err
 	}
 
 	return nil
 }
 
-func (env *Environment) getTestPodStatus(test *test) (core.PodPhase, error) {
+func (env *Environment) getTestPodStatus(test *test) (v1.PodPhase, error) {
 	b := bytes.NewBufferString(test.manifest)
 	status, err := env.KubeClient.WaitAndGetCompletedPodPhase(env.Namespace, b, time.Duration(env.Timeout)*time.Second)
 	if err != nil {
 		log.Printf("Error getting status for pod %s: %s", test.result.Name, err)
 		test.result.Info = err.Error()
-		test.result.Status = release.TestRun_UNKNOWN
+		test.result.Status = release.TestRunUnknown
 		return status, err
 	}
 
@@ -64,11 +63,11 @@ func (env *Environment) getTestPodStatus(test *test) (core.PodPhase, error) {
 
 func (env *Environment) streamResult(r *release.TestRun) error {
 	switch r.Status {
-	case release.TestRun_SUCCESS:
+	case release.TestRunSuccess:
 		if err := env.streamSuccess(r.Name); err != nil {
 			return err
 		}
-	case release.TestRun_FAILURE:
+	case release.TestRunFailure:
 		if err := env.streamFailed(r.Name); err != nil {
 			return err
 		}
@@ -83,32 +82,33 @@ func (env *Environment) streamResult(r *release.TestRun) error {
 
 func (env *Environment) streamRunning(name string) error {
 	msg := "RUNNING: " + name
-	return env.streamMessage(msg, release.TestRun_RUNNING)
+	return env.streamMessage(msg, release.TestRunRunning)
 }
 
 func (env *Environment) streamError(info string) error {
 	msg := "ERROR: " + info
-	return env.streamMessage(msg, release.TestRun_FAILURE)
+	return env.streamMessage(msg, release.TestRunFailure)
 }
 
 func (env *Environment) streamFailed(name string) error {
 	msg := fmt.Sprintf("FAILED: %s, run `kubectl logs %s --namespace %s` for more info", name, name, env.Namespace)
-	return env.streamMessage(msg, release.TestRun_FAILURE)
+	return env.streamMessage(msg, release.TestRunFailure)
 }
 
 func (env *Environment) streamSuccess(name string) error {
 	msg := fmt.Sprintf("PASSED: %s", name)
-	return env.streamMessage(msg, release.TestRun_SUCCESS)
+	return env.streamMessage(msg, release.TestRunSuccess)
 }
 
 func (env *Environment) streamUnknown(name, info string) error {
 	msg := fmt.Sprintf("UNKNOWN: %s: %s", name, info)
-	return env.streamMessage(msg, release.TestRun_UNKNOWN)
+	return env.streamMessage(msg, release.TestRunUnknown)
 }
 
-func (env *Environment) streamMessage(msg string, status release.TestRun_Status) error {
-	resp := &services.TestReleaseResponse{Msg: msg, Status: status}
-	return env.Stream.Send(resp)
+func (env *Environment) streamMessage(msg string, status release.TestRunStatus) error {
+	resp := &hapi.TestReleaseResponse{Msg: msg, Status: status}
+	env.Mesages <- resp
+	return nil
 }
 
 // DeleteTestPods deletes resources given in testManifests

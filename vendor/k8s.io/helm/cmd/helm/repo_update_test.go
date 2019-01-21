@@ -30,18 +30,10 @@ import (
 )
 
 func TestUpdateCmd(t *testing.T) {
-	thome, err := tempHelmHome(t)
-	if err != nil {
-		t.Fatal(err)
-	}
+	defer resetEnv()()
 
-	cleanup := resetEnv()
-	defer func() {
-		os.RemoveAll(thome.String())
-		cleanup()
-	}()
-
-	settings.Home = thome
+	hh := testHelmHome(t)
+	settings.Home = hh
 
 	out := bytes.NewBuffer(nil)
 	// Instead of using the HTTP updater, we provide our own for this test.
@@ -51,38 +43,33 @@ func TestUpdateCmd(t *testing.T) {
 			fmt.Fprintln(out, re.Config.Name)
 		}
 	}
-	uc := &repoUpdateCmd{
+	o := &repoUpdateOptions{
 		update: updater,
-		home:   helmpath.Home(thome),
-		out:    out,
+		home:   hh,
 	}
-	if err := uc.run(); err != nil {
+	if err := o.run(out); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := out.String(); !strings.Contains(got, "charts") || !strings.Contains(got, "local") {
-		t.Errorf("Expected 'charts' and 'local' (in any order) got %q", got)
+	if got := out.String(); !strings.Contains(got, "charts") {
+		t.Errorf("Expected 'charts' got %q", got)
 	}
 }
 
 func TestUpdateCharts(t *testing.T) {
-	ts, thome, err := repotest.NewTempServer("testdata/testserver/*.*")
+	defer resetEnv()()
+
+	ts, hh, err := repotest.NewTempServer("testdata/testserver/*.*")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hh := helmpath.Home(thome)
-	cleanup := resetEnv()
 	defer func() {
 		ts.Stop()
-		os.RemoveAll(thome.String())
-		cleanup()
+		os.RemoveAll(hh.String())
 	}()
-	if err := ensureTestHome(hh, t); err != nil {
-		t.Fatal(err)
-	}
-
-	settings.Home = thome
+	ensureTestHome(t, hh)
+	settings.Home = hh
 
 	r, err := repo.NewChartRepository(&repo.Entry{
 		Name:  "charts",

@@ -22,13 +22,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"testing"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/cmd/kubeadm/app/features"
-
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	testutil "k8s.io/kubernetes/cmd/kubeadm/test"
@@ -46,7 +45,7 @@ func TestComponentResources(t *testing.T) {
 func TestComponentProbe(t *testing.T) {
 	var tests = []struct {
 		name      string
-		cfg       *kubeadmapi.MasterConfiguration
+		cfg       *kubeadmapi.InitConfiguration
 		component string
 		port      int
 		path      string
@@ -55,8 +54,8 @@ func TestComponentProbe(t *testing.T) {
 	}{
 		{
 			name: "default apiserver advertise address with http",
-			cfg: &kubeadmapi.MasterConfiguration{
-				API: kubeadmapi.API{
+			cfg: &kubeadmapi.InitConfiguration{
+				LocalAPIEndpoint: kubeadmapi.APIEndpoint{
 					AdvertiseAddress: "",
 				},
 			},
@@ -67,25 +66,9 @@ func TestComponentProbe(t *testing.T) {
 			expected:  "127.0.0.1",
 		},
 		{
-			name: "default apiserver advertise address with http",
-			cfg: &kubeadmapi.MasterConfiguration{
-				API: kubeadmapi.API{
-					AdvertiseAddress: "1.2.3.4",
-				},
-				FeatureGates: map[string]bool{
-					features.SelfHosting: true,
-				},
-			},
-			component: kubeadmconstants.KubeAPIServer,
-			port:      1,
-			path:      "foo",
-			scheme:    v1.URISchemeHTTP,
-			expected:  "127.0.0.1",
-		},
-		{
 			name: "default apiserver advertise address with https",
-			cfg: &kubeadmapi.MasterConfiguration{
-				API: kubeadmapi.API{
+			cfg: &kubeadmapi.InitConfiguration{
+				LocalAPIEndpoint: kubeadmapi.APIEndpoint{
 					AdvertiseAddress: "",
 				},
 			},
@@ -97,8 +80,8 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid ipv4 apiserver advertise address with http",
-			cfg: &kubeadmapi.MasterConfiguration{
-				API: kubeadmapi.API{
+			cfg: &kubeadmapi.InitConfiguration{
+				LocalAPIEndpoint: kubeadmapi.APIEndpoint{
 					AdvertiseAddress: "1.2.3.4",
 				},
 			},
@@ -110,8 +93,8 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid ipv6 apiserver advertise address with http",
-			cfg: &kubeadmapi.MasterConfiguration{
-				API: kubeadmapi.API{
+			cfg: &kubeadmapi.InitConfiguration{
+				LocalAPIEndpoint: kubeadmapi.APIEndpoint{
 					AdvertiseAddress: "2001:db8::1",
 				},
 			},
@@ -123,8 +106,12 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid IPv4 controller-manager probe",
-			cfg: &kubeadmapi.MasterConfiguration{
-				ControllerManagerExtraArgs: map[string]string{"address": "1.2.3.4"},
+			cfg: &kubeadmapi.InitConfiguration{
+				ClusterConfiguration: kubeadmapi.ClusterConfiguration{
+					ControllerManager: kubeadmapi.ControlPlaneComponent{
+						ExtraArgs: map[string]string{"address": "1.2.3.4"},
+					},
+				},
 			},
 			component: kubeadmconstants.KubeControllerManager,
 			port:      1,
@@ -134,8 +121,12 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid IPv6 controller-manager probe",
-			cfg: &kubeadmapi.MasterConfiguration{
-				ControllerManagerExtraArgs: map[string]string{"address": "2001:db8::1"},
+			cfg: &kubeadmapi.InitConfiguration{
+				ClusterConfiguration: kubeadmapi.ClusterConfiguration{
+					ControllerManager: kubeadmapi.ControlPlaneComponent{
+						ExtraArgs: map[string]string{"address": "2001:db8::1"},
+					},
+				},
 			},
 			component: kubeadmconstants.KubeControllerManager,
 			port:      1,
@@ -145,8 +136,12 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid IPv4 scheduler probe",
-			cfg: &kubeadmapi.MasterConfiguration{
-				SchedulerExtraArgs: map[string]string{"address": "1.2.3.4"},
+			cfg: &kubeadmapi.InitConfiguration{
+				ClusterConfiguration: kubeadmapi.ClusterConfiguration{
+					Scheduler: kubeadmapi.ControlPlaneComponent{
+						ExtraArgs: map[string]string{"address": "1.2.3.4"},
+					},
+				},
 			},
 			component: kubeadmconstants.KubeScheduler,
 			port:      1,
@@ -156,8 +151,12 @@ func TestComponentProbe(t *testing.T) {
 		},
 		{
 			name: "valid IPv6 scheduler probe",
-			cfg: &kubeadmapi.MasterConfiguration{
-				SchedulerExtraArgs: map[string]string{"address": "2001:db8::1"},
+			cfg: &kubeadmapi.InitConfiguration{
+				ClusterConfiguration: kubeadmapi.ClusterConfiguration{
+					Scheduler: kubeadmapi.ControlPlaneComponent{
+						ExtraArgs: map[string]string{"address": "2001:db8::1"},
+					},
+				},
 			},
 			component: kubeadmconstants.KubeScheduler,
 			port:      1,
@@ -194,7 +193,7 @@ func TestComponentProbe(t *testing.T) {
 func TestEtcdProbe(t *testing.T) {
 	var tests = []struct {
 		name      string
-		cfg       *kubeadmapi.MasterConfiguration
+		cfg       *kubeadmapi.ClusterConfiguration
 		component string
 		port      int
 		certsDir  string
@@ -205,10 +204,12 @@ func TestEtcdProbe(t *testing.T) {
 	}{
 		{
 			name: "valid etcd probe using listen-client-urls IPv4 addresses",
-			cfg: &kubeadmapi.MasterConfiguration{
+			cfg: &kubeadmapi.ClusterConfiguration{
 				Etcd: kubeadmapi.Etcd{
-					ExtraArgs: map[string]string{
-						"listen-client-urls": "http://1.2.3.4:2379,http://4.3.2.1:2379"},
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://1.2.3.4:2379,http://4.3.2.1:2379"},
+					},
 				},
 			},
 			component: kubeadmconstants.Etcd,
@@ -217,14 +218,16 @@ func TestEtcdProbe(t *testing.T) {
 			cacert:    "ca1",
 			cert:      "cert1",
 			key:       "key1",
-			expected:  "ETCDCTL_API=3 etcdctl --endpoints=1.2.3.4:1 --cacert=secretsA/ca1 --cert=secretsA/cert1 --key=secretsA/key1 get foo",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[1.2.3.4]:1 --cacert=secretsA/ca1 --cert=secretsA/cert1 --key=secretsA/key1 get foo",
 		},
 		{
-			name: "valid etcd probe using listen-client-urls IPv6 addresses",
-			cfg: &kubeadmapi.MasterConfiguration{
+			name: "valid etcd probe using listen-client-urls unspecified IPv6 address",
+			cfg: &kubeadmapi.ClusterConfiguration{
 				Etcd: kubeadmapi.Etcd{
-					ExtraArgs: map[string]string{
-						"listen-client-urls": "http://[2001:db8::1]:2379,http://[2001:db8::2]:2379"},
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://[0:0:0:0:0:0:0:0]:2379"},
+					},
 				},
 			},
 			component: kubeadmconstants.Etcd,
@@ -233,14 +236,88 @@ func TestEtcdProbe(t *testing.T) {
 			cacert:    "ca2",
 			cert:      "cert2",
 			key:       "key2",
-			expected:  "ETCDCTL_API=3 etcdctl --endpoints=2001:db8::1:1 --cacert=secretsB/ca2 --cert=secretsB/cert2 --key=secretsB/key2 get foo",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[::1]:1 --cacert=secretsB/ca2 --cert=secretsB/cert2 --key=secretsB/key2 get foo",
+		},
+		{
+			name: "valid etcd probe using listen-client-urls unspecified IPv6 address 2",
+			cfg: &kubeadmapi.ClusterConfiguration{
+				Etcd: kubeadmapi.Etcd{
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://[::0:0]:2379"},
+					},
+				},
+			},
+			component: kubeadmconstants.Etcd,
+			port:      1,
+			certsDir:  "secretsB",
+			cacert:    "ca2",
+			cert:      "cert2",
+			key:       "key2",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[::1]:1 --cacert=secretsB/ca2 --cert=secretsB/cert2 --key=secretsB/key2 get foo",
+		},
+		{
+			name: "valid etcd probe using listen-client-urls unspecified IPv6 address 3",
+			cfg: &kubeadmapi.ClusterConfiguration{
+				Etcd: kubeadmapi.Etcd{
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://[::]:2379"},
+					},
+				},
+			},
+			component: kubeadmconstants.Etcd,
+			port:      1,
+			certsDir:  "secretsB",
+			cacert:    "ca2",
+			cert:      "cert2",
+			key:       "key2",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[::1]:1 --cacert=secretsB/ca2 --cert=secretsB/cert2 --key=secretsB/key2 get foo",
+		},
+		{
+			name: "valid etcd probe using listen-client-urls unspecified IPv4 address",
+			cfg: &kubeadmapi.ClusterConfiguration{
+				Etcd: kubeadmapi.Etcd{
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://1.2.3.4:2379,http://4.3.2.1:2379"},
+					},
+				},
+			},
+			component: kubeadmconstants.Etcd,
+			port:      1,
+			certsDir:  "secretsA",
+			cacert:    "ca1",
+			cert:      "cert1",
+			key:       "key1",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[1.2.3.4]:1 --cacert=secretsA/ca1 --cert=secretsA/cert1 --key=secretsA/key1 get foo",
+		},
+		{
+			name: "valid etcd probe using listen-client-urls IPv6 addresses",
+			cfg: &kubeadmapi.ClusterConfiguration{
+				Etcd: kubeadmapi.Etcd{
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://[2001:db8::1]:2379,http://[2001:db8::2]:2379"},
+					},
+				},
+			},
+			component: kubeadmconstants.Etcd,
+			port:      1,
+			certsDir:  "secretsB",
+			cacert:    "ca2",
+			cert:      "cert2",
+			key:       "key2",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[2001:db8::1]:1 --cacert=secretsB/ca2 --cert=secretsB/cert2 --key=secretsB/key2 get foo",
 		},
 		{
 			name: "valid IPv4 etcd probe using hostname for listen-client-urls",
-			cfg: &kubeadmapi.MasterConfiguration{
+			cfg: &kubeadmapi.ClusterConfiguration{
 				Etcd: kubeadmapi.Etcd{
-					ExtraArgs: map[string]string{
-						"listen-client-urls": "http://localhost:2379"},
+					Local: &kubeadmapi.LocalEtcd{
+						ExtraArgs: map[string]string{
+							"listen-client-urls": "http://localhost:2379"},
+					},
 				},
 			},
 			component: kubeadmconstants.Etcd,
@@ -249,11 +326,15 @@ func TestEtcdProbe(t *testing.T) {
 			cacert:    "ca3",
 			cert:      "cert3",
 			key:       "key3",
-			expected:  "ETCDCTL_API=3 etcdctl --endpoints=127.0.0.1:1 --cacert=secretsC/ca3 --cert=secretsC/cert3 --key=secretsC/key3 get foo",
+			expected:  "ETCDCTL_API=3 etcdctl --endpoints=https://[127.0.0.1]:1 --cacert=secretsC/ca3 --cert=secretsC/cert3 --key=secretsC/key3 get foo",
 		},
 	}
 	for _, rt := range tests {
-		actual := EtcdProbe(rt.cfg, rt.component, rt.port, rt.certsDir, rt.cacert, rt.cert, rt.key)
+		// TODO: Make EtcdProbe accept a ClusterConfiguration object instead of InitConfiguration
+		initcfg := &kubeadmapi.InitConfiguration{
+			ClusterConfiguration: *rt.cfg,
+		}
+		actual := EtcdProbe(initcfg, rt.component, rt.port, rt.certsDir, rt.cacert, rt.cert, rt.key)
 		if actual.Handler.Exec.Command[2] != rt.expected {
 			t.Errorf("%s test case failed:\n\texpected: %s\n\t  actual: %s",
 				rt.name, rt.expected,
@@ -286,8 +367,9 @@ func TestComponentPod(t *testing.T) {
 							Name: "foo",
 						},
 					},
-					HostNetwork: true,
-					Volumes:     []v1.Volume{},
+					PriorityClassName: "system-cluster-critical",
+					HostNetwork:       true,
+					Volumes:           []v1.Volume{},
 				},
 			},
 		},
@@ -387,13 +469,19 @@ func TestVolumeMapToSlice(t *testing.T) {
 		"foo": {
 			Name: "foo",
 		},
+		"bar": {
+			Name: "bar",
+		},
 	}
 	volumeSlice := VolumeMapToSlice(testVolumes)
-	if len(volumeSlice) != 1 {
+	if len(volumeSlice) != 2 {
 		t.Errorf("Expected slice length of 1, got %d", len(volumeSlice))
 	}
-	if volumeSlice[0].Name != "foo" {
-		t.Errorf("Expected volume name \"foo\", got %s", volumeSlice[0].Name)
+	if volumeSlice[0].Name != "bar" {
+		t.Errorf("Expected first volume name \"bar\", got %s", volumeSlice[0].Name)
+	}
+	if volumeSlice[1].Name != "foo" {
+		t.Errorf("Expected second volume name \"foo\", got %s", volumeSlice[1].Name)
 	}
 }
 
@@ -402,13 +490,19 @@ func TestVolumeMountMapToSlice(t *testing.T) {
 		"foo": {
 			Name: "foo",
 		},
+		"bar": {
+			Name: "bar",
+		},
 	}
 	volumeMountSlice := VolumeMountMapToSlice(testVolumeMounts)
-	if len(volumeMountSlice) != 1 {
+	if len(volumeMountSlice) != 2 {
 		t.Errorf("Expected slice length of 1, got %d", len(volumeMountSlice))
 	}
-	if volumeMountSlice[0].Name != "foo" {
-		t.Errorf("Expected volume mount name \"foo\", got %s", volumeMountSlice[0].Name)
+	if volumeMountSlice[0].Name != "bar" {
+		t.Errorf("Expected first volume mount name \"bar\", got %s", volumeMountSlice[0].Name)
+	}
+	if volumeMountSlice[1].Name != "foo" {
+		t.Errorf("Expected second volume name \"foo\", got %s", volumeMountSlice[1].Name)
 	}
 }
 
@@ -520,6 +614,76 @@ func TestReadStaticPodFromDisk(t *testing.T) {
 		if (actualErr != nil) != rt.expectErr {
 			t.Errorf(
 				"ReadStaticPodFromDisk failed\n%s\n\texpected error: %t\n\tgot: %t\n\tactual error: %v",
+				rt.description,
+				rt.expectErr,
+				(actualErr != nil),
+				actualErr,
+			)
+		}
+	}
+}
+
+func TestManifestFilesAreEqual(t *testing.T) {
+	var tests = []struct {
+		description    string
+		podYamls       []string
+		expectedResult bool
+		expectErr      bool
+	}{
+		{
+			description:    "manifests are equal",
+			podYamls:       []string{validPod, validPod},
+			expectedResult: true,
+			expectErr:      false,
+		},
+		{
+			description:    "manifests are not equal",
+			podYamls:       []string{validPod, validPod + "\n"},
+			expectedResult: false,
+			expectErr:      false,
+		},
+		{
+			description:    "first manifest doesn't exist",
+			podYamls:       []string{validPod, ""},
+			expectedResult: false,
+			expectErr:      true,
+		},
+		{
+			description:    "second manifest doesn't exist",
+			podYamls:       []string{"", validPod},
+			expectedResult: false,
+			expectErr:      true,
+		},
+	}
+
+	for _, rt := range tests {
+		tmpdir := testutil.SetupTempDir(t)
+		defer os.RemoveAll(tmpdir)
+
+		// write 2 manifests
+		for i := 0; i < 2; i++ {
+			if rt.podYamls[i] != "" {
+				manifestPath := filepath.Join(tmpdir, strconv.Itoa(i)+".yaml")
+				err := ioutil.WriteFile(manifestPath, []byte(rt.podYamls[i]), 0644)
+				if err != nil {
+					t.Fatalf("Failed to write manifest file\n%s\n\tfatal error: %v", rt.description, err)
+				}
+			}
+		}
+
+		// compare them
+		result, actualErr := ManifestFilesAreEqual(filepath.Join(tmpdir, "0.yaml"), filepath.Join(tmpdir, "1.yaml"))
+		if result != rt.expectedResult {
+			t.Errorf(
+				"ManifestFilesAreEqual failed\n%s\nexpected result: %t\nactual result: %t",
+				rt.description,
+				rt.expectedResult,
+				result,
+			)
+		}
+		if (actualErr != nil) != rt.expectErr {
+			t.Errorf(
+				"ManifestFilesAreEqual failed\n%s\n\texpected error: %t\n\tgot: %t\n\tactual error: %v",
 				rt.description,
 				rt.expectErr,
 				(actualErr != nil),

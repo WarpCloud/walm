@@ -66,17 +66,6 @@ func (h Home) Starters() string {
 	return h.Path("starters")
 }
 
-// LocalRepository returns the location to the local repo.
-//
-// The local repo is the one used by 'helm serve'
-//
-// If additional path elements are passed, they are appended to the returned path.
-func (h Home) LocalRepository(elem ...string) string {
-	p := []string{"repository", "local"}
-	p = append(p, elem...)
-	return h.Path(p...)
-}
-
 // Plugins returns the path to the plugins directory.
 func (h Home) Plugins() string {
 	return h.Path("plugins")
@@ -85,19 +74,4 @@ func (h Home) Plugins() string {
 // Archive returns the path to download chart archives.
 func (h Home) Archive() string {
 	return h.Path("cache", "archive")
-}
-
-// TLSCaCert returns the path to fetch the CA certificate.
-func (h Home) TLSCaCert() string {
-	return h.Path("ca.pem")
-}
-
-// TLSCert returns the path to fetch the client certificate.
-func (h Home) TLSCert() string {
-	return h.Path("cert.pem")
-}
-
-// TLSKey returns the path to fetch the client public key.
-func (h Home) TLSKey() string {
-	return h.Path("key.pem")
 }

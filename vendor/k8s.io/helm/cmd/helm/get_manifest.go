@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/helm"
 )
 
@@ -33,43 +34,39 @@ were generated from this release's chart(s). If a chart is dependent on other
 charts, those resources will also be included in the manifest.
 `
 
-type getManifestCmd struct {
+type getManifestOptions struct {
+	version int // --revision
+
 	release string
-	out     io.Writer
-	client  helm.Interface
-	version int32
+
+	client helm.Interface
 }
 
 func newGetManifestCmd(client helm.Interface, out io.Writer) *cobra.Command {
-	get := &getManifestCmd{
-		out:    out,
-		client: client,
-	}
+	o := &getManifestOptions{client: client}
+
 	cmd := &cobra.Command{
-		Use:     "manifest [flags] RELEASE_NAME",
-		Short:   "download the manifest for a named release",
-		Long:    getManifestHelp,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "manifest RELEASE_NAME",
+		Short: "download the manifest for a named release",
+		Long:  getManifestHelp,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errReleaseRequired
-			}
-			get.release = args[0]
-			get.client = ensureHelmClient(get.client)
-			return get.run()
+			o.release = args[0]
+			o.client = ensureHelmClient(o.client, false)
+			return o.run(out)
 		},
 	}
 
-	cmd.Flags().Int32Var(&get.version, "revision", 0, "get the named release with revision")
+	cmd.Flags().IntVar(&o.version, "revision", 0, "get the named release with revision")
 	return cmd
 }
 
 // getManifest implements 'helm get manifest'
-func (g *getManifestCmd) run() error {
-	res, err := g.client.ReleaseContent(g.release, helm.ContentReleaseVersion(g.version))
+func (o *getManifestOptions) run(out io.Writer) error {
+	res, err := o.client.ReleaseContent(o.release, o.version)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
-	fmt.Fprintln(g.out, res.Release.Manifest)
+	fmt.Fprintln(out, res.Manifest)
 	return nil
 }

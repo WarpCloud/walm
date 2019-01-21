@@ -4,9 +4,7 @@ import (
 	"walm/pkg/redis"
 	"k8s.io/helm/pkg/helm"
 	"github.com/sirupsen/logrus"
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 	"walm/pkg/release"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/chartutil"
 	"github.com/ghodss/yaml"
 	"bytes"
@@ -572,7 +570,6 @@ func (cache *HelmCache) buildReleaseCaches(releases []*hapiRelease.Release) (rel
 }
 
 func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (releaseCache *release.ReleaseCache, err error) {
-	emptyChart := chart.Chart{}
 	helmVals := release.HelmValues{}
 	releaseSpec := release.ReleaseSpec{}
 	releaseSpec.Name = helmRelease.Name
@@ -582,12 +579,12 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 	releaseSpec.ChartVersion = helmRelease.Chart.Metadata.Version
 	releaseSpec.ChartName = helmRelease.Chart.Metadata.Name
 	releaseSpec.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
-	cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
+	//cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
 	if err != nil {
 		logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
 		return
 	}
-	releaseSpec.ConfigValues = cvals
+	releaseSpec.ConfigValues = nil
 	if helmRelease.GetConfig() != nil {
 		err = yaml.Unmarshal([]byte(helmRelease.GetConfig().GetRaw()), &helmVals)
 		if err == nil {

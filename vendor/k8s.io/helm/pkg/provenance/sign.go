@@ -19,8 +19,6 @@ import (
 	"bytes"
 	"crypto"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,13 +26,13 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/clearsign"
 	"golang.org/x/crypto/openpgp/packet"
 
-	"k8s.io/helm/pkg/chartutil"
-	hapi "k8s.io/helm/pkg/proto/hapi/chart"
+	hapi "k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 )
 
 var defaultPGPConfig = packet.Config{
@@ -142,7 +140,7 @@ func NewFromKeyring(keyringfile, id string) (*Signatory, error) {
 		}
 	}
 	if vague {
-		return s, fmt.Errorf("more than one key contain the id %q", id)
+		return s, errors.Errorf("more than one key contain the id %q", id)
 	}
 
 	s.Entity = candidate
@@ -238,14 +236,14 @@ func (s *Signatory) Verify(chartpath, sigpath string) (*Verification, error) {
 		if fi, err := os.Stat(fname); err != nil {
 			return ver, err
 		} else if fi.IsDir() {
-			return ver, fmt.Errorf("%s cannot be a directory", fname)
+			return ver, errors.Errorf("%s cannot be a directory", fname)
 		}
 	}
 
 	// First verify the signature
 	sig, err := s.decodeSignature(sigpath)
 	if err != nil {
-		return ver, fmt.Errorf("failed to decode signature: %s", err)
+		return ver, errors.Wrap(err, "failed to decode signature")
 	}
 
 	by, err := s.verifySignature(sig)
@@ -267,9 +265,9 @@ func (s *Signatory) Verify(chartpath, sigpath string) (*Verification, error) {
 	sum = "sha256:" + sum
 	basename := filepath.Base(chartpath)
 	if sha, ok := sums.Files[basename]; !ok {
-		return ver, fmt.Errorf("provenance does not contain a SHA for a file named %q", basename)
+		return ver, errors.Errorf("provenance does not contain a SHA for a file named %q", basename)
 	} else if sha != sum {
-		return ver, fmt.Errorf("sha256 sum does not match for %s: %q != %q", basename, sha, sum)
+		return ver, errors.Errorf("sha256 sum does not match for %s: %q != %q", basename, sha, sum)
 	}
 	ver.FileHash = sum
 	ver.FileName = basename
@@ -319,7 +317,7 @@ func messageBlock(chartpath string) (*bytes.Buffer, error) {
 	}
 
 	// Load the archive into memory.
-	chart, err := chartutil.LoadFile(chartpath)
+	chart, err := loader.LoadFile(chartpath)
 	if err != nil {
 		return b, err
 	}

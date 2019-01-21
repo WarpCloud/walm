@@ -17,7 +17,7 @@ limitations under the License.
 package hooks
 
 import (
-	"k8s.io/helm/pkg/proto/hapi/release"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 // HookAnno is the label name for a hook
@@ -41,7 +41,6 @@ const (
 	PostRollback       = "post-rollback"
 	ReleaseTestSuccess = "test-success"
 	ReleaseTestFailure = "test-failure"
-	CRDInstall         = "crd-install"
 )
 
 // Type of policy for deleting the hook
@@ -57,7 +56,7 @@ func FilterTestHooks(hooks []*release.Hook) []*release.Hook {
 
 	for _, h := range hooks {
 		for _, e := range h.Events {
-			if e == release.Hook_RELEASE_TEST_SUCCESS || e == release.Hook_RELEASE_TEST_FAILURE {
+			if e == release.HookReleaseTestSuccess || e == release.HookReleaseTestFailure {
 				testHooks = append(testHooks, h)
 				continue
 			}

@@ -18,30 +18,27 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/url"
-	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"text/tabwriter"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig"
-	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/cmd/helm/require"
+	"k8s.io/helm/pkg/action"
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/kube"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/repo"
-	"k8s.io/helm/pkg/strvals"
-	"k8s.io/helm/pkg/transwarp"
 )
 
 const installDesc = `
@@ -51,35 +48,30 @@ The install argument must be a chart reference, a path to a packaged chart,
 a path to an unpacked chart directory or a URL.
 
 To override values in a chart, use either the '--values' flag and pass in a file
-or use the '--set' flag and pass configuration from the command line.  To force string
-values in '--set', use '--set-string' instead. In case a value is large and therefore
-you want not to use neither '--values' nor '--set', use '--set-file' to read the
-single large value from file.
+or use the '--set' flag and pass configuration from the command line, to force
+a string value use '--set-string'.
 
-	$ helm install -f myvalues.yaml ./redis
+	$ helm install -f myvalues.yaml myredis ./redis
 
 or
 
-	$ helm install --set name=prod ./redis
+	$ helm install --set name=prod myredis ./redis
 
 or
 
-	$ helm install --set-string long_int=1234567890 ./redis
-
-or
-    $ helm install --set-file multiline_text=path/to/textfile
+	$ helm install --set-string long_int=1234567890 myredis ./redis
 
 You can specify the '--values'/'-f' flag multiple times. The priority will be given to the
 last (right-most) file specified. For example, if both myvalues.yaml and override.yaml
 contained a key called 'Test', the value set in override.yaml would take precedence:
 
-	$ helm install -f myvalues.yaml -f override.yaml ./redis
+	$ helm install -f myvalues.yaml -f override.yaml  myredis ./redis
 
 You can specify the '--set' flag multiple times. The priority will be given to the
 last (right-most) set specified. For example, if both 'bar' and 'newbar' values are
 set for a key called 'foo', the 'newbar' value would take precedence:
 
-	$ helm install --set foo=bar --set foo=newbar ./redis
+	$ helm install --set foo=bar --set foo=newbar  myredis ./redis
 
 
 To check the generated manifests of a release without installing the chart,
@@ -111,238 +103,213 @@ To see the list of chart repositories, use 'helm repo list'. To search for
 charts in a repository, use 'helm search'.
 `
 
-type installCmd struct {
-	name           string
-	namespace      string
-	valueFiles     valueFiles
-	chartPath      string
-	dryRun         bool
-	disableHooks   bool
-	disableCRDHook bool
-	replace        bool
-	verify         bool
-	keyring        string
-	out            io.Writer
-	client         helm.Interface
-	values         []string
-	links          []string
-	stringValues   []string
-	fileValues     []string
-	nameTemplate   string
-	version        string
-	timeout        int64
-	wait           bool
-	repoURL        string
-	username       string
-	password       string
-	devel          bool
-	depUp          bool
-	description    string
+type installOptions struct {
+	name         string // arg 0
+	dryRun       bool   // --dry-run
+	disableHooks bool   // --disable-hooks
+	replace      bool   // --replace
+	nameTemplate string // --name-template
+	timeout      int64  // --timeout
+	wait         bool   // --wait
+	devel        bool   // --devel
+	depUp        bool   // --dep-up
+	chartPath    string // arg 1
+	generateName bool   // --generate-name
 
-	certFile string
-	keyFile  string
-	caFile   string
+	valuesOptions
+	chartPathOptions
+
+	cfg *action.Configuration
+
+	// LEGACY: Here until we get upgrade converted
+	client helm.Interface
 }
 
-type valueFiles []string
-
-func (v *valueFiles) String() string {
-	return fmt.Sprint(*v)
-}
-
-func (v *valueFiles) Type() string {
-	return "valueFiles"
-}
-
-func (v *valueFiles) Set(value string) error {
-	for _, filePath := range strings.Split(value, ",") {
-		*v = append(*v, filePath)
-	}
-	return nil
-}
-
-func newInstallCmd(c helm.Interface, out io.Writer) *cobra.Command {
-	inst := &installCmd{
-		out:    out,
-		client: c,
-	}
+func newInstallCmd(cfg *action.Configuration, out io.Writer) *cobra.Command {
+	o := &installOptions{cfg: cfg}
 
 	cmd := &cobra.Command{
-		Use:     "install [CHART]",
-		Short:   "install a chart archive",
-		Long:    installDesc,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "install [NAME] [CHART]",
+		Short: "install a chart",
+		Long:  installDesc,
+		Args:  require.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := checkArgsLength(len(args), "chart name"); err != nil {
-				return err
-			}
-
-			debug("Original chart version: %q", inst.version)
-			if inst.version == "" && inst.devel {
+			debug("Original chart version: %q", o.version)
+			if o.version == "" && o.devel {
 				debug("setting version to >0.0.0-0")
-				inst.version = ">0.0.0-0"
+				o.version = ">0.0.0-0"
 			}
 
-			cp, err := locateChartPath(inst.repoURL, inst.username, inst.password, args[0], inst.version, inst.verify, inst.keyring,
-				inst.certFile, inst.keyFile, inst.caFile)
+			name, chart, err := o.nameAndChart(args)
 			if err != nil {
 				return err
 			}
-			inst.chartPath = cp
-			inst.client = ensureHelmClient(inst.client)
-			return inst.run()
+			o.name = name // FIXME
+
+			cp, err := o.locateChart(chart)
+			if err != nil {
+				return err
+			}
+			o.chartPath = cp
+
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.VarP(&inst.valueFiles, "values", "f", "specify values in a YAML file or a URL(can specify multiple)")
-	f.StringVarP(&inst.name, "name", "n", "", "release name. If unspecified, it will autogenerate one for you")
-	f.StringVar(&inst.namespace, "namespace", "", "namespace to install the release into. Defaults to the current kube config namespace.")
-	f.BoolVar(&inst.dryRun, "dry-run", false, "simulate an install")
-	f.BoolVar(&inst.disableHooks, "no-hooks", false, "prevent hooks from running during install")
-	f.BoolVar(&inst.disableCRDHook, "no-crd-hook", false, "prevent CRD hooks from running, but run other hooks")
-	f.BoolVar(&inst.replace, "replace", false, "re-use the given name, even if that name is already used. This is unsafe in production")
-	f.StringArrayVar(&inst.values, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&inst.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&inst.stringValues, "set-string", []string{}, "set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&inst.fileValues, "set-file", []string{}, "set values from respective files specified via the command line (can specify multiple or separate values with commas: key1=path1,key2=path2)")
-	f.StringVar(&inst.nameTemplate, "name-template", "", "specify template used to name the release")
-	f.BoolVar(&inst.verify, "verify", false, "verify the package before installing it")
-	f.StringVar(&inst.keyring, "keyring", defaultKeyring(), "location of public keys used for verification")
-	f.StringVar(&inst.version, "version", "", "specify the exact chart version to install. If this is not specified, the latest version is installed")
-	f.Int64Var(&inst.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
-	f.BoolVar(&inst.wait, "wait", false, "if set, will wait until all Pods, PVCs, Services, and minimum number of Pods of a Deployment are in a ready state before marking the release as successful. It will wait for as long as --timeout")
-	f.StringVar(&inst.repoURL, "repo", "", "chart repository url where to locate the requested chart")
-	f.StringVar(&inst.username, "username", "", "chart repository username where to locate the requested chart")
-	f.StringVar(&inst.password, "password", "", "chart repository password where to locate the requested chart")
-	f.StringVar(&inst.certFile, "cert-file", "", "identify HTTPS client using this SSL certificate file")
-	f.StringVar(&inst.keyFile, "key-file", "", "identify HTTPS client using this SSL key file")
-	f.StringVar(&inst.caFile, "ca-file", "", "verify certificates of HTTPS-enabled servers using this CA bundle")
-	f.BoolVar(&inst.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored.")
-	f.BoolVar(&inst.depUp, "dep-up", false, "run helm dependency update before installing the chart")
-	f.StringVar(&inst.description, "description", "", "specify a description for the release")
+	f.BoolVarP(&o.generateName, "generate-name", "g", false, "generate the name (and omit the NAME parameter)")
+	f.BoolVar(&o.dryRun, "dry-run", false, "simulate an install")
+	f.BoolVar(&o.disableHooks, "no-hooks", false, "prevent hooks from running during install")
+	f.BoolVar(&o.replace, "replace", false, "re-use the given name, even if that name is already used. This is unsafe in production")
+	f.StringVar(&o.nameTemplate, "name-template", "", "specify template used to name the release")
+	f.Int64Var(&o.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
+	f.BoolVar(&o.wait, "wait", false, "if set, will wait until all Pods, PVCs, Services, and minimum number of Pods of a Deployment are in a ready state before marking the release as successful. It will wait for as long as --timeout")
+	f.BoolVar(&o.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored.")
+	f.BoolVar(&o.depUp, "dep-up", false, "run helm dependency update before installing the chart")
+	o.valuesOptions.addFlags(f)
+	o.chartPathOptions.addFlags(f)
 
 	return cmd
 }
 
-func (i *installCmd) run() error {
-	debug("CHART PATH: %s\n", i.chartPath)
-
-	if i.namespace == "" {
-		i.namespace = defaultNamespace()
+// nameAndChart returns the name of the release and the chart that should be used.
+//
+// This will read the flags and handle name generation if necessary.
+func (o *installOptions) nameAndChart(args []string) (string, string, error) {
+	flagsNotSet := func() error {
+		if o.generateName {
+			return errors.New("cannot set --generate-name and also specify a name")
+		}
+		if o.nameTemplate != "" {
+			return errors.New("cannot set --name-template and also specify a name")
+		}
+		return nil
+	}
+	if len(args) == 2 {
+		return args[0], args[1], flagsNotSet()
 	}
 
-	rawVals, err := vals(i.valueFiles, i.values, i.stringValues, i.fileValues, i.certFile, i.keyFile, i.caFile)
+	if o.nameTemplate != "" {
+		newName, err := templateName(o.nameTemplate)
+		return newName, args[0], err
+	}
+
+	if !o.generateName {
+		return "", args[0], errors.New("must either provide a name or specify --generate-name")
+	}
+
+	base := filepath.Base(args[0])
+	if base == "." || base == "" {
+		base = "chart"
+	}
+	newName := fmt.Sprintf("%s-%d", base, time.Now().Unix())
+
+	return newName, args[0], nil
+}
+
+func (o *installOptions) run(out io.Writer) error {
+	debug("CHART PATH: %s\n", o.chartPath)
+
+	rawVals, err := o.mergedValues()
 	if err != nil {
 		return err
 	}
 
 	// If template is specified, try to run the template.
-	if i.nameTemplate != "" {
-		i.name, err = generateName(i.nameTemplate)
+	if o.nameTemplate != "" {
+		o.name, err = templateName(o.nameTemplate)
 		if err != nil {
 			return err
 		}
 		// Print the final name so the user knows what the final name of the release is.
-		fmt.Printf("FINAL NAME: %s\n", i.name)
+		fmt.Fprintf(out, "FINAL NAME: %s\n", o.name)
 	}
 
-	if i.name == "" {
-		return fmt.Errorf("Name must be set\n")
-	}
-
-	// Check chart requirements to make sure all dependencies are present in /charts
-	chartRequested, err := chartutil.Load(i.chartPath)
+	// Check chart dependencies to make sure all are present in /charts
+	chartRequested, err := loader.Load(o.chartPath)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
 
-	depLinks := map[string]interface{}{}
-	for _, value := range i.links {
-		if err := strvals.ParseInto(value, depLinks); err != nil {
-			return fmt.Errorf("failed parsing --set data: %s", err)
-		}
-	}
-
-	err = transwarp.ProcessAppCharts(i.client, chartRequested, i.name, i.namespace, string(rawVals[:]), depLinks)
-	if err != nil {
-		return prettyError(err)
-	}
-
-	if req, err := chartutil.LoadRequirements(chartRequested); err == nil {
+	if req := chartRequested.Metadata.Dependencies; req != nil {
 		// If checkDependencies returns an error, we have unfulfilled dependencies.
 		// As of Helm 2.4.0, this is treated as a stopping condition:
-		// https://github.com/kubernetes/helm/issues/2209
+		// https://github.com/helm/helm/issues/2209
 		if err := checkDependencies(chartRequested, req); err != nil {
-			if i.depUp {
+			if o.depUp {
 				man := &downloader.Manager{
-					Out:        i.out,
-					ChartPath:  i.chartPath,
+					Out:        out,
+					ChartPath:  o.chartPath,
 					HelmHome:   settings.Home,
-					Keyring:    defaultKeyring(),
+					Keyring:    o.keyring,
 					SkipUpdate: false,
 					Getters:    getter.All(settings),
 				}
 				if err := man.Update(); err != nil {
-					return prettyError(err)
-				}
-
-				// Update all dependencies which are present in /charts.
-				chartRequested, err = chartutil.Load(i.chartPath)
-				if err != nil {
-					return prettyError(err)
+					return err
 				}
 			} else {
-				return prettyError(err)
+				return err
 			}
 
 		}
-	} else if err != chartutil.ErrRequirementsNotFound {
-		return fmt.Errorf("cannot load requirements: %v", err)
 	}
 
-	res, err := i.client.InstallReleaseFromChart(
-		chartRequested,
-		i.namespace,
-		helm.ValueOverrides(rawVals),
-		helm.ReleaseName(i.name),
-		helm.InstallDryRun(i.dryRun),
-		helm.InstallReuseName(i.replace),
-		helm.InstallDisableHooks(i.disableHooks),
-		helm.InstallDisableCRDHook(i.disableCRDHook),
-		helm.InstallTimeout(i.timeout),
-		helm.InstallWait(i.wait),
-		helm.InstallDescription(i.description))
+	inst := action.NewInstall(o.cfg)
+	inst.DryRun = o.dryRun
+	inst.DisableHooks = o.disableHooks
+	inst.Replace = o.replace
+	inst.Wait = o.wait
+	inst.Devel = o.devel
+	inst.Timeout = o.timeout
+	inst.Namespace = getNamespace()
+	inst.ReleaseName = o.name
+	rel, err := inst.Run(chartRequested, rawVals)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
 
-	rel := res.GetRelease()
-	if rel == nil {
-		return nil
-	}
-	i.printRelease(rel)
-
-	// If this is a dry run, we can't display status.
-	if i.dryRun {
-		// This is special casing to avoid breaking backward compatibility:
-		if res.Release.Info.Description != "Dry run complete" {
-			fmt.Fprintf(os.Stdout, "WARNING: %s\n", res.Release.Info.Description)
-		}
-		return nil
-	}
-
-	// Print the status like status command does
-	status, err := i.client.ReleaseStatus(rel.Name)
-	if err != nil {
-		return prettyError(err)
-	}
-	PrintStatus(i.out, status)
+	o.printRelease(out, rel)
 	return nil
 }
 
+// printRelease prints info about a release
+func (o *installOptions) printRelease(out io.Writer, rel *release.Release) {
+	if rel == nil {
+		return
+	}
+	fmt.Fprintf(out, "NAME:   %s\n", rel.Name)
+	if settings.Debug {
+		printRelease(out, rel)
+	}
+	if !rel.Info.LastDeployed.IsZero() {
+		fmt.Fprintf(out, "LAST DEPLOYED: %s\n", rel.Info.LastDeployed)
+	}
+	fmt.Fprintf(out, "NAMESPACE: %s\n", rel.Namespace)
+	fmt.Fprintf(out, "STATUS: %s\n", rel.Info.Status.String())
+	fmt.Fprintf(out, "\n")
+	if len(rel.Info.Resources) > 0 {
+		re := regexp.MustCompile("  +")
+
+		w := tabwriter.NewWriter(out, 0, 0, 2, ' ', tabwriter.TabIndent)
+		fmt.Fprintf(w, "RESOURCES:\n%s\n", re.ReplaceAllString(rel.Info.Resources, "\t"))
+		w.Flush()
+	}
+	if rel.Info.LastTestSuiteRun != nil {
+		lastRun := rel.Info.LastTestSuiteRun
+		fmt.Fprintf(out, "TEST SUITE:\n%s\n%s\n\n%s\n",
+			fmt.Sprintf("Last Started: %s", lastRun.StartedAt),
+			fmt.Sprintf("Last Completed: %s", lastRun.CompletedAt),
+			formatTestResults(lastRun.Results))
+	}
+
+	if len(rel.Info.Notes) > 0 {
+		fmt.Fprintf(out, "NOTES:\n%s\n", rel.Info.Notes)
+	}
+}
+
 // Merges source and destination map, preferring values from the source map
-func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+func mergeValues(dest, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
@@ -368,228 +335,31 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 	return dest
 }
 
-// vals merges values from files specified via -f/--values and
-// directly via --set or --set-string or --set-file, marshaling them to YAML
-func vals(valueFiles valueFiles, values []string, stringValues []string, fileValues []string, CertFile, KeyFile, CAFile string) ([]byte, error) {
-	base := map[string]interface{}{}
-
-	// User specified a values files via -f/--values
-	for _, filePath := range valueFiles {
-		currentMap := map[string]interface{}{}
-
-		var bytes []byte
-		var err error
-		if strings.TrimSpace(filePath) == "-" {
-			bytes, err = ioutil.ReadAll(os.Stdin)
-		} else {
-			bytes, err = readFile(filePath, CertFile, KeyFile, CAFile)
-		}
-
-		if err != nil {
-			return []byte{}, err
-		}
-
-		if err := yaml.Unmarshal(bytes, &currentMap); err != nil {
-			return []byte{}, fmt.Errorf("failed to parse %s: %s", filePath, err)
-		}
-		// Merge with the previous map
-		base = mergeValues(base, currentMap)
-	}
-
-	// User specified a value via --set
-	for _, value := range values {
-		if err := strvals.ParseInto(value, base); err != nil {
-			return []byte{}, fmt.Errorf("failed parsing --set data: %s", err)
-		}
-	}
-
-	// User specified a value via --set-string
-	for _, value := range stringValues {
-		if err := strvals.ParseIntoString(value, base); err != nil {
-			return []byte{}, fmt.Errorf("failed parsing --set-string data: %s", err)
-		}
-	}
-
-	// User specified a value via --set-file
-	for _, value := range fileValues {
-		reader := func(rs []rune) (interface{}, error) {
-			bytes, err := readFile(string(rs), CertFile, KeyFile, CAFile)
-			return string(bytes), err
-		}
-		if err := strvals.ParseIntoFile(value, base, reader); err != nil {
-			return []byte{}, fmt.Errorf("failed parsing --set-file data: %s", err)
-		}
-	}
-
-	return yaml.Marshal(base)
-}
-
-// printRelease prints info about a release if the Debug is true.
-func (i *installCmd) printRelease(rel *release.Release) {
-	if rel == nil {
-		return
-	}
-	// TODO: Switch to text/template like everything else.
-	fmt.Fprintf(i.out, "NAME:   %s\n", rel.Name)
-	if settings.Debug {
-		printRelease(i.out, rel)
-	}
-}
-
-// locateChartPath looks for a chart directory in known places, and returns either the full path or an error.
-//
-// This does not ensure that the chart is well-formed; only that the requested filename exists.
-//
-// Order of resolution:
-// - current working directory
-// - if path is absolute or begins with '.', error out here
-// - chart repos in $HELM_HOME
-// - URL
-//
-// If 'verify' is true, this will attempt to also verify the chart.
-func locateChartPath(repoURL, username, password, name, version string, verify bool, keyring,
-certFile, keyFile, caFile string) (string, error) {
-	name = strings.TrimSpace(name)
-	version = strings.TrimSpace(version)
-	if fi, err := os.Stat(name); err == nil {
-		abs, err := filepath.Abs(name)
-		if err != nil {
-			return abs, err
-		}
-		if verify {
-			if fi.IsDir() {
-				return "", errors.New("cannot verify a directory")
-			}
-			if _, err := downloader.VerifyChart(abs, keyring); err != nil {
-				return "", err
-			}
-		}
-		return abs, nil
-	}
-	if filepath.IsAbs(name) || strings.HasPrefix(name, ".") {
-		return name, fmt.Errorf("path %q not found", name)
-	}
-
-	crepo := filepath.Join(settings.Home.Repository(), name)
-	if _, err := os.Stat(crepo); err == nil {
-		return filepath.Abs(crepo)
-	}
-
-	var dl downloader.Downloader
-	parts := len(strings.Split(name, "/"))
-	if parts == 3 {
-		transwarpDownloader := downloader.TranswarpDownloader{
-			HelmHome: settings.Home,
-			Out:      os.Stdout,
-			Username: username,
-			Password: password,
-			Getters:  getter.All(settings),
-		}
-
-		if verify {
-			transwarpDownloader.Verify = downloader.VerifyAlways
-		}
-		dl = &transwarpDownloader
-	} else {
-		originalDownloader := downloader.ChartDownloader{
-			HelmHome: settings.Home,
-			Out:      os.Stdout,
-			Keyring:  keyring,
-			Getters:  getter.All(settings),
-		}
-
-		if verify {
-			originalDownloader.Verify = downloader.VerifyAlways
-		}
-		if repoURL != "" {
-			chartURL, err := repo.FindChartInRepoURL(repoURL, name, version,
-				certFile, keyFile, caFile, getter.All(settings))
-			if err != nil {
-				return "", err
-			}
-			name = chartURL
-		}
-		dl = &originalDownloader
-	}
-
-	if _, err := os.Stat(settings.Home.Archive()); os.IsNotExist(err) {
-		os.MkdirAll(settings.Home.Archive(), 0744)
-	}
-
-	filename, _, err := dl.DownloadTo(name, version, settings.Home.Archive())
-	if err == nil {
-		lname, err := filepath.Abs(filename)
-		if err != nil {
-			return filename, err
-		}
-		debug("Fetched %s to %s\n", name, filename)
-		return lname, nil
-	} else if settings.Debug {
-		return filename, err
-	}
-
-	return filename, fmt.Errorf("failed to download %q (hint: running `helm repo update` may help)", name)
-}
-
-func generateName(nameTemplate string) (string, error) {
+func templateName(nameTemplate string) (string, error) {
 	t, err := template.New("name-template").Funcs(sprig.TxtFuncMap()).Parse(nameTemplate)
 	if err != nil {
 		return "", err
 	}
 	var b bytes.Buffer
 	err = t.Execute(&b, nil)
-	if err != nil {
-		return "", err
-	}
-	return b.String(), nil
+	return b.String(), err
 }
 
-func defaultNamespace() string {
-	if ns, _, err := kube.GetConfig(settings.KubeContext, settings.KubeConfig).Namespace(); err == nil {
-		return ns
-	}
-	return "default"
-}
+func checkDependencies(ch *chart.Chart, reqs []*chart.Dependency) error {
+	var missing []string
 
-func checkDependencies(ch *chart.Chart, reqs *chartutil.Requirements) error {
-	missing := []string{}
-
-	deps := ch.GetDependencies()
-	for _, r := range reqs.Dependencies {
-		found := false
-		for _, d := range deps {
-			if d.Metadata.Name == r.Name {
-				found = true
-				break
+OUTER:
+	for _, r := range reqs {
+		for _, d := range ch.Dependencies() {
+			if d.Name() == r.Name {
+				continue OUTER
 			}
 		}
-		if !found {
-			missing = append(missing, r.Name)
-		}
+		missing = append(missing, r.Name)
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("found in requirements.yaml, but missing in charts/ directory: %s", strings.Join(missing, ", "))
+		return errors.Errorf("found in Chart.yaml, but missing in charts/ directory: %s", strings.Join(missing, ", "))
 	}
 	return nil
-}
-
-//readFile load a file from the local directory or a remote file with a url.
-func readFile(filePath, CertFile, KeyFile, CAFile string) ([]byte, error) {
-	u, _ := url.Parse(filePath)
-	p := getter.All(settings)
-
-	// FIXME: maybe someone handle other protocols like ftp.
-	getterConstructor, err := p.ByScheme(u.Scheme)
-
-	if err != nil {
-		return ioutil.ReadFile(filePath)
-	}
-
-	getter, err := getterConstructor(filePath, CertFile, KeyFile, CAFile)
-	if err != nil {
-		return []byte{}, err
-	}
-	data, err := getter.Get(filePath)
-	return data.Bytes(), err
 }

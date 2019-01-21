@@ -19,20 +19,18 @@ package tiller
 import (
 	"testing"
 
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 func TestGetReleaseStatus(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	if err := rs.env.Releases.Create(rel); err != nil {
+	if err := rs.Releases.Create(rel); err != nil {
 		t.Fatalf("Could not store mock release: %s", err)
 	}
 
-	res, err := rs.GetReleaseStatus(c, &services.GetReleaseStatusRequest{Name: rel.Name, Version: 1})
+	res, err := rs.GetReleaseStatus(&hapi.GetReleaseStatusRequest{Name: rel.Name, Version: 1})
 	if err != nil {
 		t.Errorf("Error getting release content: %s", err)
 	}
@@ -40,26 +38,25 @@ func TestGetReleaseStatus(t *testing.T) {
 	if res.Name != rel.Name {
 		t.Errorf("Expected name %q, got %q", rel.Name, res.Name)
 	}
-	if res.Info.Status.Code != release.Status_DEPLOYED {
-		t.Errorf("Expected %d, got %d", release.Status_DEPLOYED, res.Info.Status.Code)
+	if res.Info.Status != release.StatusDeployed {
+		t.Errorf("Expected %s, got %s", release.StatusDeployed, res.Info.Status)
 	}
 }
 
-func TestGetReleaseStatusDeleted(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+func TestGetReleaseStatusUninstalled(t *testing.T) {
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rel.Info.Status.Code = release.Status_DELETED
-	if err := rs.env.Releases.Create(rel); err != nil {
+	rel.Info.Status = release.StatusUninstalled
+	if err := rs.Releases.Create(rel); err != nil {
 		t.Fatalf("Could not store mock release: %s", err)
 	}
 
-	res, err := rs.GetReleaseStatus(c, &services.GetReleaseStatusRequest{Name: rel.Name, Version: 1})
+	res, err := rs.GetReleaseStatus(&hapi.GetReleaseStatusRequest{Name: rel.Name, Version: 1})
 	if err != nil {
 		t.Fatalf("Error getting release content: %s", err)
 	}
 
-	if res.Info.Status.Code != release.Status_DELETED {
-		t.Errorf("Expected %d, got %d", release.Status_DELETED, res.Info.Status.Code)
+	if res.Info.Status != release.StatusUninstalled {
+		t.Errorf("Expected %s, got %s", release.StatusUninstalled, res.Info.Status)
 	}
 }

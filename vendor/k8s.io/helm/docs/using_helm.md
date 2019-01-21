@@ -1,8 +1,8 @@
 # Using Helm
 
-This guide explains the basics of using Helm (and Tiller) to manage
+This guide explains the basics of using Helm to manage
 packages on your Kubernetes cluster. It assumes that you have already
-[installed](install.md) the Helm client and the Tiller server (typically by `helm
+[installed](install.md) the Helm client and library (typically by `helm
 init`).
 
 If you are simply interested in running a few quick commands, you may
@@ -43,7 +43,7 @@ carefully curated and maintained charts. This chart repository is named
 
 You can see which charts are available by running `helm search`:
 
-```console
+```
 $ helm search
 NAME                 	VERSION 	DESCRIPTION
 stable/drupal   	0.3.2   	One of the most versatile open source content m...
@@ -56,7 +56,7 @@ stable/mysql    	0.1.0   	Chart for MySQL
 With no filter, `helm search` shows you all of the available charts. You
 can narrow down your results by searching with a filter:
 
-```console
+```
 $ helm search mysql
 NAME               	VERSION	DESCRIPTION
 stable/mysql  	0.1.0  	Chart for MySQL
@@ -69,7 +69,7 @@ Why is
 `mariadb` in the list? Because its package description relates it to
 MySQL. We can use `helm inspect chart` to see this:
 
-```console
+```
 $ helm inspect stable/mariadb
 Fetched stable/mariadb to mariadb-0.5.1.tgz
 description: Chart for MariaDB
@@ -91,7 +91,7 @@ package you want to install, you can use `helm install` to install it.
 To install a new package, use the `helm install` command. At its
 simplest, it takes only one argument: The name of the chart.
 
-```console
+```
 $ helm install stable/mariadb
 Fetched stable/mariadb-0.3.0 to /Users/mattbutcher/Code/Go/src/k8s.io/helm/mariadb-0.3.0.tgz
 happy-panda
@@ -139,7 +139,7 @@ may take a long time to install into the cluster.
 To keep track of a release's state, or to re-read configuration
 information, you can use `helm status`:
 
-```console
+```
 $ helm status happy-panda
 Last Deployed: Wed Sep 28 12:32:28 2016
 Namespace: default
@@ -227,7 +227,7 @@ There are two ways to pass configuration data during install:
 
 - `--values` (or `-f`): Specify a YAML file with overrides. This can be specified multiple times
   and the rightmost file will take precedence
-- `--set` (and its variants `--set-string` and `--set-file`): Specify overrides on the command line.
+- `--set`: Specify overrides on the command line.
 
 If both are used, `--set` values are merged into `--values` with higher precedence.
 Overrides specified with `--set` are persisted in a configmap. Values that have been
@@ -285,7 +285,7 @@ servers:
 ```
 
 Sometimes you need to use special characters in your `--set` lines. You can use
-a backslash to escape the characters; `--set name="value1\,value2"` will become:
+a backslash to escape the characters; `--set name=value1\,value2` will become:
 
 ```yaml
 name: "value1,value2"
@@ -303,35 +303,6 @@ nodeSelector:
 Deeply nested data structures can be difficult to express using `--set`. Chart
 designers are encouraged to consider the `--set` usage when designing the format
 of a `values.yaml` file.
-
-Helm will cast certain values specified with `--set` to integers.
-For example, `--set foo=true` results Helm to cast `true` into an int64 value.
-In case you want a string, use a `--set`'s variant named `--set-string`. `--set-string foo=true` results in a string value of `"true"`.
-
-`--set-file key=filepath` is another variant of `--set`.
-It reads the file and use its content as a value.
-An example use case of it is to inject a multi-line text into values without dealing with indentation in YAML.
-Say you want to create a [brigade](https://github.com/Azure/brigade) project with certain value containing 5 lines JavaScript code, you might write a `values.yaml` like:
-
-```yaml
-defaultScript: |
-  const { events, Job } = require("brigadier")
-  function run(e, project) {
-    console.log("hello default script")
-  }
-  events.on("run", run)
-```
-
-Being embedded in a YAML, this makes it harder for you to use IDE features and testing framework and so on that supports writing code.
-Instead, you can use `--set-file defaultScript=brigade.js` with `brigade.js` containing:
-
-```javascript
-const { events, Job } = require("brigadier")
-function run(e, project) {
-  console.log("hello default script")
-}
-events.on("run", run)
-```
 
 ### More Installation Methods
 
@@ -416,47 +387,47 @@ is not a full list of cli flags. To see a description of all flags, just run
   will cause all pods to be recreated (with the exception of pods belonging to
   deployments)
 
-## 'helm delete': Deleting a Release
+## 'helm uninstall': Uninstalling a Release
 
-When it is time to uninstall or delete a release from the cluster, use
-the `helm delete` command:
+When it is time to uninstall or uninstall a release from the cluster, use
+the `helm uninstall` command:
 
-```console
-$ helm delete happy-panda
+```
+$ helm uninstall happy-panda
 ```
 
 This will remove the release from the cluster. You can see all of your
 currently deployed releases with the `helm list` command:
 
-```console
+```
 $ helm list
 NAME           	VERSION	UPDATED                        	STATUS         	CHART
 inky-cat       	1      	Wed Sep 28 12:59:46 2016       	DEPLOYED       	alpine-0.1.0
 ```
 
 From the output above, we can see that the `happy-panda` release was
-deleted.
+uninstalled.
 
 However, Helm always keeps records of what releases happened. Need to
-see the deleted releases? `helm list --deleted` shows those, and `helm
-list --all` shows all of the releases (deleted and currently deployed,
+see the uninstalled releases? `helm list --uninstalled` shows those, and `helm
+list --all` shows all of the releases (uninstalled and currently deployed,
 as well as releases that failed):
 
 ```console
 ⇒  helm list --all
 NAME           	VERSION	UPDATED                        	STATUS         	CHART
-happy-panda   	2      	Wed Sep 28 12:47:54 2016       	DELETED        	mariadb-0.3.0
+happy-panda   	2      	Wed Sep 28 12:47:54 2016       	UNINSTALLED    	mariadb-0.3.0
 inky-cat       	1      	Wed Sep 28 12:59:46 2016       	DEPLOYED       	alpine-0.1.0
-kindred-angelf 	2      	Tue Sep 27 16:16:10 2016       	DELETED        	alpine-0.1.0
+kindred-angelf 	2      	Tue Sep 27 16:16:10 2016       	UNINSTALLED    	alpine-0.1.0
 ```
 
-Because Helm keeps records of deleted releases, a release name cannot be
-re-used. (If you _really_ need to re-use a release name, you can use the
-`--replace` flag, but it will simply re-use the existing release and
+Because Helm keeps records of uninstalled releases, a release name cannot
+be re-used. (If you _really_ need to re-use a release name, you can use
+the `--replace` flag, but it will simply re-use the existing release and
 replace its resources.)
 
 Note that because releases are preserved in this way, you can rollback a
-deleted resource, and have it re-activate.
+uninstalled resource, and have it re-activate.
 
 ## 'helm repo': Working with Repositories
 
@@ -519,22 +490,13 @@ Charts that are archived can be loaded into chart repositories. See the
 documentation for your chart repository server to learn how to upload.
 
 Note: The `stable` repository is managed on the [Kubernetes Charts
-GitHub repository](https://github.com/kubernetes/charts). That project
+GitHub repository](https://github.com/helm/charts). That project
 accepts chart source code, and (after audit) packages those for you.
-
-## Tiller, Namespaces and RBAC
-In some cases you may wish to scope Tiller or deploy multiple Tillers to a single cluster. Here are some best practices when operating in those circumstances.
-
-1. Tiller can be [installed](install.md) into any namespace. By default, it is installed into kube-system. You can run multiple Tillers provided they each run in their own namespace.
-2. Limiting Tiller to only be able to install into specific namespaces and/or resource types is controlled by Kubernetes [RBAC](https://kubernetes.io/docs/admin/authorization/rbac/) roles and rolebindings. You can add a service account to Tiller when configuring Helm via `helm init --service-account <NAME>`. You can find more information about that [here](rbac.md).
-3. Release names are unique PER TILLER INSTANCE.
-4. Charts should only contain resources that exist in a single namespace.
-5. It is not recommended to have multiple Tillers configured to manage resources in the same namespace.
 
 ## Conclusion
 
 This chapter has covered the basic usage patterns of the `helm` client,
-including searching, installation, upgrading, and deleting. It has also
+including searching, installation, upgrading, and uninstalling. It has also
 covered useful utility commands like `helm status`, `helm get`, and
 `helm repo`.
 

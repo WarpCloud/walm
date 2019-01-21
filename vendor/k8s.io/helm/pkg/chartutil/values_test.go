@@ -23,12 +23,9 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/golang/protobuf/ptypes/any"
-
 	kversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/timeconv"
-	"k8s.io/helm/pkg/version"
+
+	"k8s.io/helm/pkg/chart"
 )
 
 func TestReadValues(t *testing.T) {
@@ -72,52 +69,47 @@ water:
 	}
 }
 
-func TestToRenderValuesCaps(t *testing.T) {
+func TestToRenderValues(t *testing.T) {
 
-	chartValues := `
-name: al Rashid
-where:
-  city: Basrah
-  title: caliph
-`
-	overideValues := `
-name: Haroun
-where:
-  city: Baghdad
-  date: 809 CE
-`
+	chartValues := map[string]interface{}{
+		"name": "al Rashid",
+		"where": map[string]interface{}{
+			"city":  "Basrah",
+			"title": "caliph",
+		},
+	}
+
+	overideValues := map[string]interface{}{
+		"name": "Haroun",
+		"where": map[string]interface{}{
+			"city": "Baghdad",
+			"date": "809 CE",
+		},
+	}
 
 	c := &chart.Chart{
 		Metadata:  &chart.Metadata{Name: "test"},
-		Templates: []*chart.Template{},
-		Values:    &chart.Config{Raw: chartValues},
-		Dependencies: []*chart.Chart{
-			{
-				Metadata: &chart.Metadata{Name: "where"},
-				Values:   &chart.Config{Raw: ""},
-			},
-		},
-		Files: []*any.Any{
-			{TypeUrl: "scheherazade/shahryar.txt", Value: []byte("1,001 Nights")},
+		Templates: []*chart.File{},
+		Values:    chartValues,
+		Files: []*chart.File{
+			{Name: "scheherazade/shahryar.txt", Data: []byte("1,001 Nights")},
 		},
 	}
-	v := &chart.Config{Raw: overideValues}
+	c.AddDependency(&chart.Chart{
+		Metadata: &chart.Metadata{Name: "where"},
+	})
 
 	o := ReleaseOptions{
 		Name:      "Seven Voyages",
-		Time:      timeconv.Now(),
-		Namespace: "al Basrah",
 		IsInstall: true,
-		Revision:  5,
 	}
 
 	caps := &Capabilities{
-		APIVersions:   DefaultVersionSet,
-		TillerVersion: version.GetVersionProto(),
-		KubeVersion:   &kversion.Info{Major: "1"},
+		APIVersions: DefaultVersionSet,
+		KubeVersion: &kversion.Info{Major: "1"},
 	}
 
-	res, err := ToRenderValuesCaps(c, v, o, caps)
+	res, err := ToRenderValues(c, overideValues, o, caps)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,9 +121,6 @@ where:
 	relmap := res["Release"].(map[string]interface{})
 	if name := relmap["Name"]; name.(string) != "Seven Voyages" {
 		t.Errorf("Expected release name 'Seven Voyages', got %q", name)
-	}
-	if rev := relmap["Revision"]; rev.(int) != 5 {
-		t.Errorf("Expected release revision %d, got %q", 5, rev)
 	}
 	if relmap["IsUpgrade"].(bool) {
 		t.Error("Expected upgrade to be false.")
@@ -145,16 +134,11 @@ where:
 	if !res["Capabilities"].(*Capabilities).APIVersions.Has("v1") {
 		t.Error("Expected Capabilities to have v1 as an API")
 	}
-	if res["Capabilities"].(*Capabilities).TillerVersion.SemVer == "" {
-		t.Error("Expected Capabilities to have a Tiller version")
-	}
 	if res["Capabilities"].(*Capabilities).KubeVersion.Major != "1" {
 		t.Error("Expected Capabilities to have a Kube version")
 	}
 
-	var vals Values
-	vals = res["Values"].(Values)
-
+	vals := res["Values"].(Values)
 	if vals["name"] != "Haroun" {
 		t.Errorf("Expected 'Haroun', got %q (%v)", vals["name"], vals)
 	}
@@ -269,14 +253,12 @@ func matchValues(t *testing.T, data map[string]interface{}) {
 func ttpl(tpl string, v map[string]interface{}) (string, error) {
 	var b bytes.Buffer
 	tt := template.Must(template.New("t").Parse(tpl))
-	if err := tt.Execute(&b, v); err != nil {
-		return "", err
-	}
-	return b.String(), nil
+	err := tt.Execute(&b, v)
+	return b.String(), err
 }
 
 // ref: http://www.yaml.org/spec/1.2/spec.html#id2803362
-var testCoalesceValuesYaml = `
+var testCoalesceValuesYaml = []byte(`
 top: yup
 bottom: null
 right: Null
@@ -299,18 +281,17 @@ pequod:
       sail: true
   ahab:
     scope: whale
-`
+`)
 
 func TestCoalesceValues(t *testing.T) {
-	tchart := "testdata/moby"
-	c, err := LoadDir(tchart)
+	c := loadChart(t, "testdata/moby")
+
+	vals, err := ReadValues(testCoalesceValuesYaml)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tvals := &chart.Config{Raw: testCoalesceValuesYaml}
-
-	v, err := CoalesceValues(c, tvals)
+	v, err := CoalesceValues(c, vals)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +366,7 @@ func TestCoalesceTables(t *testing.T) {
 
 	// What we expect is that anything in dst overrides anything in src, but that
 	// otherwise the values are coalesced.
-	coalesceTables(dst, src)
+	CoalesceTables(dst, src)
 
 	if dst["name"] != "Ishmael" {
 		t.Errorf("Unexpected name: %s", dst["name"])

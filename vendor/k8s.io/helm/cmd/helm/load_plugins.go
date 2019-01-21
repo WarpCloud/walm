@@ -22,17 +22,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"k8s.io/helm/pkg/plugin"
 )
-
-type pluginError struct {
-	error
-	code int
-}
 
 // loadPlugins loads plugins into the command list.
 //
@@ -83,7 +78,11 @@ func loadPlugins(baseCmd *cobra.Command, out io.Writer) {
 				// PrepareCommand uses os.ExpandEnv and expects the
 				// setupEnv vars.
 				plugin.SetupPluginEnv(settings, md.Name, plug.Dir)
-				main, argv := plug.PrepareCommand(u)
+				main, argv, prepCmdErr := plug.PrepareCommand(u)
+				if prepCmdErr != nil {
+					os.Stderr.WriteString(prepCmdErr.Error())
+					return errors.Errorf("plugin %q exited with error", md.Name)
+				}
 
 				prog := exec.Command(main, argv...)
 				prog.Env = os.Environ()
@@ -93,11 +92,7 @@ func loadPlugins(baseCmd *cobra.Command, out io.Writer) {
 				if err := prog.Run(); err != nil {
 					if eerr, ok := err.(*exec.ExitError); ok {
 						os.Stderr.Write(eerr.Stderr)
-						status := eerr.Sys().(syscall.WaitStatus)
-						return pluginError{
-							error: fmt.Errorf("plugin %q exited with error", md.Name),
-							code:  status.ExitStatus(),
-						}
+						return errors.Errorf("plugin %q exited with error", md.Name)
 					}
 					return err
 				}
@@ -105,16 +100,6 @@ func loadPlugins(baseCmd *cobra.Command, out io.Writer) {
 			},
 			// This passes all the flags to the subcommand.
 			DisableFlagParsing: true,
-		}
-
-		if md.UseTunnel {
-			c.PreRunE = func(cmd *cobra.Command, args []string) error {
-				// Parse the parent flag, but not the local flags.
-				if _, err := processParent(cmd, args); err != nil {
-					return err
-				}
-				return setupConnection()
-			}
 		}
 
 		// TODO: Make sure a command with this name does not already exist.
@@ -128,7 +113,7 @@ func loadPlugins(baseCmd *cobra.Command, out io.Writer) {
 func manuallyProcessArgs(args []string) ([]string, []string) {
 	known := []string{}
 	unknown := []string{}
-	kvargs := []string{"--host", "--kube-context", "--home", "--tiller-namespace"}
+	kvargs := []string{"--context", "--home", "--namespace"}
 	knownArg := func(a string) bool {
 		for _, pre := range kvargs {
 			if strings.HasPrefix(a, pre+"=") {
@@ -141,7 +126,7 @@ func manuallyProcessArgs(args []string) ([]string, []string) {
 		switch a := args[i]; a {
 		case "--debug":
 			known = append(known, a)
-		case "--host", "--kube-context", "--home", "--tiller-namespace":
+		case "--context", "--home", "--namespace":
 			known = append(known, a, args[i+1])
 			i++
 		default:

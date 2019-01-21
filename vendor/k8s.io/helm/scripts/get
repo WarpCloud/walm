@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright The Helm Authors.
+# Copyright 2016 The Kubernetes Authors All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ checkDesiredVersion() {
 # if it needs to be changed.
 checkHelmInstalledVersion() {
   if [[ -f "${HELM_INSTALL_DIR}/${PROJECT_NAME}" ]]; then
-    local version=$(helm version -c | grep '^Client' | cut -d'"' -f2)
+    local version=$(helm version | grep '^Client' | cut -d'"' -f2)
     if [[ "$version" == "$TAG" ]]; then
       echo "Helm ${version} is already ${DESIRED_VERSION:-latest}"
       return 0

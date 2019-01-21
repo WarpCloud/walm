@@ -17,6 +17,7 @@ limitations under the License.
 package eviction
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -231,14 +232,14 @@ func TestMemoryPressure(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("2Gi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -452,14 +453,14 @@ func TestDiskPressureNodeFs(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("16Gi", "200Gi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -645,14 +646,14 @@ func TestMinReclaim(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("2Gi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -787,14 +788,14 @@ func TestNodeReclaimFuncs(t *testing.T) {
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("16Gi", "200Gi", podStats)}
 	diskGC := &mockDiskGC{fakeSummaryProvider: summaryProvider, err: nil}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -992,14 +993,14 @@ func TestInodePressureNodeFsInodes(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("3Mi", "4Mi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -1196,14 +1197,14 @@ func TestCriticalPodsAreNotEvicted(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("2Gi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -1317,14 +1318,14 @@ func TestAllocatableMemoryPressure(t *testing.T) {
 	}
 	summaryProvider := &fakeSummaryProvider{result: summaryStatsMaker("4Gi", podStats)}
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}
@@ -1433,4 +1434,75 @@ func TestAllocatableMemoryPressure(t *testing.T) {
 			t.Errorf("Admit pod: %v, expected: %v, actual: %v", pod, expected[i], result.Admit)
 		}
 	}
+}
+
+func TestUpdateMemcgThreshold(t *testing.T) {
+	activePodsFunc := func() []*v1.Pod {
+		return []*v1.Pod{}
+	}
+
+	fakeClock := clock.NewFakeClock(time.Now())
+	podKiller := &mockPodKiller{}
+	diskInfoProvider := &mockDiskInfoProvider{dedicatedImageFs: false}
+	diskGC := &mockDiskGC{err: nil}
+	nodeRef := &v1.ObjectReference{Kind: "Node", Name: "test", UID: types.UID("test"), Namespace: ""}
+
+	config := Config{
+		MaxPodGracePeriodSeconds: 5,
+		PressureTransitionPeriod: time.Minute * 5,
+		Thresholds: []evictionapi.Threshold{
+			{
+				Signal:   evictionapi.SignalMemoryAvailable,
+				Operator: evictionapi.OpLessThan,
+				Value: evictionapi.ThresholdValue{
+					Quantity: quantityMustParse("1Gi"),
+				},
+			},
+		},
+		PodCgroupRoot: "kubepods",
+	}
+	summaryProvider := &fakeSummaryProvider{result: makeMemoryStats("2Gi", map[*v1.Pod]statsapi.PodStats{})}
+
+	thresholdNotifier := &MockThresholdNotifier{}
+	thresholdNotifier.On("UpdateThreshold", summaryProvider.result).Return(nil).Twice()
+
+	manager := &managerImpl{
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
+		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
+		thresholdsFirstObservedAt:    thresholdsObservedAt{},
+		thresholdNotifiers:           []ThresholdNotifier{thresholdNotifier},
+	}
+
+	manager.synchronize(diskInfoProvider, activePodsFunc)
+	// The UpdateThreshold method should have been called once, since this is the first run.
+	thresholdNotifier.AssertNumberOfCalls(t, "UpdateThreshold", 1)
+
+	manager.synchronize(diskInfoProvider, activePodsFunc)
+	// The UpdateThreshold method should not have been called again, since not enough time has passed
+	thresholdNotifier.AssertNumberOfCalls(t, "UpdateThreshold", 1)
+
+	fakeClock.Step(2 * notifierRefreshInterval)
+	manager.synchronize(diskInfoProvider, activePodsFunc)
+	// The UpdateThreshold method should be called again since enough time has passed
+	thresholdNotifier.AssertNumberOfCalls(t, "UpdateThreshold", 2)
+
+	// new memory threshold notifier that returns an error
+	thresholdNotifier = &MockThresholdNotifier{}
+	thresholdNotifier.On("UpdateThreshold", summaryProvider.result).Return(fmt.Errorf("error updating threshold"))
+	thresholdNotifier.On("Description").Return("mock thresholdNotifier").Once()
+	manager.thresholdNotifiers = []ThresholdNotifier{thresholdNotifier}
+
+	fakeClock.Step(2 * notifierRefreshInterval)
+	manager.synchronize(diskInfoProvider, activePodsFunc)
+	// The UpdateThreshold method should be called because at least notifierRefreshInterval time has passed.
+	// The Description method should be called because UpdateThreshold returned an error
+	thresholdNotifier.AssertNumberOfCalls(t, "UpdateThreshold", 1)
+	thresholdNotifier.AssertNumberOfCalls(t, "Description", 1)
 }

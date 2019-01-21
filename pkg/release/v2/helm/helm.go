@@ -1,7 +1,6 @@
 package helm
 
 import (
-	hapirelease "k8s.io/helm/pkg/proto/hapi/release"
 	"time"
 	"k8s.io/helm/pkg/helm"
 	"github.com/sirupsen/logrus"
@@ -17,7 +16,6 @@ import (
 	"sync"
 	"errors"
 	"mime/multipart"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"walm/pkg/hook"
 	"walm/pkg/task"
 	"walm/pkg/release/manager/helm/cache"

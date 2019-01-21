@@ -25,7 +25,6 @@ wordpress/
   Chart.yaml          # A YAML file containing information about the chart
   LICENSE             # OPTIONAL: A plain text file containing the license for the chart
   README.md           # OPTIONAL: A human-readable README file
-  requirements.yaml   # OPTIONAL: A YAML file listing dependencies for the chart
   values.yaml         # The default configuration values for this chart
   charts/             # A directory containing any charts upon which this chart depends.
   templates/          # A directory of templates that, when combined with values,
@@ -41,7 +40,6 @@ the listed file names. Other files will be left as they are.
 The `Chart.yaml` file is required for a chart. It contains the following fields:
 
 ```yaml
-apiVersion: The chart API version, always "v1" (required)
 name: The name of the chart (required)
 version: A SemVer 2 version (required)
 kubeVersion: A SemVer range of compatible Kubernetes versions (optional)
@@ -51,6 +49,10 @@ keywords:
 home: The URL of this project's home page (optional)
 sources:
   - A list of URLs to source code for this project (optional)
+dependencies: # A list of the chart requirements (optional)
+  - name: The name of the chart (nginx)
+    version: The version of the chart ("1.2.3")
+    repository: The repository URL ("https://example.com/charts")
 maintainers: # (optional)
   - name: The maintainer's name (required for each maintainer)
     email: The maintainer's email (optional for each maintainer)
@@ -59,12 +61,7 @@ engine: gotpl # The name of the template engine (optional, defaults to gotpl)
 icon: A URL to an SVG or PNG image to be used as an icon (optional).
 appVersion: The version of the app that this contains (optional). This needn't be SemVer.
 deprecated: Whether this chart is deprecated (optional, boolean)
-tillerVersion: The version of Tiller that this chart requires. This should be expressed as a SemVer range: ">2.0.0" (optional)
 ```
-
-If you are familiar with the `Chart.yaml` file format for Helm Classic, you will
-notice that fields specifying dependencies have been removed. That is because
-the new Chart format expresses dependencies using the `charts/` directory.
 
 Other fields will be silently ignored.
 
@@ -92,7 +89,7 @@ rely upon or require GitHub or even Git. Consequently, it does not use
 Git SHAs for versioning at all.
 
 The `version` field inside of the `Chart.yaml` is used by many of the
-Helm tools, including the CLI and the Tiller server. When generating a
+Helm tools, including the CLI. When generating a
 package, the `helm package` command will use the version that it finds
 in the `Chart.yaml` as a token in the package name. The system assumes
 that the version number in the chart package name matches the version number in
@@ -114,7 +111,7 @@ to mark a chart as deprecated. If the **latest** version of a chart in the
 repository is marked as deprecated, then the chart as a whole is considered to
 be deprecated. The chart name can later be reused by publishing a newer version
 that is not marked as deprecated. The workflow for deprecating charts, as
-followed by the [kubernetes/charts](https://github.com/kubernetes/charts)
+followed by the [kubernetes/charts](https://github.com/helm/charts)
 project is:
   - Update chart's `Chart.yaml` to mark the chart as deprecated, bumping the
   version
@@ -142,22 +139,12 @@ for greater detail.
 
 ## Chart Dependencies
 
-In Helm, one chart may depend on any number of other charts. 
-These dependencies can be dynamically linked through the `requirements.yaml`
-file or brought in to the `charts/` directory and managed manually. 
+In Helm, one chart may depend on any number of other charts.
+These dependencies can be dynamically linked using the `dependencies` field in `Chart.yaml` or brought in to the `charts/` directory and managed manually.
 
-Although manually managing your dependencies has a few advantages some teams need,
-the preferred method of declaring dependencies is by using a
-`requirements.yaml` file inside of your chart.
+### Managing Dependencies with the `dependencies` field
 
-**Note:** The `dependencies:` section of the `Chart.yaml` from Helm
-Classic has been completely removed.
-
-
-### Managing Dependencies with `requirements.yaml`
-
-A `requirements.yaml` file is a simple file for listing your
-dependencies.
+The charts required by the current chart are defined as a list in the `dependencies` field.
 
 ```yaml
 dependencies:
@@ -174,7 +161,7 @@ dependencies:
 - The `repository` field is the full URL to the chart repository. Note
   that you must also use `helm repo add` to add that repo locally.
 
-Once you have a dependencies file, you can run `helm dependency update`
+Once you have defined dependencies, you can run `helm dependency update`
 and it will use your dependency file to download all the specified
 charts into your `charts/` directory for you.
 
@@ -201,11 +188,7 @@ charts/
   mysql-3.2.1.tgz
 ```
 
-Managing charts with `requirements.yaml` is a good way to easily keep
-charts updated, and also share requirements information throughout a
-team.
-
-#### Alias field in requirements.yaml
+#### Alias field in dependencies
 
 In addition to the other fields above, each requirements entry may contain
 the optional field `alias`.
@@ -217,7 +200,7 @@ One can use `alias` in cases where they need to access a chart
 with other name(s).
 
 ```yaml
-# parentchart/requirements.yaml
+# parentchart/Chart.yaml
 dependencies:
   - name: subchart
     repository: http://localhost:10191
@@ -242,7 +225,7 @@ new-subchart-2
 The manual way of achieving this is by copy/pasting the same chart in the
 `charts/` directory multiple times with different names.
 
-#### Tags and Condition fields in requirements.yaml
+#### Tags and Condition fields in dependencies
 
 In addition to the other fields above, each requirements entry may contain
 the optional fields `tags` and `condition`.
@@ -260,12 +243,12 @@ In the top parent's values, all charts with tags can be enabled or disabled by
 specifying the tag and a boolean value.
 
 ````
-# parentchart/requirements.yaml
+# parentchart/Chart.yaml
 dependencies:
       - name: subchart1
         repository: http://localhost:10191
         version: 0.1.0
-        condition: subchart1.enabled,global.subchart1.enabled
+        condition: subchart1.enabled, global.subchart1.enabled
         tags:
           - front-end
           - subchart1
@@ -291,11 +274,11 @@ tags:
 
 In the above example all charts with the tag `front-end` would be disabled but since the
 `subchart1.enabled` path evaluates to 'true' in the parent's values, the condition will override the
-`front-end` tag and `subchart1` will be enabled.  
+`front-end` tag and `subchart1` will be enabled.
 
 Since `subchart2` is tagged with `back-end` and that tag evaluates to `true`, `subchart2` will be
-enabled. Also notes that although `subchart2` has a condition specified in `requirements.yaml`, there
-is no corresponding path and value in the parent's values so that condition has no effect.  
+enabled. Also notes that although `subchart2` has a condition specified, there
+is no corresponding path and value in the parent's values so that condition has no effect.
 
 ##### Using the CLI with Tags and Conditions
 
@@ -303,6 +286,7 @@ The `--set` parameter can be used as usual to alter tag and condition values.
 
 ````
 helm install --set tags.front-end=true --set subchart2.enabled=false
+
 ````
 
 ##### Tags and Condition Resolution
@@ -315,26 +299,30 @@ helm install --set tags.front-end=true --set subchart2.enabled=false
   * The `tags:` key in values must be a top level key. Globals and nested `tags:` tables
     are not currently supported.
 
-#### Importing Child Values via requirements.yaml
+#### Importing Child Values via dependencies
 
-In some cases it is desirable to allow a child chart's values to propagate to the parent chart and be 
-shared as common defaults. An additional benefit of using the `exports` format is that it will enable future 
+In some cases it is desirable to allow a child chart's values to propagate to the parent chart and be
+shared as common defaults. An additional benefit of using the `exports` format is that it will enable future
 tooling to introspect user-settable values.
 
-The keys containing the values to be imported can be specified in the parent chart's `requirements.yaml` file 
-using a YAML list. Each item in the list is a key which is imported from the child chart's `exports` field. 
+The keys containing the values to be imported can be specified in the parent chart's `dependencies` in the field `input-values`
+using a YAML list. Each item in the list is a key which is imported from the child chart's `exports` field.
 
 To import values not contained in the `exports` key, use the [child-parent](#using-the-child-parent-format) format.
 Examples of both formats are described below.
 
 ##### Using the exports format
 
-If a child chart's `values.yaml` file contains an `exports` field at the root, its contents may be imported 
+If a child chart's `values.yaml` file contains an `exports` field at the root, its contents may be imported
 directly into the parent's values by specifying the keys to import as in the example below:
 
 ```yaml
-# parent's requirements.yaml file
-    ...
+# parent's Chart.yaml file
+
+dependencies:
+  - name: subchart
+    repository: http://localhost:10191
+    version: 0.1.0
     import-values:
       - data
 ```
@@ -346,8 +334,8 @@ exports:
     myint: 99
 ```
 
-Since we are specifying the key `data` in our import list, Helm looks in the `exports` field of the child 
-chart for `data` key and imports its contents. 
+Since we are specifying the key `data` in our import list, Helm looks in the `exports` field of the child
+chart for `data` key and imports its contents.
 
 The final parent values would contain our exported field:
 
@@ -358,20 +346,20 @@ myint: 99
 
 ```
 
-Please note the parent key `data` is not contained in the parent's final values. If you need to specify the 
-parent key, use the 'child-parent' format. 
+Please note the parent key `data` is not contained in the parent's final values. If you need to specify the
+parent key, use the 'child-parent' format.
 
 ##### Using the child-parent format
 
-To access values that are not contained in the `exports` key of the child chart's values, you will need to 
-specify the source key of the values to be imported (`child`) and the destination path in the parent chart's 
+To access values that are not contained in the `exports` key of the child chart's values, you will need to
+specify the source key of the values to be imported (`child`) and the destination path in the parent chart's
 values (`parent`).
 
-The `import-values` in the example below instructs Helm to take any values found at `child:` path and copy them 
+The `import-values` in the example below instructs Helm to take any values found at `child:` path and copy them
 to the parent's values at the path specified in `parent:`
 
 ```yaml
-# parent's requirements.yaml file
+# parent's Chart.yaml file
 dependencies:
   - name: subchart1
     repository: http://localhost:10191
@@ -382,7 +370,7 @@ dependencies:
         parent: myimports
 ```
 In the above example, values found at `default.data` in the subchart1's values will be imported
-to the `myimports` key in the parent chart's values as detailed below: 
+to the `myimports` key in the parent chart's values as detailed below:
 
 ```yaml
 # parent's values.yaml file
@@ -391,7 +379,7 @@ myimports:
   myint: 0
   mybool: false
   mystring: "helm rocks!"
-  
+
 ```
 ```yaml
 # subchart1's values.yaml file
@@ -400,7 +388,7 @@ default:
   data:
     myint: 999
     mybool: true
-    
+
 ```
 The parent chart's resulting values would be:
 
@@ -433,7 +421,6 @@ chart's `charts/` directory:
 ```
 wordpress:
   Chart.yaml
-  requirements.yaml
   # ...
   charts/
     apache/
@@ -449,7 +436,7 @@ on Apache and MySQL by including those charts inside of its `charts/`
 directory.
 
 **TIP:** _To drop a dependency into your `charts/` directory, use the
-`helm fetch` command_
+`helm pull` command_
 
 ### Operational aspects of using dependencies
 
@@ -468,7 +455,7 @@ Furthermore, A is dependent on chart B that creates objects
 - replicaset "B-ReplicaSet"
 - service "B-Service"
 
-After installation/upgrade of chart A a single Helm release is created/modified. The release will 
+After installation/upgrade of chart A a single Helm release is created/modified. The release will
 create/update all of the above Kubernetes objects in the following order:
 
 - A-Namespace
@@ -478,17 +465,17 @@ create/update all of the above Kubernetes objects in the following order:
 - A-Service
 - B-Service
 
-This is because when Helm installs/upgrades charts, 
-the Kubernetes objects from the charts and all its dependencies are 
+This is because when Helm installs/upgrades charts,
+the Kubernetes objects from the charts and all its dependencies are
 
-- aggregrated into a single set; then 
-- sorted by type followed by name; and then 
-- created/updated in that order. 
+- aggregrated into a single set; then
+- sorted by type followed by name; and then
+- created/updated in that order.
 
 Hence a single release is created with all the objects for the chart and its dependencies.
 
-The install order of Kubernetes types is given by the enumeration InstallOrder in kind_sorter.go 
-(see [the Helm source file](https://github.com/kubernetes/helm/blob/master/pkg/tiller/kind_sorter.go#L26)).
+The install order of Kubernetes types is given by the enumeration InstallOrder in kind_sorter.go
+(see [the Helm source file](https://github.com/helm/helm/blob/dev-v3/pkg/tiller/kind_sorter.go#L26)).
 
 ## Templates and Values
 
@@ -561,7 +548,7 @@ All of these values are defined by the template author. Helm does not
 require or dictate parameters.
 
 To see many working charts, check out the [Kubernetes Charts
-project](https://github.com/kubernetes/charts)
+project](https://github.com/helm/charts)
 
 ### Predefined Values
 
@@ -574,16 +561,10 @@ cannot be overridden. As with all values, the names are _case
 sensitive_.
 
 - `Release.Name`: The name of the release (not the chart)
-- `Release.Time`: The time the chart release was last updated. This will
-  match the `Last Released` time on a Release object.
-- `Release.Namespace`: The namespace the chart was released to.
-- `Release.Service`: The service that conducted the release. Usually
-  this is `Tiller`.
+- `Release.Service`: The service that conducted the release.
 - `Release.IsUpgrade`: This is set to true if the current operation is an upgrade or rollback.
 - `Release.IsInstall`: This is set to true if the current operation is an
   install.
-- `Release.Revision`: The revision number. It begins at 1, and increments with
-  each `helm upgrade`.
 - `Chart`: The contents of the `Chart.yaml`. Thus, the chart version is
   obtainable as `Chart.Version` and the maintainers are in
   `Chart.Maintainers`.
@@ -594,9 +575,8 @@ sensitive_.
   `{{.Files.GetString name}}` functions. You can also access the contents of the file
   as `[]byte` using `{{.Files.GetBytes}}`
 - `Capabilities`: A map-like object that contains information about the versions
-  of Kubernetes (`{{.Capabilities.KubeVersion}}`, Tiller
-  (`{{.Capabilities.TillerVersion}}`, and the supported Kubernetes API versions
-  (`{{.Capabilities.APIVersions.Has "batch/v1"`)
+  of Kubernetes (`{{.Capabilities.KubeVersion}}` and the supported Kubernetes
+ API versions (`{{.Capabilities.APIVersions.Has "batch/v1"`)
 
 **NOTE:** Any unknown Chart.yaml fields will be dropped. They will not
 be accessible inside of the `Chart` object. Thus, Chart.yaml cannot be

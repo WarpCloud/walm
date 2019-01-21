@@ -260,6 +260,7 @@ std.assertEqual(std.escapeStringJson('he"llo'), '"he\\"llo"') &&
 std.assertEqual(std.escapeStringJson('he"llo'), '"he\\"llo"') &&
 std.assertEqual(std.escapeStringBash("he\"l'lo"), "'he\"l'\"'\"'lo'") &&
 std.assertEqual(std.escapeStringDollars('The path is ${PATH}.'), 'The path is $${PATH}.') &&
+std.assertEqual(std.escapeStringJson('!~'), '"!~"') &&
 
 std.assertEqual(std.manifestPython({
   x: 'test',
@@ -546,6 +547,16 @@ std.assertEqual(
 
 std.assertEqual(std.parseInt('01234567890'), 1234567890) &&
 std.assertEqual(std.parseInt('-01234567890'), -1234567890) &&
+std.assertEqual(std.parseOctal('755'), 493) &&
+std.assertEqual(std.parseOctal('0755'), 493) &&
+std.assertEqual(std.parseHex('ff'), 255) &&
+std.assertEqual(std.parseHex('FF'), 255) &&
+std.assertEqual(std.parseHex('0ff'), 255) &&
+std.assertEqual(std.parseHex('0FF'), 255) &&
+std.assertEqual(std.parseHex('a'), 10) &&
+std.assertEqual(std.parseHex('A'), 10) &&
+std.assertEqual(std.parseHex('4a'), 74) &&
+
 // verified by running md5 -s value
 std.assertEqual(std.md5(''), 'd41d8cd98f00b204e9800998ecf8427e') &&
 std.assertEqual(std.md5('grape'), 'b781cbb29054db12f88f08c6e161c199') &&
@@ -562,10 +573,34 @@ std.assertEqual(std.prune({ a: [[], {}, null], b: { a: [], b: {}, c: null } }), 
 std.assertEqual(std.prune([[[], {}, null], { a: [], b: {}, c: null }]), []) &&
 std.assertEqual(std.prune({ a: [{ b: true }] }), { a: [{ b: true }] }) &&
 
+std.assertEqual(std.parseJson('"foo"'), 'foo') &&
+std.assertEqual(std.parseJson('{}'), {}) &&
+std.assertEqual(std.parseJson('[]'), []) &&
+std.assertEqual(std.parseJson('null'), null) &&
+std.assertEqual(std.parseJson('12'), 12) &&
+std.assertEqual(std.parseJson('12.123'), 12.123) &&
+std.assertEqual(std.parseJson('{"a": {"b": ["c", 42]}}'), { a: { b: ['c', 42] } }) &&
+
 std.assertEqual(std.asciiUpper('!@#$%&*()asdfghFGHJKL09876 '), '!@#$%&*()ASDFGHFGHJKL09876 ') &&
 std.assertEqual(std.asciiLower('!@#$%&*()asdfghFGHJKL09876 '), '!@#$%&*()asdfghfghjkl09876 ') &&
 
 std.assertEqual(std.deepJoin(['a', ['b', 'c', [[], 'd', ['e'], 'f', 'g'], [], []], 'h']),
                 'abcdefgh') &&
+
+std.assertEqual(std.findSubstr('', 'a'), []) &&
+std.assertEqual(std.findSubstr('aa', ''), []) &&
+std.assertEqual(std.findSubstr('aa', 'bb'), []) &&
+std.assertEqual(std.findSubstr('aa', 'a'), []) &&
+std.assertEqual(std.findSubstr('aa', 'aa'), [0]) &&
+std.assertEqual(std.findSubstr('aa', 'bbaabaaa'), [2, 5, 6]) &&
+
+std.assertEqual(std.find(null, [null]), [0]) &&
+std.assertEqual(std.find([], [[]]), [0]) &&
+std.assertEqual(std.find({}, [{}]), [0]) &&
+std.assertEqual(std.find('a', []), []) &&
+std.assertEqual(std.find('a', ['b']), []) &&
+std.assertEqual(std.find('a', ['a']), [0]) &&
+std.assertEqual(std.find('a', ['a', ['a'], 'b', 'a']), [0, 3]) &&
+std.assertEqual(std.find(['a'], [['a']]), [0]) &&
 
 true

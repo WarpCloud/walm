@@ -28,7 +28,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"sort"
 	"text/template"
 	"time"
 
@@ -100,7 +99,7 @@ import (
 	"sync"
 
 	"google.golang.org/api/googleapi"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"{{.PackageRoot}}/filter"
 	"{{.PackageRoot}}/meta"
@@ -220,7 +219,7 @@ func (m *Mock{{.Service}}Obj) ToAlpha() *{{.Alpha.FQObjectType}} {
 	// Convert the object via JSON copying to the type that was requested.
 	ret := &{{.Alpha.FQObjectType}}{}
 	if err := copyViaJSON(ret, m.Obj); err != nil {
-		glog.Errorf("Could not convert %T to *{{.Alpha.FQObjectType}} via JSON: %v", m.Obj, err)
+		klog.Errorf("Could not convert %T to *{{.Alpha.FQObjectType}} via JSON: %v", m.Obj, err)
 	}
 	return ret
 }
@@ -234,7 +233,7 @@ func (m *Mock{{.Service}}Obj) ToBeta() *{{.Beta.FQObjectType}} {
 	// Convert the object via JSON copying to the type that was requested.
 	ret := &{{.Beta.FQObjectType}}{}
 	if err := copyViaJSON(ret, m.Obj); err != nil {
-		glog.Errorf("Could not convert %T to *{{.Beta.FQObjectType}} via JSON: %v", m.Obj, err)
+		klog.Errorf("Could not convert %T to *{{.Beta.FQObjectType}} via JSON: %v", m.Obj, err)
 	}
 	return ret
 }
@@ -248,7 +247,7 @@ func (m *Mock{{.Service}}Obj) ToGA() *{{.GA.FQObjectType}} {
 		// Convert the object via JSON copying to the type that was requested.
 	ret := &{{.GA.FQObjectType}}{}
 	if err := copyViaJSON(ret, m.Obj); err != nil {
-		glog.Errorf("Could not convert %T to *{{.GA.FQObjectType}} via JSON: %v", m.Obj, err)
+		klog.Errorf("Could not convert %T to *{{.GA.FQObjectType}} via JSON: %v", m.Obj, err)
 	}
 	return ret
 }
@@ -395,7 +394,7 @@ type {{.MockWrapType}} struct {
 func (m *{{.MockWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObjectType}}, error) {
 	if m.GetHook != nil {
 		if intercept, obj, err := m.GetHook(ctx, key, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = %+v, %v", ctx, key, obj ,err)
+			klog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = %+v, %v", ctx, key, obj ,err)
 			return obj, err
 		}
 	}
@@ -407,12 +406,12 @@ func (m *{{.MockWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObjec
 	defer m.Lock.Unlock()
 
 	if err, ok := m.GetError[*key]; ok {
-		glog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = nil, %v", ctx, key, err)
+		klog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = nil, %v", ctx, key, err)
 		return nil, err
 	}
 	if obj, ok := m.Objects[*key]; ok {
 		typedObj := obj.To{{.VersionTitle}}()
-		glog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = %+v, nil", ctx, key, typedObj)
+		klog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = %+v, nil", ctx, key, typedObj)
 		return typedObj, nil
 	}
 
@@ -420,7 +419,7 @@ func (m *{{.MockWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObjec
 		Code: http.StatusNotFound,
 		Message: fmt.Sprintf("{{.MockWrapType}} %v not found", key),
 	}
-	glog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = nil, %v", ctx, key, err)
+	klog.V(5).Infof("{{.MockWrapType}}.Get(%v, %s) = nil, %v", ctx, key, err)
 	return nil, err
 }
 {{- end}}
@@ -441,15 +440,15 @@ func (m *{{.MockWrapType}}) List(ctx context.Context, zone string, fl *filter.F)
 	if m.ListHook != nil {
 		{{if .KeyIsGlobal -}}
 		if intercept, objs, err := m.ListHook(ctx, fl, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = [%v items], %v", ctx, fl, len(objs), err)
+			klog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = [%v items], %v", ctx, fl, len(objs), err)
 		{{- end -}}
 		{{- if .KeyIsRegional -}}
 		if intercept, objs, err := m.ListHook(ctx, region, fl, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], %v", ctx, region, fl, len(objs), err)
+			klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], %v", ctx, region, fl, len(objs), err)
 		{{- end -}}
 		{{- if .KeyIsZonal -}}
 		if intercept, objs, err := m.ListHook(ctx, zone, fl, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], %v", ctx, zone, fl, len(objs), err)
+			klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], %v", ctx, zone, fl, len(objs), err)
 		{{- end}}
 			return objs, err
 		}
@@ -461,13 +460,13 @@ func (m *{{.MockWrapType}}) List(ctx context.Context, zone string, fl *filter.F)
 	if m.ListError != nil {
 		err := *m.ListError
 		{{if .KeyIsGlobal -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = nil, %v", ctx, fl, err)
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = nil, %v", ctx, fl, err)
 		{{- end -}}
 		{{- if .KeyIsRegional -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = nil, %v", ctx, region, fl, err)
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = nil, %v", ctx, region, fl, err)
 		{{- end -}}
 		{{- if .KeyIsZonal -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = nil, %v", ctx, zone, fl, err)
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = nil, %v", ctx, zone, fl, err)
 		{{- end}}
 
 		return nil, *m.ListError
@@ -496,13 +495,13 @@ func (m *{{.MockWrapType}}) List(ctx context.Context, zone string, fl *filter.F)
 	}
 
 	{{if .KeyIsGlobal -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = [%v items], nil", ctx, fl, len(objs))
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %v) = [%v items], nil", ctx, fl, len(objs))
 	{{- end -}}
 	{{- if .KeyIsRegional -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], nil", ctx, region, fl, len(objs))
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], nil", ctx, region, fl, len(objs))
 	{{- end -}}
 	{{- if .KeyIsZonal -}}
-		glog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], nil", ctx, zone, fl, len(objs))
+		klog.V(5).Infof("{{.MockWrapType}}.List(%v, %q, %v) = [%v items], nil", ctx, zone, fl, len(objs))
 	{{- end}}
 	return objs, nil
 }
@@ -513,7 +512,7 @@ func (m *{{.MockWrapType}}) List(ctx context.Context, zone string, fl *filter.F)
 func (m *{{.MockWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.FQObjectType}}) error {
 	if m.InsertHook != nil {
 		if intercept, err := m.InsertHook(ctx, key, obj, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
+			klog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
 			return err
 		}
 	}
@@ -525,7 +524,7 @@ func (m *{{.MockWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.F
 	defer m.Lock.Unlock()
 
 	if err, ok := m.InsertError[*key]; ok {
-		glog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
+		klog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
 		return err
 	}
 	if _, ok := m.Objects[*key]; ok {
@@ -533,7 +532,7 @@ func (m *{{.MockWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.F
 			Code: http.StatusConflict,
 			Message: fmt.Sprintf("{{.MockWrapType}} %v exists", key),
 		}
-		glog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
+		klog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = %v", ctx, key, obj, err)
 		return err
 	}
 
@@ -542,7 +541,7 @@ func (m *{{.MockWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.F
 	obj.SelfLink = SelfLink(meta.Version{{.VersionTitle}}, projectID, "{{.Resource}}", key)
 
 	m.Objects[*key] = &Mock{{.Service}}Obj{obj}
-	glog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = nil", ctx, key, obj)
+	klog.V(5).Infof("{{.MockWrapType}}.Insert(%v, %v, %+v) = nil", ctx, key, obj)
 	return nil
 }
 {{- end}}
@@ -552,7 +551,7 @@ func (m *{{.MockWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.F
 func (m *{{.MockWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 	if m.DeleteHook != nil {
 		if intercept, err := m.DeleteHook(ctx, key, m);  intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
+			klog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
 			return err
 		}
 	}
@@ -564,7 +563,7 @@ func (m *{{.MockWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 	defer m.Lock.Unlock()
 
 	if err, ok := m.DeleteError[*key]; ok {
-		glog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
+		klog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
 		return err
 	}
 	if _, ok := m.Objects[*key]; !ok {
@@ -572,12 +571,12 @@ func (m *{{.MockWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 			Code: http.StatusNotFound,
 			Message: fmt.Sprintf("{{.MockWrapType}} %v not found", key),
 		}
-		glog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
+		klog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
 		return err
 	}
 
 	delete(m.Objects, *key)
-	glog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = nil", ctx, key)
+	klog.V(5).Infof("{{.MockWrapType}}.Delete(%v, %v) = nil", ctx, key)
 	return nil
 }
 {{- end}}
@@ -587,7 +586,7 @@ func (m *{{.MockWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 func (m *{{.MockWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (map[string][]*{{.FQObjectType}}, error) {
 	if m.AggregatedListHook != nil {
 		if intercept, objs, err := m.AggregatedListHook(ctx, fl, m); intercept {
-			glog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = [%v items], %v", ctx, fl, len(objs), err)
+			klog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = [%v items], %v", ctx, fl, len(objs), err)
 			return objs, err
 		}
 	}
@@ -597,7 +596,7 @@ func (m *{{.MockWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (m
 
 	if m.AggregatedListError != nil {
 		err := *m.AggregatedListError
-		glog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = nil, %v", ctx, fl, err)
+		klog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = nil, %v", ctx, fl, err)
 		return nil, err
 	}
 
@@ -611,7 +610,7 @@ func (m *{{.MockWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (m
 		location := res.Key.Zone
 		{{- end}}
 		if err != nil {
-			glog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = nil, %v", ctx, fl, err)
+			klog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = nil, %v", ctx, fl, err)
 			return nil, err
 		}
 		if !fl.Match(obj.To{{.VersionTitle}}()) {
@@ -619,7 +618,7 @@ func (m *{{.MockWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (m
 		}
 		objs[location] = append(objs[location], obj.To{{.VersionTitle}}())
 	}
-	glog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = [%v items], nil", ctx, fl, len(objs))
+	klog.V(5).Infof("{{.MockWrapType}}.AggregatedList(%v, %v) = [%v items], nil", ctx, fl, len(objs))
 	return objs, nil
 }
 {{- end}}
@@ -660,10 +659,10 @@ type {{.GCEWrapType}} struct {
 {{- if .GenerateGet}}
 // Get the {{.Object}} named by key.
 func (g *{{.GCEWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObjectType}}, error) {
-	glog.V(5).Infof("{{.GCEWrapType}}.Get(%v, %v): called", ctx, key)
+	klog.V(5).Infof("{{.GCEWrapType}}.Get(%v, %v): called", ctx, key)
 
 	if !key.Valid() {
-		glog.V(2).Infof("{{.GCEWrapType}}.Get(%v, %v): key is invalid (%#v)", ctx, key, key)
+		klog.V(2).Infof("{{.GCEWrapType}}.Get(%v, %v): key is invalid (%#v)", ctx, key, key)
 		return nil, fmt.Errorf("invalid GCE key (%#v)", key)
 	}
 	projectID := g.s.ProjectRouter.ProjectID(ctx, "{{.Version}}", "{{.Service}}")
@@ -673,9 +672,9 @@ func (g *{{.GCEWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObject
 		Version: meta.Version("{{.Version}}"),
 		Service: "{{.Service}}",
 	}
-	glog.V(5).Infof("{{.GCEWrapType}}.Get(%v, %v): projectID = %v, rk = %+v", ctx, key, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.Get(%v, %v): projectID = %v, rk = %+v", ctx, key, projectID, rk)
 	if err := g.s.RateLimiter.Accept(ctx, rk); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.Get(%v, %v): RateLimiter error: %v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.Get(%v, %v): RateLimiter error: %v", ctx, key, err)
 		return nil, err
 	}
 {{- if .KeyIsGlobal}}
@@ -689,7 +688,7 @@ func (g *{{.GCEWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObject
 {{- end}}
 	call.Context(ctx)
 	v, err := call.Do()
-	glog.V(4).Infof("{{.GCEWrapType}}.Get(%v, %v) = %+v, %v", ctx, key, v, err)
+	klog.V(4).Infof("{{.GCEWrapType}}.Get(%v, %v) = %+v, %v", ctx, key, v, err)
 	return v, err
 }
 {{- end}}
@@ -698,15 +697,15 @@ func (g *{{.GCEWrapType}}) Get(ctx context.Context, key *meta.Key) (*{{.FQObject
 // List all {{.Object}} objects.
 {{- if .KeyIsGlobal}}
 func (g *{{.GCEWrapType}}) List(ctx context.Context, fl *filter.F) ([]*{{.FQObjectType}}, error) {
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v) called", ctx, fl)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v) called", ctx, fl)
 {{- end -}}
 {{- if .KeyIsRegional}}
 func (g *{{.GCEWrapType}}) List(ctx context.Context, region string, fl *filter.F) ([]*{{.FQObjectType}}, error) {
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v) called", ctx, region, fl)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v) called", ctx, region, fl)
 {{- end -}}
 {{- if .KeyIsZonal}}
 func (g *{{.GCEWrapType}}) List(ctx context.Context, zone string, fl *filter.F) ([]*{{.FQObjectType}}, error) {
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v) called", ctx, zone, fl)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v) called", ctx, zone, fl)
 {{- end}}
 	projectID := g.s.ProjectRouter.ProjectID(ctx, "{{.Version}}", "{{.Service}}")
 	rk := &RateLimitKey{
@@ -719,15 +718,15 @@ func (g *{{.GCEWrapType}}) List(ctx context.Context, zone string, fl *filter.F) 
 		return nil, err
 	}
 {{- if .KeyIsGlobal}}
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v): projectID = %v, rk = %+v", ctx, fl, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v): projectID = %v, rk = %+v", ctx, fl, projectID, rk)
 	call := g.s.{{.VersionTitle}}.{{.Service}}.List(projectID)
 {{- end -}}
 {{- if .KeyIsRegional}}
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v): projectID = %v, rk = %+v", ctx, region, fl, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v): projectID = %v, rk = %+v", ctx, region, fl, projectID, rk)
 	call := g.s.{{.VersionTitle}}.{{.Service}}.List(projectID, region)
 {{- end -}}
 {{- if .KeyIsZonal}}
-	glog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v): projectID = %v, rk = %+v", ctx, zone, fl, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.List(%v, %v, %v): projectID = %v, rk = %+v", ctx, zone, fl, projectID, rk)
 	call := g.s.{{.VersionTitle}}.{{.Service}}.List(projectID, zone)
 {{- end}}
 	if fl != filter.None {
@@ -735,23 +734,23 @@ func (g *{{.GCEWrapType}}) List(ctx context.Context, zone string, fl *filter.F) 
 	}
 	var all []*{{.FQObjectType}}
 	f := func(l *{{.ObjectListType}}) error {
-		glog.V(5).Infof("{{.GCEWrapType}}.List(%v, ..., %v): page %+v", ctx, fl, l)
+		klog.V(5).Infof("{{.GCEWrapType}}.List(%v, ..., %v): page %+v", ctx, fl, l)
 		all = append(all, l.Items...)
 		return nil
 	}
 	if err := call.Pages(ctx, f); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = %v, %v", ctx, fl, nil, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = %v, %v", ctx, fl, nil, err)
 		return nil, err
 	}
 
-	if glog.V(4) {
-		glog.V(4).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = [%v items], %v", ctx, fl, len(all), nil)
-	} else if glog.V(5) {
+	if klog.V(4) {
+		klog.V(4).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = [%v items], %v", ctx, fl, len(all), nil)
+	} else if klog.V(5) {
 		var asStr []string
 		for _, o := range all {
 			asStr = append(asStr, fmt.Sprintf("%+v", o))
 		}
-		glog.V(5).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = %v, %v", ctx, fl, asStr, nil)
+		klog.V(5).Infof("{{.GCEWrapType}}.List(%v, ..., %v) = %v, %v", ctx, fl, asStr, nil)
 	}
 
 	return all, nil
@@ -761,9 +760,9 @@ func (g *{{.GCEWrapType}}) List(ctx context.Context, zone string, fl *filter.F) 
 {{- if .GenerateInsert}}
 // Insert {{.Object}} with key of value obj.
 func (g *{{.GCEWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.FQObjectType}}) error {
-	glog.V(5).Infof("{{.GCEWrapType}}.Insert(%v, %v, %+v): called", ctx, key, obj)
+	klog.V(5).Infof("{{.GCEWrapType}}.Insert(%v, %v, %+v): called", ctx, key, obj)
 	if !key.Valid() {
-		glog.V(2).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): key is invalid (%#v)", ctx, key, key)
+		klog.V(2).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): key is invalid (%#v)", ctx, key, key)
 		return fmt.Errorf("invalid GCE key (%+v)", key)
 	}
 	projectID := g.s.ProjectRouter.ProjectID(ctx, "{{.Version}}", "{{.Service}}")
@@ -773,9 +772,9 @@ func (g *{{.GCEWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.FQ
 		Version: meta.Version("{{.Version}}"),
 		Service: "{{.Service}}",
 	}
-	glog.V(5).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): projectID = %v, rk = %+v", ctx, key, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): projectID = %v, rk = %+v", ctx, key, projectID, rk)
 	if err := g.s.RateLimiter.Accept(ctx, rk); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): RateLimiter error: %v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...): RateLimiter error: %v", ctx, key, err)
 		return err
 	}
 	obj.Name = key.Name
@@ -792,12 +791,12 @@ func (g *{{.GCEWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.FQ
 
 	op, err := call.Do()
 	if err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...) = %+v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, ...) = %+v", ctx, key, err)
 		return err
 	}
 
 	err = g.s.WaitForCompletion(ctx, op)
-	glog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, %+v) = %+v", ctx, key, obj, err)
+	klog.V(4).Infof("{{.GCEWrapType}}.Insert(%v, %v, %+v) = %+v", ctx, key, obj, err)
 	return err
 }
 {{- end}}
@@ -805,9 +804,9 @@ func (g *{{.GCEWrapType}}) Insert(ctx context.Context, key *meta.Key, obj *{{.FQ
 {{- if .GenerateDelete}}
 // Delete the {{.Object}} referenced by key.
 func (g *{{.GCEWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
-	glog.V(5).Infof("{{.GCEWrapType}}.Delete(%v, %v): called", ctx, key)
+	klog.V(5).Infof("{{.GCEWrapType}}.Delete(%v, %v): called", ctx, key)
 	if !key.Valid() {
-		glog.V(2).Infof("{{.GCEWrapType}}.Delete(%v, %v): key is invalid (%#v)", ctx, key, key)
+		klog.V(2).Infof("{{.GCEWrapType}}.Delete(%v, %v): key is invalid (%#v)", ctx, key, key)
 		return fmt.Errorf("invalid GCE key (%+v)", key)
 	}
 	projectID := g.s.ProjectRouter.ProjectID(ctx, "{{.Version}}", "{{.Service}}")
@@ -817,9 +816,9 @@ func (g *{{.GCEWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 		Version: meta.Version("{{.Version}}"),
 		Service: "{{.Service}}",
 	}
-	glog.V(5).Infof("{{.GCEWrapType}}.Delete(%v, %v): projectID = %v, rk = %+v", ctx, key, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.Delete(%v, %v): projectID = %v, rk = %+v", ctx, key, projectID, rk)
 	if err := g.s.RateLimiter.Accept(ctx, rk); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v): RateLimiter error: %v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v): RateLimiter error: %v", ctx, key, err)
 		return err
 	}
 {{- if .KeyIsGlobal}}
@@ -835,12 +834,12 @@ func (g *{{.GCEWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 
 	op, err := call.Do()
 	if err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
 		return err
 	}
 
 	err = g.s.WaitForCompletion(ctx, op)
-	glog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
+	klog.V(4).Infof("{{.GCEWrapType}}.Delete(%v, %v) = %v", ctx, key, err)
 	return err
 }
 {{end -}}
@@ -848,7 +847,7 @@ func (g *{{.GCEWrapType}}) Delete(ctx context.Context, key *meta.Key) error {
 {{- if .AggregatedList}}
 // AggregatedList lists all resources of the given type across all locations.
 func (g *{{.GCEWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (map[string][]*{{.FQObjectType}}, error) {
-	glog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) called", ctx, fl)
+	klog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) called", ctx, fl)
 
 	projectID := g.s.ProjectRouter.ProjectID(ctx, "{{.Version}}", "{{.Service}}")
 	rk := &RateLimitKey{
@@ -858,9 +857,9 @@ func (g *{{.GCEWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (ma
 		Service: "{{.Service}}",
 	}
 
-	glog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): projectID = %v, rk = %+v", ctx, fl, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): projectID = %v, rk = %+v", ctx, fl, projectID, rk)
 	if err := g.s.RateLimiter.Accept(ctx, rk); err != nil {
-		glog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): RateLimiter error: %v", ctx, fl, err)
+		klog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): RateLimiter error: %v", ctx, fl, err)
 		return nil, err
 	}
 
@@ -873,23 +872,23 @@ func (g *{{.GCEWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (ma
 	all := map[string][]*{{.FQObjectType}}{}
 	f := func(l *{{.ObjectAggregatedListType}}) error {
 		for k, v := range l.Items {
-			glog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): page[%v]%+v", ctx, fl, k, v)
+			klog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v): page[%v]%+v", ctx, fl, k, v)
 			all[k] = append(all[k], v.{{.AggregatedListField}}...)
 		}
 		return nil
 	}
 	if err := call.Pages(ctx, f); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = %v, %v", ctx, fl, nil, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = %v, %v", ctx, fl, nil, err)
 		return nil, err
 	}
-	if glog.V(4) {
-		glog.V(4).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = [%v items], %v", ctx, fl, len(all), nil)
-	} else if glog.V(5) {
+	if klog.V(4) {
+		klog.V(4).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = [%v items], %v", ctx, fl, len(all), nil)
+	} else if klog.V(5) {
 		var asStr []string
 		for _, o := range all {
 			asStr = append(asStr, fmt.Sprintf("%+v", o))
 		}
-		glog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = %v, %v", ctx, fl, asStr, nil)
+		klog.V(5).Infof("{{.GCEWrapType}}.AggregatedList(%v, %v) = %v, %v", ctx, fl, asStr, nil)
 	}
 	return all, nil
 }
@@ -899,10 +898,10 @@ func (g *{{.GCEWrapType}}) AggregatedList(ctx context.Context, fl *filter.F) (ma
 {{- range .}}
 // {{.Name}} is a method on {{.GCEWrapType}}.
 func (g *{{.GCEWrapType}}) {{.FcnArgs}} {
-	glog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): called", ctx, key)
+	klog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): called", ctx, key)
 
 	if !key.Valid() {
-		glog.V(2).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): key is invalid (%#v)", ctx, key, key)
+		klog.V(2).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): key is invalid (%#v)", ctx, key, key)
 {{- if .IsOperation}}
 		return fmt.Errorf("invalid GCE key (%+v)", key)
 {{- else if .IsGet}}
@@ -918,10 +917,10 @@ func (g *{{.GCEWrapType}}) {{.FcnArgs}} {
 		Version: meta.Version("{{.Version}}"),
 		Service: "{{.Service}}",
 	}
-	glog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): projectID = %v, rk = %+v", ctx, key, projectID, rk)
+	klog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): projectID = %v, rk = %+v", ctx, key, projectID, rk)
 
 	if err := g.s.RateLimiter.Accept(ctx, rk); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): RateLimiter error: %v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): RateLimiter error: %v", ctx, key, err)
 	{{- if .IsOperation}}
 		return err
 	{{- else}}
@@ -941,36 +940,36 @@ func (g *{{.GCEWrapType}}) {{.FcnArgs}} {
 	call.Context(ctx)
 	op, err := call.Do()
 	if err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v", ctx, key, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v", ctx, key, err)
 		return err
 	}
 	err = g.s.WaitForCompletion(ctx, op)
-	glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v", ctx, key, err)
+	klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v", ctx, key, err)
 	return err
 {{- else if .IsGet}}
 	call.Context(ctx)
 	v, err := call.Do()
-	glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v, %v", ctx, key, v, err)
+	klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %+v, %v", ctx, key, v, err)
 	return v, err
 {{- else if .IsPaged}}
 	var all []*{{.Version}}.{{.ItemType}}
 	f := func(l *{{.Version}}.{{.ReturnType}}) error {
-		glog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): page %+v", ctx, key, l)
+		klog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...): page %+v", ctx, key, l)
 		all = append(all, l.Items...)
 		return nil
 	}
 	if err := call.Pages(ctx, f); err != nil {
-		glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %v, %v", ctx, key, nil, err)
+		klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %v, %v", ctx, key, nil, err)
 		return nil, err
 	}
-	if glog.V(4) {
-		glog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = [%v items], %v", ctx, key, len(all), nil)
-	} else if glog.V(5) {
+	if klog.V(4) {
+		klog.V(4).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = [%v items], %v", ctx, key, len(all), nil)
+	} else if klog.V(5) {
 		var asStr []string
 		for _, o := range all {
 			asStr = append(asStr, fmt.Sprintf("%+v", o))
 		}
-		glog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %v, %v", ctx, key, asStr, nil)
+		klog.V(5).Infof("{{.GCEWrapType}}.{{.Name}}(%v, %v, ...) = %v, %v", ctx, key, asStr, nil)
 	}
 	return all, nil
 {{- end}}
@@ -981,6 +980,38 @@ func (g *{{.GCEWrapType}}) {{.FcnArgs}} {
 	tmpl := template.Must(template.New("interface").Parse(text))
 	for _, s := range meta.AllServices {
 		if err := tmpl.Execute(wr, s); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// genTypes generates the type wrappers.
+func genResourceIDs(wr io.Writer) {
+	const text = `
+// New{{.Service}}ResourceID creates a ResourceID for the {{.Service}} resource.
+{{- if .KeyIsProject}}
+func New{{.Service}}ResourceID(project string) *ResourceID {
+	var key *meta.Key
+{{- else}}
+{{- if .KeyIsGlobal}}
+func New{{.Service}}ResourceID(project, name string) *ResourceID {
+	key := meta.GlobalKey(name)
+{{- end}}
+{{- if .KeyIsRegional}}
+func New{{.Service}}ResourceID(project, region, name string) *ResourceID {
+	key := meta.RegionalKey(name, region)
+{{- end}}
+{{- if .KeyIsZonal}}
+func New{{.Service}}ResourceID(project, zone, name string) *ResourceID {
+	key := meta.ZonalKey(name, zone)
+{{- end -}}
+{{end}}
+	return &ResourceID{project, "{{.Resource}}", key}
+}
+`
+	tmpl := template.Must(template.New("resourceIDs").Parse(text))
+	for _, sg := range meta.SortedServicesGroups {
+		if err := tmpl.Execute(wr, sg.ServiceInfo()); err != nil {
 			panic(err)
 		}
 	}
@@ -1176,7 +1207,7 @@ func Test{{.Service}}Group(t *testing.T) {
 				got[obj.Name] = true
 			}
 			if !reflect.DeepEqual(got, want) {
-				t.Errorf("Alpha{{.Service}}().List(); got %+v, want %+v", got, want)
+				t.Errorf("Beta{{.Service}}().List(); got %+v, want %+v", got, want)
 			}
 		}
 	}
@@ -1196,7 +1227,7 @@ func Test{{.Service}}Group(t *testing.T) {
 				got[obj.Name] = true
 			}
 			if !reflect.DeepEqual(got, want) {
-				t.Errorf("Alpha{{.Service}}().List(); got %+v, want %+v", got, want)
+				t.Errorf("{{.Service}}().List(); got %+v, want %+v", got, want)
 			}
 		}
 	}
@@ -1238,17 +1269,83 @@ func Test{{.Service}}Group(t *testing.T) {
 }
 `
 	tmpl := template.Must(template.New("unittest").Parse(text))
-	// Sort keys so the output will be stable.
-	var keys []string
-	for k := range meta.AllServicesByGroup {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		s := meta.AllServicesByGroup[k]
-		if err := tmpl.Execute(wr, s); err != nil {
+	for _, sg := range meta.SortedServicesGroups {
+		if err := tmpl.Execute(wr, sg); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func genUnitTestResourceIDConversion(wr io.Writer) {
+	const text = `
+func TestResourceIDConversion(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []*ResourceID{
+		{{- range .Groups}}
+		{{- with .ServiceInfo}}
+		{{- if .KeyIsProject}}
+		New{{.Service}}ResourceID("my-{{.Resource}}-resource"),
+		{{- else}}
+		{{- if .KeyIsGlobal}}
+		New{{.Service}}ResourceID("some-project", "my-{{.Resource}}-resource"),
+		{{- end}}
+		{{- if .KeyIsRegional}}
+		New{{.Service}}ResourceID("some-project", "us-central1", "my-{{.Resource}}-resource"),
+		{{- end}}
+		{{- if .KeyIsZonal}}
+		New{{.Service}}ResourceID("some-project", "us-east1-b", "my-{{.Resource}}-resource"),
+		{{- end -}}
+		{{end -}}
+		{{end -}}
+		{{end}}
+	} {
+		t.Run(id.Resource, func(t *testing.T) {
+			// Test conversion to and from full URL.
+			fullURL := id.SelfLink(meta.VersionGA)
+			parsedID, err := ParseResourceURL(fullURL)
+			if err != nil {
+				t.Errorf("ParseResourceURL(%s) = _, %v, want nil", fullURL, err)
+			}
+			if !reflect.DeepEqual(id, parsedID) {
+				t.Errorf("SelfLink(%+v) -> ParseResourceURL(%s) = %+v, want original ID", id, fullURL, parsedID)
+			}
+
+			// Test conversion to and from relative resource name.
+			relativeName := id.RelativeResourceName()
+			parsedID, err = ParseResourceURL(relativeName)
+			if err != nil {
+				t.Errorf("ParseResourceURL(%s) = _, %v, want nil", relativeName, err)
+			}
+			if !reflect.DeepEqual(id, parsedID) {
+				t.Errorf("RelativeResourceName(%+v) -> ParseResourceURL(%s) = %+v, want original ID", id, relativeName, parsedID)
+			}
+
+			// Do not test ResourcePath for projects.
+			if id.Resource == "projects" {
+				return
+			}
+
+			// Test conversion to and from resource path.
+			resourcePath := id.ResourcePath()
+			parsedID, err = ParseResourceURL(resourcePath)
+			if err != nil {
+				t.Errorf("ParseResourceURL(%s) = _, %v, want nil", resourcePath, err)
+			}
+			id.ProjectID = ""
+			if !reflect.DeepEqual(id, parsedID) {
+				t.Errorf("ResourcePath(%+v) -> ParseResourceURL(%s) = %+v, want %+v", id, resourcePath, parsedID, id)
+			}
+		})
+	}
+}
+`
+	data := struct {
+		Groups []*meta.ServiceGroup
+	}{meta.SortedServicesGroups}
+	tmpl := template.Must(template.New("unittest-resourceIDs").Parse(text))
+	if err := tmpl.Execute(wr, data); err != nil {
+		panic(err)
 	}
 }
 
@@ -1262,9 +1359,11 @@ func main() {
 		genHeader(out)
 		genStubs(out)
 		genTypes(out)
+		genResourceIDs(out)
 	case "test":
 		genUnitTestHeader(out)
 		genUnitTestServices(out)
+		genUnitTestResourceIDConversion(out)
 	default:
 		log.Fatalf("Invalid -mode: %q", flags.mode)
 	}

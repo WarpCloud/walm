@@ -24,7 +24,7 @@ limitations under the License.
  * of using the library.
  */
 
-#define LIB_JSONNET_VERSION "v0.10.0"
+#define LIB_JSONNET_VERSION "v0.12.0"
 
 /** Return the version string of the Jsonnet interpreter.  Conforms to semantic versioning
  * http://semver.org/ If this does not match LIB_JSONNET_VERSION then there is a mismatch between
@@ -60,7 +60,7 @@ void jsonnet_string_output(struct JsonnetVm *vm, int v);
  * \param rel The path imported by the code.
  * \param found_here Set this byref param to path to the file, absolute or relative to the
  *     process's CWD.  This is necessary so that imports from the content of the imported file can
- *     be resolved correctly.  Allocate memory with jsonnet_realloc.  Only use when *success = 0.
+ *     be resolved correctly.  Allocate memory with jsonnet_realloc.  Only use when *success = 1.
  * \param success Set this byref param to 1 to indicate success and 0 for failure.
  * \returns The content of the imported file, or an error message.
  */
@@ -202,71 +202,6 @@ void jsonnet_tla_var(struct JsonnetVm *vm, const char *key, const char *val);
  * Argument values are copied so memory should be managed by caller.
  */
 void jsonnet_tla_code(struct JsonnetVm *vm, const char *key, const char *val);
-
-/** Indentation level when reformatting (number of spaeces).
- *
- * \param n Number of spaces, must be > 0.
- */
-void jsonnet_fmt_indent(struct JsonnetVm *vm, int n);
-
-/** Indentation level when reformatting (number of spaeces).
- *
- * \param n Number of spaces, must be > 0.
- */
-void jsonnet_fmt_max_blank_lines(struct JsonnetVm *vm, int n);
-
-/** Preferred style for string literals ("" or '').
- *
- * \param c String style as a char ('d', 's', or 'l' (leave)).
- */
-void jsonnet_fmt_string(struct JsonnetVm *vm, int c);
-
-/** Preferred style for line comments (# or //).
- *
- * \param c Comment style as a char ('h', 's', or 'l' (leave)).
- */
-void jsonnet_fmt_comment(struct JsonnetVm *vm, int c);
-
-/** Whether to add an extra space on the inside of arrays.
- */
-void jsonnet_fmt_pad_arrays(struct JsonnetVm *vm, int v);
-
-/** Whether to add an extra space on the inside of objects.
- */
-void jsonnet_fmt_pad_objects(struct JsonnetVm *vm, int v);
-
-/** Use syntax sugar where possible with field names.
- */
-void jsonnet_fmt_pretty_field_names(struct JsonnetVm *vm, int v);
-
-/** Sort top-level imports in alphabetical order
- */
-void jsonnet_fmt_sort_imports(struct JsonnetVm *vm, int v);
-
-/** If set to 1, will reformat the Jsonnet input after desugaring. */
-void jsonnet_fmt_debug_desugaring(struct JsonnetVm *vm, int v);
-
-/** Reformat a file containing Jsonnet code, return a Jsonnet string.
- *
- * The returned string should be cleaned up with jsonnet_realloc.
- *
- * \param filename Path to a file containing Jsonnet code.
- * \param error Return by reference whether or not there was an error.
- * \returns Either Jsonnet code or the error message.
- */
-char *jsonnet_fmt_file(struct JsonnetVm *vm, const char *filename, int *error);
-
-/** Reformat a string containing Jsonnet code, return a Jsonnet string.
- *
- * The returned string should be cleaned up with jsonnet_realloc.
- *
- * \param filename Path to a file (used in error messages).
- * \param snippet Jsonnet code to execute.
- * \param error Return by reference whether or not there was an error.
- * \returns Either Jsonnet code or the error message.
- */
-char *jsonnet_fmt_snippet(struct JsonnetVm *vm, const char *filename, const char *snippet,
-                          int *error);
 
 /** Set the number of lines of stack trace to display (0 for all of them). */
 void jsonnet_max_trace(struct JsonnetVm *vm, unsigned v);

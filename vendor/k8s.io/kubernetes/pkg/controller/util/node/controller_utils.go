@@ -34,13 +34,13 @@ import (
 	"k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
+	cloudprovider "k8s.io/cloud-provider"
 	api "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	nodepkg "k8s.io/kubernetes/pkg/util/node"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var (
@@ -92,7 +92,7 @@ func DeletePods(kubeClient clientset.Interface, recorder record.EventRecorder, n
 			continue
 		}
 
-		glog.V(2).Infof("Starting deletion of pod %v/%v", pod.Namespace, pod.Name)
+		klog.V(2).Infof("Starting deletion of pod %v/%v", pod.Namespace, pod.Name)
 		recorder.Eventf(&pod, v1.EventTypeNormal, "NodeControllerEviction", "Marking for deletion Pod %s from Node %s", pod.Name, nodeName)
 		if err := kubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, nil); err != nil {
 			return false, err
@@ -138,7 +138,7 @@ func ForcefullyDeleteNode(kubeClient clientset.Interface, nodeName string) error
 // given node from master return true if success
 func MarkAllPodsNotReady(kubeClient clientset.Interface, node *v1.Node) error {
 	nodeName := node.Name
-	glog.V(2).Infof("Update ready status of pods on node [%v]", nodeName)
+	klog.V(2).Infof("Update ready status of pods on node [%v]", nodeName)
 	opts := metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector(api.PodHostField, nodeName).String()}
 	pods, err := kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(opts)
 	if err != nil {
@@ -155,10 +155,10 @@ func MarkAllPodsNotReady(kubeClient clientset.Interface, node *v1.Node) error {
 		for i, cond := range pod.Status.Conditions {
 			if cond.Type == v1.PodReady {
 				pod.Status.Conditions[i].Status = v1.ConditionFalse
-				glog.V(2).Infof("Updating ready status of pod %v to false", pod.Name)
+				klog.V(2).Infof("Updating ready status of pod %v to false", pod.Name)
 				_, err := kubeClient.CoreV1().Pods(pod.Namespace).UpdateStatus(&pod)
 				if err != nil {
-					glog.Warningf("Failed to update status for pod %q: %v", format.Pod(&pod), err)
+					klog.Warningf("Failed to update status for pod %q: %v", format.Pod(&pod), err)
 					errMsg = append(errMsg, fmt.Sprintf("%v", err))
 				}
 				break
@@ -178,13 +178,27 @@ func ExistsInCloudProvider(cloud cloudprovider.Interface, nodeName types.NodeNam
 	if !ok {
 		return false, fmt.Errorf("%v", ErrCloudInstance)
 	}
-	if _, err := instances.ExternalID(context.TODO(), nodeName); err != nil {
+	if _, err := instances.InstanceID(context.TODO(), nodeName); err != nil {
 		if err == cloudprovider.InstanceNotFound {
 			return false, nil
 		}
 		return false, err
 	}
 	return true, nil
+}
+
+// ShutdownInCloudProvider returns true if the node is shutdowned in
+// cloud provider.
+func ShutdownInCloudProvider(ctx context.Context, cloud cloudprovider.Interface, node *v1.Node) (bool, error) {
+	instances, ok := cloud.Instances()
+	if !ok {
+		return false, fmt.Errorf("%v", ErrCloudInstance)
+	}
+	shutdown, err := instances.InstanceShutdownByProviderID(ctx, node.Spec.ProviderID)
+	if err == cloudprovider.NotImplemented {
+		return false, nil
+	}
+	return shutdown, err
 }
 
 // RecordNodeEvent records a event related to a node.
@@ -195,7 +209,7 @@ func RecordNodeEvent(recorder record.EventRecorder, nodeName, nodeUID, eventtype
 		UID:       types.UID(nodeUID),
 		Namespace: "",
 	}
-	glog.V(2).Infof("Recording %s event message for node %s", event, nodeName)
+	klog.V(2).Infof("Recording %s event message for node %s", event, nodeName)
 	recorder.Eventf(ref, eventtype, reason, "Node %s event: %s", nodeName, event)
 }
 
@@ -207,7 +221,7 @@ func RecordNodeStatusChange(recorder record.EventRecorder, node *v1.Node, newSta
 		UID:       node.UID,
 		Namespace: "",
 	}
-	glog.V(2).Infof("Recording status change %s event message for node %s", newStatus, node.Name)
+	klog.V(2).Infof("Recording status change %s event message for node %s", newStatus, node.Name)
 	// TODO: This requires a transaction, either both node status is updated
 	// and event is recorded or neither should happen, see issue #6055.
 	recorder.Eventf(ref, v1.EventTypeNormal, newStatus, "Node %s status is now: %s", node.Name, newStatus)
@@ -231,7 +245,7 @@ func SwapNodeControllerTaint(kubeClient clientset.Interface, taintsToAdd, taints
 				err))
 		return false
 	}
-	glog.V(4).Infof("Added %+v Taint to Node %v", taintsToAdd, node.Name)
+	klog.V(4).Infof("Added %+v Taint to Node %v", taintsToAdd, node.Name)
 
 	err = controller.RemoveTaintOffNode(kubeClient, node.Name, node, taintsToRemove...)
 	if err != nil {
@@ -243,7 +257,7 @@ func SwapNodeControllerTaint(kubeClient clientset.Interface, taintsToAdd, taints
 				err))
 		return false
 	}
-	glog.V(4).Infof("Made sure that Node %+v has no %v Taint", node.Name, taintsToRemove)
+	klog.V(4).Infof("Made sure that Node %+v has no %v Taint", node.Name, taintsToRemove)
 
 	return true
 }
@@ -279,12 +293,12 @@ func CreateDeleteNodeHandler(f func(node *v1.Node) error) func(obj interface{}) 
 		if !isNode {
 			deletedState, ok := originalObj.(cache.DeletedFinalStateUnknown)
 			if !ok {
-				glog.Errorf("Received unexpected object: %v", originalObj)
+				klog.Errorf("Received unexpected object: %v", originalObj)
 				return
 			}
 			originalNode, ok = deletedState.Obj.(*v1.Node)
 			if !ok {
-				glog.Errorf("DeletedFinalStateUnknown contained non-Node object: %v", deletedState.Obj)
+				klog.Errorf("DeletedFinalStateUnknown contained non-Node object: %v", deletedState.Obj)
 				return
 			}
 		}

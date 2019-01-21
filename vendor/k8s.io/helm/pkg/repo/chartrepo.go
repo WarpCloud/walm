@@ -25,8 +25,9 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/provenance"
 )
@@ -55,16 +56,16 @@ type ChartRepository struct {
 func NewChartRepository(cfg *Entry, getters getter.Providers) (*ChartRepository, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid chart URL format: %s", cfg.URL)
+		return nil, errors.Errorf("invalid chart URL format: %s", cfg.URL)
 	}
 
 	getterConstructor, err := getters.ByScheme(u.Scheme)
 	if err != nil {
-		return nil, fmt.Errorf("Could not find protocol handler for: %s", u.Scheme)
+		return nil, errors.Errorf("could not find protocol handler for: %s", u.Scheme)
 	}
 	client, err := getterConstructor(cfg.URL, cfg.CertFile, cfg.KeyFile, cfg.CAFile)
 	if err != nil {
-		return nil, fmt.Errorf("Could not construct protocol handler for: %s error: %v", u.Scheme, err)
+		return nil, errors.Wrapf(err, "could not construct protocol handler for: %s", u.Scheme)
 	}
 
 	return &ChartRepository{
@@ -83,7 +84,7 @@ func (r *ChartRepository) Load() error {
 		return err
 	}
 	if !dirInfo.IsDir() {
-		return fmt.Errorf("%q is not a directory", r.Config.Name)
+		return errors.Errorf("%q is not a directory", r.Config.Name)
 	}
 
 	// FIXME: Why are we recursively walking directories?
@@ -119,9 +120,13 @@ func (r *ChartRepository) DownloadIndexFile(cachePath string) error {
 	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
 
 	indexURL = parsedURL.String()
-
-	r.setCredentials()
-	resp, err := r.Client.Get(indexURL)
+	// TODO add user-agent
+	g, err := getter.NewHTTPGetter(indexURL, r.Config.CertFile, r.Config.KeyFile, r.Config.CAFile)
+	if err != nil {
+		return err
+	}
+	g.SetCredentials(r.Config.Username, r.Config.Password)
+	resp, err := g.Get(indexURL)
 	if err != nil {
 		return err
 	}
@@ -149,13 +154,6 @@ func (r *ChartRepository) DownloadIndexFile(cachePath string) error {
 	return ioutil.WriteFile(cp, index, 0644)
 }
 
-// If HttpGetter is used, this method sets the configured repository credentials on the HttpGetter.
-func (r *ChartRepository) setCredentials() {
-	if t, ok := r.Client.(*getter.HttpGetter); ok {
-		t.SetCredentials(r.Config.Username, r.Config.Password)
-	}
-}
-
 // Index generates an index for the chart repository and writes an index.yaml file.
 func (r *ChartRepository) Index() error {
 	err := r.generateIndex()
@@ -175,7 +173,7 @@ func (r *ChartRepository) saveIndexFile() error {
 
 func (r *ChartRepository) generateIndex() error {
 	for _, path := range r.ChartPaths {
-		ch, err := chartutil.Load(path)
+		ch, err := loader.Load(path)
 		if err != nil {
 			return err
 		}
@@ -185,7 +183,7 @@ func (r *ChartRepository) generateIndex() error {
 			return err
 		}
 
-		if !r.IndexFile.Has(ch.Metadata.Name, ch.Metadata.Version) {
+		if !r.IndexFile.Has(ch.Name(), ch.Metadata.Version) {
 			r.IndexFile.Add(ch.Metadata, path, r.Config.URL, digest)
 		}
 		// TODO: If a chart exists, but has a different Digest, should we error?
@@ -208,7 +206,7 @@ func FindChartInAuthRepoURL(repoURL, username, password, chartName, chartVersion
 	// Download and write the index file to a temporary location
 	tempIndexFile, err := ioutil.TempFile("", "tmp-repo-file")
 	if err != nil {
-		return "", fmt.Errorf("cannot write index file for repository requested")
+		return "", errors.Errorf("cannot write index file for repository requested")
 	}
 	defer os.Remove(tempIndexFile.Name())
 
@@ -225,7 +223,7 @@ func FindChartInAuthRepoURL(repoURL, username, password, chartName, chartVersion
 		return "", err
 	}
 	if err := r.DownloadIndexFile(tempIndexFile.Name()); err != nil {
-		return "", fmt.Errorf("Looks like %q is not a valid chart repository or cannot be reached: %s", repoURL, err)
+		return "", errors.Wrapf(err, "looks like %q is not a valid chart repository or cannot be reached", repoURL)
 	}
 
 	// Read the index file for the repository to get chart information and return chart URL
@@ -240,18 +238,18 @@ func FindChartInAuthRepoURL(repoURL, username, password, chartName, chartVersion
 	}
 	cv, err := repoIndex.Get(chartName, chartVersion)
 	if err != nil {
-		return "", fmt.Errorf("%s not found in %s repository", errMsg, repoURL)
+		return "", errors.Errorf("%s not found in %s repository", errMsg, repoURL)
 	}
 
 	if len(cv.URLs) == 0 {
-		return "", fmt.Errorf("%s has no downloadable URLs", errMsg)
+		return "", errors.Errorf("%s has no downloadable URLs", errMsg)
 	}
 
 	chartURL := cv.URLs[0]
 
 	absoluteChartURL, err := ResolveReferenceURL(repoURL, chartURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to make chart URL absolute: %v", err)
+		return "", errors.Wrap(err, "failed to make chart URL absolute")
 	}
 
 	return absoluteChartURL, nil
@@ -262,21 +260,13 @@ func FindChartInAuthRepoURL(repoURL, username, password, chartName, chartVersion
 func ResolveReferenceURL(baseURL, refURL string) (string, error) {
 	parsedBaseURL, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse %s as URL: %v", baseURL, err)
+		return "", errors.Wrapf(err, "failed to parse %s as URL", baseURL)
 	}
 
 	parsedRefURL, err := url.Parse(refURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse %s as URL: %v", refURL, err)
+		return "", errors.Wrapf(err, "failed to parse %s as URL", refURL)
 	}
 
-	// if the base URL contains query string parameters,
-	// propagate them to the child URL but only if the
-	// refURL is relative to baseURL
-	resolvedURL := parsedBaseURL.ResolveReference(parsedRefURL)
-	if (resolvedURL.Hostname() == parsedBaseURL.Hostname()) && (resolvedURL.Port() == parsedBaseURL.Port()) {
-		resolvedURL.RawQuery = parsedBaseURL.RawQuery
-	}
-
-	return resolvedURL.String(), nil
+	return parsedBaseURL.ResolveReference(parsedRefURL).String(), nil
 }

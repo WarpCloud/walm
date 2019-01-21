@@ -1,37 +1,116 @@
-DOCKER_REGISTRY   ?= gcr.io
-IMAGE_PREFIX      ?= kubernetes-helm
-SHORT_NAME        ?= tiller
-SHORT_NAME_RUDDER ?= rudder
-TARGETS           ?= darwin/amd64 linux/amd64 linux/386 linux/arm linux/arm64 linux/ppc64le linux/s390x windows/amd64
-DIST_DIRS         = find * -type d -exec
-APP               = helm
+BINDIR     := $(CURDIR)/bin
+DIST_DIRS  := find * -type d -exec
+TARGETS    := darwin/amd64 linux/amd64 linux/386 linux/arm linux/arm64 linux/ppc64le windows/amd64
+BINNAME    ?= helm
+
+GOPATH     = $(shell go env GOPATH)
+DEP        = $(GOPATH)/bin/dep
+GOX        = $(GOPATH)/bin/gox
 
 # go option
-GO        ?= go
-PKG       := $(shell glide novendor)
-TAGS      :=
-TESTS     := .
-TESTFLAGS :=
-LDFLAGS   := -w -s
-GOFLAGS   :=
-BINDIR    := $(CURDIR)/bin
-BINARIES  := helm tiller
+PKG        := ./...
+TAGS       :=
+TESTS      := .
+TESTFLAGS  :=
+LDFLAGS    := -w -s
+GOFLAGS    :=
+SRC        := $(shell find . -type f -name '*.go' -print)
 
 # Required for globs to work correctly
-SHELL=/bin/bash
+SHELL      = /bin/bash
+
+GIT_COMMIT = $(shell git rev-parse HEAD)
+GIT_SHA    = $(shell git rev-parse --short HEAD)
+GIT_TAG    = $(shell git describe --tags --abbrev=0 --exact-match 2>/dev/null)
+GIT_DIRTY  = $(shell test -n "`git status --porcelain`" && echo "dirty" || echo "clean")
+
+ifdef VERSION
+	BINARY_VERSION = $(VERSION)
+endif
+BINARY_VERSION ?= ${GIT_TAG}
+
+# Only set Version if building a tag or VERSION is set
+ifneq ($(BINARY_VERSION),)
+	LDFLAGS += -X k8s.io/helm/internal/version.version=${BINARY_VERSION}
+endif
+
+# Clear the "unreleased" string in BuildMetadata
+ifneq ($(GIT_TAG),)
+	LDFLAGS += -X k8s.io/helm/internal/version.metadata=
+endif
+LDFLAGS += -X k8s.io/helm/internal/version.gitCommit=${GIT_COMMIT}
+LDFLAGS += -X k8s.io/helm/internal/version.gitTreeState=${GIT_DIRTY}
 
 .PHONY: all
 all: build
 
-.PHONY: build
-build:
-	GOBIN=$(BINDIR) $(GO) install $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/...
+# ------------------------------------------------------------------------------
+#  build
 
-# usage: make clean build-cross dist APP=helm|tiller VERSION=v2.0.0-alpha.3
+.PHONY: build
+build: $(BINDIR)/$(BINNAME)
+
+$(BINDIR)/$(BINNAME): $(SRC) vendor
+	go build $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o $(BINDIR)/$(BINNAME) k8s.io/helm/cmd/helm
+
+# ------------------------------------------------------------------------------
+#  test
+
+.PHONY: test
+test: build
+test: TESTFLAGS += -race -v
+test: test-style
+test: test-unit
+
+.PHONY: test-unit
+test-unit: vendor
+	@echo
+	@echo "==> Running unit tests <=="
+	HELM_HOME=/no_such_dir go test $(GOFLAGS) -run $(TESTS) $(PKG) $(TESTFLAGS)
+
+.PHONY: test-style
+test-style: vendor
+	@scripts/validate-go.sh
+	@scripts/validate-license.sh
+
+.PHONY: verify-docs
+verify-docs: build
+	@scripts/verify-docs.sh
+
+.PHONY: coverage
+coverage:
+	@scripts/coverage.sh
+
+# ------------------------------------------------------------------------------
+#  dependencies
+
+.PHONY: bootstrap
+bootstrap: vendor
+
+$(DEP):
+	go get -u github.com/golang/dep/cmd/dep
+
+$(GOX):
+	go get -u github.com/mitchellh/gox
+
+# install vendored dependencies
+vendor: Gopkg.lock
+	$(DEP) ensure -v --vendor-only
+
+# update vendored dependencies
+Gopkg.lock: Gopkg.toml
+	$(DEP) ensure -v --no-vendor
+
+Gopkg.toml: $(DEP)
+
+# ------------------------------------------------------------------------------
+#  release
+
 .PHONY: build-cross
 build-cross: LDFLAGS += -extldflags "-static"
-build-cross:
-	CGO_ENABLED=0 gox -parallel=3 -output="_dist/{{.OS}}-{{.Arch}}/{{.Dir}}" -osarch='$(TARGETS)' $(GOFLAGS) $(if $(TAGS),-tags '$(TAGS)',) -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/$(APP)
+build-cross: vendor
+build-cross: $(GOX)
+	CGO_ENABLED=0 $(GOX) -parallel=3 -output="_dist/{{.OS}}-{{.Arch}}/$(BINNAME)" -osarch='$(TARGETS)' $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/helm
 
 .PHONY: dist
 dist:
@@ -49,92 +128,19 @@ checksum:
 		shasum -a 256 "$${f}"  | awk '{print $$1}' > "$${f}.sha256" ; \
 	done
 
-.PHONY: check-docker
-check-docker:
-	@if [ -z $$(which docker) ]; then \
-	  echo "Missing \`docker\` client which is required for development"; \
-	  exit 2; \
-	fi
-
-.PHONY: docker-binary
-docker-binary: BINDIR = ./rootfs
-docker-binary: GOFLAGS += -a -installsuffix cgo
-docker-binary:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/helm $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/helm
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/tiller $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/tiller
-
-.PHONY: docker-build
-docker-build: check-docker docker-binary
-	docker build --rm -t ${IMAGE} rootfs
-	docker tag ${IMAGE} ${MUTABLE_IMAGE}
-
-.PHONY: docker-binary-rudder
-docker-binary-rudder: BINDIR = ./rootfs
-docker-binary-rudder: GOFLAGS += -a -installsuffix cgo
-docker-binary-rudder:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/rudder $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/rudder
-
-.PHONY: docker-build-experimental
-docker-build-experimental: check-docker docker-binary docker-binary-rudder
-	docker build --rm -t ${IMAGE} rootfs -f rootfs/Dockerfile.experimental
-	docker tag ${IMAGE} ${MUTABLE_IMAGE}
-	docker build --rm -t ${IMAGE_RUDDER} rootfs -f rootfs/Dockerfile.rudder
-	docker tag ${IMAGE_RUDDER} ${MUTABLE_IMAGE_RUDDER}
-
-.PHONY: test
-test: build
-test: TESTFLAGS += -race -v
-test: test-style
-test: test-unit
-
-.PHONY: test-unit
-test-unit:
-	@echo
-	@echo "==> Running unit tests <=="
-	HELM_HOME=/no/such/dir $(GO) test $(GOFLAGS) -run $(TESTS) $(PKG) $(TESTFLAGS)
-
-.PHONY: test-style
-test-style:
-	@scripts/validate-go.sh
-	@scripts/validate-license.sh
-
-.PHONY: protoc
-protoc:
-	$(MAKE) -C _proto/ all
+# ------------------------------------------------------------------------------
 
 .PHONY: docs
 docs: build
 	@scripts/update-docs.sh
 
-.PHONY: verify-docs
-verify-docs: build
-	@scripts/verify-docs.sh
-
 .PHONY: clean
 clean:
-	@rm -rf $(BINDIR) ./rootfs/tiller ./_dist
+	@rm -rf $(BINDIR) ./_dist
 
-.PHONY: coverage
-coverage:
-	@scripts/coverage.sh
-
-HAS_GLIDE := $(shell command -v glide;)
-HAS_GOX := $(shell command -v gox;)
-HAS_GIT := $(shell command -v git;)
-
-.PHONY: bootstrap
-bootstrap:
-ifndef HAS_GLIDE
-	go get -u github.com/Masterminds/glide
-endif
-ifndef HAS_GOX
-	go get -u github.com/mitchellh/gox
-endif
-
-ifndef HAS_GIT
-	$(error You must install Git)
-endif
-	glide install --strip-vendor
-	go build -o bin/protoc-gen-go ./vendor/github.com/golang/protobuf/protoc-gen-go
-
-include versioning.mk
+.PHONY: info
+info:
+	 @echo "Version:           ${VERSION}"
+	 @echo "Git Tag:           ${GIT_TAG}"
+	 @echo "Git Commit:        ${GIT_COMMIT}"
+	 @echo "Git Tree State:    ${GIT_DIRTY}"

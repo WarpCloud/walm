@@ -5,30 +5,6 @@ RUNTIME ERROR: Attempt to use super when there is no super class.
 { x: 5, assert super.x == 5 } 
 
 -------------------------------------------------
-	<std>:1165:25-26	thunk from <thunk <ta> from <function <anonymous>>>
-
-    local ta = std.type(a);
-
--------------------------------------------------
-	<builtin>	builtin function <type>
-
--------------------------------------------------
-	<std>:1167:29-31	thunk from <function <anonymous>>
-
-    if !std.primitiveEquals(ta, tb) then
-
--------------------------------------------------
-	<builtin>	builtin function <primitiveEquals>
-
--------------------------------------------------
-	<std>:1167:8-36	function <anonymous>
-
-    if !std.primitiveEquals(ta, tb) then
-
--------------------------------------------------
-		
-
--------------------------------------------------
 	During manifestation	
 
 

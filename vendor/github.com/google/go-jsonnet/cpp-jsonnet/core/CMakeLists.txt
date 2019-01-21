@@ -7,12 +7,12 @@ set(LIBJSONNET_HEADERS
     formatter.h
     lexer.h
     ../include/libjsonnet.h
+    ../include/libjsonnet_fmt.h
     parser.h
     pass.h
     state.h
     static_analysis.h
     static_error.h
-    std.jsonnet.h
     string_utils.h
     unicode.h
     vm.h)
@@ -39,7 +39,7 @@ install(TARGETS libjsonnet DESTINATION lib)
 
 # Static library for jsonnet command-line tool.
 add_library(libjsonnet_static STATIC ${LIBJSONNET_SOURCE})
-add_dependencies(libjsonnet_static md5)
+add_dependencies(libjsonnet_static md5 stdlib)
 target_link_libraries(libjsonnet_static md5)
 set_target_properties(libjsonnet_static PROPERTIES OUTPUT_NAME jsonnet)
 

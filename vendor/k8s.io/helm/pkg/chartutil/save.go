@@ -19,16 +19,15 @@ package chartutil
 import (
 	"archive/tar"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/proto/hapi/chart"
+	"k8s.io/helm/pkg/chart"
 )
 
 var headerBytes = []byte("+aHR0cHM6Ly95b3V0dS5iZS96OVV6MWljandyTQo=")
@@ -36,7 +35,7 @@ var headerBytes = []byte("+aHR0cHM6Ly95b3V0dS5iZS96OVV6MWljandyTQo=")
 // SaveDir saves a chart as files in a directory.
 func SaveDir(c *chart.Chart, dest string) error {
 	// Create the chart directory
-	outdir := filepath.Join(dest, c.Metadata.Name)
+	outdir := filepath.Join(dest, c.Name())
 	if err := os.Mkdir(outdir, 0755); err != nil {
 		return err
 	}
@@ -47,9 +46,10 @@ func SaveDir(c *chart.Chart, dest string) error {
 	}
 
 	// Save values.yaml
-	if c.Values != nil && len(c.Values.Raw) > 0 {
+	if c.Values != nil {
 		vf := filepath.Join(outdir, ValuesfileName)
-		if err := ioutil.WriteFile(vf, []byte(c.Values.Raw), 0755); err != nil {
+		b, _ := yaml.Marshal(c.Values)
+		if err := ioutil.WriteFile(vf, b, 0755); err != nil {
 			return err
 		}
 	}
@@ -70,21 +70,21 @@ func SaveDir(c *chart.Chart, dest string) error {
 
 	// Save files
 	for _, f := range c.Files {
-		n := filepath.Join(outdir, f.TypeUrl)
+		n := filepath.Join(outdir, f.Name)
 
 		d := filepath.Dir(n)
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return err
 		}
 
-		if err := ioutil.WriteFile(n, f.Value, 0755); err != nil {
+		if err := ioutil.WriteFile(n, f.Data, 0755); err != nil {
 			return err
 		}
 	}
 
 	// Save dependencies
 	base := filepath.Join(outdir, ChartsDir)
-	for _, dep := range c.Dependencies {
+	for _, dep := range c.Dependencies() {
 		// Here, we write each dependency as a tar file.
 		if _, err := Save(dep, base); err != nil {
 			return err
@@ -106,7 +106,7 @@ func Save(c *chart.Chart, outDir string) (string, error) {
 	if fi, err := os.Stat(outDir); err != nil {
 		return "", err
 	} else if !fi.IsDir() {
-		return "", fmt.Errorf("location %s is not a directory", outDir)
+		return "", errors.Errorf("location %s is not a directory", outDir)
 	}
 
 	if c.Metadata == nil {
@@ -127,7 +127,7 @@ func Save(c *chart.Chart, outDir string) (string, error) {
 			return "", err
 		}
 	} else if !stat.IsDir() {
-		return "", fmt.Errorf("is not a directory: %s", filepath.Dir(filename))
+		return "", errors.Errorf("is not a directory: %s", filepath.Dir(filename))
 	}
 
 	f, err := os.Create(filename)
@@ -159,7 +159,7 @@ func Save(c *chart.Chart, outDir string) (string, error) {
 }
 
 func writeTarContents(out *tar.Writer, c *chart.Chart, prefix string) error {
-	base := filepath.Join(prefix, c.Metadata.Name)
+	base := filepath.Join(prefix, c.Name())
 
 	// Save Chart.yaml
 	cdata, err := yaml.Marshal(c.Metadata)
@@ -171,10 +171,12 @@ func writeTarContents(out *tar.Writer, c *chart.Chart, prefix string) error {
 	}
 
 	// Save values.yaml
-	if c.Values != nil && len(c.Values.Raw) > 0 {
-		if err := writeToTar(out, base+"/values.yaml", []byte(c.Values.Raw)); err != nil {
-			return err
-		}
+	ydata, err := yaml.Marshal(c.Values)
+	if err != nil {
+		return err
+	}
+	if err := writeToTar(out, base+"/values.yaml", ydata); err != nil {
+		return err
 	}
 
 	// Save templates
@@ -187,14 +189,14 @@ func writeTarContents(out *tar.Writer, c *chart.Chart, prefix string) error {
 
 	// Save files
 	for _, f := range c.Files {
-		n := filepath.Join(base, f.TypeUrl)
-		if err := writeToTar(out, n, f.Value); err != nil {
+		n := filepath.Join(base, f.Name)
+		if err := writeToTar(out, n, f.Data); err != nil {
 			return err
 		}
 	}
 
 	// Save dependencies
-	for _, dep := range c.Dependencies {
+	for _, dep := range c.Dependencies() {
 		if err := writeTarContents(out, dep, base+"/charts"); err != nil {
 			return err
 		}
@@ -206,16 +208,13 @@ func writeTarContents(out *tar.Writer, c *chart.Chart, prefix string) error {
 func writeToTar(out *tar.Writer, name string, body []byte) error {
 	// TODO: Do we need to create dummy parent directory names if none exist?
 	h := &tar.Header{
-		Name:    filepath.ToSlash(name),
-		Mode:    0755,
-		Size:    int64(len(body)),
-		ModTime: time.Now(),
+		Name: name,
+		Mode: 0755,
+		Size: int64(len(body)),
 	}
 	if err := out.WriteHeader(h); err != nil {
 		return err
 	}
-	if _, err := out.Write(body); err != nil {
-		return err
-	}
-	return nil
+	_, err := out.Write(body)
+	return err
 }

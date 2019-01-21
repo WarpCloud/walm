@@ -68,9 +68,9 @@ var _ = utils.SIGDescribe("Detaching volumes", func() {
 		driverInstallAs := driver + "-" + suffix
 
 		By(fmt.Sprintf("installing flexvolume %s on node %s as %s", path.Join(driverDir, driver), node.Name, driverInstallAs))
-		installFlex(cs, &node, "k8s", driverInstallAs, path.Join(driverDir, driver), true /* restart */)
+		installFlex(cs, &node, "k8s", driverInstallAs, path.Join(driverDir, driver))
 		By(fmt.Sprintf("installing flexvolume %s on master as %s", path.Join(driverDir, driver), driverInstallAs))
-		installFlex(cs, nil, "k8s", driverInstallAs, path.Join(driverDir, driver), true /* restart */)
+		installFlex(cs, nil, "k8s", driverInstallAs, path.Join(driverDir, driver))
 		volumeSource := v1.VolumeSource{
 			FlexVolume: &v1.FlexVolumeSource{
 				Driver: "k8s/" + driverInstallAs,

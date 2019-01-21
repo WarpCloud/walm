@@ -64,14 +64,22 @@ The core of a plugin is a simple YAML file named `plugin.yaml`.
 Here is a plugin YAML for a plugin that adds support for Keybase operations:
 
 ```
-name: "keybase"
+name: "last"
 version: "0.1.0"
-usage: "Integrate Keybase.io tools with Helm"
-description: |-
-  This plugin provides Keybase services to Helm.
+usage: "get the last release name"
+description: "get the last release name""
 ignoreFlags: false
-useTunnel: false
-command: "$HELM_PLUGIN_DIR/keybase.sh"
+command: "$HELM_BIN --host $TILLER_HOST list --short --max 1 --date -r"
+platformCommand:
+  - os: linux
+    arch: i386
+    command: "$HELM_BIN list --short --max 1 --date -r"
+  - os: linux
+    arch: amd64
+    command: "$HELM_BIN list --short --max 1 --date -r"
+  - os: windows
+    arch: amd64
+    command: "$HELM_BIN list --short --max 1 --date -r"
 ```
 
 The `name` is the name of the plugin. When Helm executes it plugin, this is the
@@ -92,23 +100,31 @@ The `ignoreFlags` switch tells Helm to _not_ pass flags to the plugin. So if a
 plugin is called with `helm myplugin --foo` and `ignoreFlags: true`, then `--foo`
 is silently discarded.
 
-The `useTunnel` switch indicates that the plugin needs a tunnel to Tiller. This
-should be set to `true` _anytime a plugin talks to Tiller_. It will cause Helm
-to open a tunnel, and then set `$TILLER_HOST` to the right local address for that
-tunnel. But don't worry: if Helm detects that a tunnel is not necessary because
-Tiller is running locally, it will not create the tunnel.
+Finally, and most importantly, `platformCommand` or `command` is the command
+that this plugin will execute when it is called. The `platformCommand` section
+defines the OS/Architecture specific variations of a command. The following
+rules will apply in deciding which command to use:
 
-Finally, and most importantly, `command` is the command that this plugin will
-execute when it is called. Environment variables are interpolated before the plugin
-is executed. The pattern above illustrates the preferred way to indicate where
-the plugin program lives.
+- If `platformCommand` is present, it will be searched first.
+- If both `os` and `arch` match the current platform, search will stop and the
+command will be used.
+- If `os` matches and there is no more specific `arch` match, the command
+will be used.
+- If no `platformCommand` match is found, the default `command` will be used.
+- If no matches are found in `platformCommand` and no `command` is present,
+Helm will exit with an error.
+
+Environment variables are interpolated before the plugin is executed. The
+pattern above illustrates the preferred way to indicate where the plugin
+program lives.
 
 There are some strategies for working with plugin commands:
 
-- If a plugin includes an executable, the executable for a `command:` should be
-  packaged in the plugin directory.
-- The `command:` line will have any environment variables expanded before
-  execution. `$HELM_PLUGIN_DIR` will point to the plugin directory.
+- If a plugin includes an executable, the executable for a
+`platformCommand:` or a `command:` should be packaged in the plugin directory.
+- The `platformCommand:` or `command:` line will have any environment
+variables expanded before execution. `$HELM_PLUGIN_DIR` will point to the
+plugin directory.
 - The command itself is not executed in a shell. So you can't oneline a shell script.
 - Helm injects lots of configuration into environment variables. Take a look at
   the environment to see what information is available.
@@ -119,7 +135,7 @@ There are some strategies for working with plugin commands:
   but will not handle `helm myplugin --help`.
 
 ## Downloader Plugins
-By default, Helm is able to fetch Charts using HTTP/S. As of Helm 2.4.0, plugins
+By default, Helm is able to pull Charts using HTTP/S. As of Helm 2.4.0, plugins
 can have a special capability to download Charts from arbitrary sources.
 
 Plugins shall declare this special capability in the `plugin.yaml` file (top level):
@@ -162,29 +178,6 @@ The following variables are guaranteed to be set:
 - `HELM_HOME`: The path to the Helm home.
 - `HELM_PATH_*`: Paths to important Helm files and directories are stored in
   environment variables prefixed by `HELM_PATH`.
-- `TILLER_HOST`: The `domain:port` to Tiller. If a tunnel is created, this
-  will point to the local endpoint for the tunnel. Otherwise, it will point
-  to `$HELM_HOST`, `--host`, or the default host (according to Helm's rules of
-  precedence).
-
-While `HELM_HOST` _may_ be set, there is no guarantee that it will point to the
-correct Tiller instance. This is done to allow plugin developer to access
-`HELM_HOST` in its raw state when the plugin itself needs to manually configure
-a connection.
-
-## A Note on `useTunnel`
-
-If a plugin specifies `useTunnel: true`, Helm will do the following (in order):
-
-1. Parse global flags and the environment
-2. Create the tunnel
-3. Set `TILLER_HOST`
-4. Execute the plugin
-5. Close the tunnel
-
-The tunnel is removed as soon as the `command` returns. So, for example, a
-command cannot background a process and assume that process will be able
-to use the tunnel.
 
 ## A Note on Flag Parsing
 
@@ -193,9 +186,7 @@ these flags are _not_ passed on to the plugin.
 
 - `--debug`: If this is specified, `$HELM_DEBUG` is set to `1`
 - `--home`: This is converted to `$HELM_HOME`
-- `--host`: This is converted to `$HELM_HOST`
-- `--kube-context`: This is simply dropped. If your plugin uses `useTunnel`, this
-  is used to set up the tunnel for you.
+- `--kube-context`: This is simply dropped.
 
 Plugins _should_ display help text and then exit for `-h` and `--help`. In all
 other cases, plugins may use flags as appropriate.

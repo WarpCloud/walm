@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/helm"
 )
 
@@ -31,45 +32,39 @@ This command downloads hooks for a given release.
 Hooks are formatted in YAML and separated by the YAML '---\n' separator.
 `
 
-type getHooksCmd struct {
+type getHooksOptions struct {
 	release string
-	out     io.Writer
 	client  helm.Interface
-	version int32
+	version int
 }
 
 func newGetHooksCmd(client helm.Interface, out io.Writer) *cobra.Command {
-	ghc := &getHooksCmd{
-		out:    out,
-		client: client,
-	}
+	o := &getHooksOptions{client: client}
+
 	cmd := &cobra.Command{
-		Use:     "hooks [flags] RELEASE_NAME",
-		Short:   "download all hooks for a named release",
-		Long:    getHooksHelp,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "hooks RELEASE_NAME",
+		Short: "download all hooks for a named release",
+		Long:  getHooksHelp,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errReleaseRequired
-			}
-			ghc.release = args[0]
-			ghc.client = ensureHelmClient(ghc.client)
-			return ghc.run()
+			o.release = args[0]
+			o.client = ensureHelmClient(o.client, false)
+			return o.run(out)
 		},
 	}
-	cmd.Flags().Int32Var(&ghc.version, "revision", 0, "get the named release with revision")
+	cmd.Flags().IntVar(&o.version, "revision", 0, "get the named release with revision")
 	return cmd
 }
 
-func (g *getHooksCmd) run() error {
-	res, err := g.client.ReleaseContent(g.release, helm.ContentReleaseVersion(g.version))
+func (o *getHooksOptions) run(out io.Writer) error {
+	res, err := o.client.ReleaseContent(o.release, o.version)
 	if err != nil {
-		fmt.Fprintln(g.out, g.release)
-		return prettyError(err)
+		fmt.Fprintln(out, o.release)
+		return err
 	}
 
-	for _, hook := range res.Release.Hooks {
-		fmt.Fprintf(g.out, "---\n# %s\n%s", hook.Name, hook.Manifest)
+	for _, hook := range res.Hooks {
+		fmt.Fprintf(out, "---\n# %s\n%s", hook.Name, hook.Manifest)
 	}
 	return nil
 }
