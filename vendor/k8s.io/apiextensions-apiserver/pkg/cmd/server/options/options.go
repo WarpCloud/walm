@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package options
 
 import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver"
@@ -30,10 +31,14 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/apiserver/pkg/util/proxy"
+	"k8s.io/apiserver/pkg/util/webhook"
+	"k8s.io/client-go/listers/core/v1"
 )
 
 const defaultEtcdPathPrefix = "/registry/apiextensions.kubernetes.io"
 
+// CustomResourceDefinitionsServerOptions describes the runtime options of an apiextensions-apiserver.
 type CustomResourceDefinitionsServerOptions struct {
 	RecommendedOptions *genericoptions.RecommendedOptions
 	APIEnablement      *genericoptions.APIEnablementOptions
@@ -42,58 +47,43 @@ type CustomResourceDefinitionsServerOptions struct {
 	StdErr io.Writer
 }
 
+// NewCustomResourceDefinitionsServerOptions creates default options of an apiextensions-apiserver.
 func NewCustomResourceDefinitionsServerOptions(out, errOut io.Writer) *CustomResourceDefinitionsServerOptions {
 	o := &CustomResourceDefinitionsServerOptions{
-		RecommendedOptions: genericoptions.NewRecommendedOptions(defaultEtcdPathPrefix, apiserver.Codecs.LegacyCodec(v1beta1.SchemeGroupVersion)),
-		APIEnablement:      genericoptions.NewAPIEnablementOptions(),
+		RecommendedOptions: genericoptions.NewRecommendedOptions(
+			defaultEtcdPathPrefix,
+			apiserver.Codecs.LegacyCodec(v1beta1.SchemeGroupVersion),
+			genericoptions.NewProcessInfo("apiextensions-apiserver", "kube-system"),
+		),
+		APIEnablement: genericoptions.NewAPIEnablementOptions(),
 
 		StdOut: out,
 		StdErr: errOut,
 	}
 
-	// the shared informer is not needed for kube-aggregator. Disable the kubeconfig flag and the client creation.
-	o.RecommendedOptions.CoreAPI = nil
-
 	return o
 }
 
-func NewCommandStartCustomResourceDefinitionsServer(out, errOut io.Writer, stopCh <-chan struct{}) *cobra.Command {
-	o := NewCustomResourceDefinitionsServerOptions(out, errOut)
-
-	cmd := &cobra.Command{
-		Short: "Launch an API extensions API server",
-		Long:  "Launch an API extensions API server",
-		RunE: func(c *cobra.Command, args []string) error {
-			if err := o.Complete(); err != nil {
-				return err
-			}
-			if err := o.Validate(args); err != nil {
-				return err
-			}
-			if err := o.RunCustomResourceDefinitionsServer(stopCh); err != nil {
-				return err
-			}
-			return nil
-		},
-	}
-
-	flags := cmd.Flags()
-	o.RecommendedOptions.AddFlags(flags)
-	o.APIEnablement.AddFlags(flags)
-	return cmd
+// AddFlags adds the apiextensions-apiserver flags to the flagset.
+func (o CustomResourceDefinitionsServerOptions) AddFlags(fs *pflag.FlagSet) {
+	o.RecommendedOptions.AddFlags(fs)
+	o.APIEnablement.AddFlags(fs)
 }
 
-func (o CustomResourceDefinitionsServerOptions) Validate(args []string) error {
+// Validate validates the apiextensions-apiserver options.
+func (o CustomResourceDefinitionsServerOptions) Validate() error {
 	errors := []error{}
 	errors = append(errors, o.RecommendedOptions.Validate()...)
-	errors = append(errors, o.APIEnablement.Validate(apiserver.Registry)...)
+	errors = append(errors, o.APIEnablement.Validate(apiserver.Scheme)...)
 	return utilerrors.NewAggregate(errors)
 }
 
+// Complete fills in missing options.
 func (o *CustomResourceDefinitionsServerOptions) Complete() error {
 	return nil
 }
 
+// Config returns an apiextensions-apiserver configuration.
 func (o CustomResourceDefinitionsServerOptions) Config() (*apiserver.Config, error) {
 	// TODO have a "real" external address
 	if err := o.RecommendedOptions.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{net.ParseIP("127.0.0.1")}); err != nil {
@@ -104,7 +94,7 @@ func (o CustomResourceDefinitionsServerOptions) Config() (*apiserver.Config, err
 	if err := o.RecommendedOptions.ApplyTo(serverConfig, apiserver.Scheme); err != nil {
 		return nil, err
 	}
-	if err := o.APIEnablement.ApplyTo(&serverConfig.Config, apiserver.DefaultAPIResourceConfigSource(), apiserver.Registry); err != nil {
+	if err := o.APIEnablement.ApplyTo(&serverConfig.Config, apiserver.DefaultAPIResourceConfigSource(), apiserver.Scheme); err != nil {
 		return nil, err
 	}
 
@@ -112,11 +102,14 @@ func (o CustomResourceDefinitionsServerOptions) Config() (*apiserver.Config, err
 		GenericConfig: serverConfig,
 		ExtraConfig: apiserver.ExtraConfig{
 			CRDRESTOptionsGetter: NewCRDRESTOptionsGetter(*o.RecommendedOptions.Etcd),
+			ServiceResolver:      &serviceResolver{serverConfig.SharedInformerFactory.Core().V1().Services().Lister()},
+			AuthResolverWrapper:  webhook.NewDefaultAuthenticationInfoResolverWrapper(nil, serverConfig.LoopbackClientConfig),
 		},
 	}
 	return config, nil
 }
 
+// NewCRDRESTOptionsGetter create a RESTOptionsGetter for CustomResources.
 func NewCRDRESTOptionsGetter(etcdOptions genericoptions.EtcdOptions) genericregistry.RESTOptionsGetter {
 	ret := apiserver.CRDRESTOptionsGetter{
 		StorageConfig:           etcdOptions.StorageConfig,
@@ -125,21 +118,17 @@ func NewCRDRESTOptionsGetter(etcdOptions genericoptions.EtcdOptions) genericregi
 		DefaultWatchCacheSize:   etcdOptions.DefaultWatchCacheSize,
 		EnableGarbageCollection: etcdOptions.EnableGarbageCollection,
 		DeleteCollectionWorkers: etcdOptions.DeleteCollectionWorkers,
+		CountMetricPollPeriod:   etcdOptions.StorageConfig.CountMetricPollPeriod,
 	}
 	ret.StorageConfig.Codec = unstructured.UnstructuredJSONScheme
 
 	return ret
 }
 
-func (o CustomResourceDefinitionsServerOptions) RunCustomResourceDefinitionsServer(stopCh <-chan struct{}) error {
-	config, err := o.Config()
-	if err != nil {
-		return err
-	}
+type serviceResolver struct {
+	services v1.ServiceLister
+}
 
-	server, err := config.Complete().New(genericapiserver.EmptyDelegate)
-	if err != nil {
-		return err
-	}
-	return server.GenericAPIServer.PrepareRun().Run(stopCh)
+func (r *serviceResolver) ResolveEndpoint(namespace, name string) (*url.URL, error) {
+	return proxy.ResolveCluster(r.services, namespace, name)
 }

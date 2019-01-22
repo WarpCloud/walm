@@ -34,6 +34,8 @@ import:
   version: release-1.13
 - package: k8s.io/apiserver
   version: release-1.13
+- package: k8s.io/apiextensions-apiserver
+  version: release-1.13
 
 - package: github.com/docker/spdystream
 - package: github.com/go-redis/redis
