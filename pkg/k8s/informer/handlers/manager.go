@@ -13,7 +13,6 @@ type Handler interface {
 
 func StartHandlers(stopChan <-chan struct{}) {
 	if handlers == nil {
-		handlers = append(handlers, newReleaseConfigHandler())
 		handlers = append(handlers, config.NewReleaseConfigController())
 	}
 

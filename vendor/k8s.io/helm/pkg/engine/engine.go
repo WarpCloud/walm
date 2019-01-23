@@ -219,8 +219,12 @@ func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered m
 	keys := sortTemplates(tpls)
 
 	files := []string{}
-
+	rendered = make(map[string]string, len(files))
 	for _, fname := range keys {
+		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+			rendered[fname] = tpls[fname].tpl
+			continue
+		}
 		r := tpls[fname]
 		if _, err := t.New(fname).Funcs(funcMap).Parse(r.tpl); err != nil {
 			return map[string]string{}, errors.Wrapf(err, "parse error in %q", fname)
@@ -231,6 +235,9 @@ func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered m
 	// Adding the engine's currentTemplates to the template context
 	// so they can be referenced in the tpl function
 	for fname, r := range e.currentTemplates {
+		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+			continue
+		}
 		if t.Lookup(fname) == nil {
 			if _, err := t.New(fname).Funcs(funcMap).Parse(r.tpl); err != nil {
 				return map[string]string{}, errors.Wrapf(err, "parse error in %q", fname)
@@ -238,7 +245,6 @@ func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered m
 		}
 	}
 
-	rendered = make(map[string]string, len(files))
 	for _, file := range files {
 		// Don't render partials. We don't care out the direct output of partials.
 		// They are only included from other templates.

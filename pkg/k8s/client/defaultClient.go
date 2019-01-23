@@ -64,11 +64,13 @@ func GetDefaultRestConfig() *restclient.Config {
 	return defaultRestConfig
 }
 
-func GetKubeClient() *kube.Client {
+func GetKubeClient(namespace string) *kube.Client {
 
-	if defaultKubeClient == nil {
-		defaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
-	}
-
-	return defaultKubeClient
+	//if defaultKubeClient == nil {
+	//	defaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
+	//}
+	//
+	//return defaultKubeClient
+	//TODO improve
+	return createKubeClient(setting.Config.KubeConfig.Config, namespace)
 }

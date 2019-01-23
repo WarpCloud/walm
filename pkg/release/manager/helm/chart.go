@@ -14,7 +14,8 @@ import (
 	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
 	walmerr "walm/pkg/util/error"
-	)
+	"encoding/json"
+)
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
 	repoIndex := &repo.IndexFile{}
@@ -164,27 +165,34 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo.ChartAppVersion = chartRequest.Metadata.AppVersion
 	chartInfo.ChartEngine = chartRequest.Metadata.Engine
 	chartInfo.ChartDescription = chartRequest.Metadata.Description
-	if chartRequest.Values != nil {
-		chartInfo.DefaultValue = chartRequest.Values.Raw
+	if len(chartRequest.Values) > 0 {
+		defaultValue, err := json.Marshal(chartRequest.Values)
+		if err != nil {
+			logrus.Errorf("failed to marshal : %s", err.Error())
+			return nil, err
+		}
+
+		chartInfo.DefaultValue = string(defaultValue)
 	}
 	chartInfo.DependencyCharts = make([]release.ChartDependencyInfo, 0)
-	for _, file := range chartRequest.Files {
-		if file.TypeUrl == "transwarp-app-yaml" {
-			err := yaml.Unmarshal(file.Value, &appMetaInfo)
-			if err != nil {
-				return nil, err
-			}
-			for _, dependency := range appMetaInfo.Dependencies {
-				logrus.Infof("%+v", dependency)
-				dependency := release.ChartDependencyInfo {
-					ChartName: dependency.Name,
-					MaxVersion: dependency.MaxVersion,
-					MinVersion: dependency.MinVersion,
-				}
-				chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
-			}
-		}
-	}
+	//TODO parse jsonnet app yaml
+	//for _, file := range chartRequest.Files {
+	//	if file..TypeUrl == "transwarp-app-yaml" {
+	//		err := yaml.Unmarshal(file.Value, &appMetaInfo)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		for _, dependency := range appMetaInfo.Dependencies {
+	//			logrus.Infof("%+v", dependency)
+	//			dependency := release.ChartDependencyInfo {
+	//				ChartName: dependency.Name,
+	//				MaxVersion: dependency.MaxVersion,
+	//				MinVersion: dependency.MinVersion,
+	//			}
+	//			chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
+	//		}
+	//	}
+	//}
 	chartInfo.ChartPrettyParams = appMetaInfo.UserInputParams
 	return chartInfo, nil
 }

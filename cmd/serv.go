@@ -66,7 +66,7 @@ func (sc *ServCmd) run() error {
 	stopChan := make(chan struct{})
 	informer.StartInformer(stopChan)
 	task.GetDefaultTaskManager().StartWorker()
-	startElect()
+	startElect(stopChan)
 	initRestApi()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
@@ -137,17 +137,27 @@ func initRestApi() {
 	logrus.Infof("ready to serve on port %d", setting.Config.HttpConfig.HTTPPort)
 }
 
-func startElect() {
+func startElect(stopCh <-chan struct{}) {
+	// TODO investigate it (from scheduler)
+	ctx, cancel := context.WithCancel(context.TODO())
+	go func() {
+		select {
+		case <-stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
 	lockIdentity := os.Getenv("Pod_Name")
 	lockNamespace := os.Getenv("Pod_Namespace")
 	if lockIdentity == "" || lockNamespace == "" {
 		logrus.Fatal("Both env var Pod_Name and Pod_Namespace must not be empty")
 	}
 
-	onStartedLeadingFunc := func(stop <-chan struct{}) {
+	onStartedLeadingFunc := func(context context.Context) {
 		logrus.Info("Succeed to elect leader")
-		helm.GetDefaultHelmClient().StartResyncReleaseCaches(stop)
-		handlers.StartHandlers(stop)
+		helm.GetDefaultHelmClient().StartResyncReleaseCaches(context.Done())
+		handlers.StartHandlers(context.Done())
 	}
 	onNewLeaderFunc := func(identity string) {
 		logrus.Infof("Now leader is changed to %s", identity)
@@ -171,7 +181,7 @@ func startElect() {
 		logrus.Fatal("create leader elector failed")
 	}
 	logrus.Info("Start to elect leader")
-	go elector.Run()
+	go elector.Run(ctx)
 }
 
 func enrichSwaggerObject(swo *spec.Swagger) {

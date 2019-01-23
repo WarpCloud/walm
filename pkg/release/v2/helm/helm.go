@@ -1,12 +1,13 @@
 package helm
 
 import (
+
+	hapirelease "k8s.io/helm/pkg/hapi/release"
 	"time"
 	"k8s.io/helm/pkg/helm"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	helmv1 "walm/pkg/release/manager/helm"
-	"gopkg.in/yaml.v2"
 	"strings"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
@@ -16,6 +17,8 @@ import (
 	"sync"
 	"errors"
 	"mime/multipart"
+
+	"k8s.io/helm/pkg/chart"
 	"walm/pkg/hook"
 	"walm/pkg/task"
 	"walm/pkg/release/manager/helm/cache"
@@ -305,7 +308,7 @@ func (hc *HelmClientV2) DeleteReleaseV2(namespace, releaseName string, isSystem 
 }
 
 func (hc *HelmClientV2) doDeleteReleaseV2(namespace, releaseName string, isSystem bool, deletePvcs bool) error {
-	currentHelmClient, err := hc.GetCurrentHelmClient(namespace, isSystem)
+	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
 	if err != nil {
 		logrus.Errorf("failed to get current helm client : %s", err.Error())
 		return err
@@ -321,10 +324,10 @@ func (hc *HelmClientV2) doDeleteReleaseV2(namespace, releaseName string, isSyste
 		return err
 	}
 
-	opts := []helm.DeleteOption{
-		helm.DeletePurge(true),
+	opts := []helm.UninstallOption{
+		helm.UninstallPurge(true),
 	}
-	res, err := currentHelmClient.DeleteRelease(
+	res, err := currentHelmClient.UninstallRelease(
 		releaseName, opts...,
 	)
 	if err != nil {
@@ -387,6 +390,44 @@ func (hc *HelmClientV2) doDeleteReleaseV2(namespace, releaseName string, isSyste
 	}
 
 	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
+	return nil
+}
+
+func (hc *HelmClientV2) RestartRelease(namespace, releaseName string) error {
+	logrus.Debugf("Enter RestartRelease %s %s\n", namespace, releaseName)
+	releaseInfo, err := hc.GetReleaseV2(namespace, releaseName)
+	if err != nil {
+		logrus.Errorf("failed to get release info : %s", err.Error())
+		return err
+	}
+
+	podsToRestart := releaseInfo.Status.GetPodsNeedRestart()
+	podsRestartFailed := []string{}
+	mux := &sync.Mutex{}
+	var wg sync.WaitGroup
+	for _, podToRestart := range podsToRestart {
+		wg.Add(1)
+		go func(podToRestart *adaptor.WalmPod) {
+			defer wg.Done()
+			err1 := handler.GetDefaultHandlerSet().GetPodHandler().DeletePod(podToRestart.Namespace, podToRestart.Name)
+			if err1 != nil {
+				logrus.Errorf("failed to restart pod %s/%s : %s", podToRestart.Namespace, podToRestart.Name, err1.Error())
+				mux.Lock()
+				podsRestartFailed = append(podsRestartFailed, podToRestart.Namespace+"/"+podToRestart.Name)
+				mux.Unlock()
+				return
+			}
+		}(podToRestart)
+	}
+
+	wg.Wait()
+	if len(podsRestartFailed) > 0 {
+		err = fmt.Errorf("failed to restart pods : %v", podsRestartFailed)
+		logrus.Errorf("failed to restart release : %s", err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to restart release %s", releaseName)
 	return nil
 }
 
@@ -457,7 +498,6 @@ func (hc *HelmClientV2) doInstallUpgradeReleaseV2(namespace string, releaseReque
 		}
 	}
 
-	now := time.Now()
 	if releaseRequest.ConfigValues == nil {
 		releaseRequest.ConfigValues = map[string]interface{}{}
 	}
@@ -467,30 +507,10 @@ func (hc *HelmClientV2) doInstallUpgradeReleaseV2(namespace string, releaseReque
 
 	hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
 
-	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
-	// app.yaml : used to define chart dependency relations
-	var chart *chart.Chart
-	if chartArchive != nil {
-		chart, err = helmv1.GetChart(chartArchive)
-	} else {
-		chart, err = hc.GetChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-	}
-	if err != nil {
-		logrus.Errorf("failed to load chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
-		return err
-	}
-
 	// get all the dependency releases' output configs from ReleaseConfig
 	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, releaseRequest.Dependencies)
 	if err != nil {
 		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
-		return err
-	}
-
-	// check whether is jsonnet chart
-	isJsonnetChart, jsonnetChart, _, err := isJsonnetChart(chart)
-	if err != nil {
-		logrus.Errorf("failed to check whether is jsonnet chart : %s", err.Error())
 		return err
 	}
 
@@ -521,6 +541,33 @@ func (hc *HelmClientV2) doInstallUpgradeReleaseV2(namespace string, releaseReque
 	}
 	helmv1.MergeValues(configValues, releaseRequest.ConfigValues)
 
+	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
+	// app.yaml : used to define chart dependency relations
+	var chart, jsonnetChart *chart.Chart
+	var isJsonnetChart bool
+	if chartArchive != nil {
+		isJsonnetChart, chart, jsonnetChart, err = LoadChartByArchive(chartArchive)
+		if err != nil {
+			logrus.Errorf("failed to load chart by path : %s", err.Error())
+			return err
+		}
+	} else {
+		chartPath, err := hc.DownloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+		if err != nil {
+			logrus.Errorf("failed to download chart : %s", err.Error())
+			return err
+		}
+		isJsonnetChart, chart, jsonnetChart, err = LoadChartByPath(chartPath)
+		if err != nil {
+			logrus.Errorf("failed to load chart by path : %s", err.Error())
+			return err
+		}
+	}
+	if err != nil {
+		logrus.Errorf("failed to load chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
+		return err
+	}
+
 	if isJsonnetChart {
 		nativeTemplates := chart.Templates
 		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, configValues, dependencyConfigs)
@@ -535,45 +582,41 @@ func (hc *HelmClientV2) doInstallUpgradeReleaseV2(namespace string, releaseReque
 		//TODO native helm chart如何处理？
 	}
 
-
 	valueOverride := map[string]interface{}{}
 	helmv1.MergeValues(valueOverride, configValues)
-	valueOverrideBytes, err := yaml.Marshal(valueOverride)
-	logrus.Infof("convert %s takes %v", releaseRequest.Name, time.Now().Sub(now))
 
-	currentHelmClient, err := hc.GetCurrentHelmClient(namespace, isSystem)
+	var release *hapirelease.Release
+	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
 	if err != nil {
-		logrus.Errorf("failed to get current helm client : %s", err.Error())
+		logrus.Errorf("failed to get helm client : %s", err.Error())
 		return err
 	}
 
-	var release *hapirelease.Release
 	if update {
-		resp, err := currentHelmClient.UpdateReleaseFromChart(
+		release, err = currentHelmClient.UpdateReleaseFromChart(
 			releaseRequest.Name,
 			chart,
-			helm.UpdateValueOverrides(valueOverrideBytes),
+			helm.UpdateValueOverrides(valueOverride),
 			helm.UpgradeDryRun(hc.GetDryRun()),
 		)
 		if err != nil {
 			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
 			return err
 		}
-		release = resp.GetRelease()
 	} else {
-		resp, err := currentHelmClient.InstallReleaseFromChart(
+		release, err = currentHelmClient.InstallReleaseFromChart(
 			chart,
 			namespace,
-			helm.ValueOverrides(valueOverrideBytes),
+			helm.ValueOverrides(valueOverride),
 			helm.ReleaseName(releaseRequest.Name),
 			helm.InstallDryRun(hc.GetDryRun()),
 		)
 		if err != nil {
 			logrus.Errorf("failed to install release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
-			opts := []helm.DeleteOption{
-				helm.DeletePurge(true),
+			opts := []helm.UninstallOption{
+				helm.UninstallPurge(true),
 			}
-			_, err1 := currentHelmClient.DeleteRelease(
+			_, err1 := currentHelmClient.UninstallRelease(
 				releaseRequest.Name, opts...,
 			)
 			if err1 != nil {
@@ -581,7 +624,6 @@ func (hc *HelmClientV2) doInstallUpgradeReleaseV2(namespace string, releaseReque
 			}
 			return err
 		}
-		release = resp.GetRelease()
 	}
 
 	err = hc.GetHelmCache().CreateOrUpdateReleaseCache(release)

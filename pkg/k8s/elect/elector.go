@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"context"
 )
 
 type Elector struct {
@@ -22,13 +23,13 @@ type ElectorConfig struct {
 	ElectionId string
 	LockNamespace string
 	LockIdentity string
-	OnStartedLeadingFunc func(stop <-chan struct{})
+	OnStartedLeadingFunc func(context context.Context)
 	OnStoppedLeadingFunc func()
 	OnNewLeaderFunc func(identity string)
 }
 
-func (elector *Elector) Run() {
-	elector.elector.Run()
+func (elector *Elector) Run(context context.Context) {
+	elector.elector.Run(context)
 }
 
 func (elector *Elector) IsLeader() bool {

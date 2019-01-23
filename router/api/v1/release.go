@@ -91,6 +91,7 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 
+	defer chartArchive.Close()
 	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false, chartArchive, false, 0)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))

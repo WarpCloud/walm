@@ -4,8 +4,8 @@ import (
 	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"walm/pkg/k8s/adaptor"
+	"k8s.io/helm/pkg/chart"
 )
 
 func BuildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
@@ -39,14 +39,15 @@ func buildReleaseStatus(releaseResourceMetas []release.ReleaseResourceMeta) (res
 	return
 }
 
+//TODO
 func parseChartDependencies(chart *chart.Chart) ([]string, error) {
 	var dependencies []string
 
-	for _, chartFile := range chart.Files {
-		if chartFile.TypeUrl == "transwarp-app-yaml" {
-			return dependencies, nil
-		}
-	}
+	//for _, chartFile := range chart.Files {
+	//	if chartFile.TypeUrl == "transwarp-app-yaml" {
+	//		return dependencies, nil
+	//	}
+	//}
 
 	return dependencies, nil
 }

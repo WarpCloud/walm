@@ -148,20 +148,24 @@ func getConfigJsonnetFile(templateFiles map[string]string) (string, error) {
 }
 
 type MemoryImporter struct {
-	Data map[string]string
+	Data map[string]jsonnet.Contents
 }
 
-func (importer *MemoryImporter) Import(dir, importedPath string) (*jsonnet.ImportedData, error) {
-	path := filepath.Join(dir, importedPath)
+func (importer *MemoryImporter) Import(importedFrom, importedPath string) (content jsonnet.Contents, foundAt string, err  error) {
+	path := filepath.Join(filepath.Dir(importedFrom), importedPath)
 	// Separator would be \ in windows
 	path = filepath.ToSlash(path)
-	if content, ok := importer.Data[path]; ok {
-		return &jsonnet.ImportedData{Content: content, FoundHere: path}, nil
+	if c, ok := importer.Data[path]; ok {
+		content = c
+		foundAt = path
+	} else {
+		err = fmt.Errorf("Import not available %v", path)
 	}
-	return nil, fmt.Errorf("Import not available %v", path)
+
+	return
 }
 
-func MakeMemoryVM(data map[string]string) *jsonnet.VM {
+func MakeMemoryVM(data map[string]jsonnet.Contents) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
 	vm.Importer(&MemoryImporter{Data: data})
 	return vm
@@ -170,7 +174,11 @@ func MakeMemoryVM(data map[string]string) *jsonnet.VM {
 // parseTemplateWithTLAString parse the templates by specifying values of Top-Level Arguments (TLA)
 // The TLAs comes from external json string.
 func parseTemplateWithTLAString(templatePath string, tlaVar string, tlaValue string, templateData map[string]string) (string, error) {
-	vm := MakeMemoryVM(templateData)
+	templateContents := map[string]jsonnet.Contents{}
+	for k, v := range templateData {
+		templateContents[k] = jsonnet.MakeContents(v)
+	}
+	vm := MakeMemoryVM(templateContents)
 	if tlaVar != "" {
 		vm.TLACode(tlaVar, tlaValue)
 	}
