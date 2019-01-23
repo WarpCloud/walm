@@ -5,8 +5,6 @@ import (
 	"errors"
 	"github.com/sirupsen/logrus"
 
-	"walm/pkg/release/v2"
-	"walm/pkg/release/v2/helm"
 	"walm/pkg/redis"
 	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
@@ -15,6 +13,8 @@ import (
 	"walm/pkg/task"
 	"time"
 	"walm/pkg/release/manager/helm/cache"
+	"walm/pkg/release/manager/helm"
+	"walm/pkg/release"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 )
 
 type ProjectManager struct {
-	helmClient     *helm.HelmClientV2
+	helmClient     *helm.HelmClient
 	redisClient    *redis.RedisClient
 }
 
@@ -32,7 +32,7 @@ var projectManager *ProjectManager
 func GetDefaultProjectManager() *ProjectManager {
 	if projectManager == nil {
 		projectManager = &ProjectManager{
-			helmClient:     helm.GetDefaultHelmClientV2(),
+			helmClient:     helm.GetDefaultHelmClient(),
 			redisClient:    redis.GetDefaultRedisClient(),
 		}
 	}
@@ -95,7 +95,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 	taskState := projectCache.GetLatestTaskState()
 	projectInfo = &ProjectInfo{
 		ProjectCache:    *projectCache,
-		Releases:        []*v2.ReleaseInfoV2{},
+		Releases:        []*release.ReleaseInfoV2{},
 	}
 	if taskState != nil {
 		projectInfo.LatestTaskState = &task.WalmTaskState{
@@ -107,7 +107,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		}
 	}
 
-	releaseList, err := manager.helmClient.ListReleasesV2(projectCache.Namespace, projectCache.Name+"--*")
+	releaseList, err := manager.helmClient.ListReleases(projectCache.Namespace, projectCache.Name+"--*")
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 	return
 }
 
-func isProjectReadyByReleases(releases []*v2.ReleaseInfoV2) (ready bool, message string) {
+func isProjectReadyByReleases(releases []*release.ReleaseInfoV2) (ready bool, message string) {
 	if len(releases) > 0 {
 		ready = true
 		for _, releaseInfo := range releases {
@@ -289,11 +289,11 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	return nil
 }
 
-func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *v2.ReleaseRequestV2, async bool, timeoutSec int64) error {
-	return manager.AddReleasesInProject(namespace, projectName, &ProjectParams{Releases: []*v2.ReleaseRequestV2{releaseParams}}, async, timeoutSec)
+func (manager *ProjectManager) AddReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequestV2, async bool, timeoutSec int64) error {
+	return manager.AddReleasesInProject(namespace, projectName, &ProjectParams{Releases: []*release.ReleaseRequestV2{releaseParams}}, async, timeoutSec)
 }
 
-func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, projectName string, releaseParams *v2.ReleaseRequestV2, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, projectName string, releaseParams *release.ReleaseRequestV2, async bool, timeoutSec int64) error {
 	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -446,9 +446,9 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 	return nil
 }
 
-func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo, releaseParams *v2.ReleaseRequestV2, isRemove bool) ([]*v2.ReleaseRequestV2, error) {
+func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo, releaseParams *release.ReleaseRequestV2, isRemove bool) ([]*release.ReleaseRequestV2, error) {
 	var g dag.AcyclicGraph
-	affectReleases := make([]*v2.ReleaseRequestV2, 0)
+	affectReleases := make([]*release.ReleaseRequestV2, 0)
 
 	// init node
 	for _, helmRelease := range projectInfo.Releases {
@@ -537,9 +537,9 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 	return affectReleases, nil
 }
 
-func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectParams) ([]*v2.ReleaseRequestV2, error) {
-	projectParamsMap := make(map[string]*v2.ReleaseRequestV2)
-	releaseParsed := make([]*v2.ReleaseRequestV2, 0)
+func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectParams) ([]*release.ReleaseRequestV2, error) {
+	projectParamsMap := make(map[string]*release.ReleaseRequestV2)
+	releaseParsed := make([]*release.ReleaseRequestV2, 0)
 	var g dag.AcyclicGraph
 
 	for _, releaseInfo := range projectParams.Releases {
@@ -576,9 +576,9 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectPara
 	err = g.Walk(func(v dag.Vertex) error {
 		lock.Lock()
 		defer lock.Unlock()
-		releaseRequest := v.(*v2.ReleaseRequestV2)
+		releaseRequest := v.(*release.ReleaseRequestV2)
 		for _, dv := range g.DownEdges(releaseRequest).List() {
-			releaseInfo := dv.(*v2.ReleaseRequestV2)
+			releaseInfo := dv.(*release.ReleaseRequestV2)
 			releaseRequest.Dependencies[releaseInfo.ChartName] = releaseInfo.Name
 		}
 		releaseParsed = append(releaseParsed, releaseRequest)

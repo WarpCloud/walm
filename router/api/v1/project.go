@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"walm/router/api"
-	"walm/pkg/release/v2"
+	"walm/pkg/release"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
@@ -148,7 +148,7 @@ func DeployInstanceInProject(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
@@ -174,7 +174,7 @@ func UpgradeInstanceInProject(request *restful.Request, response *restful.Respon
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))

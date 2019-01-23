@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"github.com/sirupsen/logrus"
 	"walm/router/api"
-	helmv2 "walm/pkg/release/v2/helm"
-	"walm/pkg/release/v2"
+	"walm/pkg/release/manager/helm"
+	"walm/pkg/release"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
@@ -32,7 +32,7 @@ func DeleteRelease(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	err = helmv2.GetDefaultHelmClientV2().DeleteReleaseV2(namespace, name, false, deletePvcs, async, timeoutSec)
+	err = helm.GetDefaultHelmClient().DeleteRelease(namespace, name, false, deletePvcs, async, timeoutSec)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release: %s", err.Error()))
 		return
@@ -64,13 +64,13 @@ func InstallRelease(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false, nil, async, timeoutSec)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, nil, async, timeoutSec)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
 	}
@@ -84,7 +84,7 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 	body := request.Request.FormValue("body")
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = json.Unmarshal([]byte(body), releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
@@ -92,7 +92,7 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 	}
 
 	defer chartArchive.Close()
-	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false, chartArchive, false, 0)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartArchive, false, 0)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
 	}
@@ -111,13 +111,13 @@ func UpgradeRelease(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
 		return
 	}
-	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false,nil, async, timeoutSec)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false,nil, async, timeoutSec)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
 	}
@@ -132,7 +132,7 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 	body := request.Request.FormValue("body")
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = json.Unmarshal([]byte(body), releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
@@ -140,7 +140,7 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 	}
 	releaseRequest.Name = releaseName
 
-	err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, releaseRequest, false, chartArchive, false, 0)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartArchive, false, 0)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
 	}
@@ -148,27 +148,27 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 
 func ListReleaseByNamespace(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
-	infos, err := helmv2.GetDefaultHelmClientV2().ListReleasesV2(namespace, "")
+	infos, err := helm.GetDefaultHelmClient().ListReleases(namespace, "")
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return
 	}
-	response.WriteEntity(v2.ReleaseInfoV2List{len(infos), infos})
+	response.WriteEntity(release.ReleaseInfoV2List{len(infos), infos})
 }
 
 func ListRelease(request *restful.Request, response *restful.Response) {
-	infos, err := helmv2.GetDefaultHelmClientV2().ListReleasesV2("", "")
+	infos, err := helm.GetDefaultHelmClient().ListReleases("", "")
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return
 	}
-	response.WriteEntity(v2.ReleaseInfoV2List{len(infos), infos})
+	response.WriteEntity(release.ReleaseInfoV2List{len(infos), infos})
 }
 
 func GetRelease(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("release")
-	info, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, name)
+	info, err := helm.GetDefaultHelmClient().GetRelease(namespace, name)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
 			api.WriteNotFoundResponse(response, -1, fmt.Sprintf("release %s is not found", name))
@@ -183,7 +183,7 @@ func GetRelease(request *restful.Request, response *restful.Response) {
 func RestartRelease(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("release")
-	err := helmv2.GetDefaultHelmClientV2().RestartRelease(namespace, name)
+	err := helm.GetDefaultHelmClient().RestartRelease(namespace, name)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to restart release %s: %s", name, err.Error()))
 		return

@@ -90,21 +90,21 @@ func (addReleaseTaskArgs *AddReleaseTaskArgs) addRelease() error {
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2
 			}
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, releaseParams, false, nil, false, 0)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRelease(addReleaseTaskArgs.Namespace, releaseParams, false, nil, false, 0)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
 			}
 			for _, affectReleaseParams := range affectReleaseRequest {
 				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-				err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, affectReleaseParams, false, nil, false, 0)
+				err = GetDefaultProjectManager().helmClient.InstallUpgradeRelease(addReleaseTaskArgs.Namespace, affectReleaseParams, false, nil, false, 0)
 				if err != nil {
 					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 					return err
 				}
 			}
 		} else {
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(addReleaseTaskArgs.Namespace, releaseParams, false, nil, false, 0)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeRelease(addReleaseTaskArgs.Namespace, releaseParams, false, nil, false, 0)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err

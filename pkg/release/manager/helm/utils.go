@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"walm/pkg/k8s/adaptor"
+	"reflect"
 	"k8s.io/helm/pkg/chart"
 )
 
@@ -39,19 +40,6 @@ func buildReleaseStatus(releaseResourceMetas []release.ReleaseResourceMeta) (res
 	return
 }
 
-//TODO
-func parseChartDependencies(chart *chart.Chart) ([]string, error) {
-	var dependencies []string
-
-	//for _, chartFile := range chart.Files {
-	//	if chartFile.TypeUrl == "transwarp-app-yaml" {
-	//		return dependencies, nil
-	//	}
-	//}
-
-	return dependencies, nil
-}
-
 func MergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
@@ -76,4 +64,24 @@ func MergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 		dest[k] = MergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+func ConfigValuesDiff(configValue1 map[string]interface{}, configValue2 map[string]interface{}) bool {
+	if len(configValue1) == 0 && len(configValue2) == 0 {
+		return false
+	}
+	return !reflect.DeepEqual(configValue1, configValue2)
+}
+
+//TODO
+func parseChartDependencies(chart *chart.Chart) ([]string, error) {
+	var dependencies []string
+
+	//for _, chartFile := range chart.Files {
+	//	if chartFile.TypeUrl == "transwarp-app-yaml" {
+	//		return dependencies, nil
+	//	}
+	//}
+
+	return dependencies, nil
 }

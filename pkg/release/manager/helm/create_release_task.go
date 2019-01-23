@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"walm/pkg/task"
 	"mime/multipart"
-	"walm/pkg/release/v2"
+	"walm/pkg/release"
 )
 
 const (
@@ -28,13 +28,13 @@ func createReleaseTask(releaseTaskArgsStr string) error {
 
 type CreateReleaseTaskArgs struct {
 	Namespace      string
-	ReleaseRequest *v2.ReleaseRequestV2
+	ReleaseRequest *release.ReleaseRequestV2
 	IsSystem       bool
 	ChartArchive   multipart.File
 }
 
 func (createReleaseTaskArgs *CreateReleaseTaskArgs) Run() error {
-	return GetDefaultHelmClientV2().doInstallUpgradeReleaseV2(createReleaseTaskArgs.Namespace, createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartArchive)
+	return GetDefaultHelmClient().doInstallUpgradeRelease(createReleaseTaskArgs.Namespace, createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartArchive)
 }
 
 func (createReleaseTaskArgs *CreateReleaseTaskArgs) GetTaskName() string {

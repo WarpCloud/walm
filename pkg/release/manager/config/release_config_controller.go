@@ -10,7 +10,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"strings"
 	"walm/pkg/k8s/informer"
-	"walm/pkg/release/v2/helm"
+	"walm/pkg/release/manager/helm"
 )
 
 // 动态依赖管理核心需求：
@@ -161,7 +161,7 @@ func (controller *ReleaseConfigController) reloadDependingRelease(releaseKey str
 	if err != nil {
 		return err
 	}
-	err = helm.GetDefaultHelmClientV2().ReloadRelease(namespace, name, false)
+	err = helm.GetDefaultHelmClient().ReloadRelease(namespace, name, false)
 	if err != nil {
 		logrus.Errorf("failed to reload release %s/%s : %s", namespace, name, err.Error())
 		return err

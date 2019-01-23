@@ -32,7 +32,7 @@ type DeleteReleaseTaskArgs struct {
 }
 
 func (deleteReleaseTaskArgs *DeleteReleaseTaskArgs) Run() error {
-	return GetDefaultHelmClientV2().doDeleteReleaseV2(deleteReleaseTaskArgs.Namespace, deleteReleaseTaskArgs.ReleaseName, deleteReleaseTaskArgs.IsSystem, deleteReleaseTaskArgs.DeletePvcs)
+	return GetDefaultHelmClient().doDeleteRelease(deleteReleaseTaskArgs.Namespace, deleteReleaseTaskArgs.ReleaseName, deleteReleaseTaskArgs.IsSystem, deleteReleaseTaskArgs.DeletePvcs)
 }
 
 func (deleteReleaseTaskArgs *DeleteReleaseTaskArgs) GetTaskName() string {

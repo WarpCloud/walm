@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/sirupsen/logrus"
-	"walm/pkg/release/v2/config"
+	"walm/pkg/release/manager/config"
 )
 
 var handlers []Handler

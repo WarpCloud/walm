@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
 	"encoding/json"
-	helmv1 "walm/pkg/release/manager/helm"
 	"mime/multipart"
 	"k8s.io/helm/pkg/chart/loader"
 	"strings"
@@ -166,18 +165,18 @@ func parseSvc(svc *corev1.Service) (isDummyService bool, transwarpMetaStr, relea
 
 func buildConfigValuesToRender(namespace string, name string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}, jsonDefaultValues map[string]interface{}) (configValues map[string]interface{}, err error) {
 	configValues = map[string]interface{}{}
-	helmv1.MergeValues(configValues, jsonnetChart.Values)
+	MergeValues(configValues, jsonnetChart.Values)
 	//TODO merge system values
 
-	helmv1.MergeValues(configValues, dependencyConfigs)
+	MergeValues(configValues, dependencyConfigs)
 
 	configValues["Transwarp_Install_ID"] = name
 	configValues["Transwarp_Install_Namespace"] = namespace
 	configValues["TosVersion"] = "1.9"
 	configValues["Customized_Namespace"] = namespace
-	helmv1.MergeValues(configValues, userConfigs)
+	MergeValues(configValues, userConfigs)
 
-	helmv1.MergeValues(jsonDefaultValues, configValues)
+	MergeValues(jsonDefaultValues, configValues)
 	return
 }
 
