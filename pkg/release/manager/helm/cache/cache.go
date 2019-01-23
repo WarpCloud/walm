@@ -7,7 +7,6 @@ import (
 	"walm/pkg/release"
 	"k8s.io/helm/pkg/chartutil"
 	"bytes"
-	"k8s.io/helm/pkg/kube"
 	"encoding/json"
 	goredis "github.com/go-redis/redis"
 	"time"
@@ -22,7 +21,6 @@ import (
 type HelmCache struct {
 	redisClient *redis.RedisClient
 	list        *action.List
-	kubeClient  *kube.Client
 }
 
 func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapirelease.Release) error {
@@ -538,7 +536,6 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 
 func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {
 	resources = []release.ReleaseResourceMeta{}
-	//TODO improve
 	results, err := client.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
 	if err != nil {
 		logrus.Errorf("failed to get release resource metas of %s", helmRelease.Name)
@@ -563,7 +560,6 @@ func buildWalmProjectFieldName(namespace, name string) string {
 	return namespace + "/" + name
 }
 
-//TODO improve
 func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 	kc := client.GetKubeClient("")
 	clientset, err := kc.KubernetesClientSet()
@@ -582,7 +578,6 @@ func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 	result := &HelmCache{
 		redisClient: redisClient,
 		list:  action.NewList(config),
-		kubeClient:  kc,
 	}
 
 	result.list.AllNamespaces = true

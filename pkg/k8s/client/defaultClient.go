@@ -10,12 +10,13 @@ import (
 	"k8s.io/helm/pkg/kube"
 	"github.com/sirupsen/logrus"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
+	"github.com/hashicorp/golang-lru"
 )
 
 var defaultApiserverClient *kubernetes.Clientset
 var defaultRestConfig *restclient.Config
 var defaultApiserverClientEx *clientsetex.Clientset
-var defaultKubeClient *kube.Client
+var defaultKubeClient *lru.Cache
 var defaultReleaseConfigClient *releaseconfigclientset.Clientset
 
 func GetDefaultClient() *kubernetes.Clientset {
@@ -65,12 +66,15 @@ func GetDefaultRestConfig() *restclient.Config {
 }
 
 func GetKubeClient(namespace string) *kube.Client {
+	if defaultKubeClient == nil {
+		defaultKubeClient, _ = lru.New(100)
+	}
 
-	//if defaultKubeClient == nil {
-	//	defaultKubeClient = createKubeClient("", setting.Config.KubeConfig.Config)
-	//}
-	//
-	//return defaultKubeClient
-	//TODO improve
-	return createKubeClient(setting.Config.KubeConfig.Config, namespace)
+	if kubeClient, ok := defaultKubeClient.Get(namespace); ok {
+		return kubeClient.(*kube.Client)
+	} else {
+		kubeClient = createKubeClient(setting.Config.KubeConfig.Config, namespace)
+		defaultKubeClient.Add(namespace, kubeClient)
+		return kubeClient.(*kube.Client)
+	}
 }

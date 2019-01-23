@@ -26,11 +26,12 @@ import (
 	"k8s.io/helm/pkg/storage/driver"
 	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/hashicorp/golang-lru"
 )
 
 const (
-	defaultTimeoutSec      int64 = 60 * 5
-	defaultSleepTimeSecond time.Duration = 1 * time.Second
+	defaultTimeoutSec              int64         = 60 * 5
+	defaultSleepTimeSecond         time.Duration = 1 * time.Second
 	helmCacheDefaultResyncInterval time.Duration = 5 * time.Minute
 )
 
@@ -47,6 +48,7 @@ type HelmClient struct {
 	helmCache               *cache.HelmCache
 	helmCacheResyncInterval time.Duration
 	releaseConfigHandler    *handler.ReleaseConfigHandler
+	helmClients             *lru.Cache
 }
 
 var helmClient *HelmClient
@@ -67,12 +69,15 @@ func GetDefaultHelmClient() *HelmClient {
 
 		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient())
 
+		helmClients, _ := lru.New(100)
+
 		helmClient = &HelmClient{
 			chartRepoMap:            chartRepoMap,
 			dryRun:                  false,
 			helmCache:               helmCache,
 			helmCacheResyncInterval: helmCacheDefaultResyncInterval,
 			releaseConfigHandler:    handler.GetDefaultHandlerSet().GetReleaseConfigHandler(),
+			helmClients:             helmClients,
 		}
 	}
 	return helmClient
@@ -95,20 +100,25 @@ func (hc *HelmClient) GetDependencies(repoName, chartName, chartVersion string) 
 	return dependencies, nil
 }
 
-func(hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, error) {
-	kc := client.GetKubeClient(namespace)
-	clientset, err := kc.KubernetesClientSet()
-	if err != nil {
-		return nil, err
+func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, error) {
+	if c, ok := hc.helmClients.Get(namespace); ok {
+		return c.(*helm.Client), nil
+	} else {
+		kc := client.GetKubeClient(namespace)
+		clientset, err := kc.KubernetesClientSet()
+		if err != nil {
+			return nil, err
+		}
+
+		d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
+		c = helm.NewClient(
+			helm.KubeClient(kc),
+			helm.Driver(d),
+			helm.Discovery(clientset.Discovery()),
+		)
+		hc.helmClients.Add(namespace, c)
+		return c.(*helm.Client), nil
 	}
-
-	d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
-
-	return helm.NewClient(
-		helm.KubeClient(kc),
-		helm.Driver(d),
-		helm.Discovery(clientset.Discovery()),
-	), nil
 }
 
 func (hc *HelmClient) DownloadChart(repoName, charName, version string) (string, error) {
@@ -185,19 +195,19 @@ func (hc *HelmClient) GetRelease(namespace, name string) (releaseV2 *release.Rel
 // 2. 当task完成：
 //       a. 成功：build release by cache
 //       b. 失败：返回message
-func (hc *HelmClient)buildReleaseInfoV2ByReleaseTask(releaseTask *cache.ReleaseTask, releaseCache *release.ReleaseCache) (releaseV2 *release.ReleaseInfoV2, err error) {
+func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.ReleaseTask, releaseCache *release.ReleaseCache) (releaseV2 *release.ReleaseInfoV2, err error) {
 	releaseV2 = &release.ReleaseInfoV2{
 		ReleaseInfo: release.ReleaseInfo{
-			ReleaseSpec:release.ReleaseSpec{
+			ReleaseSpec: release.ReleaseSpec{
 				Namespace: releaseTask.Namespace,
-				Name: releaseTask.Name,
+				Name:      releaseTask.Name,
 			},
 		},
 	}
-	if releaseTask.LatestReleaseTaskSig != nil  {
+	if releaseTask.LatestReleaseTaskSig != nil {
 		taskState := releaseTask.LatestReleaseTaskSig.GetTaskState()
 		if taskState != nil && taskState.TaskName != "" {
-			if taskState.IsSuccess(){
+			if taskState.IsSuccess() {
 				if taskState.TaskName == deleteReleaseTaskName {
 					return nil, walmerr.NotFoundError{}
 				}
@@ -227,7 +237,7 @@ func (hc *HelmClient)buildReleaseInfoV2ByReleaseTask(releaseTask *cache.ReleaseT
 	return
 }
 
-func  (hc *HelmClient)buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*release.ReleaseInfoV2, error) {
+func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*release.ReleaseInfoV2, error) {
 	releaseV1, err := BuildReleaseInfo(releaseCache)
 	if err != nil {
 		logrus.Errorf("failed to build release info: %s", err.Error())
@@ -270,7 +280,7 @@ func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.Release
 
 	releaseCacheMap := map[string]*release.ReleaseCache{}
 	for _, releaseCache := range releaseCaches {
-		releaseCacheMap[releaseCache.Namespace + "/" + releaseCache.Name] = releaseCache
+		releaseCacheMap[releaseCache.Namespace+"/"+releaseCache.Name] = releaseCache
 	}
 
 	releaseInfos := []*release.ReleaseInfoV2{}
@@ -293,7 +303,7 @@ func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.Release
 			mux.Lock()
 			releaseInfos = append(releaseInfos, info)
 			mux.Unlock()
-		}(releaseTask, releaseCacheMap[releaseTask.Namespace + "/" + releaseTask.Name])
+		}(releaseTask, releaseCacheMap[releaseTask.Namespace+"/"+releaseTask.Name])
 	}
 	wg.Wait()
 	if err != nil {
@@ -326,9 +336,9 @@ func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error
 	if ConfigValuesDiff(oldDependenciesConfigValues, newDependenciesConfigValues) {
 		releaseRequest := &release.ReleaseRequestV2{
 			ReleaseRequest: release.ReleaseRequest{
-				Name: name,
+				Name:         name,
 				ChartVersion: releaseConfig.Spec.ChartVersion,
-				ChartName: releaseConfig.Spec.ChartName,
+				ChartName:    releaseConfig.Spec.ChartName,
 				Dependencies: releaseConfig.Spec.Dependencies,
 				ConfigValues: releaseConfig.Spec.ConfigValues,
 			},
@@ -383,10 +393,10 @@ func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool
 	}
 
 	releaseTaskArgs := &DeleteReleaseTaskArgs{
-		Namespace:     namespace,
+		Namespace:   namespace,
 		ReleaseName: releaseName,
-		IsSystem: isSystem,
-		DeletePvcs: deletePvcs,
+		IsSystem:    isSystem,
+		DeletePvcs:  deletePvcs,
 	}
 	taskSig, err := SendReleaseTask(releaseTaskArgs)
 	if err != nil {
@@ -407,7 +417,7 @@ func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool
 		return err
 	}
 
-	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil{
+	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
 		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
@@ -416,7 +426,7 @@ func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool
 
 	if !async {
 		asyncResult := taskSig.GetAsyncResult()
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to delete release  %s/%s: %s", namespace, releaseName, err.Error())
 			return err
@@ -479,13 +489,13 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 		}
 
 		for _, instance := range releaseInfo.Status.Instances {
-			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0{
+			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0 {
 				statefulSets = append(statefulSets, instance.Modules.StatefulSets...)
 			}
 		}
 
 		for _, statefulSet := range statefulSets {
-			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0){
+			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0) {
 				pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
 				if err != nil {
 					logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
@@ -562,10 +572,10 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 	}
 
 	releaseTaskArgs := &CreateReleaseTaskArgs{
-		Namespace:     namespace,
+		Namespace:      namespace,
 		ReleaseRequest: releaseRequest,
-		IsSystem: isSystem,
-		ChartArchive: chartArchive,
+		IsSystem:       isSystem,
+		ChartArchive:   chartArchive,
 	}
 	taskSig, err := SendReleaseTask(releaseTaskArgs)
 	if err != nil {
@@ -586,7 +596,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 		return err
 	}
 
-	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil{
+	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
 		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
 		if err != nil {
 			logrus.Warnf("failed to purge task state : %s", err.Error())
@@ -595,7 +605,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 
 	if !async {
 		asyncResult := taskSig.GetAsyncResult()
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to create or update release  %s/%s: %s", namespace, releaseRequest.Name, err.Error())
 			return err
@@ -803,4 +813,3 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 	}
 	return
 }
-
