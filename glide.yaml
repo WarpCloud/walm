@@ -59,5 +59,7 @@ import:
   version: v1.4.5
 - package: github.com/imdario/mergo
   version: 0.3.6
+- package: github.com/google/go-jsonnet
+  version: v0.12.1
 testImport:
 - package: gopkg.in/check.v1

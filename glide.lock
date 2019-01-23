@@ -1,5 +1,5 @@
-hash: b6341815e96c6c75d719e7c1a01f58fe96b8e6fe81c40e5aae38794e5b4d8165
-updated: 2019-01-22T17:22:46.218139694+08:00
+hash: eddfe0fd4fc53097adb9861eae27070e5edaaa9ec96a21f871e6818a897f1a9e
+updated: 2019-01-23T10:48:32.785883654+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -209,13 +209,6 @@ imports:
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
   - simplelru
-- name: github.com/hpcloud/tail
-  version: a1dbeea552b7c8df4b542c66073e393de198a800
-  subpackages:
-  - ratelimiter
-  - util
-  - watch
-  - winfile
 - name: github.com/huandu/xstrings
   version: f02667b379e2fb5916c3cda2cf31e0eb885d79f8
 - name: github.com/imdario/mergo
@@ -294,7 +287,7 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 623b5a2f4d2a41e411730dcdfbfdaeb5c0c4564e
+  version: 561038314e13a68835eee900044d4cc4af89539c
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
@@ -350,7 +343,7 @@ imports:
 - name: github.com/streadway/amqp
   version: a314942b2fd9dde7a3f70ba3f1062848ce6eb392
 - name: github.com/swaggo/swag
-  version: 2a57949e334f0974aedeae62875eb32a2c03bebd
+  version: 7cb56155ce638f23b574c302b01bbc860a99e30d
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: golang.org/x/crypto
@@ -428,8 +421,6 @@ imports:
   - internal/remote_api
   - internal/urlfetch
   - urlfetch
-- name: gopkg.in/fsnotify/fsnotify.v1
-  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: gopkg.in/igm/sockjs-go.v2
   version: d276e9ffe5cc5c271b81198cc77a2adf6c4482d2
   subpackages:
@@ -449,8 +440,6 @@ imports:
   - cipher
   - json
   - jwt
-- name: gopkg.in/tomb.v1
-  version: c131134a1947e9afd9cecfe11f4c6dff0732ae58
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 - name: k8s.io/api
