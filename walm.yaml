@@ -8,15 +8,6 @@ serverConfig:
   tlsCert: ""
   tlsCACert: ""
   tlsVerify: false
-sysHelmConfig:
-  helmHome: ""
-  tillerTimeout: 0
-  tillerHost: "172.26.0.5:31225"
-  tls: false
-  tlsKey: ""
-  tlsCert: ""
-  tlsCACert: ""
-  tlsVerify: false
 repoList:
   - name: "test"
     url: "http://172.16.1.41:8880/"
@@ -33,13 +24,6 @@ kafkaConfig:
   enable: false
   brokers:
     - "172.26.0.5:9092"
-  certFile: ""
-  keyFile: ""
-  caFile: ""
-  VerifySsl: false
-multiTenant:
-  enable: true
-  tillerImage: "transwarp/helm:live"
   certFile: ""
   keyFile: ""
   caFile: ""

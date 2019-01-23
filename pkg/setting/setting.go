@@ -19,16 +19,6 @@ type HttpConfig struct {
 	WriteTimeout time.Duration `json:"writeTimeout"`
 }
 
-type HelmConfig struct {
-	TillerConnectionTimeout time.Duration `json:"tillerTimeout"`
-	TillerHost              string        `json:"tillerHost"`
-	TillerHome              string        `json:"tillerHome"`
-	TLS                     bool          `json:"tls"`
-	TlsKey                  string        `json:"tlsKey"`
-	TlsCert                 string        `json:"tlsCert"`
-	TlsCACert               string        `json:"tlsCert"`
-}
-
 type ChartRepo struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -53,15 +43,6 @@ type KafkaConfig struct {
 	VerifySsl bool     `json:"verifySsl"`
 }
 
-type MultiTenantConfig struct {
-	Enable      bool   `json:"enable"`
-	TillerImage string `json:"tillerImage"`
-	CertFile    string `json:"certFile"`
-	KeyFile     string `json:"keyFile"`
-	CaFile      string `json:"caFile"`
-	VerifySsl   bool   `json:"verifySsl"`
-}
-
 type TaskConfig struct {
 	Broker          string `json:"broker"`
 	DefaultQueue    string `json:"default_queue"`
@@ -73,12 +54,10 @@ type WalmConfig struct {
 	Debug bool `json:"debug"`
 
 	HttpConfig        *HttpConfig        `json:"serverConfig"`
-	SysHelm           *HelmConfig        `json:"sysHelmConfig"`
 	RepoList          []*ChartRepo       `json:"repoList"`
 	KubeConfig        *KubeConfig        `json:"kubeConfig"`
 	RedisConfig       *RedisConfig       `json:"redisConfig"`
 	KafkaConfig       *KafkaConfig       `json:"kafkaConfig"`
-	MultiTenantConfig *MultiTenantConfig `json:"multiTenant"`
 	TaskConfig        *TaskConfig        `json:"taskConfig"`
 	V2Config          *V2Config          `json:"v2"`
 }
