@@ -27,7 +27,7 @@ package helm
 //	chartValicationInfo.Namespace = namespace
 //
 //
-//	chartPath, err := client.DownloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+//	chartPath, err := client.downloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 //	if err != nil {
 //		return chartValicationInfo, err
 //	}

@@ -165,18 +165,18 @@ func parseSvc(svc *corev1.Service) (isDummyService bool, transwarpMetaStr, relea
 
 func buildConfigValuesToRender(namespace string, name string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}, jsonDefaultValues map[string]interface{}) (configValues map[string]interface{}, err error) {
 	configValues = map[string]interface{}{}
-	MergeValues(configValues, jsonnetChart.Values)
+	mergeValues(configValues, jsonnetChart.Values)
 	//TODO merge system values
 
-	MergeValues(configValues, dependencyConfigs)
+	mergeValues(configValues, dependencyConfigs)
 
 	configValues["Transwarp_Install_ID"] = name
 	configValues["Transwarp_Install_Namespace"] = namespace
 	configValues["TosVersion"] = "1.9"
 	configValues["Customized_Namespace"] = namespace
-	MergeValues(configValues, userConfigs)
+	mergeValues(configValues, userConfigs)
 
-	MergeValues(jsonDefaultValues, configValues)
+	mergeValues(jsonDefaultValues, configValues)
 	return
 }
 
@@ -247,7 +247,7 @@ func loadFilesFromDisk(baseDir string) (map[string]string, error) {
 	return cacheFiles, nil
 }
 
-func LoadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+func loadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
 	nativeChart, err = loader.Load(chartPath)
 	if err != nil {
 		logrus.Errorf("failed to load chart : %s", err.Error())
@@ -258,7 +258,7 @@ func LoadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonne
 	return
 }
 
-func LoadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+func loadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
 	defer chartArchive.Close()
 	nativeChart, err = loader.LoadArchive(chartArchive)
 	if err != nil {
@@ -451,6 +451,4 @@ func loadFiles(files []*BufferedFile, nativeChat *chart.Chart) (bool, *chart.Cha
 	} else {
 		return false, nativeChat, nil
 	}
-
-
 }

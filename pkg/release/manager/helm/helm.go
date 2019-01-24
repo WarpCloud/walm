@@ -24,9 +24,9 @@ import (
 	"io/ioutil"
 	"walm/pkg/k8s/client"
 	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"github.com/hashicorp/golang-lru"
+	"github.com/ghodss/yaml"
 )
 
 const (
@@ -89,15 +89,29 @@ func (hc *HelmClient) GetHelmCache() *cache.HelmCache {
 
 func (hc *HelmClient) GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
 	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
-	chartRequested, err := hc.GetChartRequest(repoName, chartName, chartVersion)
+	isJsonnetChart, nativeChart, jsonnetChart, err := hc.LoadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		return nil, err
 	}
-	dependencies, err := parseChartDependencies(chartRequested)
-	if err != nil {
-		return nil, err
+
+	subChartNames = []string{}
+	if isJsonnetChart {
+		appYamlPath := fmt.Sprintf("templates/%s/%s/app.yaml", nativeChart.Metadata.Name, nativeChart.Metadata.AppVersion)
+		for _, file := range jsonnetChart.Templates {
+			if file.Name == appYamlPath {
+				appDependency := &release.AppDependency{}
+				err := yaml.Unmarshal(file.Data, &appDependency)
+				if err != nil {
+					return nil, err
+				}
+				for _, dependency := range appDependency.Dependencies {
+					subChartNames = append(subChartNames, dependency.Name)
+				}
+				break
+			}
+		}
 	}
-	return dependencies, nil
+	return
 }
 
 func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, error) {
@@ -121,7 +135,7 @@ func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, erro
 	}
 }
 
-func (hc *HelmClient) DownloadChart(repoName, charName, version string) (string, error) {
+func (hc *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
 	if repoName == "" {
 		repoName = "stable"
 	}
@@ -147,18 +161,14 @@ func (hc *HelmClient) DownloadChart(repoName, charName, version string) (string,
 	return filename, nil
 }
 
-func (hc *HelmClient) GetChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
-	chartPath, err := hc.DownloadChart(repoName, chartName, chartVersion)
+func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+	chartPath, err := hc.downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		logrus.Errorf("failed to download chart : %s", err.Error())
-		return nil, err
+		return false,  nil, nil, err
 	}
-	chartRequested, err := loader.Load(chartPath)
-	if err != nil {
-		logrus.Errorf("failed to load chart : %s", err.Error())
-		return nil, err
-	}
-	return chartRequested, nil
+
+	return loadChartByPath(chartPath)
 }
 
 func (hc *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
@@ -238,7 +248,7 @@ func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.Release
 }
 
 func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*release.ReleaseInfoV2, error) {
-	releaseV1, err := BuildReleaseInfo(releaseCache)
+	releaseV1, err := buildReleaseInfo(releaseCache)
 	if err != nil {
 		logrus.Errorf("failed to build release info: %s", err.Error())
 		return nil, err
@@ -655,7 +665,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 					logrus.Errorf("failed to build release info : %s", err.Error())
 					return err
 				}
-				MergeValues(configValues, releaseInfo.ConfigValues)
+				mergeValues(configValues, releaseInfo.ConfigValues)
 				if len(releaseInfo.Status.Instances) > 0 {
 					err = fmt.Errorf("now v1 release %s/%s with instances is not support to upgrade", namespace, releaseRequest.Name)
 					return err
@@ -665,30 +675,25 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 				return err
 			}
 		} else {
-			MergeValues(configValues, releaseConfig.Spec.ConfigValues)
+			mergeValues(configValues, releaseConfig.Spec.ConfigValues)
 		}
 	}
-	MergeValues(configValues, releaseRequest.ConfigValues)
+	mergeValues(configValues, releaseRequest.ConfigValues)
 
 	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
 	// app.yaml : used to define chart dependency relations
 	var chart, jsonnetChart *chart.Chart
 	var isJsonnetChart bool
 	if chartArchive != nil {
-		isJsonnetChart, chart, jsonnetChart, err = LoadChartByArchive(chartArchive)
+		isJsonnetChart, chart, jsonnetChart, err = loadChartByArchive(chartArchive)
 		if err != nil {
-			logrus.Errorf("failed to load chart by path : %s", err.Error())
+			logrus.Errorf("failed to load chart by archive : %s", err.Error())
 			return err
 		}
 	} else {
-		chartPath, err := hc.DownloadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+		isJsonnetChart, chart, jsonnetChart, err = hc.LoadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 		if err != nil {
-			logrus.Errorf("failed to download chart : %s", err.Error())
-			return err
-		}
-		isJsonnetChart, chart, jsonnetChart, err = LoadChartByPath(chartPath)
-		if err != nil {
-			logrus.Errorf("failed to load chart by path : %s", err.Error())
+			logrus.Errorf("failed to load chart : %s", err.Error())
 			return err
 		}
 	}
@@ -712,7 +717,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	}
 
 	valueOverride := map[string]interface{}{}
-	MergeValues(valueOverride, configValues)
+	mergeValues(valueOverride, configValues)
 
 	var release *hapirelease.Release
 	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
@@ -805,9 +810,9 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 						}
 					}
 				}
-				MergeValues(dependencyConfigs, valueToMerge)
+				mergeValues(dependencyConfigs, valueToMerge)
 			} else {
-				MergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
+				mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
 			}
 		}
 	}

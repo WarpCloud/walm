@@ -190,7 +190,25 @@ type PrettyChartParams struct {
 	AdvanceConfig       []*BaseConfig `json:"advanceConfig"`
 }
 
+type DependencyDeclare struct {
+	// name of dependency declaration
+	Name string `json:"name,omitempty"`
+	// dependency variable mappings
+	Requires map[string]string `json:"requires,omitempty"`
+	// minVersion
+	MinVersion float32 `json:"min_version"`
+	// maxVersion
+	MaxVersion float32 `json:"max_version"`
+}
+
+type AppDependency struct {
+	Name string `json:"name,omitempty"`
+	Dependencies []*DependencyDeclare `json:"dependencies"`
+}
+
+
 type TranswarpAppInfo struct {
+	AppDependency
 	UserInputParams PrettyChartParams `json:"userInputParams"`
 }
 
