@@ -205,8 +205,8 @@ func loadJsonnetFilesFromJsonnetChart(jsonnetChart *chart.Chart, templateFiles m
 
 func loadCommonJsonnetLib(templates map[string]string) (err error) {
 	if commonTemplateFiles == nil {
-		if len(commonTemplateFilesPath) == 0 && setting.Config.V2Config != nil && setting.Config.V2Config.JsonnetConfig != nil {
-			commonTemplateFilesPath = setting.Config.V2Config.JsonnetConfig.CommonTemplateFilesPath
+		if len(commonTemplateFilesPath) == 0 && setting.Config.JsonnetConfig != nil {
+			commonTemplateFilesPath = setting.Config.JsonnetConfig.CommonTemplateFilesPath
 		}
 		if commonTemplateFilesPath == "" {
 			return

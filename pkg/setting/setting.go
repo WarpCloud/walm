@@ -53,21 +53,17 @@ type TaskConfig struct {
 type WalmConfig struct {
 	Debug bool `json:"debug"`
 
-	HttpConfig        *HttpConfig        `json:"serverConfig"`
-	RepoList          []*ChartRepo       `json:"repoList"`
-	KubeConfig        *KubeConfig        `json:"kubeConfig"`
-	RedisConfig       *RedisConfig       `json:"redisConfig"`
-	KafkaConfig       *KafkaConfig       `json:"kafkaConfig"`
-	TaskConfig        *TaskConfig        `json:"taskConfig"`
-	V2Config          *V2Config          `json:"v2"`
+	HttpConfig    *HttpConfig    `json:"serverConfig"`
+	RepoList      []*ChartRepo   `json:"repoList"`
+	KubeConfig    *KubeConfig    `json:"kubeConfig"`
+	RedisConfig   *RedisConfig   `json:"redisConfig"`
+	KafkaConfig   *KafkaConfig   `json:"kafkaConfig"`
+	TaskConfig    *TaskConfig    `json:"taskConfig"`
+	JsonnetConfig *JsonnetConfig `json:"jsonnetConfig"`
 }
 
 type JsonnetConfig struct {
 	CommonTemplateFilesPath string `json:"commonTemplateFilesPath"`
-}
-
-type V2Config struct {
-	JsonnetConfig *JsonnetConfig `json:"jsonnetConfig"`
 }
 
 // StartResyncReleaseCaches sets values from the environment.
