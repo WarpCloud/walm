@@ -58,6 +58,7 @@ type RemoveReleaseTaskArgs struct {
 	Namespace     string
 	Name          string
 	ReleaseName   string
+	DeletePvcs    bool
 }
 
 func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
@@ -88,7 +89,7 @@ func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
 	}
 
 	releaseProjectName := buildProjectReleaseName(removeReleaseTaskArgs.Name, removeReleaseTaskArgs.ReleaseName)
-	err = GetDefaultProjectManager().helmClient.DeleteRelease(removeReleaseTaskArgs.Namespace, releaseProjectName, false, false, false, 0)
+	err = GetDefaultProjectManager().helmClient.DeleteRelease(removeReleaseTaskArgs.Namespace, releaseProjectName, false, removeReleaseTaskArgs.DeletePvcs, false, 0)
 	if err != nil {
 		logrus.Errorf("RemoveReleaseInProject install release %s error %v\n", releaseProjectName, err)
 		return err

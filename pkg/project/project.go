@@ -233,7 +233,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 	return nil
 }
 
-func (manager *ProjectManager) DeleteProject(namespace string, project string, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) DeleteProject(namespace string, project string, async bool, timeoutSec int64, deletePvcs bool) error {
 	oldProjectCache, err := manager.validateProjectTask(namespace, project, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -251,6 +251,7 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	deleteProjectTaskSig, err := SendDeleteProjectTask(&DeleteProjectTaskArgs{
 		Name:      project,
 		Namespace: namespace,
+		DeletePvcs: deletePvcs,
 	})
 	if err != nil {
 		logrus.Errorf("failed to send delete project %s/%s task : %s", namespace, project, err.Error())
@@ -370,7 +371,7 @@ func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, project
 	return nil
 }
 
-func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string, async bool, timeoutSec int64) error {
+func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, releaseName string, async bool, timeoutSec int64, deletePvcs bool) error {
 	oldProjectCache, err := manager.validateProjectTask(namespace, projectName, false)
 	if err != nil {
 		if walmerr.IsNotFoundError(err) {
@@ -408,6 +409,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 		Namespace:   namespace,
 		Name:        projectName,
 		ReleaseName: releaseName,
+		DeletePvcs:  deletePvcs,
 	})
 	if err != nil {
 		logrus.Errorf("failed to send remove release %s in project %s/%s task : %s", releaseName, namespace, projectName, err.Error())

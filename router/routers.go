@@ -436,6 +436,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Param(ws.QueryParameter("deletePvcs", "是否删除Project Releases管理的statefulSet关联的所有pvc").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
@@ -480,6 +481,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Param(ws.QueryParameter("deletePvcs", "是否删除release管理的statefulSet关联的所有pvc").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

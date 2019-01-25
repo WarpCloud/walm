@@ -128,7 +128,12 @@ func DeleteProject(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async, timeoutSec)
+	deletePvcs, err := getDeletePvcsQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param deletePvcs value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async, timeoutSec, deletePvcs)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete project : %s", err.Error()))
 		return
@@ -227,7 +232,12 @@ func DeleteInstanceInProject(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async, timeoutSec)
+	deletePvcs, err := getDeletePvcsQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param deletePvcs value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async, timeoutSec, deletePvcs)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release in project : %s", err.Error()))
 		return

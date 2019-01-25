@@ -462,6 +462,11 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 		logrus.Errorf("failed to get release cache %s : %s", releaseName, err.Error())
 		return err
 	}
+	releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
+	if err != nil {
+		logrus.Errorf("failed to build release info : %s", err.Error())
+		return err
+	}
 
 	opts := []helm.UninstallOption{
 		helm.UninstallPurge(true),
@@ -489,11 +494,6 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 
 	if deletePvcs {
 		statefulSets := []adaptor.WalmStatefulSet{}
-		releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
-		if err != nil {
-			logrus.Errorf("failed to build release info : %s", err.Error())
-			return err
-		}
 		if len(releaseInfo.Status.StatefulSets) > 0 {
 			statefulSets = append(statefulSets, releaseInfo.Status.StatefulSets...)
 		}
