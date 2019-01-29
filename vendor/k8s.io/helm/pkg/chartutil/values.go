@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 
 	"k8s.io/helm/pkg/chart"
+	"time"
 )
 
 // ErrNoTable indicates that a chart does not have a matching table.
@@ -306,8 +307,11 @@ func CoalesceTables(dst, src map[string]interface{}) map[string]interface{} {
 // for the composition of the final values struct
 type ReleaseOptions struct {
 	Name      string
+	Time      time.Time
+	Namespace string
 	IsUpgrade bool
 	IsInstall bool
+	Revision  int
 }
 
 // ToRenderValues composes the struct from the data coming from the Releases, Charts and Values files
@@ -318,8 +322,11 @@ func ToRenderValues(chrt *chart.Chart, chrtVals map[string]interface{}, options 
 	top := map[string]interface{}{
 		"Release": map[string]interface{}{
 			"Name":      options.Name,
+			"Time":      options.Time,
+			"Namespace": options.Namespace,
 			"IsUpgrade": options.IsUpgrade,
 			"IsInstall": options.IsInstall,
+			"Revision":  options.Revision,
 			"Service":   "Helm",
 		},
 		"Chart":        chrt.Metadata,

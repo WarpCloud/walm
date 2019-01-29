@@ -100,7 +100,10 @@ func (s *ReleaseServer) prepareUpdate(req *hapi.UpdateReleaseRequest) (*release.
 	ts := time.Now()
 	options := chartutil.ReleaseOptions{
 		Name:      req.Name,
+		Time:      ts,
+		Namespace: currentRelease.Namespace,
 		IsUpgrade: true,
+		Revision:  int(revision),
 	}
 
 	caps, err := newCapabilities(s.discovery)
