@@ -14,8 +14,6 @@ import (
 	"walm/pkg/release"
 	"sync"
 	"errors"
-	"mime/multipart"
-
 	"k8s.io/helm/pkg/chart"
 	"walm/pkg/hook"
 	"walm/pkg/task"
@@ -29,6 +27,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/helm/pkg/chart/loader"
 )
 
 const (
@@ -637,10 +636,10 @@ func (hc *HelmClient) RestartRelease(namespace, releaseName string) error {
 	return nil
 }
 
-func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartArchive multipart.File, async bool, timeoutSec int64) error {
+func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
 	retryTimes := 5
 	for {
-		err := hc.InstallUpgradeRelease(namespace, releaseRequest, isSystem, chartArchive, async, timeoutSec)
+		err := hc.InstallUpgradeRelease(namespace, releaseRequest, isSystem, chartFiles, async, timeoutSec)
 		if err != nil {
 			if strings.Contains(err.Error(), "please wait for the release latest task") && retryTimes > 0 {
 				logrus.Warnf("retry to install or upgrade release %s/%s after 2 second", namespace, releaseRequest.Name)
@@ -653,7 +652,7 @@ func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRe
 	}
 }
 
-func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartArchive multipart.File, async bool, timeoutSec int64) error {
+func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
 	if timeoutSec == 0 {
 		timeoutSec = defaultTimeoutSec
 	}
@@ -667,7 +666,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 		Namespace:      namespace,
 		ReleaseRequest: releaseRequest,
 		IsSystem:       isSystem,
-		ChartArchive:   chartArchive,
+		ChartFiles:     chartFiles,
 	}
 	taskSig, err := SendReleaseTask(releaseTaskArgs)
 	if err != nil {
@@ -707,7 +706,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 	return nil
 }
 
-func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartArchive multipart.File) error {
+func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile) error {
 	update := true
 	releaseCache, err := hc.helmCache.GetReleaseCache(namespace, releaseRequest.Name)
 	if err != nil {
@@ -784,8 +783,8 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	// app.yaml : used to define chart dependency relations
 	var chart, jsonnetChart *chart.Chart
 	var isJsonnetChart bool
-	if chartArchive != nil {
-		isJsonnetChart, chart, jsonnetChart, err = loadChartByArchive(chartArchive)
+	if chartFiles != nil {
+		isJsonnetChart, chart, jsonnetChart, err = loadChartByChartFiles(chartFiles)
 		if err != nil {
 			logrus.Errorf("failed to load chart by archive : %s", err.Error())
 			return err
@@ -796,10 +795,6 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 			logrus.Errorf("failed to load chart : %s", err.Error())
 			return err
 		}
-	}
-	if err != nil {
-		logrus.Errorf("failed to load chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
-		return err
 	}
 
 	if isJsonnetChart {

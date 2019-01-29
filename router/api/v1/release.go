@@ -84,6 +84,12 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
 		return
 	}
+	defer chartArchive.Close()
+	chartFiles, err := helm.LoadArchive(chartArchive)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
+		return
+	}
 	body := request.Request.FormValue("body")
 	releaseRequest := &release.ReleaseRequestV2{}
 	err = json.Unmarshal([]byte(body), releaseRequest)
@@ -92,8 +98,7 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 
-	defer chartArchive.Close()
-	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartArchive, false, 0)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartFiles, false, 0)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to install release: %s", err.Error()))
 	}
@@ -132,6 +137,13 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
 		return
 	}
+	defer chartArchive.Close()
+	chartFiles, err := helm.LoadArchive(chartArchive)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
+		return
+	}
+
 	body := request.Request.FormValue("body")
 	releaseRequest := &release.ReleaseRequestV2{}
 	err = json.Unmarshal([]byte(body), releaseRequest)
@@ -141,7 +153,7 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 	}
 	releaseRequest.Name = releaseName
 
-	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartArchive, false, 0)
+	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartFiles, false, 0)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to upgrade release: %s", err.Error()))
 	}

@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
 	"encoding/json"
-	"mime/multipart"
 	"k8s.io/helm/pkg/chart/loader"
 	"strings"
 	"github.com/pkg/errors"
@@ -278,19 +277,14 @@ func loadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonne
 	return
 }
 
-func loadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
-	defer chartArchive.Close()
-	nativeChart, err = loader.LoadArchive(chartArchive)
+func loadChartByChartFiles(chartFiles []*loader.BufferedFile) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
+	nativeChart, err = loader.LoadFiles(chartFiles)
 	if err != nil {
 		logrus.Errorf("failed to load chart : %s", err.Error())
 		return
 	}
 
-	files, err := loadArchive(chartArchive)
-	if err != nil {
-		return false, nil, nil, err
-	}
-	isJsonnetChart, jsonnetChart, err = loadFiles(files, nativeChart)
+	isJsonnetChart, jsonnetChart, err = loadFiles(chartFiles, nativeChart)
 	return
 }
 
@@ -300,7 +294,7 @@ func parseJsonnetChart(chartPath string, nativeChart *chart.Chart) (isJsonnetCha
 		return false, nil, err
 	}
 
-	files := []*BufferedFile{}
+	files := []*loader.BufferedFile{}
 	if fi.IsDir() {
 		files, err = loadDir(chartPath)
 		if err != nil {
@@ -312,7 +306,7 @@ func parseJsonnetChart(chartPath string, nativeChart *chart.Chart) (isJsonnetCha
 			return false, nil, err
 		}
 		defer raw.Close()
-		files, err = loadArchive(raw)
+		files, err = LoadArchive(raw)
 		if err != nil {
 			return false, nil, err
 		}
@@ -322,18 +316,13 @@ func parseJsonnetChart(chartPath string, nativeChart *chart.Chart) (isJsonnetCha
 	return
 }
 
-type BufferedFile struct {
-	Name string
-	Data []byte
-}
-
-func loadDir(dir string) (files []*BufferedFile, err error) {
+func loadDir(dir string) (files []*loader.BufferedFile, err error) {
 	topdir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	files = []*BufferedFile{}
+	files = []*loader.BufferedFile{}
 
 	rules := ignore.Empty()
 	ifile := filepath.Join(topdir, ignore.HelmIgnore)
@@ -381,7 +370,7 @@ func loadDir(dir string) (files []*BufferedFile, err error) {
 			return errors.Wrapf(err, "error reading %s", n)
 		}
 
-		files = append(files, &BufferedFile{Name: n, Data: data})
+		files = append(files, &loader.BufferedFile{Name: n, Data: data})
 		return nil
 	}
 	if err = sympath.Walk(topdir, walk); err != nil {
@@ -390,14 +379,14 @@ func loadDir(dir string) (files []*BufferedFile, err error) {
 	return
 }
 
-func loadArchive(in io.Reader) ([]*BufferedFile, error) {
+func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
 	unzipped, err := gzip.NewReader(in)
 	if err != nil {
 		return nil, err
 	}
 	defer unzipped.Close()
 
-	files := []*BufferedFile{}
+	files := []*loader.BufferedFile{}
 	tr := tar.NewReader(unzipped)
 	for {
 		b := bytes.NewBuffer(nil)
@@ -435,7 +424,7 @@ func loadArchive(in io.Reader) ([]*BufferedFile, error) {
 			return nil, err
 		}
 
-		files = append(files, &BufferedFile{Name: n, Data: b.Bytes()})
+		files = append(files, &loader.BufferedFile{Name: n, Data: b.Bytes()})
 		b.Reset()
 	}
 
@@ -446,7 +435,7 @@ func loadArchive(in io.Reader) ([]*BufferedFile, error) {
 	return files, nil
 }
 
-func loadFiles(files []*BufferedFile, nativeChat *chart.Chart) (bool, *chart.Chart, error) {
+func loadFiles(files []*loader.BufferedFile, nativeChat *chart.Chart) (bool, *chart.Chart, error) {
 	jsonnetChart := new(chart.Chart)
 	isJsonnetChart := false
 

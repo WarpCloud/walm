@@ -4,8 +4,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
 	"walm/pkg/task"
-	"mime/multipart"
 	"walm/pkg/release"
+	"k8s.io/helm/pkg/chart/loader"
 )
 
 const (
@@ -30,11 +30,11 @@ type CreateReleaseTaskArgs struct {
 	Namespace      string
 	ReleaseRequest *release.ReleaseRequestV2
 	IsSystem       bool
-	ChartArchive   multipart.File
+	ChartFiles     []*loader.BufferedFile
 }
 
 func (createReleaseTaskArgs *CreateReleaseTaskArgs) Run() error {
-	return GetDefaultHelmClient().doInstallUpgradeRelease(createReleaseTaskArgs.Namespace, createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartArchive)
+	return GetDefaultHelmClient().doInstallUpgradeRelease(createReleaseTaskArgs.Namespace, createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartFiles)
 }
 
 func (createReleaseTaskArgs *CreateReleaseTaskArgs) GetTaskName() string {
