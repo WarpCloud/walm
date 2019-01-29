@@ -91,10 +91,10 @@ func (controller *ReleaseConfigController) Start(stopChan <-chan struct{}) {
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
-				if !controller.started {
-					return
-				}
-				controller.enqueueReleaseConfig(obj)
+				//if !controller.started {
+				//	return
+				//}
+				//controller.enqueueReleaseConfig(obj)
 			},
 		}
 		informer.GetDefaultFactory().ReleaseConifgFactory.Transwarp().V1beta1().ReleaseConfigs().Informer().AddEventHandler(controller.handlerFuncs)
@@ -142,7 +142,12 @@ func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
 			defer controller.reloadDependingReleaseWorkingQueue.Done(key)
 			err := controller.reloadDependingRelease(key.(string))
 			if err != nil {
-				logrus.Errorf("Error reload depending release %s: %v", key.(string), err)
+				if strings.Contains(err.Error(), "please wait for the release latest task") {
+					logrus.Warnf("depending release %s would be reloaded after 5 second", key.(string))
+					controller.reloadDependingReleaseWorkingQueue.AddAfter(key, time.Second * 5)
+				} else {
+					logrus.Errorf("Error reload depending release %s: %v", key.(string), err)
+				}
 			}
 		}()
 	}

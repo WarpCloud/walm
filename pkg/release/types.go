@@ -32,7 +32,7 @@ type ReleaseSpec struct {
 type ReleaseCache struct {
 	ReleaseSpec
 	ReleaseResourceMetas []ReleaseResourceMeta  `json:"release_resource_metas" description:"release resource metas"`
-	ComputedValues        map[string]interface{} `json:"computed_values" description:"release computed values"`
+	ComputedValues       map[string]interface{} `json:"computed_values" description:"release computed values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -71,8 +71,8 @@ type HelmExtraLabels struct {
 }
 
 type HelmValues struct {
-	HelmExtraLabels     *HelmExtraLabels         `json:"HelmExtraLabels"`
-	ReleasePrettyParams PrettyChartParams        `json:"release_pretty_params" description:"pretty chart params for market"`
+	HelmExtraLabels     *HelmExtraLabels  `json:"HelmExtraLabels"`
+	ReleasePrettyParams PrettyChartParams `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type RepoInfo struct {
@@ -85,9 +85,9 @@ type RepoInfoList struct {
 }
 
 type ChartDependencyInfo struct {
-	ChartName   string `json:"chart_name"`
-	MaxVersion	float32 `json:"max_version"`
-	MinVersion  float32 `json:"min_version"`
+	ChartName  string  `json:"chart_name"`
+	MaxVersion float32 `json:"max_version"`
+	MinVersion float32 `json:"min_version"`
 }
 
 type ChartInfo struct {
@@ -173,10 +173,10 @@ type BaseConfig struct {
 }
 
 type RoleConfig struct {
-	Name               string         `json:"name"`
-	Description        string         `json:"description"`
-	Replicas           int            `json:"replicas"`
-	RoleBaseConfig     []*BaseConfig  `json:"baseConfig"`
+	Name               string          `json:"name"`
+	Description        string          `json:"description"`
+	Replicas           int             `json:"replicas"`
+	RoleBaseConfig     []*BaseConfig   `json:"baseConfig"`
 	RoleResourceConfig *ResourceConfig `json:"resouceConfig"`
 }
 
@@ -202,10 +202,9 @@ type DependencyDeclare struct {
 }
 
 type AppDependency struct {
-	Name string `json:"name,omitempty"`
+	Name         string               `json:"name,omitempty"`
 	Dependencies []*DependencyDeclare `json:"dependencies"`
 }
-
 
 type TranswarpAppInfo struct {
 	AppDependency
@@ -217,10 +216,12 @@ type ReleaseInfoV2 struct {
 	DependenciesConfigValues map[string]interface{} `json:"dependencies_config_values" description:"release's dependencies' config values"`
 	ComputedValues           map[string]interface{} `json:"computed_values" description:"config values to render chart templates"`
 	OutputConfigValues       map[string]interface{} `json:"output_config_values" description:"release's output config values'"`
+	ReleaseLabels            map[string]string `json:"release_labels" description:"release labels'"`
 }
 
 type ReleaseRequestV2 struct {
 	ReleaseRequest
+	ReleaseLabels map[string]string  `json:"release_labels" description:"release labels'"`
 }
 
 type ReleaseInfoV2List struct {

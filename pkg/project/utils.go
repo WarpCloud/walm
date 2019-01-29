@@ -2,13 +2,8 @@ package project
 
 import (
 	"time"
-	"fmt"
 	"walm/pkg/release"
 )
-
-func buildProjectReleaseName(projectName, releaseName string) string {
-	return fmt.Sprintf("%s--%s", projectName, releaseName)
-}
 
 func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
@@ -50,9 +45,10 @@ func buildReleaseRequest(projectInfo *ProjectInfo, releaseName string) *release.
 		for k, v := range releaseInfo.Dependencies {
 			releaseRequest.Dependencies[k] = v
 		}
-		releaseRequest.Name = buildProjectReleaseName(projectInfo.Name, releaseInfo.Name)
+		releaseRequest.Name = releaseInfo.Name
 		releaseRequest.ChartName = releaseInfo.ChartName
 		releaseRequest.ChartVersion = releaseInfo.ChartVersion
+		releaseRequest.ReleaseLabels = releaseInfo.ReleaseLabels
 		found = true
 		break
 	}

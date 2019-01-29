@@ -80,7 +80,7 @@ func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = GetDefaultProjectManager().helmClient.InstallUpgradeRelease(removeReleaseTaskArgs.Namespace, affectReleaseParams, false, nil, false, 0)
+			err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseWithRetry(removeReleaseTaskArgs.Namespace, affectReleaseParams, false, nil, false, 0)
 			if err != nil {
 				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err
@@ -88,10 +88,9 @@ func (removeReleaseTaskArgs *RemoveReleaseTaskArgs) removeRelease() error {
 		}
 	}
 
-	releaseProjectName := buildProjectReleaseName(removeReleaseTaskArgs.Name, removeReleaseTaskArgs.ReleaseName)
-	err = GetDefaultProjectManager().helmClient.DeleteRelease(removeReleaseTaskArgs.Namespace, releaseProjectName, false, removeReleaseTaskArgs.DeletePvcs, false, 0)
+	err = GetDefaultProjectManager().helmClient.DeleteReleaseWithRetry(removeReleaseTaskArgs.Namespace, removeReleaseTaskArgs.ReleaseName, false, removeReleaseTaskArgs.DeletePvcs, false, 0)
 	if err != nil {
-		logrus.Errorf("RemoveReleaseInProject install release %s error %v\n", releaseProjectName, err)
+		logrus.Errorf("RemoveReleaseInProject install release %s error %v\n", removeReleaseTaskArgs.ReleaseName, err)
 		return err
 	}
 	return nil

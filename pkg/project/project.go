@@ -9,12 +9,13 @@ import (
 	"walm/pkg/util/dag"
 	walmerr "walm/pkg/util/error"
 	"fmt"
-	"strings"
 	"walm/pkg/task"
 	"time"
 	"walm/pkg/release/manager/helm/cache"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
+	"walm/pkg/k8s/handler"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -107,19 +108,21 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		}
 	}
 
-	releaseList, err := manager.helmClient.ListReleases(projectCache.Namespace, projectCache.Name+"--*")
+	releaseConfigs, err := handler.GetDefaultHandlerSet().GetReleaseConfigHandler().ListReleaseConfigs(
+		projectCache.Namespace, &v1.LabelSelector{MatchLabels: map[string]string{cache.ProjectNameLabelKey: projectCache.Name}})
 	if err != nil {
+		logrus.Errorf("failed to list release configs : %s", err.Error())
 		return nil, err
 	}
 
-	for _, releaseInfo := range releaseList {
-		projectNameArray := strings.SplitN(releaseInfo.Name, "--", 2)
-		if len(projectNameArray) == 2 {
-			if projectInfo.Name == projectNameArray[0] {
-				releaseInfo.Name = projectNameArray[1]
-				projectInfo.Releases = append(projectInfo.Releases, releaseInfo)
-			}
-		}
+	releaseNames := []string{}
+	for _, releaseConfig := range releaseConfigs {
+		releaseNames = append(releaseNames, releaseConfig.Name)
+	}
+
+	projectInfo.Releases, err = manager.helmClient.ListReleasesByNames(projectCache.Namespace, releaseNames...)
+	if err != nil {
+		return nil, err
 	}
 
 	if taskState == nil || taskState.TaskName == ""{

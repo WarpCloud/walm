@@ -44,7 +44,8 @@ var commonTemplateFiles map[string]string
 //     c. merge dependency release output configs
 //     d. merge configs user provided
 // 3. render jsonnet template files to generate native chart templates
-func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[string]string, jsonnetChart *chart.Chart, userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}) (nativeChart *chart.Chart, err error) {
+func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[string]string, jsonnetChart *chart.Chart,
+	userConfigs map[string]interface{}, dependencyConfigs map[string]interface{}, releaseLabels map[string]string) (nativeChart *chart.Chart, err error) {
 	nativeChart = &chart.Chart{
 		Metadata: jsonnetChart.Metadata,
 		Files:    jsonnetChart.Files,
@@ -95,34 +96,22 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 			logrus.Errorf("failed to check whether %s is app dummy service : %s", fileName, err.Error())
 			return nil, err
 		}
+		var k8sResourceBytes []byte
 		if ok {
-			releaseConfig := &v1beta1.ReleaseConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: "ReleaseConfig",
-					APIVersion: "apiextensions.transwarp.io/v1beta1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: releaseNamespace,
-					Name:      releaseName,
-				},
-				Spec: v1beta1.ReleaseConfigSpec{
-					DependenciesConfigValues: dependencyConfigs,
-					ChartVersion:             nativeChart.Metadata.Version,
-					ChartName:                nativeChart.Metadata.Name,
-					ChartAppVersion:          nativeChart.Metadata.AppVersion,
-					ConfigValues:             userConfigs,
-					Dependencies:             dependencies,
-					OutputConfig:             outputConfig,
-				},
+			k8sResourceBytes, err = buildReleaseConfig(releaseNamespace, releaseName, nativeChart.Metadata.Name, nativeChart.Metadata.Version,
+			nativeChart.Metadata.AppVersion, releaseLabels, dependencies, dependencyConfigs, userConfigs, outputConfig)
+			if err != nil {
+				logrus.Errorf("failed to build release config : %s", err.Error())
+				return nil, err
 			}
-			k8sResource = releaseConfig
+		} else {
+			k8sResourceBytes, err = yaml.Marshal(k8sResource)
+			if err != nil {
+				logrus.Errorf("failed to marshal k8s resource : %s", err.Error())
+				return nil, err
+			}
 		}
 
-		k8sResourceBytes, err := yaml.Marshal(k8sResource)
-		if err != nil {
-			logrus.Errorf("failed to marshal k8s resource : %s", err.Error())
-			return nil, err
-		}
 		nativeChart.Templates = append(nativeChart.Templates, &chart.File{
 			Name: buildNotRenderedFileName(fileName),
 			Data: k8sResourceBytes,
@@ -130,6 +119,37 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 	}
 
 	return
+}
+
+func buildReleaseConfig(releaseNamespace, releaseName, chartName, chartVersion, chartAppVersion string,
+	labels, dependencies map[string]string, dependencyConfigs, userConfigs, outputConfig map[string]interface{}) ([]byte, error) {
+	releaseConfig := &v1beta1.ReleaseConfig{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ReleaseConfig",
+			APIVersion: "apiextensions.transwarp.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: releaseNamespace,
+			Name:      releaseName,
+			Labels:    labels,
+		},
+		Spec: v1beta1.ReleaseConfigSpec{
+			DependenciesConfigValues: dependencyConfigs,
+			ChartVersion:             chartVersion,
+			ChartName:                chartName,
+			ChartAppVersion:          chartAppVersion,
+			ConfigValues:             userConfigs,
+			Dependencies:             dependencies,
+			OutputConfig:             outputConfig,
+		},
+	}
+
+	releaseConfigBytes, err := yaml.Marshal(releaseConfig)
+	if err != nil {
+		logrus.Errorf("failed to marshal release config : %s", err.Error())
+		return nil, err
+	}
+	return releaseConfigBytes, nil
 }
 
 func isAppDummyService(k8sResource runtime.Object) (is bool, outputConfig map[string]interface{}, err error) {
@@ -247,7 +267,7 @@ func loadFilesFromDisk(baseDir string) (map[string]string, error) {
 	return cacheFiles, nil
 }
 
-func loadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+func loadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
 	nativeChart, err = loader.Load(chartPath)
 	if err != nil {
 		logrus.Errorf("failed to load chart : %s", err.Error())
@@ -258,7 +278,7 @@ func loadChartByPath(chartPath string) (isJsonnetChart bool, nativeChart, jsonne
 	return
 }
 
-func loadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+func loadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
 	defer chartArchive.Close()
 	nativeChart, err = loader.LoadArchive(chartArchive)
 	if err != nil {
@@ -268,13 +288,13 @@ func loadChartByArchive(chartArchive multipart.File) (isJsonnetChart bool, nativ
 
 	files, err := loadArchive(chartArchive)
 	if err != nil {
-		return false, nil,nil, err
+		return false, nil, nil, err
 	}
 	isJsonnetChart, jsonnetChart, err = loadFiles(files, nativeChart)
 	return
 }
 
-func parseJsonnetChart(chartPath string, nativeChart *chart.Chart) (isJsonnetChart bool, chart *chart.Chart,err error) {
+func parseJsonnetChart(chartPath string, nativeChart *chart.Chart) (isJsonnetChart bool, chart *chart.Chart, err error) {
 	fi, err := os.Stat(chartPath)
 	if err != nil {
 		return false, nil, err
@@ -325,7 +345,6 @@ func loadDir(dir string) (files []*BufferedFile, err error) {
 		rules = r
 	}
 	rules.AddDefaults()
-
 
 	topdir += string(filepath.Separator)
 

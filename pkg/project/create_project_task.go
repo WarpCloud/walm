@@ -72,8 +72,11 @@ func (createProjectTaskArgs *CreateProjectTaskArgs) createProject() error {
 	rawValsBase = mergeValues(helmExtraLabelsBase, rawValsBase)
 
 	for _, releaseParams := range createProjectTaskArgs.ProjectParams.Releases {
-		releaseParams.Name = buildProjectReleaseName(createProjectTaskArgs.Name, releaseParams.Name)
 		releaseParams.ConfigValues = mergeValues(releaseParams.ConfigValues, rawValsBase)
+		if releaseParams.ReleaseLabels == nil {
+			releaseParams.ReleaseLabels = map[string]string{}
+		}
+		releaseParams.ReleaseLabels[cache.ProjectNameLabelKey] = createProjectTaskArgs.Name
 	}
 
 	releaseList, err := GetDefaultProjectManager().brainFuckChartDepParse(createProjectTaskArgs.ProjectParams)
@@ -82,7 +85,7 @@ func (createProjectTaskArgs *CreateProjectTaskArgs) createProject() error {
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = GetDefaultProjectManager().helmClient.InstallUpgradeRelease(createProjectTaskArgs.Namespace, releaseParams, false, nil, false, 0)
+		err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseWithRetry(createProjectTaskArgs.Namespace, releaseParams, false, nil, false, 0)
 		if err != nil {
 			logrus.Errorf("failed to create project release %s/%s : %s", createProjectTaskArgs.Namespace, releaseParams.Name, err)
 			return err
