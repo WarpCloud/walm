@@ -14,7 +14,6 @@ import (
 	"walm/pkg/release/manager/helm/cache"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
-	"walm/pkg/k8s/handler"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -108,19 +107,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		}
 	}
 
-	releaseConfigs, err := handler.GetDefaultHandlerSet().GetReleaseConfigHandler().ListReleaseConfigs(
-		projectCache.Namespace, &v1.LabelSelector{MatchLabels: map[string]string{cache.ProjectNameLabelKey: projectCache.Name}})
-	if err != nil {
-		logrus.Errorf("failed to list release configs : %s", err.Error())
-		return nil, err
-	}
-
-	releaseNames := []string{}
-	for _, releaseConfig := range releaseConfigs {
-		releaseNames = append(releaseNames, releaseConfig.Name)
-	}
-
-	projectInfo.Releases, err = manager.helmClient.ListReleasesByNames(projectCache.Namespace, releaseNames...)
+	projectInfo.Releases, err = manager.helmClient.ListReleasesByLabels(projectCache.Namespace, &v1.LabelSelector{MatchLabels: map[string]string{cache.ProjectNameLabelKey: projectCache.Name}})
 	if err != nil {
 		return nil, err
 	}

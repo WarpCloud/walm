@@ -10,6 +10,7 @@ import (
 	"walm/router/api"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func DeleteRelease(request *restful.Request, response *restful.Response) {
@@ -148,7 +149,13 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 
 func ListReleaseByNamespace(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
-	infos, err := helm.GetDefaultHelmClient().ListReleases(namespace, "")
+	labelSelectorStr := request.QueryParameter("labelselector")
+	labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
+	if err != nil {
+		api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
+		return
+	}
+	infos, err := helm.GetDefaultHelmClient().ListReleasesByLabels(namespace, labelSelector)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return
@@ -157,7 +164,13 @@ func ListReleaseByNamespace(request *restful.Request, response *restful.Response
 }
 
 func ListRelease(request *restful.Request, response *restful.Response) {
-	infos, err := helm.GetDefaultHelmClient().ListReleases("", "")
+	labelSelectorStr := request.QueryParameter("labelselector")
+	labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
+	if err != nil {
+		api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
+		return
+	}
+	infos, err := helm.GetDefaultHelmClient().ListReleasesByLabels("", labelSelector)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
 		return

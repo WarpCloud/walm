@@ -124,7 +124,7 @@ func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) 
 	return
 }
 
-func (cache *HelmCache) GetReleaseCachesByNames(namespace string, names ...string) (releaseCaches []*release.ReleaseCache, err error) {
+func (cache *HelmCache) GetReleaseCachesByNames(names []ReleaseFieldName) (releaseCaches []*release.ReleaseCache, err error) {
 	releaseCaches = []*release.ReleaseCache{}
 	if len(names) == 0 {
 		return
@@ -132,7 +132,7 @@ func (cache *HelmCache) GetReleaseCachesByNames(namespace string, names ...strin
 
 	releaseCacheFieldNames := []string{}
 	for _, name := range names {
-		releaseCacheFieldNames = append(releaseCacheFieldNames, buildWalmReleaseFieldName(namespace, name))
+		releaseCacheFieldNames = append(releaseCacheFieldNames, buildWalmReleaseFieldName(name.Namespace, name.Name))
 	}
 
 	releaseCacheStrs, err := cache.redisClient.GetClient().HMGet(redis.WalmReleasesKey, releaseCacheFieldNames...).Result()
@@ -500,7 +500,12 @@ func (cache *HelmCache) GetReleaseTasks(namespace, filter string, count int64) (
 	return
 }
 
-func (cache *HelmCache) GetReleaseTasksByNames(namespace string, names ...string) (releaseTasks []*ReleaseTask, err error) {
+type ReleaseFieldName struct {
+	Namespace string
+	Name      string
+}
+
+func (cache *HelmCache) GetReleaseTasksByNames(names []ReleaseFieldName) (releaseTasks []*ReleaseTask, err error) {
 	releaseTasks = []*ReleaseTask{}
 	if len(names) == 0 {
 		return
@@ -508,7 +513,7 @@ func (cache *HelmCache) GetReleaseTasksByNames(namespace string, names ...string
 
 	releaseTaskFieldNames := []string{}
 	for _, name := range names {
-		releaseTaskFieldNames = append(releaseTaskFieldNames, buildWalmReleaseFieldName(namespace, name))
+		releaseTaskFieldNames = append(releaseTaskFieldNames, buildWalmReleaseFieldName(name.Namespace, name.Name))
 	}
 
 	releaseTaskStrs, err := cache.redisClient.GetClient().HMGet(redis.WalmReleaseTasksKey, releaseTaskFieldNames...).Result()
@@ -624,7 +629,7 @@ func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 
 	result := &HelmCache{
 		redisClient: redisClient,
-		list:  action.NewList(config),
+		list:        action.NewList(config),
 	}
 
 	result.list.AllNamespaces = true

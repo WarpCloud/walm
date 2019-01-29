@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"github.com/hashicorp/golang-lru"
 	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -294,17 +295,39 @@ func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.Release
 	return hc.doListReleases(releaseTasks, releaseCaches)
 }
 
-func (hc *HelmClient) ListReleasesByNames(namespace string, names... string) ([]*release.ReleaseInfoV2, error) {
+func (hc *HelmClient) ListReleasesByLabels(namespace string, labelSelector *v1.LabelSelector) ([]*release.ReleaseInfoV2, error) {
+	releaseConfigs, err := hc.releaseConfigHandler.ListReleaseConfigs(namespace, labelSelector)
+	if err != nil {
+		logrus.Errorf("failed to list release configs : %s", err.Error())
+		return nil, err
+	}
+
+	releaseNames := []cache.ReleaseFieldName{}
+	for _, releaseConfig := range releaseConfigs {
+		releaseNames = append(releaseNames, cache.ReleaseFieldName{
+			Namespace: releaseConfig.Namespace,
+			Name: releaseConfig.Name,
+		})
+	}
+
+	releases, err := hc.listReleasesByNames(releaseNames)
+	if err != nil {
+		return nil, err
+	}
+	return releases, nil
+}
+
+func (hc *HelmClient) listReleasesByNames(names []cache.ReleaseFieldName) ([]*release.ReleaseInfoV2, error) {
 	if len(names) == 0 {
 		return []*release.ReleaseInfoV2{}, nil
 	}
-	releaseTasks, err := hc.helmCache.GetReleaseTasksByNames(namespace, names...)
+	releaseTasks, err := hc.helmCache.GetReleaseTasksByNames(names)
 	if err != nil {
 		logrus.Errorf("failed to get release tasks : %s", err.Error())
 		return nil, err
 	}
 
-	releaseCaches, err := hc.helmCache.GetReleaseCachesByNames(namespace, names...)
+	releaseCaches, err := hc.helmCache.GetReleaseCachesByNames(names)
 	if err != nil {
 		logrus.Errorf("failed to get release caches : %s", err.Error())
 		return nil, err
@@ -728,6 +751,13 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 					return err
 				}
 				mergeValues(configValues, releaseInfo.ConfigValues)
+				if len(releaseInfo.ReleaseLabels) > 0 {
+					oldProjectName, ok1 := releaseInfo.ReleaseLabels[cache.ProjectNameLabelKey]
+					_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
+					if ok1 && !ok2 {
+						releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
+					}
+				}
 				if len(releaseInfo.Status.Instances) > 0 {
 					err = fmt.Errorf("now v1 release %s/%s with instances is not support to upgrade", namespace, releaseRequest.Name)
 					return err
@@ -738,6 +768,14 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 			}
 		} else {
 			mergeValues(configValues, releaseConfig.Spec.ConfigValues)
+			// project-name label can not be removed
+			if len(releaseConfig.Labels) > 0 {
+				oldProjectName, ok1 := releaseConfig.Labels[cache.ProjectNameLabelKey]
+				_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
+				if ok1 && !ok2 {
+					releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
+				}
+			}
 		}
 	}
 	mergeValues(configValues, releaseRequest.ConfigValues)
