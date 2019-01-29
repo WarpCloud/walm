@@ -88,6 +88,7 @@ type ChartDependencyInfo struct {
 	ChartName  string  `json:"chart_name"`
 	MaxVersion float32 `json:"max_version"`
 	MinVersion float32 `json:"min_version"`
+	DependencyOptional bool `json:"dependency_optional"`
 }
 
 type ChartInfo struct {
@@ -196,9 +197,11 @@ type DependencyDeclare struct {
 	// dependency variable mappings
 	Requires map[string]string `json:"requires,omitempty"`
 	// minVersion
-	MinVersion float32 `json:"min_version"`
+	MinVersion float32 `json:"minVersion"`
 	// maxVersion
-	MaxVersion float32 `json:"max_version"`
+	MaxVersion float32 `json:"maxVersion"`
+
+	DependencyOptional bool `json:"dependencyOptional"`
 }
 
 type AppDependency struct {

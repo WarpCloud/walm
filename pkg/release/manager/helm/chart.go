@@ -181,6 +181,7 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 						ChartName:  dependency.Name,
 						MaxVersion: dependency.MaxVersion,
 						MinVersion: dependency.MinVersion,
+						DependencyOptional: dependency.DependencyOptional,
 					}
 					chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
 				}
