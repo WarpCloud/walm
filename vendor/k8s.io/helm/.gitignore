@@ -8,3 +8,4 @@
 /docs/man
 _dist/
 bin/
+*.iml

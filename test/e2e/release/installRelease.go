@@ -7,16 +7,15 @@ import (
 	"os"
 	"time"
 	"walm/pkg/k8s/handler"
-	"walm/pkg/release/v2"
-
-	helmv2 "walm/pkg/release/v2/helm"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"walm/pkg/release"
+	"walm/pkg/release/manager/helm"
 )
 
 var _ = Describe("Release", func() {
@@ -25,15 +24,14 @@ var _ = Describe("Release", func() {
 		namespace      string
 		gopath         string
 		releaseName    string
-		releaseRequest v2.ReleaseRequestV2
-		releaseInfo    *v2.ReleaseInfoV2
+		releaseRequest release.ReleaseRequestV2
+		releaseInfo    *release.ReleaseInfoV2
 		err            error
 	)
 
 	BeforeEach(func() {
 
 		By("create namespace")
-
 		randomId := uuid.Must(uuid.NewV4()).String()
 		namespace = "test-" + randomId[:8]
 
@@ -67,10 +65,10 @@ var _ = Describe("Release", func() {
 	AfterEach(func() {
 
 		By("delete release")
-		err := helmv2.GetDefaultHelmClientV2().DeleteReleaseV2(namespace, releaseName, false, true, false, 0)
+		err := helm.GetDefaultHelmClient().DeleteRelease(namespace, releaseName, false, true, false, 0)
 		Expect(err).NotTo(HaveOccurred())
 
-		_, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+		_, err = helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 		Expect(err).To(HaveOccurred())
 
 		By("delete namespace")
@@ -83,10 +81,10 @@ var _ = Describe("Release", func() {
 		It("install release success", func() {
 
 			By("start create a release")
-			err = helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
+			err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releaseRequest, false, nil, false, 0)
 			Expect(err).NotTo(HaveOccurred())
 
-			releaseInfo, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+			releaseInfo, err = helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 			Expect(releaseInfo.Name).To(Equal(releaseName))
 
 			By("check release status")
@@ -100,7 +98,7 @@ var _ = Describe("Release", func() {
 					case <-timeout:
 						Fail("install release timeout, check out please")
 					default:
-						releaseInfo, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+						releaseInfo, err = helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 						Expect(err).NotTo(HaveOccurred())
 						logrus.Infof("install release status: ongoing")
 						if releaseInfo.Ready {
