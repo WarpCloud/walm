@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"walm/pkg/k8s/handler"
-	"walm/pkg/release/v2"
-	helmv2 "walm/pkg/release/v2/helm"
 
 	"github.com/bitly/go-simplejson"
 	. "github.com/onsi/ginkgo"
@@ -15,6 +13,8 @@ import (
 	"github.com/satori/go.uuid"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"walm/pkg/release/manager/helm"
+	"walm/pkg/release"
 )
 
 var _ = Describe("Release", func() {
@@ -23,7 +23,7 @@ var _ = Describe("Release", func() {
 		namespace      string
 		gopath         string
 		releaseName    string
-		releaseRequest v2.ReleaseRequestV2
+		releaseRequest release.ReleaseRequestV2
 	)
 
 	BeforeEach(func() {
@@ -56,19 +56,19 @@ var _ = Describe("Release", func() {
 
 		releaseRequest.Name = releaseRequest.Name + "-" + randomId[:8]
 		releaseName = releaseRequest.Name
-		helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
+		helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releaseRequest, false, nil, false, 0)
 
-		releaseInfo, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+		releaseInfo, err := helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 		Expect(releaseInfo.Name).To(Equal(releaseName))
 	})
 
 	AfterEach(func() {
 
 		By("delete release")
-		err := helmv2.GetDefaultHelmClientV2().DeleteReleaseV2(namespace, releaseName, false, true, false, 0)
+		err := helm.GetDefaultHelmClient().DeleteRelease(namespace, releaseName, false, true, false, 0)
 		Expect(err).NotTo(HaveOccurred())
 
-		_, err = helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+		_, err = helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 		Expect(err).To(HaveOccurred())
 
 		By("delete namespace")
@@ -96,11 +96,11 @@ var _ = Describe("Release", func() {
 			err = json.Unmarshal(ConfigValue, &releaseRequest.ConfigValues)
 			Expect(err).NotTo(HaveOccurred())
 
-			helmv2.GetDefaultHelmClientV2().InstallUpgradeReleaseV2(namespace, &releaseRequest, false, nil, false, 0)
+			helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, &releaseRequest, false, nil, false, 0)
 
 			By("validate release value")
 
-			newRelease, err := helmv2.GetDefaultHelmClientV2().GetReleaseV2(namespace, releaseName)
+			newRelease, err := helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
 			Expect(err).NotTo(HaveOccurred())
 			newConfigValue, err := json.Marshal(newRelease.ConfigValues)
 			Expect(err).NotTo(HaveOccurred())

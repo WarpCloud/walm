@@ -12,7 +12,6 @@ var _ = Describe("Node", func() {
 
 	var (
 		nodeName string
-		node adaptor.WalmResource
 		err error
 
 	)
@@ -21,7 +20,7 @@ var _ = Describe("Node", func() {
 
 		// check node
 		nodeName = "172.16.1.177"
-		node, err = adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor).GetResource("", nodeName)
+		_, err = adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor).GetResource("", nodeName)
 		Expect(err).NotTo(HaveOccurred())
 
 	})
