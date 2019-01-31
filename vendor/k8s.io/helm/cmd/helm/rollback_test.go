@@ -17,51 +17,27 @@ limitations under the License.
 package main
 
 import (
-	"io"
 	"testing"
-
-	"github.com/spf13/cobra"
-
-	"k8s.io/helm/pkg/helm"
 )
 
 func TestRollbackCmd(t *testing.T) {
-
-	tests := []releaseCase{
-		{
-			name:     "rollback a release",
-			args:     []string{"funny-honey", "1"},
-			expected: "Rollback was a success! Happy Helming!",
-		},
-		{
-			name:     "rollback a release with timeout",
-			args:     []string{"funny-honey", "1"},
-			flags:    []string{"--timeout", "120"},
-			expected: "Rollback was a success! Happy Helming!",
-		},
-		{
-			name:     "rollback a release with wait",
-			args:     []string{"funny-honey", "1"},
-			flags:    []string{"--wait"},
-			expected: "Rollback was a success! Happy Helming!",
-		},
-		{
-			name:     "rollback a release with description",
-			args:     []string{"funny-honey", "1"},
-			flags:    []string{"--description", "foo"},
-			expected: "Rollback was a success! Happy Helming!",
-		},
-		{
-			name: "rollback a release without revision",
-			args: []string{"funny-honey"},
-			err:  true,
-		},
-	}
-
-	cmd := func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newRollbackCmd(c, out)
-	}
-
-	runReleaseCases(t, tests, cmd)
-
+	tests := []cmdTestCase{{
+		name:   "rollback a release",
+		cmd:    "rollback funny-honey 1",
+		golden: "output/rollback.txt",
+	}, {
+		name:   "rollback a release with timeout",
+		cmd:    "rollback funny-honey 1 --timeout 120",
+		golden: "output/rollback-timeout.txt",
+	}, {
+		name:   "rollback a release with wait",
+		cmd:    "rollback funny-honey 1 --wait",
+		golden: "output/rollback-wait.txt",
+	}, {
+		name:      "rollback a release without revision",
+		cmd:       "rollback funny-honey",
+		golden:    "output/rollback-no-args.txt",
+		wantError: true,
+	}}
+	runTestCmd(t, tests)
 }

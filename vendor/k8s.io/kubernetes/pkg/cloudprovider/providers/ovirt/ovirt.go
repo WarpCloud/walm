@@ -33,8 +33,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/cloudprovider"
-	"k8s.io/kubernetes/pkg/controller"
+	cloudprovider "k8s.io/cloud-provider"
 )
 
 const ProviderName = "ovirt"
@@ -118,7 +117,8 @@ func newOVirtCloud(config io.Reader) (*OVirtCloud, error) {
 }
 
 // Initialize passes a Kubernetes clientBuilder interface to the cloud provider
-func (v *OVirtCloud) Initialize(clientBuilder controller.ControllerClientBuilder) {}
+func (v *OVirtCloud) Initialize(clientBuilder cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
+}
 
 func (v *OVirtCloud) Clusters() (cloudprovider.Clusters, bool) {
 	return nil, false
@@ -196,19 +196,14 @@ func mapNodeNameToInstanceName(nodeName types.NodeName) string {
 	return string(nodeName)
 }
 
-// ExternalID returns the cloud provider ID of the specified node with the specified NodeName (deprecated).
-func (v *OVirtCloud) ExternalID(ctx context.Context, nodeName types.NodeName) (string, error) {
-	name := mapNodeNameToInstanceName(nodeName)
-	instance, err := v.fetchInstance(name)
-	if err != nil {
-		return "", err
-	}
-	return instance.UUID, nil
-}
-
 // InstanceExistsByProviderID returns true if the instance with the given provider id still exists and is running.
 // If false is returned with no error, the instance will be immediately deleted by the cloud controller manager.
 func (v *OVirtCloud) InstanceExistsByProviderID(ctx context.Context, providerID string) (bool, error) {
+	return false, cloudprovider.NotImplemented
+}
+
+// InstanceShutdownByProviderID returns true if the instance is in safe state to detach volumes
+func (v *OVirtCloud) InstanceShutdownByProviderID(ctx context.Context, providerID string) (bool, error) {
 	return false, cloudprovider.NotImplemented
 }
 

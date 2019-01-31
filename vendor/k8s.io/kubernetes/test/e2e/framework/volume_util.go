@@ -41,12 +41,14 @@ package framework
 
 import (
 	"fmt"
+
 	"strconv"
 	"time"
 
 	"k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	clientset "k8s.io/client-go/kubernetes"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 
@@ -65,7 +67,11 @@ const (
 	TiB int64 = 1024 * GiB
 
 	// Waiting period for volume server (Ceph, ...) to initialize itself.
-	VolumeServerPodStartupSleep = 20 * time.Second
+	VolumeServerPodStartupTimeout = 3 * time.Minute
+
+	// Waiting period for pod to be cleaned up and unmount its volumes so we
+	// don't tear down containers with NFS/Ceph/Gluster server too early.
+	PodCleanupTimeout = 20 * time.Second
 )
 
 // Configuration of one tests. The test consist of:
@@ -87,6 +93,8 @@ type VolumeTestConfig struct {
 	// map <host (source) path> -> <container (dst.) path>
 	// if <host (source) path> is empty, mount a tmpfs emptydir
 	ServerVolumes map[string]string
+	// Message to wait for before starting clients
+	ServerReadyMessage string
 	// Wait for the pod to terminate successfully
 	// False indicates that the pod is long running
 	WaitForCompletion bool
@@ -109,11 +117,12 @@ type VolumeTest struct {
 // NFS-specific wrapper for CreateStorageServer.
 func NewNFSServer(cs clientset.Interface, namespace string, args []string) (config VolumeTestConfig, pod *v1.Pod, ip string) {
 	config = VolumeTestConfig{
-		Namespace:     namespace,
-		Prefix:        "nfs",
-		ServerImage:   imageutils.GetE2EImage(imageutils.VolumeNFSServer),
-		ServerPorts:   []int{2049},
-		ServerVolumes: map[string]string{"": "/exports"},
+		Namespace:          namespace,
+		Prefix:             "nfs",
+		ServerImage:        imageutils.GetE2EImage(imageutils.VolumeNFSServer),
+		ServerPorts:        []int{2049},
+		ServerVolumes:      map[string]string{"": "/exports"},
+		ServerReadyMessage: "NFS started",
 	}
 	if len(args) > 0 {
 		config.ServerArgs = args
@@ -175,13 +184,14 @@ func NewISCSIServer(cs clientset.Interface, namespace string) (config VolumeTest
 			// iSCSI container needs to insert modules from the host
 			"/lib/modules": "/lib/modules",
 		},
+		ServerReadyMessage: "Configuration restored from /etc/target/saveconfig.json",
 	}
 	pod, ip = CreateStorageServer(cs, config)
 	return config, pod, ip
 }
 
 // CephRBD-specific wrapper for CreateStorageServer.
-func NewRBDServer(cs clientset.Interface, namespace string) (config VolumeTestConfig, pod *v1.Pod, ip string) {
+func NewRBDServer(cs clientset.Interface, namespace string) (config VolumeTestConfig, pod *v1.Pod, secret *v1.Secret, ip string) {
 	config = VolumeTestConfig{
 		Namespace:   namespace,
 		Prefix:      "rbd",
@@ -190,17 +200,31 @@ func NewRBDServer(cs clientset.Interface, namespace string) (config VolumeTestCo
 		ServerVolumes: map[string]string{
 			"/lib/modules": "/lib/modules",
 		},
+		ServerReadyMessage: "Ceph is ready",
 	}
 	pod, ip = CreateStorageServer(cs, config)
+	// create secrets for the server
+	secret = &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: config.Prefix + "-secret",
+		},
+		Data: map[string][]byte{
+			// from test/images/volumes-tester/rbd/keyring
+			"key": []byte("AQDRrKNVbEevChAAEmRC+pW/KBVHxa0w/POILA=="),
+		},
+		Type: "kubernetes.io/rbd",
+	}
 
-	// Ceph server container needs some time to start. Tests continue working if
-	// this sleep is removed, however kubelet logs (and kubectl describe
-	// <client pod>) would be cluttered with error messages about non-existing
-	// image.
-	Logf("sleeping a bit to give ceph server time to initialize")
-	time.Sleep(VolumeServerPodStartupSleep)
+	secret, err := cs.CoreV1().Secrets(config.Namespace).Create(secret)
+	if err != nil {
+		Failf("Failed to create secrets for Ceph RBD: %v", err)
+	}
 
-	return config, pod, ip
+	return config, pod, secret, ip
 }
 
 // Wrapper for StartVolumeServer(). A storage server config is passed in, and a pod pointer
@@ -324,7 +348,36 @@ func StartVolumeServer(client clientset.Interface, config VolumeTestConfig) *v1.
 			ExpectNoError(err, "Cannot locate the server pod %q: %v", serverPodName, err)
 		}
 	}
+	if config.ServerReadyMessage != "" {
+		_, err := LookForStringInLog(pod.Namespace, pod.Name, serverPodName, config.ServerReadyMessage, VolumeServerPodStartupTimeout)
+		ExpectNoError(err, "Failed to find %q in pod logs: %s", config.ServerReadyMessage, err)
+	}
 	return pod
+}
+
+// Wrapper of cleanup function for volume server without secret created by specific CreateStorageServer function.
+func CleanUpVolumeServer(f *Framework, serverPod *v1.Pod) {
+	CleanUpVolumeServerWithSecret(f, serverPod, nil)
+}
+
+// Wrapper of cleanup function for volume server with secret created by specific CreateStorageServer function.
+func CleanUpVolumeServerWithSecret(f *Framework, serverPod *v1.Pod, secret *v1.Secret) {
+	cs := f.ClientSet
+	ns := f.Namespace
+
+	if secret != nil {
+		Logf("Deleting server secret %q...", secret.Name)
+		err := cs.CoreV1().Secrets(ns.Name).Delete(secret.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			Logf("Delete secret failed: %v", err)
+		}
+	}
+
+	Logf("Deleting server pod %q...", serverPod.Name)
+	err := DeletePodWithWait(f, cs, serverPod)
+	if err != nil {
+		Logf("Server pod delete failed: %v", err)
+	}
 }
 
 // Clean both server and client pods.
@@ -333,14 +386,14 @@ func VolumeTestCleanup(f *Framework, config VolumeTestConfig) {
 
 	defer GinkgoRecover()
 
-	client := f.ClientSet
+	cs := f.ClientSet
 
-	err := DeletePodWithWaitByName(f, client, config.Prefix+"-client", config.Namespace)
-	Expect(err).To(BeNil(), "Failed waiting for pod %v to be not running in namespace %v", config.Prefix+"-client", config.Namespace)
+	err := DeletePodWithWaitByName(f, cs, config.Prefix+"-client", config.Namespace)
+	Expect(err).To(BeNil(), "Failed to delete pod %v in namespace %v", config.Prefix+"-client", config.Namespace)
 
 	if config.ServerImage != "" {
-		err := DeletePodWithWaitByName(f, client, config.Prefix+"-server", config.Namespace)
-		Expect(err).To(BeNil(), "Failed waiting for pod %v to be not running in namespace %v", config.Prefix+"-server", config.Namespace)
+		err := DeletePodWithWaitByName(f, cs, config.Prefix+"-server", config.Namespace)
+		Expect(err).To(BeNil(), "Failed to delete pod %v in namespace %v", config.Prefix+"-server", config.Namespace)
 	}
 }
 
@@ -392,9 +445,7 @@ func TestVolumeClient(client clientset.Interface, config VolumeTestConfig, fsGro
 	}
 	podsNamespacer := client.CoreV1().Pods(config.Namespace)
 
-	if fsGroup != nil {
-		clientPod.Spec.SecurityContext.FSGroup = fsGroup
-	}
+	clientPod.Spec.SecurityContext.FSGroup = fsGroup
 
 	for i, test := range tests {
 		volumeName := fmt.Sprintf("%s-%s-%d", config.Prefix, "volume", i)
@@ -430,9 +481,11 @@ func TestVolumeClient(client clientset.Interface, config VolumeTestConfig, fsGro
 // Insert index.html with given content into given volume. It does so by
 // starting and auxiliary pod which writes the file there.
 // The volume must be writable.
-func InjectHtml(f *Framework, client clientset.Interface, config VolumeTestConfig, volume v1.VolumeSource, content string) {
+func InjectHtml(client clientset.Interface, config VolumeTestConfig, volume v1.VolumeSource, content string) {
 	By(fmt.Sprint("starting ", config.Prefix, " injector"))
 	podClient := client.CoreV1().Pods(config.Namespace)
+	podName := fmt.Sprintf("%s-injector-%s", config.Prefix, rand.String(4))
+	volMountName := fmt.Sprintf("%s-volume-%s", config.Prefix, rand.String(4))
 
 	injectPod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -440,7 +493,7 @@ func InjectHtml(f *Framework, client clientset.Interface, config VolumeTestConfi
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: config.Prefix + "-injector",
+			Name: podName,
 			Labels: map[string]string{
 				"role": config.Prefix + "-injector",
 			},
@@ -454,7 +507,7 @@ func InjectHtml(f *Framework, client clientset.Interface, config VolumeTestConfi
 					Args:    []string{"-c", "echo '" + content + "' > /mnt/index.html && chmod o+rX /mnt /mnt/index.html"},
 					VolumeMounts: []v1.VolumeMount{
 						{
-							Name:      config.Prefix + "-volume",
+							Name:      volMountName,
 							MountPath: "/mnt",
 						},
 					},
@@ -468,17 +521,17 @@ func InjectHtml(f *Framework, client clientset.Interface, config VolumeTestConfi
 			RestartPolicy: v1.RestartPolicyNever,
 			Volumes: []v1.Volume{
 				{
-					Name:         config.Prefix + "-volume",
+					Name:         volMountName,
 					VolumeSource: volume,
 				},
 			},
+			NodeName:     config.ClientNodeName,
 			NodeSelector: config.NodeSelector,
 		},
 	}
 
 	defer func() {
-		err := DeletePodWithWaitByName(f, client, injectPod.GetName(), config.Namespace)
-		Expect(err).To(BeNil(), "Failed deleting pod %v in namespace %v", injectPod.GetName(), config.Namespace)
+		podClient.Delete(podName, nil)
 	}()
 
 	injectPod, err := podClient.Create(injectPod)

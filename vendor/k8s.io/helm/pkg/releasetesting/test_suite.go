@@ -17,23 +17,22 @@ limitations under the License.
 package releasetesting
 
 import (
-	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"k8s.io/kubernetes/pkg/apis/core"
+	"github.com/pkg/errors"
+	"k8s.io/api/core/v1"
 
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/hooks"
-	"k8s.io/helm/pkg/proto/hapi/release"
 	util "k8s.io/helm/pkg/releaseutil"
-	"k8s.io/helm/pkg/timeconv"
 )
 
 // TestSuite what tests are run, results, and metadata
 type TestSuite struct {
-	StartedAt     *timestamp.Timestamp
-	CompletedAt   *timestamp.Timestamp
+	StartedAt     time.Time
+	CompletedAt   time.Time
 	TestManifests []string
 	Results       []*release.TestRun
 }
@@ -46,27 +45,20 @@ type test struct {
 
 // NewTestSuite takes a release object and returns a TestSuite object with test definitions
 //  extracted from the release
-func NewTestSuite(rel *release.Release) (*TestSuite, error) {
-	testManifests, err := extractTestManifestsFromHooks(rel.Hooks)
-	if err != nil {
-		return nil, err
-	}
-
-	results := []*release.TestRun{}
-
+func NewTestSuite(rel *release.Release) *TestSuite {
 	return &TestSuite{
-		TestManifests: testManifests,
-		Results:       results,
-	}, nil
+		TestManifests: extractTestManifestsFromHooks(rel.Hooks),
+		Results:       []*release.TestRun{},
+	}
 }
 
 // Run executes tests in a test suite and stores a result within a given environment
 func (ts *TestSuite) Run(env *Environment) error {
-	ts.StartedAt = timeconv.Now()
+	ts.StartedAt = time.Now()
 
 	if len(ts.TestManifests) == 0 {
 		// TODO: make this better, adding test run status on test suite is weird
-		env.streamMessage("No Tests Found", release.TestRun_UNKNOWN)
+		env.streamMessage("No Tests Found", release.TestRunUnknown)
 	}
 
 	for _, testManifest := range ts.TestManifests {
@@ -75,11 +67,11 @@ func (ts *TestSuite) Run(env *Environment) error {
 			return err
 		}
 
-		test.result.StartedAt = timeconv.Now()
+		test.result.StartedAt = time.Now()
 		if err := env.streamRunning(test.result.Name); err != nil {
 			return err
 		}
-		test.result.Status = release.TestRun_RUNNING
+		test.result.Status = release.TestRunRunning
 
 		resourceCreated := true
 		if err := env.createTestPod(test); err != nil {
@@ -90,7 +82,7 @@ func (ts *TestSuite) Run(env *Environment) error {
 		}
 
 		resourceCleanExit := true
-		status := core.PodUnknown
+		status := v1.PodUnknown
 		if resourceCreated {
 			status, err = env.getTestPodStatus(test)
 			if err != nil {
@@ -111,30 +103,30 @@ func (ts *TestSuite) Run(env *Environment) error {
 			}
 		}
 
-		test.result.CompletedAt = timeconv.Now()
+		test.result.CompletedAt = time.Now()
 		ts.Results = append(ts.Results, test.result)
 	}
 
-	ts.CompletedAt = timeconv.Now()
+	ts.CompletedAt = time.Now()
 	return nil
 }
 
-func (t *test) assignTestResult(podStatus core.PodPhase) error {
+func (t *test) assignTestResult(podStatus v1.PodPhase) error {
 	switch podStatus {
-	case core.PodSucceeded:
+	case v1.PodSucceeded:
 		if t.expectedSuccess {
-			t.result.Status = release.TestRun_SUCCESS
+			t.result.Status = release.TestRunSuccess
 		} else {
-			t.result.Status = release.TestRun_FAILURE
+			t.result.Status = release.TestRunFailure
 		}
-	case core.PodFailed:
+	case v1.PodFailed:
 		if !t.expectedSuccess {
-			t.result.Status = release.TestRun_SUCCESS
+			t.result.Status = release.TestRunSuccess
 		} else {
-			t.result.Status = release.TestRun_FAILURE
+			t.result.Status = release.TestRunFailure
 		}
 	default:
-		t.result.Status = release.TestRun_UNKNOWN
+		t.result.Status = release.TestRunUnknown
 	}
 
 	return nil
@@ -149,10 +141,10 @@ func expectedSuccess(hookTypes []string) (bool, error) {
 			return false, nil
 		}
 	}
-	return false, fmt.Errorf("No %s or %s hook found", hooks.ReleaseTestSuccess, hooks.ReleaseTestFailure)
+	return false, errors.Errorf("no %s or %s hook found", hooks.ReleaseTestSuccess, hooks.ReleaseTestFailure)
 }
 
-func extractTestManifestsFromHooks(h []*release.Hook) ([]string, error) {
+func extractTestManifestsFromHooks(h []*release.Hook) []string {
 	testHooks := hooks.FilterTestHooks(h)
 
 	tests := []string{}
@@ -162,7 +154,7 @@ func extractTestManifestsFromHooks(h []*release.Hook) ([]string, error) {
 			tests = append(tests, t)
 		}
 	}
-	return tests, nil
+	return tests
 }
 
 func newTest(testManifest string) (*test, error) {
@@ -173,7 +165,7 @@ func newTest(testManifest string) (*test, error) {
 	}
 
 	if sh.Kind != "Pod" {
-		return nil, fmt.Errorf("%s is not a pod", sh.Metadata.Name)
+		return nil, errors.Errorf("%s is not a pod", sh.Metadata.Name)
 	}
 
 	hookTypes := sh.Metadata.Annotations[hooks.HookAnno]

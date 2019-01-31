@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/helm"
 )
@@ -30,49 +32,45 @@ var getValuesHelp = `
 This command downloads a values file for a given release.
 `
 
-type getValuesCmd struct {
-	release   string
-	allValues bool
-	out       io.Writer
-	client    helm.Interface
-	version   int32
+type getValuesOptions struct {
+	allValues bool // --all
+	version   int  // --revision
+
+	release string
+
+	client helm.Interface
 }
 
 func newGetValuesCmd(client helm.Interface, out io.Writer) *cobra.Command {
-	get := &getValuesCmd{
-		out:    out,
-		client: client,
-	}
+	o := &getValuesOptions{client: client}
+
 	cmd := &cobra.Command{
-		Use:     "values [flags] RELEASE_NAME",
-		Short:   "download the values file for a named release",
-		Long:    getValuesHelp,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "values RELEASE_NAME",
+		Short: "download the values file for a named release",
+		Long:  getValuesHelp,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errReleaseRequired
-			}
-			get.release = args[0]
-			get.client = ensureHelmClient(get.client)
-			return get.run()
+			o.release = args[0]
+			o.client = ensureHelmClient(o.client, false)
+			return o.run(out)
 		},
 	}
 
-	cmd.Flags().Int32Var(&get.version, "revision", 0, "get the named release with revision")
-	cmd.Flags().BoolVarP(&get.allValues, "all", "a", false, "dump all (computed) values")
+	cmd.Flags().BoolVarP(&o.allValues, "all", "a", false, "dump all (computed) values")
+	cmd.Flags().IntVar(&o.version, "revision", 0, "get the named release with revision")
 	return cmd
 }
 
 // getValues implements 'helm get values'
-func (g *getValuesCmd) run() error {
-	res, err := g.client.ReleaseContent(g.release, helm.ContentReleaseVersion(g.version))
+func (o *getValuesOptions) run(out io.Writer) error {
+	res, err := o.client.ReleaseContent(o.release, o.version)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
 
 	// If the user wants all values, compute the values and return.
-	if g.allValues {
-		cfg, err := chartutil.CoalesceValues(res.Release.Chart, res.Release.Config)
+	if o.allValues {
+		cfg, err := chartutil.CoalesceValues(res.Chart, res.Config)
 		if err != nil {
 			return err
 		}
@@ -80,10 +78,15 @@ func (g *getValuesCmd) run() error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(g.out, cfgStr)
+		fmt.Fprintln(out, cfgStr)
 		return nil
 	}
 
-	fmt.Fprintln(g.out, res.Release.Config.Raw)
+	resConfig, err := yaml.Marshal(res.Config)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, string(resConfig))
 	return nil
 }

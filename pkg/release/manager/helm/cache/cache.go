@@ -1,39 +1,38 @@
 package cache
 
 import (
+	hapirelease "k8s.io/helm/pkg/hapi/release"
 	"walm/pkg/redis"
-	"k8s.io/helm/pkg/helm"
 	"github.com/sirupsen/logrus"
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 	"walm/pkg/release"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/chartutil"
-	"github.com/ghodss/yaml"
 	"bytes"
-	"k8s.io/helm/pkg/kube"
 	"encoding/json"
 	goredis "github.com/go-redis/redis"
 	"time"
 	walmerr "walm/pkg/util/error"
-	"strings"
+	"k8s.io/helm/pkg/action"
+	"walm/pkg/k8s/client"
+	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/helm/pkg/storage"
 	"walm/pkg/k8s/handler"
-	"walm/pkg/k8s/adaptor"
-	"fmt"
+)
+
+const (
+	ProjectNameLabelKey = "Project-Name"
 )
 
 type HelmCache struct {
-	redisClient        *redis.RedisClient
-	helmClient         *helm.Client
-	multiTenantClients *MultiTenantClientsCache
-	kubeClient         *kube.Client
+	redisClient *redis.RedisClient
+	list        *action.List
 }
 
-func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapiRelease.Release) error {
+func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapirelease.Release) error {
 	if helmRelease == nil {
 		logrus.Warn("failed to create or update cache as helm release is nil")
 		return nil
 	}
-	releaseCache, err := cache.buildReleaseCaches([]*hapiRelease.Release{helmRelease})
+	releaseCache, err := cache.buildReleaseCaches([]*hapirelease.Release{helmRelease})
 	if err != nil {
 		logrus.Errorf("failed to build release cache of %s : %s", helmRelease.Name, err.Error())
 		return err
@@ -125,7 +124,7 @@ func (cache *HelmCache) GetReleaseCaches(namespace, filter string, count int64) 
 	return
 }
 
-func (cache *HelmCache) GetReleaseCachesByNames(namespace string, names ...string) (releaseCaches []*release.ReleaseCache, err error) {
+func (cache *HelmCache) GetReleaseCachesByNames(names []ReleaseFieldName) (releaseCaches []*release.ReleaseCache, err error) {
 	releaseCaches = []*release.ReleaseCache{}
 	if len(names) == 0 {
 		return
@@ -133,7 +132,7 @@ func (cache *HelmCache) GetReleaseCachesByNames(namespace string, names ...strin
 
 	releaseCacheFieldNames := []string{}
 	for _, name := range names {
-		releaseCacheFieldNames = append(releaseCacheFieldNames, buildWalmReleaseFieldName(namespace, name))
+		releaseCacheFieldNames = append(releaseCacheFieldNames, buildWalmReleaseFieldName(name.Namespace, name.Name))
 	}
 
 	releaseCacheStrs, err := cache.redisClient.GetClient().HMGet(redis.WalmReleasesKey, releaseCacheFieldNames...).Result()
@@ -175,69 +174,13 @@ func buildHScanFilter(namespace string, filter string) string {
 	return newFilter
 }
 
-func IsMultiTenant(tenantName string) (bool, error) {
-	namespace, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().GetNamespace(tenantName)
-	if err != nil {
-		if adaptor.IsNotFoundErr(err) {
-			return false, nil
-		} else {
-			return false, err
-		}
-	}
-
-	_, ok := namespace.Labels["multi-tenant"]
-	if ok {
-		return true, nil
-	} else {
-		return false, nil
-	}
-}
-
 func (cache *HelmCache) Resync() {
 	for {
 		err := cache.redisClient.GetClient().Watch(func(tx *goredis.Tx) error {
-			resp, err := cache.helmClient.ListReleases(helm.ReleaseListStatuses(
-				[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
-					hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
-					hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
-					hapiRelease.Status_PENDING_ROLLBACK}))
-
+			helmReleases, err := cache.list.Run()
 			if err != nil {
 				logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 				return err
-			}
-
-			helmReleases := []*hapiRelease.Release{}
-			helmReleases = append(helmReleases, resp.Releases...)
-
-			namespaces, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().ListNamespaces(nil)
-			if err != nil {
-				logrus.Errorf("ListNamespaces error %s\n", err.Error())
-				return err
-			}
-			for _, namespace := range namespaces {
-				multiTenant, err := IsMultiTenant(namespace.Name)
-				if err != nil {
-					logrus.Errorf("IsMultiTenant error %s\n", err.Error())
-					continue
-				}
-				if multiTenant {
-					tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace.Name)
-					tenantClient := cache.multiTenantClients.Get(tillerHosts)
-					resp, err = tenantClient.ListReleases(helm.ReleaseListStatuses(
-						[]hapiRelease.Status_Code{hapiRelease.Status_UNKNOWN, hapiRelease.Status_DEPLOYED,
-							hapiRelease.Status_DELETED, hapiRelease.Status_FAILED,
-							hapiRelease.Status_DELETING, hapiRelease.Status_PENDING_INSTALL, hapiRelease.Status_PENDING_UPGRADE,
-							hapiRelease.Status_PENDING_ROLLBACK}))
-					if err != nil {
-						logrus.Errorf("failed to list helm releases: %s\n", err.Error())
-						continue
-					}
-					if resp == nil || len(resp.Releases) == 0 {
-						continue
-					}
-					helmReleases = append(helmReleases, resp.Releases...)
-				}
 			}
 
 			releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleases)
@@ -258,7 +201,30 @@ func (cache *HelmCache) Resync() {
 				}
 			}
 
-			projectCachesFromHelm := map[string]string{}
+			releaseConfigs, err := handler.GetDefaultHandlerSet().GetReleaseConfigHandler().ListReleaseConfigs("", nil)
+			if err != nil {
+				logrus.Errorf("failed to list release configs : %s", err.Error())
+				return err
+			}
+
+			projectCachesFromReleaseConfig := map[string]string{}
+			for _, releaseConfig := range releaseConfigs {
+				if projectName, ok1 := releaseConfig.Labels[ProjectNameLabelKey]; ok1 {
+					_, ok := projectCachesFromReleaseConfig[buildWalmProjectFieldName(releaseConfig.Namespace, projectName)]
+					if !ok {
+						projectCacheStr, err := json.Marshal(&ProjectCache{
+							Namespace: releaseConfig.Namespace,
+							Name:      projectName,
+						})
+						if err != nil {
+							logrus.Errorf("failed to marshal project cache of %s/%s: %s", releaseConfig.Namespace, projectName, err.Error())
+							return err
+						}
+						projectCachesFromReleaseConfig[buildWalmProjectFieldName(releaseConfig.Namespace, projectName)] = string(projectCacheStr)
+					}
+				}
+			}
+
 			releaseTasksFromHelm := map[string]string{}
 			for releaseCacheKey, releaseCacheStr := range releaseCachesFromHelm {
 				releaseCache := &release.ReleaseCache{}
@@ -266,22 +232,6 @@ func (cache *HelmCache) Resync() {
 				if err != nil {
 					logrus.Errorf("failed to unmarshal release cache of %s: %s", releaseCacheKey, err.Error())
 					return err
-				}
-				projectNameArray := strings.Split(releaseCache.Name, "--")
-				if len(projectNameArray) == 2 {
-					projectName := projectNameArray[0]
-					_, ok := projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)]
-					if !ok {
-						projectCacheStr, err := json.Marshal(&ProjectCache{
-							Namespace: releaseCache.Namespace,
-							Name:      projectName,
-						})
-						if err != nil {
-							logrus.Errorf("failed to marshal project cache of %s/%s: %s", releaseCache.Namespace, projectName, err.Error())
-							return err
-						}
-						projectCachesFromHelm[buildWalmProjectFieldName(releaseCache.Namespace, projectName)] = string(projectCacheStr)
-					}
 				}
 
 				releaseTaskStr, err := json.Marshal(&ReleaseTask{
@@ -310,7 +260,7 @@ func (cache *HelmCache) Resync() {
 			projectCachesToSet := map[string]interface{}{}
 			projectCachesToDel := []string{}
 			for projectCacheKey, projectCacheStr := range projectCacheInRedis {
-				if _, ok := projectCachesFromHelm[projectCacheKey]; !ok {
+				if _, ok := projectCachesFromReleaseConfig[projectCacheKey]; !ok {
 					projectCache := &ProjectCache{}
 					err = json.Unmarshal([]byte(projectCacheStr), projectCache)
 					if err != nil {
@@ -322,7 +272,7 @@ func (cache *HelmCache) Resync() {
 					}
 				}
 			}
-			for projectCacheKey, projectCacheStr := range projectCachesFromHelm {
+			for projectCacheKey, projectCacheStr := range projectCachesFromReleaseConfig {
 				if _, ok := projectCacheInRedis[projectCacheKey]; !ok {
 					projectCachesToSet[projectCacheKey] = projectCacheStr
 				}
@@ -550,7 +500,48 @@ func (cache *HelmCache) GetReleaseTasks(namespace, filter string, count int64) (
 	return
 }
 
-func (cache *HelmCache) buildReleaseCaches(releases []*hapiRelease.Release) (releaseCaches map[string]interface{}, err error) {
+type ReleaseFieldName struct {
+	Namespace string
+	Name      string
+}
+
+func (cache *HelmCache) GetReleaseTasksByNames(names []ReleaseFieldName) (releaseTasks []*ReleaseTask, err error) {
+	releaseTasks = []*ReleaseTask{}
+	if len(names) == 0 {
+		return
+	}
+
+	releaseTaskFieldNames := []string{}
+	for _, name := range names {
+		releaseTaskFieldNames = append(releaseTaskFieldNames, buildWalmReleaseFieldName(name.Namespace, name.Name))
+	}
+
+	releaseTaskStrs, err := cache.redisClient.GetClient().HMGet(redis.WalmReleaseTasksKey, releaseTaskFieldNames...).Result()
+	if err != nil {
+		logrus.Errorf("failed to get release caches from redis : %s", err.Error())
+		return nil, err
+	}
+
+	for index, releaseTaskStr := range releaseTaskStrs {
+		if releaseTaskStr == nil {
+			logrus.Warnf("release task %s is not found", releaseTaskFieldNames[index])
+			continue
+		}
+
+		releaseTask := &ReleaseTask{}
+
+		err = json.Unmarshal([]byte(releaseTaskStr.(string)), releaseTask)
+		if err != nil {
+			logrus.Errorf("failed to unmarshal release task of %s: %s", releaseTaskStr, err.Error())
+			return
+		}
+		releaseTasks = append(releaseTasks, releaseTask)
+	}
+
+	return
+}
+
+func (cache *HelmCache) buildReleaseCaches(releases []*hapirelease.Release) (releaseCaches map[string]interface{}, err error) {
 	releaseCaches = map[string]interface{}{}
 	for _, helmRelease := range releases {
 		releaseCache, err := cache.buildReleaseCache(helmRelease)
@@ -571,33 +562,16 @@ func (cache *HelmCache) buildReleaseCaches(releases []*hapiRelease.Release) (rel
 	return
 }
 
-func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (releaseCache *release.ReleaseCache, err error) {
-	emptyChart := chart.Chart{}
-	helmVals := release.HelmValues{}
+func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (releaseCache *release.ReleaseCache, err error) {
 	releaseSpec := release.ReleaseSpec{}
 	releaseSpec.Name = helmRelease.Name
 	releaseSpec.Namespace = helmRelease.Namespace
 	releaseSpec.Dependencies = make(map[string]string)
-	releaseSpec.Version = helmRelease.Version
+	releaseSpec.Version = int32(helmRelease.Version)
 	releaseSpec.ChartVersion = helmRelease.Chart.Metadata.Version
 	releaseSpec.ChartName = helmRelease.Chart.Metadata.Name
 	releaseSpec.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
-	cvals, err := chartutil.CoalesceValues(&emptyChart, helmRelease.Config)
-	if err != nil {
-		logrus.Errorf("parse raw values error %s\n", helmRelease.Config.Raw)
-		return
-	}
-	releaseSpec.ConfigValues = cvals
-	if helmRelease.GetConfig() != nil {
-		err = yaml.Unmarshal([]byte(helmRelease.GetConfig().GetRaw()), &helmVals)
-		if err == nil {
-			if helmVals.AppHelmValues != nil && helmVals.AppHelmValues.Dependencies != nil {
-				releaseSpec.Dependencies = helmVals.AppHelmValues.Dependencies
-				logrus.Debugf("buildReleaseCache %s/%s Dep %+v\n", releaseSpec.Namespace, releaseSpec.Name, helmVals.AppHelmValues.Dependencies)
-			}
-			releaseSpec.HelmValues = helmVals
-		}
-	}
+	releaseSpec.ConfigValues = helmRelease.Config
 	releaseCache = &release.ReleaseCache{
 		ReleaseSpec: releaseSpec,
 	}
@@ -612,9 +586,9 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapiRelease.Release) (rel
 	return
 }
 
-func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapiRelease.Release) (resources []release.ReleaseResourceMeta, err error) {
+func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {
 	resources = []release.ReleaseResourceMeta{}
-	results, err := cache.kubeClient.BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
+	results, err := client.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
 	if err != nil {
 		logrus.Errorf("failed to get release resource metas of %s", helmRelease.Name)
 		return resources, err
@@ -638,11 +612,29 @@ func buildWalmProjectFieldName(namespace, name string) string {
 	return namespace + "/" + name
 }
 
-func NewHelmCache(redisClient *redis.RedisClient, helmClient *helm.Client, multiTenantClients *MultiTenantClientsCache, kubeClient *kube.Client) *HelmCache {
-	return &HelmCache{
-		redisClient: redisClient,
-		helmClient:  helmClient,
-		kubeClient:  kubeClient,
-		multiTenantClients: multiTenantClients,
+func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
+	kc := client.GetKubeClient("")
+	clientset, err := kc.KubernetesClientSet()
+	if err != nil {
+		logrus.Fatal("failed to get clientset")
 	}
+
+	d := driver.NewSecrets(clientset.CoreV1().Secrets(""))
+	store := storage.Init(d)
+	config := &action.Configuration{
+		KubeClient: kc,
+		Releases:   store,
+		Discovery:  clientset.Discovery(),
+	}
+
+	result := &HelmCache{
+		redisClient: redisClient,
+		list:        action.NewList(config),
+	}
+
+	result.list.AllNamespaces = true
+	result.list.All = true
+	result.list.StateMask = action.ListAll
+
+	return result
 }

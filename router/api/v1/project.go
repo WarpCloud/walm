@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"walm/router/api"
-	"walm/pkg/release/v2"
+	"walm/pkg/release"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
@@ -128,7 +128,12 @@ func DeleteProject(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async, timeoutSec)
+	deletePvcs, err := getDeletePvcsQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param deletePvcs value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().DeleteProject(tenantName, projectName, async, timeoutSec, deletePvcs)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete project : %s", err.Error()))
 		return
@@ -148,7 +153,7 @@ func DeployInstanceInProject(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
@@ -174,7 +179,7 @@ func UpgradeInstanceInProject(request *restful.Request, response *restful.Respon
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	releaseRequest := &v2.ReleaseRequestV2{}
+	releaseRequest := &release.ReleaseRequestV2{}
 	err = request.ReadEntity(releaseRequest)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
@@ -227,7 +232,12 @@ func DeleteInstanceInProject(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
 		return
 	}
-	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async, timeoutSec)
+	deletePvcs, err := getDeletePvcsQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param deletePvcs value is not valid : %s", err.Error()))
+		return
+	}
+	err = project.GetDefaultProjectManager().RemoveReleaseInProject(tenantName, projectName, releaseName, async, timeoutSec, deletePvcs)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete release in project : %s", err.Error()))
 		return

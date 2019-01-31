@@ -18,305 +18,128 @@ package main // import "k8s.io/helm/cmd/helm"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"strings"
-
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"sync"
 
 	// Import to initialize client auth plugins.
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	"k8s.io/helm/pkg/action"
 	"k8s.io/helm/pkg/helm"
-	helm_env "k8s.io/helm/pkg/helm/environment"
-	"k8s.io/helm/pkg/helm/portforwarder"
+	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/kube"
-	"k8s.io/helm/pkg/tlsutil"
+	"k8s.io/helm/pkg/storage"
+	"k8s.io/helm/pkg/storage/driver"
 )
 
 var (
-	tlsServerName string // overrides the server name used to verify the hostname on the returned certificates from the server.
-	tlsCaCertFile string // path to TLS CA certificate file
-	tlsCertFile   string // path to TLS certificate file
-	tlsKeyFile    string // path to TLS key file
-	tlsVerify     bool   // enable TLS and verify remote certificates
-	tlsEnable     bool   // enable TLS
-
-	tlsCaCertDefault = "$HELM_HOME/ca.pem"
-	tlsCertDefault   = "$HELM_HOME/cert.pem"
-	tlsKeyDefault    = "$HELM_HOME/key.pem"
-
-	tillerTunnel *kube.Tunnel
-	settings     helm_env.EnvSettings
+	settings   environment.EnvSettings
+	config     genericclioptions.RESTClientGetter
+	configOnce sync.Once
 )
 
-var globalUsage = `The Kubernetes package manager
-
-To begin working with Helm, run the 'helm init' command:
-
-	$ helm init
-
-This will install Tiller to your running Kubernetes cluster.
-It will also set up any necessary local configuration.
-
-Common actions from this point include:
-
-- helm search:    search for charts
-- helm fetch:     download a chart to your local directory to view
-- helm install:   upload the chart to Kubernetes
-- helm list:      list releases of charts
-
-Environment:
-  $HELM_HOME          set an alternative location for Helm files. By default, these are stored in ~/.helm
-  $HELM_HOST          set an alternative Tiller host. The format is host:port
-  $HELM_NO_PLUGINS    disable plugins. Set HELM_NO_PLUGINS=1 to disable plugins.
-  $TILLER_NAMESPACE   set an alternative Tiller namespace (default "kube-system")
-  $KUBECONFIG         set an alternative Kubernetes configuration file (default "~/.kube/config")
-`
-
-func newRootCmd(args []string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "helm",
-		Short:        "The Helm package manager for Kubernetes.",
-		Long:         globalUsage,
-		SilenceUsage: true,
-		PersistentPreRun: func(*cobra.Command, []string) {
-			tlsCaCertFile = os.ExpandEnv(tlsCaCertFile)
-			tlsCertFile = os.ExpandEnv(tlsCertFile)
-			tlsKeyFile = os.ExpandEnv(tlsKeyFile)
-		},
-		PersistentPostRun: func(*cobra.Command, []string) {
-			teardown()
-		},
-	}
-	flags := cmd.PersistentFlags()
-
-	settings.AddFlags(flags)
-
-	out := cmd.OutOrStdout()
-
-	cmd.AddCommand(
-		// chart commands
-		newCreateCmd(out),
-		newDependencyCmd(out),
-		newFetchCmd(out),
-		newInspectCmd(out),
-		newLintCmd(out),
-		newPackageCmd(out),
-		newRepoCmd(out),
-		newSearchCmd(out),
-		newServeCmd(out),
-		newVerifyCmd(out),
-
-		// release commands
-		addFlagsTLS(newDeleteCmd(nil, out)),
-		addFlagsTLS(newGetCmd(nil, out)),
-		addFlagsTLS(newHistoryCmd(nil, out)),
-		addFlagsTLS(newInstallCmd(nil, out)),
-		addFlagsTLS(newListCmd(nil, out)),
-		addFlagsTLS(newRollbackCmd(nil, out)),
-		addFlagsTLS(newStatusCmd(nil, out)),
-		addFlagsTLS(newUpgradeCmd(nil, out)),
-
-		addFlagsTLS(newReleaseTestCmd(nil, out)),
-		addFlagsTLS(newResetCmd(nil, out)),
-		addFlagsTLS(newVersionCmd(nil, out)),
-
-		newCompletionCmd(out),
-		newHomeCmd(out),
-		newInitCmd(out),
-		newPluginCmd(out),
-		newTemplateCmd(out),
-
-		// Hidden documentation generator command: 'helm docs'
-		newDocsCmd(out),
-
-		// Deprecated
-		markDeprecated(newRepoUpdateCmd(out), "use 'helm repo update'\n"),
-	)
-
-	flags.Parse(args)
-
-	// set defaults from environment
-	settings.Init(flags)
-
-	// Find and add plugins
-	loadPlugins(cmd, out)
-
-	return cmd
+func init() {
+	log.SetFlags(log.Lshortfile)
 }
 
-func init() {
-	// Tell gRPC not to log to console.
-	grpclog.SetLogger(log.New(ioutil.Discard, "", log.LstdFlags))
+func logf(format string, v ...interface{}) {
+	if settings.Debug {
+		format = fmt.Sprintf("[debug] %s\n", format)
+		log.Output(2, fmt.Sprintf(format, v...))
+	}
 }
 
 func main() {
-	cmd := newRootCmd(os.Args[1:])
+	cmd := newRootCmd(nil, newActionConfig(false), os.Stdout, os.Args[1:])
 	if err := cmd.Execute(); err != nil {
-		switch e := err.(type) {
-		case pluginError:
-			os.Exit(e.code)
-		default:
-			os.Exit(1)
-		}
+		logf("%+v", err)
+		os.Exit(1)
 	}
-}
-
-func markDeprecated(cmd *cobra.Command, notice string) *cobra.Command {
-	cmd.Deprecated = notice
-	return cmd
-}
-
-func setupConnection() error {
-	if settings.TillerHost == "" {
-		config, client, err := getKubeClient(settings.KubeContext, settings.KubeConfig)
-		if err != nil {
-			return err
-		}
-
-		tunnel, err := portforwarder.New(settings.TillerNamespace, client, config)
-		if err != nil {
-			return err
-		}
-
-		settings.TillerHost = fmt.Sprintf("127.0.0.1:%d", tunnel.Local)
-		debug("Created tunnel using local port: '%d'\n", tunnel.Local)
-	}
-
-	// Set up the gRPC config.
-	debug("SERVER: %q\n", settings.TillerHost)
-
-	// Plugin support.
-	return nil
-}
-
-func teardown() {
-	if tillerTunnel != nil {
-		tillerTunnel.Close()
-	}
-}
-
-func checkArgsLength(argsReceived int, requiredArgs ...string) error {
-	expectedNum := len(requiredArgs)
-	if argsReceived != expectedNum {
-		arg := "arguments"
-		if expectedNum == 1 {
-			arg = "argument"
-		}
-		return fmt.Errorf("This command needs %v %s: %s", expectedNum, arg, strings.Join(requiredArgs, ", "))
-	}
-	return nil
-}
-
-// prettyError unwraps or rewrites certain errors to make them more user-friendly.
-func prettyError(err error) error {
-	// Add this check can prevent the object creation if err is nil.
-	if err == nil {
-		return nil
-	}
-	// If it's grpc's error, make it more user-friendly.
-	if s, ok := status.FromError(err); ok {
-		return fmt.Errorf(s.Message())
-	}
-	// Else return the original error.
-	return err
-}
-
-// configForContext creates a Kubernetes REST client configuration for a given kubeconfig context.
-func configForContext(context string, kubeconfig string) (*rest.Config, error) {
-	config, err := kube.GetConfig(context, kubeconfig).ClientConfig()
-	if err != nil {
-		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", context, err)
-	}
-	return config, nil
-}
-
-// getKubeClient creates a Kubernetes config and client for a given kubeconfig context.
-func getKubeClient(context string, kubeconfig string) (*rest.Config, kubernetes.Interface, error) {
-	config, err := configForContext(context, kubeconfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not get Kubernetes client: %s", err)
-	}
-	return config, client, nil
-}
-
-// getInternalKubeClient creates a Kubernetes config and an "internal" client for a given kubeconfig context.
-//
-// Prefer the similar getKubeClient if you don't need to use such an internal client.
-func getInternalKubeClient(context string, kubeconfig string) (internalclientset.Interface, error) {
-	config, err := configForContext(context, kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	client, err := internalclientset.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not get Kubernetes client: %s", err)
-	}
-	return client, nil
 }
 
 // ensureHelmClient returns a new helm client impl. if h is not nil.
-func ensureHelmClient(h helm.Interface) helm.Interface {
+func ensureHelmClient(h helm.Interface, allNamespaces bool) helm.Interface {
 	if h != nil {
 		return h
 	}
-	return newClient()
+	return newClient(allNamespaces)
 }
 
-func newClient() helm.Interface {
-	options := []helm.Option{helm.Host(settings.TillerHost), helm.ConnectTimeout(settings.TillerConnectionTimeout)}
+func newClient(allNamespaces bool) helm.Interface {
+	kc := kube.New(kubeConfig())
+	kc.Log = logf
 
-	if tlsVerify || tlsEnable {
-		if tlsCaCertFile == "" {
-			tlsCaCertFile = settings.Home.TLSCaCert()
-		}
-		if tlsCertFile == "" {
-			tlsCertFile = settings.Home.TLSCert()
-		}
-		if tlsKeyFile == "" {
-			tlsKeyFile = settings.Home.TLSKey()
-		}
-		debug("Host=%q, Key=%q, Cert=%q, CA=%q\n", tlsKeyFile, tlsCertFile, tlsCaCertFile)
-		tlsopts := tlsutil.Options{
-			ServerName:         tlsServerName,
-			KeyFile:            tlsKeyFile,
-			CertFile:           tlsCertFile,
-			InsecureSkipVerify: true,
-		}
-		if tlsVerify {
-			tlsopts.CaCertFile = tlsCaCertFile
-			tlsopts.InsecureSkipVerify = false
-		}
-		tlscfg, err := tlsutil.ClientConfig(tlsopts)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-		options = append(options, helm.WithTLS(tlscfg))
+	clientset, err := kc.KubernetesClientSet()
+	if err != nil {
+		// TODO return error
+		log.Fatal(err)
 	}
-	return helm.NewClient(options...)
+	var namespace string
+	if !allNamespaces {
+		namespace = getNamespace()
+	}
+	// TODO add other backends
+	d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
+	d.Log = logf
+
+	return helm.NewClient(
+		helm.KubeClient(kc),
+		helm.Driver(d),
+		helm.Discovery(clientset.Discovery()),
+	)
 }
 
-// addFlagsTLS adds the flags for supporting client side TLS to the
-// helm command (only those that invoke communicate to Tiller.)
-func addFlagsTLS(cmd *cobra.Command) *cobra.Command {
+func newActionConfig(allNamespaces bool) *action.Configuration {
+	kc := kube.New(kubeConfig())
+	kc.Log = logf
 
-	// add flags
-	cmd.Flags().StringVar(&tlsServerName, "tls-hostname", settings.TillerHost, "the server name used to verify the hostname on the returned certificates from the server")
-	cmd.Flags().StringVar(&tlsCaCertFile, "tls-ca-cert", tlsCaCertDefault, "path to TLS CA certificate file")
-	cmd.Flags().StringVar(&tlsCertFile, "tls-cert", tlsCertDefault, "path to TLS certificate file")
-	cmd.Flags().StringVar(&tlsKeyFile, "tls-key", tlsKeyDefault, "path to TLS key file")
-	cmd.Flags().BoolVar(&tlsVerify, "tls-verify", false, "enable TLS for request and verify remote")
-	cmd.Flags().BoolVar(&tlsEnable, "tls", false, "enable TLS for request")
-	return cmd
+	clientset, err := kc.KubernetesClientSet()
+	if err != nil {
+		// TODO return error
+		log.Fatal(err)
+	}
+	var namespace string
+	if !allNamespaces {
+		namespace = getNamespace()
+	}
+
+	var store *storage.Storage
+	switch os.Getenv("HELM_DRIVER") {
+	case "secret", "secrets", "":
+		d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
+		d.Log = logf
+		store = storage.Init(d)
+	case "configmap", "configmaps":
+		d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(namespace))
+		d.Log = logf
+		store = storage.Init(d)
+	case "memory":
+		d := driver.NewMemory()
+		store = storage.Init(d)
+	default:
+		// Not sure what to do here.
+		panic("Unknown driver in HELM_DRIVER: " + os.Getenv("HELM_DRIVER"))
+	}
+
+	return &action.Configuration{
+		KubeClient: kc,
+		Releases:   store,
+		Discovery:  clientset.Discovery(),
+	}
+}
+
+func kubeConfig() genericclioptions.RESTClientGetter {
+	configOnce.Do(func() {
+		config = kube.GetConfig(settings.KubeConfig, settings.KubeContext, settings.Namespace)
+	})
+	return config
+}
+
+func getNamespace() string {
+	if ns, _, err := kubeConfig().ToRawKubeConfigLoader().Namespace(); err == nil {
+		return ns
+	}
+	return "default"
 }

@@ -76,8 +76,8 @@ $ helm install --verify mychart-0.1.0.tgz
 If the keyring (containing the public key associated with the signed chart) is not in the default location, you may need to point to the
 keyring with `--keyring PATH` as in the `helm package` example.
 
-If verification fails, the install will be aborted before the chart is even pushed
-up to Tiller.
+If verification fails, the install will be aborted before the chart is even rendered.
+
 
 ### Using Keybase.io credentials
 
@@ -262,9 +262,9 @@ in using the provenance system:
   - Keybase also has fabulous documentation available
   - While we haven't tested it, Keybase's "secure website" feature could
     be used to serve Helm charts.
-- The [official Kubernetes Charts project](https://github.com/kubernetes/charts)
+- The [official Kubernetes Charts project](https://github.com/helm/charts)
   is trying to solve this problem for the official chart repository.
-  - There is a long issue there [detailing the current thoughts](https://github.com/kubernetes/charts/issues/23).
+  - There is a long issue there [detailing the current thoughts](https://github.com/helm/charts/issues/23).
   - The basic idea is that an official "chart reviewer" signs charts with
     her or his key, and the resulting provenance file is then uploaded
     to the chart repository.

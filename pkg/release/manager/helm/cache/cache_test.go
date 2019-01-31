@@ -9,7 +9,6 @@ import (
 	"walm/pkg/k8s/client"
 	"sync"
 	"github.com/sirupsen/logrus"
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestHelmCache_Resync(t *testing.T) {

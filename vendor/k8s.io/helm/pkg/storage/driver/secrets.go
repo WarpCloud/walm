@@ -17,19 +17,20 @@ limitations under the License.
 package driver // import "k8s.io/helm/pkg/storage/driver"
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
+	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kblabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	rspb "k8s.io/helm/pkg/proto/hapi/release"
+	rspb "k8s.io/helm/pkg/hapi/release"
 )
 
 var _ Driver = (*Secrets)(nil)
@@ -40,13 +41,13 @@ const SecretsDriverName = "Secret"
 // Secrets is a wrapper around an implementation of a kubernetes
 // SecretsInterface.
 type Secrets struct {
-	impl internalversion.SecretInterface
+	impl corev1.SecretInterface
 	Log  func(string, ...interface{})
 }
 
 // NewSecrets initializes a new Secrets wrapping an implmenetation of
 // the kubernetes SecretsInterface.
-func NewSecrets(impl internalversion.SecretInterface) *Secrets {
+func NewSecrets(impl corev1.SecretInterface) *Secrets {
 	return &Secrets{
 		impl: impl,
 		Log:  func(_ string, _ ...interface{}) {},
@@ -65,33 +66,25 @@ func (secrets *Secrets) Get(key string) (*rspb.Release, error) {
 	obj, err := secrets.impl.Get(key, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrReleaseNotFound(key)
+			return nil, ErrReleaseNotFound
 		}
-
-		secrets.Log("get: failed to get %q: %s", key, err)
-		return nil, err
+		return nil, errors.Wrapf(err, "get: failed to get %q", key)
 	}
 	// found the secret, decode the base64 data string
-	r, err := DecodeRelease(string(obj.Data["release"]))
-	if err != nil {
-		secrets.Log("get: failed to decode data %q: %s", key, err)
-		return nil, err
-	}
-	// return the release object
-	return r, nil
+	r, err := decodeRelease(string(obj.Data["release"]))
+	return r, errors.Wrapf(err, "get: failed to decode data %q", key)
 }
 
 // List fetches all releases and returns the list releases such
 // that filter(release) == true. An error is returned if the
 // secret fails to retrieve the releases.
 func (secrets *Secrets) List(filter func(*rspb.Release) bool) ([]*rspb.Release, error) {
-	lsel := kblabels.Set{"OWNER": "TILLER"}.AsSelector()
+	lsel := kblabels.Set{"owner": "helm"}.AsSelector()
 	opts := metav1.ListOptions{LabelSelector: lsel.String()}
 
 	list, err := secrets.impl.List(opts)
 	if err != nil {
-		secrets.Log("list: failed to list: %s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "list: failed to list")
 	}
 
 	var results []*rspb.Release
@@ -99,7 +92,7 @@ func (secrets *Secrets) List(filter func(*rspb.Release) bool) ([]*rspb.Release, 
 	// iterate over the secrets object list
 	// and decode each release
 	for _, item := range list.Items {
-		rls, err := DecodeRelease(string(item.Data["release"]))
+		rls, err := decodeRelease(string(item.Data["release"]))
 		if err != nil {
 			secrets.Log("list: failed to decode release: %v: %s", item, err)
 			continue
@@ -117,7 +110,7 @@ func (secrets *Secrets) Query(labels map[string]string) ([]*rspb.Release, error)
 	ls := kblabels.Set{}
 	for k, v := range labels {
 		if errs := validation.IsValidLabelValue(v); len(errs) != 0 {
-			return nil, fmt.Errorf("invalid label value: %q: %s", v, strings.Join(errs, "; "))
+			return nil, errors.Errorf("invalid label value: %q: %s", v, strings.Join(errs, "; "))
 		}
 		ls[k] = v
 	}
@@ -126,17 +119,16 @@ func (secrets *Secrets) Query(labels map[string]string) ([]*rspb.Release, error)
 
 	list, err := secrets.impl.List(opts)
 	if err != nil {
-		secrets.Log("query: failed to query with labels: %s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "query: failed to query with labels")
 	}
 
 	if len(list.Items) == 0 {
-		return nil, ErrReleaseNotFound(labels["NAME"])
+		return nil, ErrReleaseNotFound
 	}
 
 	var results []*rspb.Release
 	for _, item := range list.Items {
-		rls, err := DecodeRelease(string(item.Data["release"]))
+		rls, err := decodeRelease(string(item.Data["release"]))
 		if err != nil {
 			secrets.Log("query: failed to decode release: %s", err)
 			continue
@@ -153,22 +145,20 @@ func (secrets *Secrets) Create(key string, rls *rspb.Release) error {
 	var lbs labels
 
 	lbs.init()
-	lbs.set("CREATED_AT", strconv.Itoa(int(time.Now().Unix())))
+	lbs.set("createdAt", strconv.Itoa(int(time.Now().Unix())))
 
 	// create a new secret to hold the release
 	obj, err := newSecretsObject(key, rls, lbs)
 	if err != nil {
-		secrets.Log("create: failed to encode release %q: %s", rls.Name, err)
-		return err
+		return errors.Wrapf(err, "create: failed to encode release %q", rls.Name)
 	}
 	// push the secret object out into the kubiverse
 	if _, err := secrets.impl.Create(obj); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return ErrReleaseExists(rls.Name)
+			return ErrReleaseExists
 		}
 
-		secrets.Log("create: failed to create: %s", err)
-		return err
+		return errors.Wrap(err, "create: failed to create")
 	}
 	return nil
 }
@@ -180,21 +170,16 @@ func (secrets *Secrets) Update(key string, rls *rspb.Release) error {
 	var lbs labels
 
 	lbs.init()
-	lbs.set("MODIFIED_AT", strconv.Itoa(int(time.Now().Unix())))
+	lbs.set("modifiedAt", strconv.Itoa(int(time.Now().Unix())))
 
 	// create a new secret object to hold the release
 	obj, err := newSecretsObject(key, rls, lbs)
 	if err != nil {
-		secrets.Log("update: failed to encode release %q: %s", rls.Name, err)
-		return err
+		return errors.Wrapf(err, "update: failed to encode release %q", rls.Name)
 	}
 	// push the secret object out into the kubiverse
 	_, err = secrets.impl.Update(obj)
-	if err != nil {
-		secrets.Log("update: failed to update: %s", err)
-		return err
-	}
-	return nil
+	return errors.Wrap(err, "update: failed to update")
 }
 
 // Delete deletes the Secret holding the release named by key.
@@ -202,17 +187,14 @@ func (secrets *Secrets) Delete(key string) (rls *rspb.Release, err error) {
 	// fetch the release to check existence
 	if rls, err = secrets.Get(key); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, ErrReleaseExists(rls.Name)
+			return nil, ErrReleaseExists
 		}
 
-		secrets.Log("delete: failed to get release %q: %s", key, err)
-		return nil, err
+		return nil, errors.Wrapf(err, "delete: failed to get release %q", key)
 	}
 	// delete the release
-	if err = secrets.impl.Delete(key, &metav1.DeleteOptions{}); err != nil {
-		return rls, err
-	}
-	return rls, nil
+	err = secrets.impl.Delete(key, &metav1.DeleteOptions{})
+	return rls, err
 }
 
 // newSecretsObject constructs a kubernetes Secret object
@@ -221,18 +203,18 @@ func (secrets *Secrets) Delete(key string) (rls *rspb.Release, err error) {
 //
 // The following labels are used within each secret:
 //
-//    "MODIFIED_AT"    - timestamp indicating when this secret was last modified. (set in Update)
-//    "CREATED_AT"     - timestamp indicating when this secret was created. (set in Create)
-//    "VERSION"        - version of the release.
-//    "STATUS"         - status of the release (see proto/hapi/release.status.pb.go for variants)
-//    "OWNER"          - owner of the secret, currently "TILLER".
-//    "NAME"           - name of the release.
+//    "modifiedAt"    - timestamp indicating when this secret was last modified. (set in Update)
+//    "createdAt"     - timestamp indicating when this secret was created. (set in Create)
+//    "version"        - version of the release.
+//    "status"         - status of the release (see proto/hapi/release.status.pb.go for variants)
+//    "owner"          - owner of the secret, currently "helm".
+//    "name"           - name of the release.
 //
-func newSecretsObject(key string, rls *rspb.Release, lbs labels) (*core.Secret, error) {
-	const owner = "TILLER"
+func newSecretsObject(key string, rls *rspb.Release, lbs labels) (*v1.Secret, error) {
+	const owner = "helm"
 
 	// encode the release
-	s, err := EncodeRelease(rls)
+	s, err := encodeRelease(rls)
 	if err != nil {
 		return nil, err
 	}
@@ -242,17 +224,18 @@ func newSecretsObject(key string, rls *rspb.Release, lbs labels) (*core.Secret, 
 	}
 
 	// apply labels
-	lbs.set("NAME", rls.Name)
-	lbs.set("OWNER", owner)
-	lbs.set("STATUS", rspb.Status_Code_name[int32(rls.Info.Status.Code)])
-	lbs.set("VERSION", strconv.Itoa(int(rls.Version)))
+	lbs.set("name", rls.Name)
+	lbs.set("owner", owner)
+	lbs.set("status", rls.Info.Status.String())
+	lbs.set("version", strconv.Itoa(rls.Version))
 
 	// create and return secret object
-	return &core.Secret{
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   key,
 			Labels: lbs.toMap(),
 		},
+		Type: "helm.sh/release",
 		Data: map[string][]byte{"release": []byte(s)},
 	}, nil
 }

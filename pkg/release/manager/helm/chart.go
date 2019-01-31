@@ -14,7 +14,8 @@ import (
 	"walm/pkg/release"
 	"github.com/sirupsen/logrus"
 	walmerr "walm/pkg/util/error"
-	)
+	"encoding/json"
+)
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
 	repoIndex := &repo.IndexFile{}
@@ -152,39 +153,71 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo := new(release.ChartInfo)
 	appMetaInfo := release.TranswarpAppInfo{}
 
-	chartRequest, err := GetDefaultHelmClient().GetChartRequest(TenantRepoName, ChartName, ChartVersion)
+	isJsonnetChart, nativeChart, jsonnetChart, err := GetDefaultHelmClient().LoadChart(TenantRepoName, ChartName, ChartVersion)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") {
 			err = walmerr.NotFoundError{}
 		}
 		return nil, err
 	}
-	chartInfo.ChartName = chartRequest.Metadata.Name
-	chartInfo.ChartVersion = chartRequest.Metadata.Version
-	chartInfo.ChartAppVersion = chartRequest.Metadata.AppVersion
-	chartInfo.ChartEngine = chartRequest.Metadata.Engine
-	chartInfo.ChartDescription = chartRequest.Metadata.Description
-	if chartRequest.Values != nil {
-		chartInfo.DefaultValue = chartRequest.Values.Raw
-	}
+	chartInfo.ChartName = nativeChart.Metadata.Name
+	chartInfo.ChartVersion = nativeChart.Metadata.Version
+	chartInfo.ChartAppVersion = nativeChart.Metadata.AppVersion
+	chartInfo.ChartEngine = nativeChart.Metadata.Engine
+	chartInfo.ChartDescription = nativeChart.Metadata.Description
+
+	defaultValues := map[string]interface{}{}
 	chartInfo.DependencyCharts = make([]release.ChartDependencyInfo, 0)
-	for _, file := range chartRequest.Files {
-		if file.TypeUrl == "transwarp-app-yaml" {
-			err := yaml.Unmarshal(file.Value, &appMetaInfo)
-			if err != nil {
-				return nil, err
-			}
-			for _, dependency := range appMetaInfo.Dependencies {
-				logrus.Infof("%+v", dependency)
-				dependency := release.ChartDependencyInfo {
-					ChartName: dependency.Name,
-					MaxVersion: dependency.MaxVersion,
-					MinVersion: dependency.MinVersion,
+	if isJsonnetChart {
+		appYamlPath := fmt.Sprintf("templates/%s/%s/app.yaml", nativeChart.Metadata.Name, nativeChart.Metadata.AppVersion)
+		for _, file := range jsonnetChart.Templates {
+			if file.Name == appYamlPath {
+				err := yaml.Unmarshal(file.Data, &appMetaInfo)
+				if err != nil {
+					return nil, err
 				}
-				chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
+				for _, dependency := range appMetaInfo.Dependencies {
+					dependency := release.ChartDependencyInfo{
+						ChartName:  dependency.Name,
+						MaxVersion: dependency.MaxVersion,
+						MinVersion: dependency.MinVersion,
+						DependencyOptional: dependency.DependencyOptional,
+					}
+					chartInfo.DependencyCharts = append(chartInfo.DependencyCharts, dependency)
+				}
+				break
 			}
 		}
+
+		templateFiles, err := loadJsonnetFilesToRender(jsonnetChart)
+		if err != nil {
+			logrus.Errorf("failed to load jsonnet template files to render : %s", err.Error())
+			return nil, err
+		}
+
+		configJsonnetValues := map[string]interface{}{}
+		configJsonStr, _ := renderConfigJsonnetFile(templateFiles)
+		if configJsonStr != "" {
+			err = json.Unmarshal([]byte(configJsonStr), &configJsonnetValues)
+			if err != nil {
+				logrus.Errorf("failed to unmarshal config json string : %s", err.Error())
+				return nil, err
+			}
+			defaultValues = mergeValues(defaultValues, configJsonnetValues)
+		}
 	}
+
+	defaultValues = mergeValues(defaultValues, nativeChart.Values)
+	if len(defaultValues) > 0 {
+		defaultValueStr, err := json.Marshal(defaultValues)
+		if err != nil {
+			logrus.Errorf("failed to marshal : %s", err.Error())
+			return nil, err
+		}
+
+		chartInfo.DefaultValue = string(defaultValueStr)
+	}
+
 	chartInfo.ChartPrettyParams = appMetaInfo.UserInputParams
 	return chartInfo, nil
 }

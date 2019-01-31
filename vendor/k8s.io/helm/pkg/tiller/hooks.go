@@ -17,39 +17,31 @@ limitations under the License.
 package tiller
 
 import (
-	"fmt"
 	"log"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/hooks"
-	"k8s.io/helm/pkg/proto/hapi/release"
 	util "k8s.io/helm/pkg/releaseutil"
 )
 
-var events = map[string]release.Hook_Event{
-	hooks.PreInstall:         release.Hook_PRE_INSTALL,
-	hooks.PostInstall:        release.Hook_POST_INSTALL,
-	hooks.PreDelete:          release.Hook_PRE_DELETE,
-	hooks.PostDelete:         release.Hook_POST_DELETE,
-	hooks.PreUpgrade:         release.Hook_PRE_UPGRADE,
-	hooks.PostUpgrade:        release.Hook_POST_UPGRADE,
-	hooks.PreRollback:        release.Hook_PRE_ROLLBACK,
-	hooks.PostRollback:       release.Hook_POST_ROLLBACK,
-	hooks.ReleaseTestSuccess: release.Hook_RELEASE_TEST_SUCCESS,
-	hooks.ReleaseTestFailure: release.Hook_RELEASE_TEST_FAILURE,
-	hooks.CRDInstall:         release.Hook_CRD_INSTALL,
-}
-
-// deletePolices represents a mapping between the key in the annotation for label deleting policy and its real meaning
-var deletePolices = map[string]release.Hook_DeletePolicy{
-	hooks.HookSucceeded:      release.Hook_SUCCEEDED,
-	hooks.HookFailed:         release.Hook_FAILED,
-	hooks.BeforeHookCreation: release.Hook_BEFORE_HOOK_CREATION,
+var events = map[string]release.HookEvent{
+	hooks.PreInstall:         release.HookPreInstall,
+	hooks.PostInstall:        release.HookPostInstall,
+	hooks.PreDelete:          release.HookPreDelete,
+	hooks.PostDelete:         release.HookPostDelete,
+	hooks.PreUpgrade:         release.HookPreUpgrade,
+	hooks.PostUpgrade:        release.HookPostUpgrade,
+	hooks.PreRollback:        release.HookPreRollback,
+	hooks.PostRollback:       release.HookPostRollback,
+	hooks.ReleaseTestSuccess: release.HookReleaseTestSuccess,
+	hooks.ReleaseTestFailure: release.HookReleaseTestFailure,
 }
 
 // Manifest represents a manifest file, which has a name and some content.
@@ -70,7 +62,7 @@ type manifestFile struct {
 	apis    chartutil.VersionSet
 }
 
-// sortManifests takes a map of filename/YAML contents, splits the file
+// SortManifests takes a map of filename/YAML contents, splits the file
 // by manifest entries, and sorts the entries into hook types.
 //
 // The resulting hooks struct will be populated with all of the generated hooks.
@@ -79,7 +71,7 @@ type manifestFile struct {
 //
 // Files that do not parse into the expected format are simply placed into a map and
 // returned.
-func sortManifests(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, error) {
+func SortManifests(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, error) {
 	result := &result{}
 
 	for filePath, c := range files {
@@ -131,11 +123,12 @@ func sortManifests(files map[string]string, apis chartutil.VersionSet, sort Sort
 func (file *manifestFile) sort(result *result) error {
 	for _, m := range file.entries {
 		var entry util.SimpleHead
-		err := yaml.Unmarshal([]byte(m), &entry)
+		if err := yaml.Unmarshal([]byte(m), &entry); err != nil {
+			return errors.Wrapf(err, "YAML parse error on %s", file.path)
+		}
 
-		if err != nil {
-			e := fmt.Errorf("YAML parse error on %s: %s", file.path, err)
-			return e
+		if entry.Version != "" && !file.apis.Has(entry.Version) {
+			return errors.Errorf("apiVersion %q in %s is not available", entry.Version, file.path)
 		}
 
 		if !hasAnyAnnotation(entry) {
@@ -164,9 +157,9 @@ func (file *manifestFile) sort(result *result) error {
 			Kind:           entry.Kind,
 			Path:           file.path,
 			Manifest:       m,
-			Events:         []release.Hook_Event{},
+			Events:         []release.HookEvent{},
 			Weight:         hw,
-			DeletePolicies: []release.Hook_DeletePolicy{},
+			DeletePolicies: []release.HookDeletePolicy{},
 		}
 
 		isUnknownHook := false
@@ -196,6 +189,7 @@ func (file *manifestFile) sort(result *result) error {
 			}
 		})
 	}
+
 	return nil
 }
 
@@ -209,14 +203,13 @@ func hasAnyAnnotation(entry util.SimpleHead) bool {
 	return true
 }
 
-func calculateHookWeight(entry util.SimpleHead) int32 {
+func calculateHookWeight(entry util.SimpleHead) int {
 	hws := entry.Metadata.Annotations[hooks.HookWeightAnno]
 	hw, err := strconv.Atoi(hws)
 	if err != nil {
 		hw = 0
 	}
-
-	return int32(hw)
+	return hw
 }
 
 func operateAnnotationValues(entry util.SimpleHead, annotation string, operate func(p string)) {

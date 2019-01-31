@@ -21,6 +21,8 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
+
+	"k8s.io/helm/cmd/helm/require"
 )
 
 var longHomeHelp = `
@@ -33,6 +35,7 @@ func newHomeCmd(out io.Writer) *cobra.Command {
 		Use:   "home",
 		Short: "displays the location of HELM_HOME",
 		Long:  longHomeHelp,
+		Args:  require.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			h := settings.Home
 			fmt.Fprintln(out, h)
@@ -42,7 +45,6 @@ func newHomeCmd(out io.Writer) *cobra.Command {
 				fmt.Fprintf(out, "Cache: %s\n", h.Cache())
 				fmt.Fprintf(out, "Stable CacheIndex: %s\n", h.CacheIndex("stable"))
 				fmt.Fprintf(out, "Starters: %s\n", h.Starters())
-				fmt.Fprintf(out, "LocalRepository: %s\n", h.LocalRepository())
 				fmt.Fprintf(out, "Plugins: %s\n", h.Plugins())
 			}
 		},

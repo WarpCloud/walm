@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	values                       = []byte{}
+	values                       = make(map[string]interface{})
 	namespace                    = "testNamespace"
 	strict                       = false
 	archivedChartPath            = "testdata/testcharts/compressedchart-0.1.0.tgz"
@@ -33,22 +33,18 @@ var (
 
 func TestLintChart(t *testing.T) {
 	if _, err := lintChart(chartDirPath, values, namespace, strict); err != nil {
-		t.Errorf("%s", err)
+		t.Error(err)
 	}
-
 	if _, err := lintChart(archivedChartPath, values, namespace, strict); err != nil {
-		t.Errorf("%s", err)
+		t.Error(err)
 	}
-
 	if _, err := lintChart(archivedChartPathWithHyphens, values, namespace, strict); err != nil {
-		t.Errorf("%s", err)
+		t.Error(err)
 	}
-
 	if _, err := lintChart(invalidArchivedChartPath, values, namespace, strict); err == nil {
-		t.Errorf("Expected a chart parsing error")
+		t.Error("Expected a chart parsing error")
 	}
-
 	if _, err := lintChart(chartMissingManifest, values, namespace, strict); err == nil {
-		t.Errorf("Expected a chart parsing error")
+		t.Error("Expected a chart parsing error")
 	}
 }

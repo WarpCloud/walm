@@ -16,50 +16,18 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-	"io"
-	"regexp"
 	"testing"
-
-	"github.com/spf13/cobra"
-
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/version"
 )
 
 func TestVersion(t *testing.T) {
-	lver := regexp.QuoteMeta(version.GetVersionProto().SemVer)
-	sver := regexp.QuoteMeta("1.2.3-fakeclient+testonly")
-	clientVersion := fmt.Sprintf("Client: &version\\.Version{SemVer:\"%s\", GitCommit:\"\", GitTreeState:\"\"}\n", lver)
-	serverVersion := fmt.Sprintf("Server: &version\\.Version{SemVer:\"%s\", GitCommit:\"\", GitTreeState:\"\"}\n", sver)
-
-	tests := []releaseCase{
-		{
-			name:     "default",
-			args:     []string{},
-			expected: clientVersion + serverVersion,
-		},
-		{
-			name:     "client",
-			args:     []string{},
-			flags:    []string{"-c"},
-			expected: clientVersion,
-		},
-		{
-			name:     "server",
-			args:     []string{},
-			flags:    []string{"-s"},
-			expected: serverVersion,
-		},
-		{
-			name:     "template",
-			args:     []string{},
-			flags:    []string{"--template", "{{ .Client.SemVer }} {{ .Server.SemVer }}"},
-			expected: lver + " " + sver,
-		},
-	}
-	settings.TillerHost = "fake-localhost"
-	runReleaseCases(t, tests, func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newVersionCmd(c, out)
-	})
+	tests := []cmdTestCase{{
+		name:   "default",
+		cmd:    "version",
+		golden: "output/version.txt",
+	}, {
+		name:   "template",
+		cmd:    "version --template='Version: {{.Version}}'",
+		golden: "output/version-template.txt",
+	}}
+	runTestCmd(t, tests)
 }

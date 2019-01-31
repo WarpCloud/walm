@@ -17,10 +17,14 @@ limitations under the License.
 package constants
 
 import (
-	"fmt"
-	"k8s.io/kubernetes/pkg/util/version"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/pkg/errors"
+
+	"k8s.io/apimachinery/pkg/util/version"
+	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 )
 
 func TestGetStaticPodDirectory(t *testing.T) {
@@ -37,12 +41,38 @@ func TestGetStaticPodDirectory(t *testing.T) {
 }
 
 func TestGetAdminKubeConfigPath(t *testing.T) {
-	expected := "/etc/kubernetes/admin.conf"
+	expected := filepath.Join(KubernetesDir, AdminKubeConfigFileName)
 	actual := GetAdminKubeConfigPath()
 
 	if actual != expected {
 		t.Errorf(
 			"failed GetAdminKubeConfigPath:\n\texpected: %s\n\t  actual: %s",
+			expected,
+			actual,
+		)
+	}
+}
+
+func TestGetBootstrapKubeletKubeConfigPath(t *testing.T) {
+	expected := "/etc/kubernetes/bootstrap-kubelet.conf"
+	actual := GetBootstrapKubeletKubeConfigPath()
+
+	if actual != expected {
+		t.Errorf(
+			"failed GetBootstrapKubeletKubeConfigPath:\n\texpected: %s\n\t  actual: %s",
+			expected,
+			actual,
+		)
+	}
+}
+
+func TestGetKubeletKubeConfigPath(t *testing.T) {
+	expected := "/etc/kubernetes/kubelet.conf"
+	actual := GetKubeletKubeConfigPath()
+
+	if actual != expected {
+		t.Errorf(
+			"failed GetKubeletKubeConfigPath:\n\texpected: %s\n\t  actual: %s",
 			expected,
 			actual,
 		)
@@ -123,17 +153,7 @@ func TestEtcdSupportedVersion(t *testing.T) {
 		{
 			kubernetesVersion: "1.99.0",
 			expectedVersion:   nil,
-			expectedError:     fmt.Errorf("Unsupported or unknown kubernetes version(1.99.0)"),
-		},
-		{
-			kubernetesVersion: "1.9.0",
-			expectedVersion:   version.MustParseSemantic("3.1.12"),
-			expectedError:     nil,
-		},
-		{
-			kubernetesVersion: "1.9.2",
-			expectedVersion:   version.MustParseSemantic("3.1.12"),
-			expectedError:     nil,
+			expectedError:     errors.New("Unsupported or unknown Kubernetes version(1.99.0)"),
 		},
 		{
 			kubernetesVersion: "1.10.0",
@@ -141,8 +161,18 @@ func TestEtcdSupportedVersion(t *testing.T) {
 			expectedError:     nil,
 		},
 		{
-			kubernetesVersion: "1.10.1",
+			kubernetesVersion: "1.10.2",
 			expectedVersion:   version.MustParseSemantic("3.1.12"),
+			expectedError:     nil,
+		},
+		{
+			kubernetesVersion: "1.11.0",
+			expectedVersion:   version.MustParseSemantic("3.2.18"),
+			expectedError:     nil,
+		},
+		{
+			kubernetesVersion: "1.12.1",
+			expectedVersion:   version.MustParseSemantic("3.2.24"),
 			expectedError:     nil,
 		},
 	}
@@ -168,6 +198,32 @@ func TestEtcdSupportedVersion(t *testing.T) {
 					actualVersion.String(),
 				)
 			}
+		}
+	}
+}
+
+func TestGetKubeDNSVersion(t *testing.T) {
+	var tests = []struct {
+		dns      kubeadmapi.DNSAddOnType
+		expected string
+	}{
+		{
+			dns:      kubeadmapi.KubeDNS,
+			expected: KubeDNSVersion,
+		},
+		{
+			dns:      kubeadmapi.CoreDNS,
+			expected: CoreDNSVersion,
+		},
+	}
+	for _, rt := range tests {
+		actualDNSVersion := GetDNSVersion(rt.dns)
+		if actualDNSVersion != rt.expected {
+			t.Errorf(
+				"failed GetDNSVersion:\n\texpected: %s\n\t  actual: %s",
+				rt.expected,
+				actualDNSVersion,
+			)
 		}
 	}
 }

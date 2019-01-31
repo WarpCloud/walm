@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright 2015 The Kubernetes Authors.
 #
@@ -35,7 +35,7 @@ kube::util::ensure_godep_version
 
 if [[ -z ${TMP_GOPATH:-} ]]; then
   # Create a nice clean place to put our new godeps
-  _tmpdir="$(mktemp -d -t gopath.XXXXXX)"
+  _tmpdir="$(kube::realpath $(mktemp -d -t gopath.XXXXXX))"
 else
   # reuse what we might have saved previously
   _tmpdir="${TMP_GOPATH}"
@@ -51,7 +51,6 @@ function cleanup {
     echo "Removing ${_tmpdir}"
     rm -rf "${_tmpdir}"
   fi
-  export GODEP=""
 }
 trap cleanup EXIT
 
@@ -66,7 +65,7 @@ _kubetmp="${_kubetmp}/kubernetes"
 export GOPATH="${_tmpdir}"
 export PATH="${GOPATH}/bin:${PATH}"
 
-pushd "${_kubetmp}" 2>&1 > /dev/null
+pushd "${_kubetmp}" > /dev/null 2>&1
   # Restore the Godeps into our temp directory
   hack/godep-restore.sh
 
@@ -79,13 +78,13 @@ pushd "${_kubetmp}" 2>&1 > /dev/null
 
   # Recreate the Godeps using the nice clean set we just downloaded
   hack/godep-save.sh
-popd 2>&1 > /dev/null
+popd > /dev/null 2>&1
 
 ret=0
 
-pushd "${KUBE_ROOT}" 2>&1 > /dev/null
+pushd "${KUBE_ROOT}" > /dev/null 2>&1
   # Test for diffs
-  if ! _out="$(diff -Naupr --ignore-matching-lines='^\s*\"GoVersion\":' --ignore-matching-line='^\s*\"GodepVersion\":' --ignore-matching-lines='^\s*\"Comment\":' Godeps/Godeps.json ${_kubetmp}/Godeps/Godeps.json)"; then
+  if ! _out="$(diff -Naupr --ignore-matching-lines='^\s*\"GoVersion\":' Godeps/Godeps.json ${_kubetmp}/Godeps/Godeps.json)"; then
     echo "Your Godeps.json is different:" >&2
     echo "${_out}" >&2
     echo "Godeps Verify failed." >&2
@@ -95,9 +94,9 @@ pushd "${KUBE_ROOT}" 2>&1 > /dev/null
     echo "(The above output can be saved as godepdiff.patch if you're not running this locally)" >&2
     echo "(The patch file should also be exported as a build artifact if run through CI)" >&2
     KEEP_TMP=true
-    if [[ -f godepdiff.patch && -d "${ARTIFACTS_DIR:-}" ]]; then
+    if [[ -f godepdiff.patch && -d "${ARTIFACTS:-}" ]]; then
       echo "Copying patch to artifacts.."
-      cp godepdiff.patch "${ARTIFACTS_DIR:-}/"
+      cp godepdiff.patch "${ARTIFACTS:-}/"
     fi
     ret=1
   fi
@@ -112,15 +111,15 @@ pushd "${KUBE_ROOT}" 2>&1 > /dev/null
     echo "(The above output can be saved as godepdiff.patch if you're not running this locally)" >&2
     echo "(The patch file should also be exported as a build artifact if run through CI)" >&2
     KEEP_TMP=true
-    if [[ -f vendordiff.patch && -d "${ARTIFACTS_DIR:-}" ]]; then
+    if [[ -f vendordiff.patch && -d "${ARTIFACTS:-}" ]]; then
       echo "Copying patch to artifacts.."
-      cp vendordiff.patch "${ARTIFACTS_DIR:-}/"
+      cp vendordiff.patch "${ARTIFACTS:-}/"
     fi
     ret=1
   fi
-popd 2>&1 > /dev/null
+popd > /dev/null 2>&1
 
-if [[ ${ret} > 0 ]]; then
+if [[ ${ret} -gt 0 ]]; then
   exit ${ret}
 fi
 

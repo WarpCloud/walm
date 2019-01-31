@@ -17,18 +17,15 @@ limitations under the License.
 package helm // import "k8s.io/helm/pkg/helm"
 
 import (
-	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/chartutil"
-	cpb "k8s.io/helm/pkg/proto/hapi/chart"
-	rls "k8s.io/helm/pkg/proto/hapi/release"
-	tpb "k8s.io/helm/pkg/proto/hapi/services"
+	cpb "k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
+	"k8s.io/helm/pkg/hapi"
 )
 
 // Path to example charts relative to pkg/helm.
@@ -38,91 +35,28 @@ const chartsDir = "../../docs/examples/"
 var errSkip = errors.New("test: skip")
 
 // Verify each ReleaseListOption is applied to a ListReleasesRequest correctly.
-func TestListReleases_VerifyOptions(t *testing.T) {
-	// Options testdata
-	var limit = 2
-	var offset = "offset"
-	var filter = "filter"
-	var sortBy = int32(2)
-	var sortOrd = int32(1)
-	var codes = []rls.Status_Code{
-		rls.Status_FAILED,
-		rls.Status_DELETED,
-		rls.Status_DEPLOYED,
-		rls.Status_SUPERSEDED,
-	}
-	var namespace = "namespace"
-
-	// Expected ListReleasesRequest message
-	exp := &tpb.ListReleasesRequest{
-		Limit:       int64(limit),
-		Offset:      offset,
-		Filter:      filter,
-		SortBy:      tpb.ListSort_SortBy(sortBy),
-		SortOrder:   tpb.ListSort_SortOrder(sortOrd),
-		StatusCodes: codes,
-		Namespace:   namespace,
-	}
-
-	// Options used in ListReleases
-	ops := []ReleaseListOption{
-		ReleaseListSort(sortBy),
-		ReleaseListOrder(sortOrd),
-		ReleaseListLimit(limit),
-		ReleaseListOffset(offset),
-		ReleaseListFilter(filter),
-		ReleaseListStatuses(codes),
-		ReleaseListNamespace(namespace),
-	}
-
-	// BeforeCall option to intercept Helm client ListReleasesRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
-		switch act := msg.(type) {
-		case *tpb.ListReleasesRequest:
-			t.Logf("ListReleasesRequest: %#+v\n", act)
-			assert(t, exp, act)
-		default:
-			t.Fatalf("expected message of type ListReleasesRequest, got %T\n", act)
-		}
-		return errSkip
-	})
-
-	client := NewClient(b4c)
-
-	if _, err := client.ListReleases(ops...); err != errSkip {
-		t.Fatalf("did not expect error but got (%v)\n``", err)
-	}
-
-	// ensure options for call are not saved to client
-	assert(t, "", client.opts.listReq.Filter)
-}
 
 // Verify each InstallOption is applied to an InstallReleaseRequest correctly.
 func TestInstallRelease_VerifyOptions(t *testing.T) {
 	// Options testdata
 	var disableHooks = true
 	var releaseName = "test"
-	var namespace = "default"
 	var reuseName = true
 	var dryRun = true
 	var chartName = "alpine"
 	var chartPath = filepath.Join(chartsDir, chartName)
-	var overrides = []byte("key1=value1,key2=value2")
 
 	// Expected InstallReleaseRequest message
-	exp := &tpb.InstallReleaseRequest{
+	exp := &hapi.InstallReleaseRequest{
 		Chart:        loadChart(t, chartName),
-		Values:       &cpb.Config{Raw: string(overrides)},
 		DryRun:       dryRun,
 		Name:         releaseName,
 		DisableHooks: disableHooks,
-		Namespace:    namespace,
 		ReuseName:    reuseName,
 	}
 
 	// Options used in InstallRelease
 	ops := []InstallOption{
-		ValueOverrides(overrides),
 		InstallDryRun(dryRun),
 		ReleaseName(releaseName),
 		InstallReuseName(reuseName),
@@ -130,9 +64,9 @@ func TestInstallRelease_VerifyOptions(t *testing.T) {
 	}
 
 	// BeforeCall option to intercept Helm client InstallReleaseRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.InstallReleaseRequest:
+		case *hapi.InstallReleaseRequest:
 			t.Logf("InstallReleaseRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -142,7 +76,7 @@ func TestInstallRelease_VerifyOptions(t *testing.T) {
 	})
 
 	client := NewClient(b4c)
-	if _, err := client.InstallRelease(chartPath, namespace, ops...); err != errSkip {
+	if _, err := client.InstallRelease(chartPath, "", ops...); err != errSkip {
 		t.Fatalf("did not expect error but got (%v)\n``", err)
 	}
 
@@ -150,30 +84,30 @@ func TestInstallRelease_VerifyOptions(t *testing.T) {
 	assert(t, "", client.opts.instReq.Name)
 }
 
-// Verify each DeleteOptions is applied to an UninstallReleaseRequest correctly.
-func TestDeleteRelease_VerifyOptions(t *testing.T) {
+// Verify each UninstallOptions is applied to an UninstallReleaseRequest correctly.
+func TestUninstallRelease_VerifyOptions(t *testing.T) {
 	// Options testdata
 	var releaseName = "test"
 	var disableHooks = true
 	var purgeFlag = true
 
-	// Expected DeleteReleaseRequest message
-	exp := &tpb.UninstallReleaseRequest{
+	// Expected UninstallReleaseRequest message
+	exp := &hapi.UninstallReleaseRequest{
 		Name:         releaseName,
 		Purge:        purgeFlag,
 		DisableHooks: disableHooks,
 	}
 
-	// Options used in DeleteRelease
-	ops := []DeleteOption{
-		DeletePurge(purgeFlag),
-		DeleteDisableHooks(disableHooks),
+	// Options used in UninstallRelease
+	ops := []UninstallOption{
+		UninstallPurge(purgeFlag),
+		UninstallDisableHooks(disableHooks),
 	}
 
-	// BeforeCall option to intercept Helm client DeleteReleaseRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	// BeforeCall option to intercept Helm client UninstallReleaseRequest
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.UninstallReleaseRequest:
+		case *hapi.UninstallReleaseRequest:
 			t.Logf("UninstallReleaseRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -183,7 +117,7 @@ func TestDeleteRelease_VerifyOptions(t *testing.T) {
 	})
 
 	client := NewClient(b4c)
-	if _, err := client.DeleteRelease(releaseName, ops...); err != errSkip {
+	if _, err := client.UninstallRelease(releaseName, ops...); err != errSkip {
 		t.Fatalf("did not expect error but got (%v)\n``", err)
 	}
 
@@ -198,14 +132,12 @@ func TestUpdateRelease_VerifyOptions(t *testing.T) {
 	var chartPath = filepath.Join(chartsDir, chartName)
 	var releaseName = "test"
 	var disableHooks = true
-	var overrides = []byte("key1=value1,key2=value2")
 	var dryRun = false
 
 	// Expected UpdateReleaseRequest message
-	exp := &tpb.UpdateReleaseRequest{
+	exp := &hapi.UpdateReleaseRequest{
 		Name:         releaseName,
 		Chart:        loadChart(t, chartName),
-		Values:       &cpb.Config{Raw: string(overrides)},
 		DryRun:       dryRun,
 		DisableHooks: disableHooks,
 	}
@@ -213,14 +145,13 @@ func TestUpdateRelease_VerifyOptions(t *testing.T) {
 	// Options used in UpdateRelease
 	ops := []UpdateOption{
 		UpgradeDryRun(dryRun),
-		UpdateValueOverrides(overrides),
 		UpgradeDisableHooks(disableHooks),
 	}
 
 	// BeforeCall option to intercept Helm client UpdateReleaseRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.UpdateReleaseRequest:
+		case *hapi.UpdateReleaseRequest:
 			t.Logf("UpdateReleaseRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -243,11 +174,11 @@ func TestRollbackRelease_VerifyOptions(t *testing.T) {
 	// Options testdata
 	var disableHooks = true
 	var releaseName = "test"
-	var revision = int32(2)
+	var revision = 2
 	var dryRun = true
 
 	// Expected RollbackReleaseRequest message
-	exp := &tpb.RollbackReleaseRequest{
+	exp := &hapi.RollbackReleaseRequest{
 		Name:         releaseName,
 		DryRun:       dryRun,
 		Version:      revision,
@@ -262,9 +193,9 @@ func TestRollbackRelease_VerifyOptions(t *testing.T) {
 	}
 
 	// BeforeCall option to intercept Helm client RollbackReleaseRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.RollbackReleaseRequest:
+		case *hapi.RollbackReleaseRequest:
 			t.Logf("RollbackReleaseRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -286,18 +217,18 @@ func TestRollbackRelease_VerifyOptions(t *testing.T) {
 func TestReleaseStatus_VerifyOptions(t *testing.T) {
 	// Options testdata
 	var releaseName = "test"
-	var revision = int32(2)
+	var revision = 2
 
 	// Expected GetReleaseStatusRequest message
-	exp := &tpb.GetReleaseStatusRequest{
+	exp := &hapi.GetReleaseStatusRequest{
 		Name:    releaseName,
 		Version: revision,
 	}
 
 	// BeforeCall option to intercept Helm client GetReleaseStatusRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.GetReleaseStatusRequest:
+		case *hapi.GetReleaseStatusRequest:
 			t.Logf("GetReleaseStatusRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -307,7 +238,7 @@ func TestReleaseStatus_VerifyOptions(t *testing.T) {
 	})
 
 	client := NewClient(b4c)
-	if _, err := client.ReleaseStatus(releaseName, StatusReleaseVersion(revision)); err != errSkip {
+	if _, err := client.ReleaseStatus(releaseName, revision); err != errSkip {
 		t.Fatalf("did not expect error but got (%v)\n``", err)
 	}
 
@@ -317,20 +248,21 @@ func TestReleaseStatus_VerifyOptions(t *testing.T) {
 
 // Verify each ContentOption is applied to a GetReleaseContentRequest correctly.
 func TestReleaseContent_VerifyOptions(t *testing.T) {
+	t.Skip("refactoring out")
 	// Options testdata
 	var releaseName = "test"
-	var revision = int32(2)
+	var revision = 2
 
 	// Expected GetReleaseContentRequest message
-	exp := &tpb.GetReleaseContentRequest{
+	exp := &hapi.GetReleaseContentRequest{
 		Name:    releaseName,
 		Version: revision,
 	}
 
 	// BeforeCall option to intercept Helm client GetReleaseContentRequest
-	b4c := BeforeCall(func(_ context.Context, msg proto.Message) error {
+	b4c := BeforeCall(func(msg interface{}) error {
 		switch act := msg.(type) {
-		case *tpb.GetReleaseContentRequest:
+		case *hapi.GetReleaseContentRequest:
 			t.Logf("GetReleaseContentRequest: %#+v\n", act)
 			assert(t, exp, act)
 		default:
@@ -340,7 +272,7 @@ func TestReleaseContent_VerifyOptions(t *testing.T) {
 	})
 
 	client := NewClient(b4c)
-	if _, err := client.ReleaseContent(releaseName, ContentReleaseVersion(revision)); err != errSkip {
+	if _, err := client.ReleaseContent(releaseName, revision); err != errSkip {
 		t.Fatalf("did not expect error but got (%v)\n``", err)
 	}
 
@@ -355,7 +287,7 @@ func assert(t *testing.T, expect, actual interface{}) {
 }
 
 func loadChart(t *testing.T, name string) *cpb.Chart {
-	c, err := chartutil.Load(filepath.Join(chartsDir, name))
+	c, err := loader.Load(filepath.Join(chartsDir, name))
 	if err != nil {
 		t.Fatalf("failed to load test chart (%q): %s\n", name, err)
 	}

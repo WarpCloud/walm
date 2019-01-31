@@ -17,52 +17,48 @@ limitations under the License.
 package tiller
 
 import (
-	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 func TestUpdateRelease(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
 		},
 	}
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 
-	if res.Release.Name == "" {
+	if res.Name == "" {
 		t.Errorf("Expected release name.")
 	}
 
-	if res.Release.Name != rel.Name {
-		t.Errorf("Updated release name does not match previous release name. Expected %s, got %s", rel.Name, res.Release.Name)
+	if res.Name != rel.Name {
+		t.Errorf("Updated release name does not match previous release name. Expected %s, got %s", rel.Name, res.Name)
 	}
 
-	if res.Release.Namespace != rel.Namespace {
-		t.Errorf("Expected release namespace '%s', got '%s'.", rel.Namespace, res.Release.Namespace)
+	if res.Namespace != rel.Namespace {
+		t.Errorf("Expected release namespace '%s', got '%s'.", rel.Namespace, res.Namespace)
 	}
 
-	updated := compareStoredAndReturnedRelease(t, *rs, *res)
+	updated := compareStoredAndReturnedRelease(t, *rs, res)
 
 	if len(updated.Hooks) != 1 {
 		t.Fatalf("Expected 1 hook, got %d", len(updated.Hooks))
@@ -71,11 +67,11 @@ func TestUpdateRelease(t *testing.T) {
 		t.Errorf("Unexpected manifest: %v", updated.Hooks[0].Manifest)
 	}
 
-	if updated.Hooks[0].Events[0] != release.Hook_POST_UPGRADE {
+	if updated.Hooks[0].Events[0] != release.HookPostUpgrade {
 		t.Errorf("Expected event 0 to be post upgrade")
 	}
 
-	if updated.Hooks[0].Events[1] != release.Hook_PRE_UPGRADE {
+	if updated.Hooks[0].Events[1] != release.HookPreUpgrade {
 		t.Errorf("Expected event 0 to be pre upgrade")
 	}
 
@@ -83,242 +79,188 @@ func TestUpdateRelease(t *testing.T) {
 		t.Errorf("Expected manifest in %v", res)
 	}
 
-	if res.Release.Config == nil {
-		t.Errorf("Got release without config: %#v", res.Release)
-	} else if res.Release.Config.Raw != rel.Config.Raw {
-		t.Errorf("Expected release values %q, got %q", rel.Config.Raw, res.Release.Config.Raw)
+	if res.Config == nil {
+		t.Errorf("Got release without config: %#v", res)
+	} else if len(res.Config) != len(rel.Config) {
+		t.Errorf("Expected release values %q, got %q", rel.Config, res.Config)
 	}
 
 	if !strings.Contains(updated.Manifest, "---\n# Source: hello/templates/hello\nhello: world") {
 		t.Errorf("unexpected output: %s", updated.Manifest)
 	}
 
-	if res.Release.Version != 2 {
-		t.Errorf("Expected release version to be %v, got %v", 2, res.Release.Version)
+	if res.Version != 2 {
+		t.Errorf("Expected release version to be %v, got %v", 2, res.Version)
 	}
 
 	edesc := "Upgrade complete"
-	if got := res.Release.Info.Description; got != edesc {
+	if got := res.Info.Description; got != edesc {
 		t.Errorf("Expected description %q, got %q", edesc, got)
 	}
 }
 func TestUpdateRelease_ResetValues(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
 		},
 		ResetValues: true,
 	}
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 	// This should have been unset. Config:  &chart.Config{Raw: `name: value`},
-	if res.Release.Config != nil && res.Release.Config.Raw != "" {
-		t.Errorf("Expected chart config to be empty, got %q", res.Release.Config.Raw)
-	}
-}
-
-func TestUpdateRelease_ReuseValuesWithNoValues(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-
-	installReq := &services.InstallReleaseRequest{
-		Namespace: "spaced",
-		Chart: &chart.Chart{
-			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
-				{Name: "templates/hello", Data: []byte("hello: world")},
-				{Name: "templates/hooks", Data: []byte(manifestWithHook)},
-			},
-			Values: &chart.Config{Raw: "defaultFoo: defaultBar"},
-		},
-	}
-
-	installResp, err := rs.InstallRelease(c, installReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rel := installResp.Release
-	req := &services.UpdateReleaseRequest{
-		Name: rel.Name,
-		Chart: &chart.Chart{
-			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
-				{Name: "templates/hello", Data: []byte("hello: world")},
-			},
-		},
-		Values:      &chart.Config{Raw: ""},
-		ReuseValues: true,
-	}
-
-	_, err = rs.UpdateRelease(c, req)
-	if err != nil {
-		t.Fatalf("Failed updated: %s", err)
+	if len(res.Config) > 0 {
+		t.Errorf("Expected chart config to be empty, got %q", res.Config)
 	}
 }
 
 // This is a regression test for bug found in issue #3655
 func TestUpdateRelease_ComplexReuseValues(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 
-	installReq := &services.InstallReleaseRequest{
+	installReq := &hapi.InstallReleaseRequest{
+		Name:      "complex-reuse-values",
 		Namespace: "spaced",
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithHook)},
 			},
-			Values: &chart.Config{Raw: "defaultFoo: defaultBar"},
 		},
-		Values: &chart.Config{Raw: "foo: bar"},
+		Values: map[string]interface{}{"foo": "bar"},
 	}
 
-	fmt.Println("Running Install release with foo: bar override")
-	installResp, err := rs.InstallRelease(c, installReq)
+	t.Log("Running Install release with foo: bar override")
+	rel, err := rs.InstallRelease(installReq)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rel := installResp.Release
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
-			Values: &chart.Config{Raw: "defaultFoo: defaultBar"},
 		},
 	}
 
-	fmt.Println("Running Update release with no overrides and no reuse-values flag")
-	res, err := rs.UpdateRelease(c, req)
+	t.Log("Running Update release with no overrides and no reuse-values flag")
+	rel, err = rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 
-	expect := "foo: bar"
-	if res.Release.Config != nil && res.Release.Config.Raw != expect {
-		t.Errorf("Expected chart values to be %q, got %q", expect, res.Release.Config.Raw)
+	if rel.Config != nil && rel.Config["foo"] != "bar" {
+		t.Errorf("Expected chart value 'foo' = 'bar', got %s", rel.Config)
 	}
 
-	rel = res.Release
-	req = &services.UpdateReleaseRequest{
+	req = &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
-			Values: &chart.Config{Raw: "defaultFoo: defaultBar"},
 		},
-		Values:      &chart.Config{Raw: "foo2: bar2"},
+		Values:      map[string]interface{}{"foo2": "bar2"},
 		ReuseValues: true,
 	}
 
-	fmt.Println("Running Update release with foo2: bar2 override and reuse-values")
-	res, err = rs.UpdateRelease(c, req)
+	t.Log("Running Update release with foo2: bar2 override and reuse-values")
+	rel, err = rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 
 	// This should have the newly-passed overrides.
-	expect = "foo: bar\nfoo2: bar2\n"
-	if res.Release.Config != nil && res.Release.Config.Raw != expect {
-		t.Errorf("Expected request config to be %q, got %q", expect, res.Release.Config.Raw)
+	if len(rel.Config) != 2 && rel.Config["foo2"] != "bar2" {
+		t.Errorf("Expected chart value 'foo2' = 'bar2', got %s", rel.Config)
 	}
 
-	rel = res.Release
-	req = &services.UpdateReleaseRequest{
+	req = &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
-			Values: &chart.Config{Raw: "defaultFoo: defaultBar"},
 		},
-		Values:      &chart.Config{Raw: "foo: baz"},
+		Values:      map[string]interface{}{"foo": "baz"},
 		ReuseValues: true,
 	}
 
-	fmt.Println("Running Update release with foo=baz override with reuse-values flag")
-	res, err = rs.UpdateRelease(c, req)
+	t.Log("Running Update release with foo=baz override with reuse-values flag")
+	rel, err = rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
-	expect = "foo: baz\nfoo2: bar2\n"
-	if res.Release.Config != nil && res.Release.Config.Raw != expect {
-		t.Errorf("Expected chart values to be %q, got %q", expect, res.Release.Config.Raw)
+	if len(rel.Config) != 2 && rel.Config["foo"] != "baz" {
+		t.Errorf("Expected chart value 'foo' = 'baz', got %s", rel.Config)
 	}
 }
 
 func TestUpdateRelease_ReuseValues(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
 			// Since reuseValues is set, this should get ignored.
-			Values: &chart.Config{Raw: "foo: bar\n"},
+			Values: map[string]interface{}{"foo": "bar"},
 		},
-		Values:      &chart.Config{Raw: "name2: val2"},
+		Values:      map[string]interface{}{"name2": "val2"},
 		ReuseValues: true,
 	}
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 	// This should have been overwritten with the old value.
-	expect := "name: value\n"
-	if res.Release.Chart.Values != nil && res.Release.Chart.Values.Raw != expect {
-		t.Errorf("Expected chart values to be %q, got %q", expect, res.Release.Chart.Values.Raw)
+	if got := res.Chart.Values["name"]; got != "value" {
+		t.Errorf("Expected chart values 'name' to be 'value', got %q", got)
 	}
 	// This should have the newly-passed overrides and any other computed values. `name: value` comes from release Config via releaseStub()
-	expect = "name: value\nname2: val2\n"
-	if res.Release.Config != nil && res.Release.Config.Raw != expect {
-		t.Errorf("Expected request config to be %q, got %q", expect, res.Release.Config.Raw)
+	expect := "name: value\nname2: val2\n"
+	if len(res.Config) != 2 || res.Config["name"] != "value" || res.Config["name2"] != "val2" {
+		t.Errorf("Expected request config to be %q, got %q", expect, res.Config)
 	}
-	compareStoredAndReturnedRelease(t, *rs, *res)
+	compareStoredAndReturnedRelease(t, *rs, res)
 }
 
 func TestUpdateRelease_ResetReuseValues(t *testing.T) {
 	// This verifies that when both reset and reuse are set, reset wins.
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name: rel.Name,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
@@ -326,208 +268,153 @@ func TestUpdateRelease_ResetReuseValues(t *testing.T) {
 		ResetValues: true,
 		ReuseValues: true,
 	}
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 	// This should have been unset. Config:  &chart.Config{Raw: `name: value`},
-	if res.Release.Config != nil && res.Release.Config.Raw != "" {
-		t.Errorf("Expected chart config to be empty, got %q", res.Release.Config.Raw)
+	if len(res.Config) > 0 {
+		t.Errorf("Expected chart config to be empty, got %q", res.Config)
 	}
-	compareStoredAndReturnedRelease(t, *rs, *res)
+	compareStoredAndReturnedRelease(t, *rs, res)
 }
 
 func TestUpdateReleaseFailure(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
-	rs.env.KubeClient = newUpdateFailingKubeClient()
-	rs.Log = t.Logf
+	rs.Releases.Create(rel)
+	rs.KubeClient = newUpdateFailingKubeClient()
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name:         rel.Name,
 		DisableHooks: true,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/something", Data: []byte("hello: world")},
 			},
 		},
 	}
 
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err == nil {
 		t.Error("Expected failed update")
 	}
 
-	if updatedStatus := res.Release.Info.Status.Code; updatedStatus != release.Status_FAILED {
-		t.Errorf("Expected FAILED release. Got %d", updatedStatus)
+	if updatedStatus := res.Info.Status; updatedStatus != release.StatusFailed {
+		t.Errorf("Expected FAILED release. Got %s", updatedStatus)
 	}
 
-	compareStoredAndReturnedRelease(t, *rs, *res)
+	compareStoredAndReturnedRelease(t, *rs, res)
 
 	expectedDescription := "Upgrade \"angry-panda\" failed: Failed update in kube client"
-	if got := res.Release.Info.Description; got != expectedDescription {
+	if got := res.Info.Description; got != expectedDescription {
 		t.Errorf("Expected description %q, got %q", expectedDescription, got)
 	}
 
-	oldRelease, err := rs.env.Releases.Get(rel.Name, rel.Version)
+	oldRelease, err := rs.Releases.Get(rel.Name, rel.Version)
 	if err != nil {
 		t.Errorf("Expected to be able to get previous release")
 	}
-	if oldStatus := oldRelease.Info.Status.Code; oldStatus != release.Status_DEPLOYED {
+	if oldStatus := oldRelease.Info.Status; oldStatus != release.StatusDeployed {
 		t.Errorf("Expected Deployed status on previous Release version. Got %v", oldStatus)
 	}
 }
 
 func TestUpdateReleaseFailure_Force(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rel := namedReleaseStub("forceful-luke", release.Status_FAILED)
-	rs.env.Releases.Create(rel)
-	rs.Log = t.Logf
+	rs := rsFixture(t)
+	rel := namedReleaseStub("forceful-luke", release.StatusFailed)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name:         rel.Name,
 		DisableHooks: true,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/something", Data: []byte("text: 'Did you ever hear the tragedy of Darth Plagueis the Wise? I thought not. It’s not a story the Jedi would tell you. It’s a Sith legend. Darth Plagueis was a Dark Lord of the Sith, so powerful and so wise he could use the Force to influence the Midichlorians to create life... He had such a knowledge of the Dark Side that he could even keep the ones he cared about from dying. The Dark Side of the Force is a pathway to many abilities some consider to be unnatural. He became so powerful... The only thing he was afraid of was losing his power, which eventually, of course, he did. Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep. Ironic. He could save others from death, but not himself.'")},
 			},
 		},
 		Force: true,
 	}
 
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Errorf("Expected successful update, got %v", err)
 	}
 
-	if updatedStatus := res.Release.Info.Status.Code; updatedStatus != release.Status_DEPLOYED {
-		t.Errorf("Expected DEPLOYED release. Got %d", updatedStatus)
+	if updatedStatus := res.Info.Status; updatedStatus != release.StatusDeployed {
+		t.Errorf("Expected DEPLOYED release. Got %s", updatedStatus)
 	}
 
-	compareStoredAndReturnedRelease(t, *rs, *res)
+	compareStoredAndReturnedRelease(t, *rs, res)
 
 	expectedDescription := "Upgrade complete"
-	if got := res.Release.Info.Description; got != expectedDescription {
+	if got := res.Info.Description; got != expectedDescription {
 		t.Errorf("Expected description %q, got %q", expectedDescription, got)
 	}
 
-	oldRelease, err := rs.env.Releases.Get(rel.Name, rel.Version)
+	oldRelease, err := rs.Releases.Get(rel.Name, rel.Version)
 	if err != nil {
 		t.Errorf("Expected to be able to get previous release")
 	}
-	if oldStatus := oldRelease.Info.Status.Code; oldStatus != release.Status_DELETED {
+	if oldStatus := oldRelease.Info.Status; oldStatus != release.StatusUninstalled {
 		t.Errorf("Expected Deleted status on previous Release version. Got %v", oldStatus)
 	}
 }
 
 func TestUpdateReleaseNoHooks(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name:         rel.Name,
 		DisableHooks: true,
 		Chart: &chart.Chart{
 			Metadata: &chart.Metadata{Name: "hello"},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/hello", Data: []byte("hello: world")},
 				{Name: "templates/hooks", Data: []byte(manifestWithUpgradeHooks)},
 			},
 		},
 	}
 
-	res, err := rs.UpdateRelease(c, req)
+	res, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 
-	if hl := res.Release.Hooks[0].LastRun; hl != nil {
-		t.Errorf("Expected that no hooks were run. Got %d", hl)
+	if hl := res.Hooks[0].LastRun; !hl.IsZero() {
+		t.Errorf("Expected that no hooks were run. Got %s", hl)
 	}
 
 }
 
 func TestUpdateReleaseNoChanges(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 
-	req := &services.UpdateReleaseRequest{
+	req := &hapi.UpdateReleaseRequest{
 		Name:         rel.Name,
 		DisableHooks: true,
-		Chart:        rel.GetChart(),
+		Chart:        rel.Chart,
 	}
 
-	_, err := rs.UpdateRelease(c, req)
+	_, err := rs.UpdateRelease(req)
 	if err != nil {
 		t.Fatalf("Failed updated: %s", err)
 	}
 }
 
-func TestUpdateReleaseCustomDescription(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rel := releaseStub()
-	rs.env.Releases.Create(rel)
-
-	customDescription := "foo"
-
-	req := &services.UpdateReleaseRequest{
-		Name:        rel.Name,
-		Chart:       rel.GetChart(),
-		Description: customDescription,
-	}
-
-	res, err := rs.UpdateRelease(c, req)
+func compareStoredAndReturnedRelease(t *testing.T, rs ReleaseServer, res *release.Release) *release.Release {
+	storedRelease, err := rs.Releases.Get(res.Name, res.Version)
 	if err != nil {
-		t.Fatalf("Failed updated: %s", err)
-	}
-	if res.Release.Info.Description != customDescription {
-		t.Errorf("Expected release description to be %q, got %q", customDescription, res.Release.Info.Description)
-	}
-	compareStoredAndReturnedRelease(t, *rs, *res)
-}
-
-func TestUpdateReleaseCustomDescription_Force(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rel := releaseStub()
-	rs.env.Releases.Create(rel)
-
-	customDescription := "foo"
-
-	req := &services.UpdateReleaseRequest{
-		Name:        rel.Name,
-		Chart:       rel.GetChart(),
-		Force:       true,
-		Description: customDescription,
+		t.Fatalf("Expected release for %s (%v).", res.Name, rs.Releases)
 	}
 
-	res, err := rs.UpdateRelease(c, req)
-	if err != nil {
-		t.Fatalf("Failed updated: %s", err)
-	}
-	if res.Release.Info.Description != customDescription {
-		t.Errorf("Expected release description to be %q, got %q", customDescription, res.Release.Info.Description)
-	}
-	compareStoredAndReturnedRelease(t, *rs, *res)
-}
-
-func compareStoredAndReturnedRelease(t *testing.T, rs ReleaseServer, res services.UpdateReleaseResponse) *release.Release {
-	storedRelease, err := rs.env.Releases.Get(res.Release.Name, res.Release.Version)
-	if err != nil {
-		t.Fatalf("Expected release for %s (%v).", res.Release.Name, rs.env.Releases)
-	}
-
-	if !proto.Equal(storedRelease, res.Release) {
+	if !reflect.DeepEqual(storedRelease, res) {
 		t.Errorf("Stored release doesn't match returned Release")
 	}
 

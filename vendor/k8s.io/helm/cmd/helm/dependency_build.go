@@ -20,13 +20,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
-	"k8s.io/helm/pkg/helm/helmpath"
 )
 
 const dependencyBuildDesc = `
-Build out the charts/ directory from the requirements.lock file.
+Build out the charts/ directory from the Chart.lock file.
 
 Build is used to reconstruct a chart's dependencies to the state specified in
 the lock file. This will not re-negotiate dependencies, as 'helm dependency update'
@@ -36,48 +36,47 @@ If no lock file is found, 'helm dependency build' will mirror the behavior
 of 'helm dependency update'.
 `
 
-type dependencyBuildCmd struct {
-	out       io.Writer
+type dependencyBuildOptions struct {
+	keyring string // --keyring
+	verify  bool   // --verify
+
 	chartpath string
-	verify    bool
-	keyring   string
-	helmhome  helmpath.Home
 }
 
 func newDependencyBuildCmd(out io.Writer) *cobra.Command {
-	dbc := &dependencyBuildCmd{out: out}
+	o := &dependencyBuildOptions{
+		chartpath: ".",
+	}
 
 	cmd := &cobra.Command{
-		Use:   "build [flags] CHART",
-		Short: "rebuild the charts/ directory based on the requirements.lock file",
+		Use:   "build CHART",
+		Short: "rebuild the charts/ directory based on the Chart.lock file",
 		Long:  dependencyBuildDesc,
+		Args:  require.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbc.helmhome = settings.Home
-			dbc.chartpath = "."
-
 			if len(args) > 0 {
-				dbc.chartpath = args[0]
+				o.chartpath = args[0]
 			}
-			return dbc.run()
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&dbc.verify, "verify", false, "verify the packages against signatures")
-	f.StringVar(&dbc.keyring, "keyring", defaultKeyring(), "keyring containing public keys")
+	f.BoolVar(&o.verify, "verify", false, "verify the packages against signatures")
+	f.StringVar(&o.keyring, "keyring", defaultKeyring(), "keyring containing public keys")
 
 	return cmd
 }
 
-func (d *dependencyBuildCmd) run() error {
+func (o *dependencyBuildOptions) run(out io.Writer) error {
 	man := &downloader.Manager{
-		Out:       d.out,
-		ChartPath: d.chartpath,
-		HelmHome:  d.helmhome,
-		Keyring:   d.keyring,
+		Out:       out,
+		ChartPath: o.chartpath,
+		HelmHome:  settings.Home,
+		Keyring:   o.keyring,
 		Getters:   getter.All(settings),
 	}
-	if d.verify {
+	if o.verify {
 		man.Verify = downloader.VerifyIfPossible
 	}
 

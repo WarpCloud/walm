@@ -20,21 +20,19 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 func TestUninstallRelease(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rs.env.Releases.Create(releaseStub())
+	rs := rsFixture(t)
+	rs.Releases.Create(releaseStub())
 
-	req := &services.UninstallReleaseRequest{
+	req := &hapi.UninstallReleaseRequest{
 		Name: "angry-panda",
 	}
 
-	res, err := rs.UninstallRelease(c, req)
+	res, err := rs.UninstallRelease(req)
 	if err != nil {
 		t.Fatalf("Failed uninstall: %s", err)
 	}
@@ -43,38 +41,37 @@ func TestUninstallRelease(t *testing.T) {
 		t.Errorf("Expected angry-panda, got %q", res.Release.Name)
 	}
 
-	if res.Release.Info.Status.Code != release.Status_DELETED {
-		t.Errorf("Expected status code to be DELETED, got %d", res.Release.Info.Status.Code)
+	if res.Release.Info.Status != release.StatusUninstalled {
+		t.Errorf("Expected status code to be UNINSTALLED, got %s", res.Release.Info.Status)
 	}
 
-	if res.Release.Hooks[0].LastRun.Seconds == 0 {
+	if res.Release.Hooks[0].LastRun.IsZero() {
 		t.Error("Expected LastRun to be greater than zero.")
 	}
 
-	if res.Release.Info.Deleted.Seconds <= 0 {
-		t.Errorf("Expected valid UNIX date, got %d", res.Release.Info.Deleted.Seconds)
+	if res.Release.Info.Deleted.Second() <= 0 {
+		t.Errorf("Expected valid UNIX date, got %d", res.Release.Info.Deleted.Second())
 	}
 
-	if res.Release.Info.Description != "Deletion complete" {
-		t.Errorf("Expected Deletion complete, got %q", res.Release.Info.Description)
+	if res.Release.Info.Description != "Uninstallation complete" {
+		t.Errorf("Expected Uninstallation complete, got %q", res.Release.Info.Description)
 	}
 }
 
 func TestUninstallPurgeRelease(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	rel := releaseStub()
-	rs.env.Releases.Create(rel)
+	rs.Releases.Create(rel)
 	upgradedRel := upgradeReleaseVersion(rel)
-	rs.env.Releases.Update(rel)
-	rs.env.Releases.Create(upgradedRel)
+	rs.Releases.Update(rel)
+	rs.Releases.Create(upgradedRel)
 
-	req := &services.UninstallReleaseRequest{
+	req := &hapi.UninstallReleaseRequest{
 		Name:  "angry-panda",
 		Purge: true,
 	}
 
-	res, err := rs.UninstallRelease(c, req)
+	res, err := rs.UninstallRelease(req)
 	if err != nil {
 		t.Fatalf("Failed uninstall: %s", err)
 	}
@@ -83,58 +80,56 @@ func TestUninstallPurgeRelease(t *testing.T) {
 		t.Errorf("Expected angry-panda, got %q", res.Release.Name)
 	}
 
-	if res.Release.Info.Status.Code != release.Status_DELETED {
-		t.Errorf("Expected status code to be DELETED, got %d", res.Release.Info.Status.Code)
+	if res.Release.Info.Status != release.StatusUninstalled {
+		t.Errorf("Expected status code to be UNINSTALLED, got %s", res.Release.Info.Status)
 	}
 
-	if res.Release.Info.Deleted.Seconds <= 0 {
-		t.Errorf("Expected valid UNIX date, got %d", res.Release.Info.Deleted.Seconds)
+	if res.Release.Info.Deleted.Second() <= 0 {
+		t.Errorf("Expected valid UNIX date, got %d", res.Release.Info.Deleted.Second())
 	}
-	rels, err := rs.GetHistory(helm.NewContext(), &services.GetHistoryRequest{Name: "angry-panda"})
+	rels, err := rs.GetHistory(&hapi.GetHistoryRequest{Name: "angry-panda"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rels.Releases) != 0 {
-		t.Errorf("Expected no releases in storage, got %d", len(rels.Releases))
+	if len(rels) != 0 {
+		t.Errorf("Expected no releases in storage, got %d", len(rels))
 	}
 }
 
 func TestUninstallPurgeDeleteRelease(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rs.env.Releases.Create(releaseStub())
+	rs := rsFixture(t)
+	rs.Releases.Create(releaseStub())
 
-	req := &services.UninstallReleaseRequest{
+	req := &hapi.UninstallReleaseRequest{
 		Name: "angry-panda",
 	}
 
-	_, err := rs.UninstallRelease(c, req)
+	_, err := rs.UninstallRelease(req)
 	if err != nil {
 		t.Fatalf("Failed uninstall: %s", err)
 	}
 
-	req2 := &services.UninstallReleaseRequest{
+	req2 := &hapi.UninstallReleaseRequest{
 		Name:  "angry-panda",
 		Purge: true,
 	}
 
-	_, err2 := rs.UninstallRelease(c, req2)
+	_, err2 := rs.UninstallRelease(req2)
 	if err2 != nil && err2.Error() != "'angry-panda' has no deployed releases" {
 		t.Errorf("Failed uninstall: %s", err2)
 	}
 }
 
 func TestUninstallReleaseWithKeepPolicy(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
+	rs := rsFixture(t)
 	name := "angry-bunny"
-	rs.env.Releases.Create(releaseWithKeepStub(name))
+	rs.Releases.Create(releaseWithKeepStub(name))
 
-	req := &services.UninstallReleaseRequest{
+	req := &hapi.UninstallReleaseRequest{
 		Name: name,
 	}
 
-	res, err := rs.UninstallRelease(c, req)
+	res, err := rs.UninstallRelease(req)
 	if err != nil {
 		t.Fatalf("Failed uninstall: %s", err)
 	}
@@ -143,8 +138,8 @@ func TestUninstallReleaseWithKeepPolicy(t *testing.T) {
 		t.Errorf("Expected angry-bunny, got %q", res.Release.Name)
 	}
 
-	if res.Release.Info.Status.Code != release.Status_DELETED {
-		t.Errorf("Expected status code to be DELETED, got %d", res.Release.Info.Status.Code)
+	if res.Release.Info.Status != release.StatusUninstalled {
+		t.Errorf("Expected status code to be UNINSTALLED, got %s", res.Release.Info.Status)
 	}
 
 	if res.Info == "" {
@@ -157,43 +152,21 @@ func TestUninstallReleaseWithKeepPolicy(t *testing.T) {
 }
 
 func TestUninstallReleaseNoHooks(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rs.env.Releases.Create(releaseStub())
+	rs := rsFixture(t)
+	rs.Releases.Create(releaseStub())
 
-	req := &services.UninstallReleaseRequest{
+	req := &hapi.UninstallReleaseRequest{
 		Name:         "angry-panda",
 		DisableHooks: true,
 	}
 
-	res, err := rs.UninstallRelease(c, req)
+	res, err := rs.UninstallRelease(req)
 	if err != nil {
 		t.Errorf("Failed uninstall: %s", err)
 	}
 
 	// The default value for a protobuf timestamp is nil.
-	if res.Release.Hooks[0].LastRun != nil {
-		t.Errorf("Expected LastRun to be zero, got %d.", res.Release.Hooks[0].LastRun.Seconds)
-	}
-}
-
-func TestUninstallReleaseCustomDescription(t *testing.T) {
-	c := helm.NewContext()
-	rs := rsFixture()
-	rs.env.Releases.Create(releaseStub())
-
-	customDescription := "foo"
-	req := &services.UninstallReleaseRequest{
-		Name:        "angry-panda",
-		Description: "foo",
-	}
-
-	res, err := rs.UninstallRelease(c, req)
-	if err != nil {
-		t.Errorf("Failed uninstall: %s", err)
-	}
-
-	if res.Release.Info.Description != customDescription {
-		t.Errorf("Expected description to be %q, got %q", customDescription, res.Release.Info.Description)
+	if !res.Release.Hooks[0].LastRun.IsZero() {
+		t.Errorf("Expected LastRun to be zero, got %s.", res.Release.Hooks[0].LastRun)
 	}
 }

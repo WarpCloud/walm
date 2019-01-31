@@ -18,12 +18,13 @@ package ignore
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // HelmIgnore default name of an ignorefile.
@@ -77,7 +78,7 @@ func (r *Rules) Len() int {
 	return len(r.patterns)
 }
 
-// Ignore evaluates the file at the given path, and returns true if it should be ignored.
+// Ignore evalutes the file at the given path, and returns true if it should be ignored.
 //
 // Ignore evaluates path against the rules in order. Evaluation stops when a match
 // is found. Matching a negative rule will stop evaluation.

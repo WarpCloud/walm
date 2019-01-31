@@ -1,3 +1,7 @@
+approvers:
+- sig-auth-certificates-approvers
 reviewers:
-- deads2k
-- mikedanese
+- sig-auth-certificates-reviewers
+labels:
+- sig/auth
+

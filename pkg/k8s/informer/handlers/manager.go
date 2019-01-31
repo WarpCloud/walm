@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"github.com/sirupsen/logrus"
-	"walm/pkg/release/v2/config"
+	"walm/pkg/release/manager/config"
 )
 
 var handlers []Handler
@@ -13,7 +13,6 @@ type Handler interface {
 
 func StartHandlers(stopChan <-chan struct{}) {
 	if handlers == nil {
-		handlers = append(handlers, newReleaseConfigHandler())
 		handlers = append(handlers, config.NewReleaseConfigController())
 	}
 

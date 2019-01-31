@@ -17,23 +17,21 @@ limitations under the License.
 package tiller
 
 import (
-	ctx "golang.org/x/net/context"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 // GetReleaseContent gets all of the stored information for the given release.
-func (s *ReleaseServer) GetReleaseContent(c ctx.Context, req *services.GetReleaseContentRequest) (*services.GetReleaseContentResponse, error) {
+func (s *ReleaseServer) GetReleaseContent(req *hapi.GetReleaseContentRequest) (*release.Release, error) {
 	if err := validateReleaseName(req.Name); err != nil {
-		s.Log("releaseContent: Release name is invalid: %s", req.Name)
-		return nil, err
+		return nil, errors.Errorf("releaseContent: Release name is invalid: %s", req.Name)
 	}
 
 	if req.Version <= 0 {
-		rel, err := s.env.Releases.Last(req.Name)
-		return &services.GetReleaseContentResponse{Release: rel}, err
+		return s.Releases.Last(req.Name)
 	}
 
-	rel, err := s.env.Releases.Get(req.Name, req.Version)
-	return &services.GetReleaseContentResponse{Release: rel}, err
+	return s.Releases.Get(req.Name, req.Version)
 }

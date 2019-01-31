@@ -17,23 +17,23 @@ limitations under the License.
 package tiller
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
-	ctx "golang.org/x/net/context"
+	"github.com/pkg/errors"
 
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/hooks"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
-	"k8s.io/helm/pkg/timeconv"
 )
 
 // UpdateRelease takes an existing release and new information, and upgrades the release.
-func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateReleaseRequest) (*services.UpdateReleaseResponse, error) {
+func (s *ReleaseServer) UpdateRelease(req *hapi.UpdateReleaseRequest) (*release.Release, error) {
 	if err := validateReleaseName(req.Name); err != nil {
-		s.Log("updateRelease: Release name is invalid: %s", req.Name)
-		return nil, err
+		return nil, errors.Errorf("updateRelease: Release name is invalid: %s", req.Name)
 	}
 	s.Log("preparing update for %s", req.Name)
 	currentRelease, updatedRelease, err := s.prepareUpdate(req)
@@ -45,9 +45,11 @@ func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateRelease
 		return nil, err
 	}
 
+	s.Releases.MaxHistory = req.MaxHistory
+
 	if !req.DryRun {
 		s.Log("creating updated release for %s", req.Name)
-		if err := s.env.Releases.Create(updatedRelease); err != nil {
+		if err := s.Releases.Create(updatedRelease); err != nil {
 			return nil, err
 		}
 	}
@@ -60,7 +62,7 @@ func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateRelease
 
 	if !req.DryRun {
 		s.Log("updating status for updated release for %s", req.Name)
-		if err := s.env.Releases.Update(updatedRelease); err != nil {
+		if err := s.Releases.Update(updatedRelease); err != nil {
 			return res, err
 		}
 	}
@@ -69,13 +71,13 @@ func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateRelease
 }
 
 // prepareUpdate builds an updated release for an update operation.
-func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*release.Release, *release.Release, error) {
+func (s *ReleaseServer) prepareUpdate(req *hapi.UpdateReleaseRequest) (*release.Release, *release.Release, error) {
 	if req.Chart == nil {
 		return nil, nil, errMissingChart
 	}
 
 	// finds the deployed release with the given name
-	currentRelease, err := s.env.Releases.Deployed(req.Name)
+	currentRelease, err := s.Releases.Deployed(req.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,7 +88,7 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 	}
 
 	// finds the non-deleted release with the given name
-	lastRelease, err := s.env.Releases.Last(req.Name)
+	lastRelease, err := s.Releases.Last(req.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -95,7 +97,7 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 	// the release object.
 	revision := lastRelease.Version + 1
 
-	ts := timeconv.Now()
+	ts := time.Now()
 	options := chartutil.ReleaseOptions{
 		Name:      req.Name,
 		Time:      ts,
@@ -104,11 +106,11 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 		Revision:  int(revision),
 	}
 
-	caps, err := capabilities(s.clientset.Discovery())
+	caps, err := newCapabilities(s.discovery)
 	if err != nil {
 		return nil, nil, err
 	}
-	valuesToRender, err := chartutil.ToRenderValuesCaps(req.Chart, req.Values, options, caps)
+	valuesToRender, err := chartutil.ToRenderValues(req.Chart, req.Values, options, caps)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -127,7 +129,7 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 		Info: &release.Info{
 			FirstDeployed: currentRelease.Info.FirstDeployed,
 			LastDeployed:  ts,
-			Status:        &release.Status{Code: release.Status_PENDING_UPGRADE},
+			Status:        release.StatusPendingUpgrade,
 			Description:   "Preparing upgrade", // This should be overwritten later.
 		},
 		Version:  revision,
@@ -136,21 +138,21 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 	}
 
 	if len(notesTxt) > 0 {
-		updatedRelease.Info.Status.Notes = notesTxt
+		updatedRelease.Info.Notes = notesTxt
 	}
-	err = validateManifest(s.env.KubeClient, currentRelease.Namespace, manifestDoc.Bytes())
+	err = validateManifest(s.KubeClient, currentRelease.Namespace, manifestDoc.Bytes())
 	return currentRelease, updatedRelease, err
 }
 
-// performUpdateForce performs the same action as a `helm delete && helm install --replace`.
-func (s *ReleaseServer) performUpdateForce(req *services.UpdateReleaseRequest) (*services.UpdateReleaseResponse, error) {
+// performUpdateForce performs the same action as a `helm uninstall && helm install --replace`.
+func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*release.Release, error) {
 	// find the last release with the given name
-	oldRelease, err := s.env.Releases.Last(req.Name)
+	oldRelease, err := s.Releases.Last(req.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	newRelease, err := s.prepareRelease(&services.InstallReleaseRequest{
+	newRelease, err := s.prepareRelease(&hapi.InstallReleaseRequest{
 		Chart:        req.Chart,
 		Values:       req.Values,
 		DryRun:       req.DryRun,
@@ -161,81 +163,66 @@ func (s *ReleaseServer) performUpdateForce(req *services.UpdateReleaseRequest) (
 		Timeout:      req.Timeout,
 		Wait:         req.Wait,
 	})
-
-	// update new release with next revision number so as to append to the old release's history
-	newRelease.Version = oldRelease.Version + 1
-
-	res := &services.UpdateReleaseResponse{Release: newRelease}
 	if err != nil {
-		s.Log("failed update prepare step: %s", err)
 		// On dry run, append the manifest contents to a failed release. This is
 		// a stop-gap until we can revisit an error backchannel post-2.0.
 		if req.DryRun && strings.HasPrefix(err.Error(), "YAML parse error") {
-			err = fmt.Errorf("%s\n%s", err, newRelease.Manifest)
+			err = errors.Wrap(err, newRelease.Manifest)
 		}
-		return res, err
+		return newRelease, errors.Wrap(err, "failed update prepare step")
 	}
 
-	if req.DryRun {
-		s.Log("dry run for %s", newRelease.Name)
-		res.Release.Info.Description = "Dry run complete"
-		return res, nil
-	}
-
-	// From here on out, the release is considered to be in Status_DELETING or Status_DELETED
+	// From here on out, the release is considered to be in StatusUninstalling or StatusUninstalled
 	// state. There is no turning back.
-	oldRelease.Info.Status.Code = release.Status_DELETING
-	oldRelease.Info.Deleted = timeconv.Now()
+	oldRelease.Info.Status = release.StatusUninstalling
+	oldRelease.Info.Deleted = time.Now()
 	oldRelease.Info.Description = "Deletion in progress (or silently failed)"
 	s.recordRelease(oldRelease, true)
 
 	// pre-delete hooks
 	if !req.DisableHooks {
 		if err := s.execHook(oldRelease.Hooks, oldRelease.Name, oldRelease.Namespace, hooks.PreDelete, req.Timeout); err != nil {
-			return res, err
+			return newRelease, err
 		}
 	} else {
 		s.Log("hooks disabled for %s", req.Name)
 	}
 
 	// delete manifests from the old release
-	_, errs := s.ReleaseModule.Delete(oldRelease, nil, s.env)
+	_, errs := s.deleteRelease(oldRelease)
 
-	oldRelease.Info.Status.Code = release.Status_DELETED
-	oldRelease.Info.Description = "Deletion complete"
+	oldRelease.Info.Status = release.StatusUninstalled
+	oldRelease.Info.Description = "Uninstallation complete"
 	s.recordRelease(oldRelease, true)
 
 	if len(errs) > 0 {
-		es := make([]string, 0, len(errs))
-		for _, e := range errs {
-			s.Log("error: %v", e)
-			es = append(es, e.Error())
-		}
-		return res, fmt.Errorf("Upgrade --force successfully deleted the previous release, but encountered %d error(s) and cannot continue: %s", len(es), strings.Join(es, "; "))
+		return newRelease, errors.Errorf("upgrade --force successfully uninstalled the previous release, but encountered %d error(s) and cannot continue: %s", len(errs), joinErrors(errs))
 	}
 
 	// post-delete hooks
 	if !req.DisableHooks {
 		if err := s.execHook(oldRelease.Hooks, oldRelease.Name, oldRelease.Namespace, hooks.PostDelete, req.Timeout); err != nil {
-			return res, err
+			return newRelease, err
 		}
 	}
 
 	// pre-install hooks
 	if !req.DisableHooks {
 		if err := s.execHook(newRelease.Hooks, newRelease.Name, newRelease.Namespace, hooks.PreInstall, req.Timeout); err != nil {
-			return res, err
+			return newRelease, err
 		}
 	}
 
+	// update new release with next revision number so as to append to the old release's history
+	newRelease.Version = oldRelease.Version + 1
 	s.recordRelease(newRelease, false)
-	if err := s.ReleaseModule.Update(oldRelease, newRelease, req, s.env); err != nil {
+	if err := s.updateRelease(oldRelease, newRelease, req); err != nil {
 		msg := fmt.Sprintf("Upgrade %q failed: %s", newRelease.Name, err)
 		s.Log("warning: %s", msg)
-		newRelease.Info.Status.Code = release.Status_FAILED
+		newRelease.Info.Status = release.StatusFailed
 		newRelease.Info.Description = msg
 		s.recordRelease(newRelease, true)
-		return res, err
+		return newRelease, err
 	}
 
 	// post-install hooks
@@ -243,67 +230,65 @@ func (s *ReleaseServer) performUpdateForce(req *services.UpdateReleaseRequest) (
 		if err := s.execHook(newRelease.Hooks, newRelease.Name, newRelease.Namespace, hooks.PostInstall, req.Timeout); err != nil {
 			msg := fmt.Sprintf("Release %q failed post-install: %s", newRelease.Name, err)
 			s.Log("warning: %s", msg)
-			newRelease.Info.Status.Code = release.Status_FAILED
+			newRelease.Info.Status = release.StatusFailed
 			newRelease.Info.Description = msg
 			s.recordRelease(newRelease, true)
-			return res, err
+			return newRelease, err
 		}
 	}
 
-	newRelease.Info.Status.Code = release.Status_DEPLOYED
-	if req.Description == "" {
-		newRelease.Info.Description = "Upgrade complete"
-	} else {
-		newRelease.Info.Description = req.Description
-	}
+	newRelease.Info.Status = release.StatusDeployed
+	newRelease.Info.Description = "Upgrade complete"
 	s.recordRelease(newRelease, true)
 
-	return res, nil
+	return newRelease, nil
 }
 
-func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.Release, req *services.UpdateReleaseRequest) (*services.UpdateReleaseResponse, error) {
-	res := &services.UpdateReleaseResponse{Release: updatedRelease}
+func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.Release, req *hapi.UpdateReleaseRequest) (*release.Release, error) {
 
 	if req.DryRun {
 		s.Log("dry run for %s", updatedRelease.Name)
-		res.Release.Info.Description = "Dry run complete"
-		return res, nil
+		updatedRelease.Info.Description = "Dry run complete"
+		return updatedRelease, nil
 	}
 
 	// pre-upgrade hooks
 	if !req.DisableHooks {
 		if err := s.execHook(updatedRelease.Hooks, updatedRelease.Name, updatedRelease.Namespace, hooks.PreUpgrade, req.Timeout); err != nil {
-			return res, err
+			return updatedRelease, err
 		}
 	} else {
 		s.Log("update hooks disabled for %s", req.Name)
 	}
-	if err := s.ReleaseModule.Update(originalRelease, updatedRelease, req, s.env); err != nil {
+	if err := s.updateRelease(originalRelease, updatedRelease, req); err != nil {
 		msg := fmt.Sprintf("Upgrade %q failed: %s", updatedRelease.Name, err)
 		s.Log("warning: %s", msg)
-		updatedRelease.Info.Status.Code = release.Status_FAILED
+		updatedRelease.Info.Status = release.StatusFailed
 		updatedRelease.Info.Description = msg
 		s.recordRelease(originalRelease, true)
 		s.recordRelease(updatedRelease, true)
-		return res, err
+		return updatedRelease, err
 	}
 
 	// post-upgrade hooks
 	if !req.DisableHooks {
 		if err := s.execHook(updatedRelease.Hooks, updatedRelease.Name, updatedRelease.Namespace, hooks.PostUpgrade, req.Timeout); err != nil {
-			return res, err
+			return updatedRelease, err
 		}
 	}
 
-	originalRelease.Info.Status.Code = release.Status_SUPERSEDED
+	originalRelease.Info.Status = release.StatusSuperseded
 	s.recordRelease(originalRelease, true)
 
-	updatedRelease.Info.Status.Code = release.Status_DEPLOYED
-	if req.Description == "" {
-		updatedRelease.Info.Description = "Upgrade complete"
-	} else {
-		updatedRelease.Info.Description = req.Description
-	}
+	updatedRelease.Info.Status = release.StatusDeployed
+	updatedRelease.Info.Description = "Upgrade complete"
 
-	return res, nil
+	return updatedRelease, nil
+}
+
+// updateRelease performs an update from current to target release
+func (s *ReleaseServer) updateRelease(current, target *release.Release, req *hapi.UpdateReleaseRequest) error {
+	c := bytes.NewBufferString(current.Manifest)
+	t := bytes.NewBufferString(target.Manifest)
+	return s.KubeClient.Update(target.Namespace, c, t, req.Force, req.Recreate, req.Timeout, req.Wait)
 }

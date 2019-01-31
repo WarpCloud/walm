@@ -35,7 +35,7 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 	walmNodes := []*WalmNode{}
 	if nodeList != nil {
 		for _, node := range nodeList {
-			walmNode, err := adaptor.BuildWalmNode(*node)
+			walmNode, err := adaptor.BuildWalmNode(node)
 			if err != nil {
 				logrus.Errorf("failed to build walm node : %s", err.Error())
 				return nil, err

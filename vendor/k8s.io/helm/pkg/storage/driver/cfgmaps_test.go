@@ -15,13 +15,13 @@ package driver
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"reflect"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
-	"k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/api/core/v1"
 
-	rspb "k8s.io/helm/pkg/proto/hapi/release"
+	rspb "k8s.io/helm/pkg/hapi/release"
 )
 
 func TestConfigMapName(t *testing.T) {
@@ -32,11 +32,11 @@ func TestConfigMapName(t *testing.T) {
 }
 
 func TestConfigMapGet(t *testing.T) {
-	vers := int32(1)
+	vers := 1
 	name := "smug-pigeon"
 	namespace := "default"
 	key := testKey(name, vers)
-	rel := releaseStub(name, vers, namespace, rspb.Status_DEPLOYED)
+	rel := releaseStub(name, vers, namespace, rspb.StatusDeployed)
 
 	cfgmaps := newTestFixtureCfgMaps(t, []*rspb.Release{rel}...)
 
@@ -47,29 +47,29 @@ func TestConfigMapGet(t *testing.T) {
 	}
 	// compare fetched release with original
 	if !reflect.DeepEqual(rel, got) {
-		t.Errorf("Expected {%q}, got {%q}", rel, got)
+		t.Errorf("Expected {%v}, got {%v}", rel, got)
 	}
 }
 
 func TestUNcompressedConfigMapGet(t *testing.T) {
-	vers := int32(1)
+	vers := 1
 	name := "smug-pigeon"
 	namespace := "default"
 	key := testKey(name, vers)
-	rel := releaseStub(name, vers, namespace, rspb.Status_DEPLOYED)
+	rel := releaseStub(name, vers, namespace, rspb.StatusDeployed)
 
 	// Create a test fixture which contains an uncompressed release
 	cfgmap, err := newConfigMapsObject(key, rel, nil)
 	if err != nil {
 		t.Fatalf("Failed to create configmap: %s", err)
 	}
-	b, err := proto.Marshal(rel)
+	b, err := json.Marshal(rel)
 	if err != nil {
 		t.Fatalf("Failed to marshal release: %s", err)
 	}
 	cfgmap.Data["release"] = base64.StdEncoding.EncodeToString(b)
 	var mock MockConfigMapsInterface
-	mock.objects = map[string]*core.ConfigMap{key: cfgmap}
+	mock.objects = map[string]*v1.ConfigMap{key: cfgmap}
 	cfgmaps := NewConfigMaps(&mock)
 
 	// get release with key
@@ -79,23 +79,23 @@ func TestUNcompressedConfigMapGet(t *testing.T) {
 	}
 	// compare fetched release with original
 	if !reflect.DeepEqual(rel, got) {
-		t.Errorf("Expected {%q}, got {%q}", rel, got)
+		t.Errorf("Expected {%v}, got {%v}", rel, got)
 	}
 }
 
 func TestConfigMapList(t *testing.T) {
 	cfgmaps := newTestFixtureCfgMaps(t, []*rspb.Release{
-		releaseStub("key-1", 1, "default", rspb.Status_DELETED),
-		releaseStub("key-2", 1, "default", rspb.Status_DELETED),
-		releaseStub("key-3", 1, "default", rspb.Status_DEPLOYED),
-		releaseStub("key-4", 1, "default", rspb.Status_DEPLOYED),
-		releaseStub("key-5", 1, "default", rspb.Status_SUPERSEDED),
-		releaseStub("key-6", 1, "default", rspb.Status_SUPERSEDED),
+		releaseStub("key-1", 1, "default", rspb.StatusUninstalled),
+		releaseStub("key-2", 1, "default", rspb.StatusUninstalled),
+		releaseStub("key-3", 1, "default", rspb.StatusDeployed),
+		releaseStub("key-4", 1, "default", rspb.StatusDeployed),
+		releaseStub("key-5", 1, "default", rspb.StatusSuperseded),
+		releaseStub("key-6", 1, "default", rspb.StatusSuperseded),
 	}...)
 
 	// list all deleted releases
 	del, err := cfgmaps.List(func(rel *rspb.Release) bool {
-		return rel.Info.Status.Code == rspb.Status_DELETED
+		return rel.Info.Status == rspb.StatusUninstalled
 	})
 	// check
 	if err != nil {
@@ -107,7 +107,7 @@ func TestConfigMapList(t *testing.T) {
 
 	// list all deployed releases
 	dpl, err := cfgmaps.List(func(rel *rspb.Release) bool {
-		return rel.Info.Status.Code == rspb.Status_DEPLOYED
+		return rel.Info.Status == rspb.StatusDeployed
 	})
 	// check
 	if err != nil {
@@ -119,7 +119,7 @@ func TestConfigMapList(t *testing.T) {
 
 	// list all superseded releases
 	ssd, err := cfgmaps.List(func(rel *rspb.Release) bool {
-		return rel.Info.Status.Code == rspb.Status_SUPERSEDED
+		return rel.Info.Status == rspb.StatusSuperseded
 	})
 	// check
 	if err != nil {
@@ -133,11 +133,11 @@ func TestConfigMapList(t *testing.T) {
 func TestConfigMapCreate(t *testing.T) {
 	cfgmaps := newTestFixtureCfgMaps(t)
 
-	vers := int32(1)
+	vers := 1
 	name := "smug-pigeon"
 	namespace := "default"
 	key := testKey(name, vers)
-	rel := releaseStub(name, vers, namespace, rspb.Status_DEPLOYED)
+	rel := releaseStub(name, vers, namespace, rspb.StatusDeployed)
 
 	// store the release in a configmap
 	if err := cfgmaps.Create(key, rel); err != nil {
@@ -152,21 +152,21 @@ func TestConfigMapCreate(t *testing.T) {
 
 	// compare created release with original
 	if !reflect.DeepEqual(rel, got) {
-		t.Errorf("Expected {%q}, got {%q}", rel, got)
+		t.Errorf("Expected {%v}, got {%v}", rel, got)
 	}
 }
 
 func TestConfigMapUpdate(t *testing.T) {
-	vers := int32(1)
+	vers := 1
 	name := "smug-pigeon"
 	namespace := "default"
 	key := testKey(name, vers)
-	rel := releaseStub(name, vers, namespace, rspb.Status_DEPLOYED)
+	rel := releaseStub(name, vers, namespace, rspb.StatusDeployed)
 
 	cfgmaps := newTestFixtureCfgMaps(t, []*rspb.Release{rel}...)
 
 	// modify release status code
-	rel.Info.Status.Code = rspb.Status_SUPERSEDED
+	rel.Info.Status = rspb.StatusSuperseded
 
 	// perform the update
 	if err := cfgmaps.Update(key, rel); err != nil {
@@ -180,7 +180,7 @@ func TestConfigMapUpdate(t *testing.T) {
 	}
 
 	// check release has actually been updated by comparing modified fields
-	if rel.Info.Status.Code != got.Info.Status.Code {
-		t.Errorf("Expected status %s, got status %s", rel.Info.Status.Code, got.Info.Status.Code)
+	if rel.Info.Status != got.Info.Status {
+		t.Errorf("Expected status %s, got status %s", rel.Info.Status.String(), got.Info.Status.String())
 	}
 }

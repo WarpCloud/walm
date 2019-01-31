@@ -17,23 +17,22 @@ limitations under the License.
 package helm // import "k8s.io/helm/pkg/helm"
 
 import (
-	"errors"
 	"math/rand"
 	"sync"
+	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	rls "k8s.io/helm/pkg/proto/hapi/services"
-	"k8s.io/helm/pkg/proto/hapi/version"
-	storage "k8s.io/helm/pkg/storage/driver"
+	"github.com/pkg/errors"
+
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 // FakeClient implements Interface
 type FakeClient struct {
-	Rels      []*release.Release
-	Responses map[string]release.TestRun_Status
-	Opts      options
+	Rels          []*release.Release
+	TestRunStatus map[string]release.TestRunStatus
+	Opts          options
 }
 
 // Option returns the fake release client
@@ -47,154 +46,105 @@ func (c *FakeClient) Option(opts ...Option) Interface {
 var _ Interface = &FakeClient{}
 var _ Interface = (*FakeClient)(nil)
 
-// ListReleases lists the current releases
-func (c *FakeClient) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
-	reqOpts := c.Opts
-	for _, opt := range opts {
-		opt(&reqOpts)
-	}
-	req := &reqOpts.listReq
-	rels := c.Rels
-	count := int64(len(c.Rels))
-	var next string
-	limit := req.GetLimit()
-	// TODO: Handle all other options.
-	if limit != 0 && limit < count {
-		rels = rels[:limit]
-		count = limit
-		next = c.Rels[limit].GetName()
-	}
-
-	resp := &rls.ListReleasesResponse{
-		Count:    count,
-		Releases: rels,
-	}
-	if next != "" {
-		resp.Next = next
-	}
-	return resp, nil
-}
-
-// InstallRelease creates a new release and returns a InstallReleaseResponse containing that release
-func (c *FakeClient) InstallRelease(chStr, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
+// InstallRelease creates a new release and returns the release
+func (c *FakeClient) InstallRelease(chStr, ns string, opts ...InstallOption) (*release.Release, error) {
 	chart := &chart.Chart{}
 	return c.InstallReleaseFromChart(chart, ns, opts...)
 }
 
-// InstallReleaseFromChart adds a new MockRelease to the fake client and returns a InstallReleaseResponse containing that release
-func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
+// InstallReleaseFromChart adds a new MockRelease to the fake client and
+// returns the release
+func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts ...InstallOption) (*release.Release, error) {
 	for _, opt := range opts {
 		opt(&c.Opts)
 	}
 
 	releaseName := c.Opts.instReq.Name
-	releaseDescription := c.Opts.instReq.Description
 
 	// Check to see if the release already exists.
-	rel, err := c.ReleaseStatus(releaseName, nil)
+	rel, err := c.ReleaseStatus(releaseName, 0)
 	if err == nil && rel != nil {
 		return nil, errors.New("cannot re-use a name that is still in use")
 	}
 
-	release := ReleaseMock(&MockReleaseOptions{Name: releaseName, Namespace: ns, Description: releaseDescription})
-	if !c.Opts.dryRun {
-		c.Rels = append(c.Rels, release)
-	}
-
-	return &rls.InstallReleaseResponse{
-		Release: release,
-	}, nil
+	release := ReleaseMock(&MockReleaseOptions{Name: releaseName, Namespace: ns})
+	c.Rels = append(c.Rels, release)
+	return release, nil
 }
 
-// DeleteRelease deletes a release from the FakeClient
-func (c *FakeClient) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+// UninstallRelease uninstalls a release from the FakeClient
+func (c *FakeClient) UninstallRelease(rlsName string, opts ...UninstallOption) (*hapi.UninstallReleaseResponse, error) {
 	for i, rel := range c.Rels {
 		if rel.Name == rlsName {
 			c.Rels = append(c.Rels[:i], c.Rels[i+1:]...)
-			return &rls.UninstallReleaseResponse{
+			return &hapi.UninstallReleaseResponse{
 				Release: rel,
 			}, nil
 		}
 	}
 
-	return nil, storage.ErrReleaseNotFound(rlsName)
+	return nil, errors.Errorf("no such release: %s", rlsName)
 }
 
-// GetVersion returns a fake version
-func (c *FakeClient) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error) {
-	return &rls.GetVersionResponse{
-		Version: &version.Version{
-			SemVer: "1.2.3-fakeclient+testonly",
-		},
-	}, nil
-}
-
-// UpdateRelease returns an UpdateReleaseResponse containing the updated release, if it exists
-func (c *FakeClient) UpdateRelease(rlsName string, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
+// UpdateRelease returns the updated release, if it exists
+func (c *FakeClient) UpdateRelease(rlsName, chStr string, opts ...UpdateOption) (*release.Release, error) {
 	return c.UpdateReleaseFromChart(rlsName, &chart.Chart{}, opts...)
 }
 
-// UpdateReleaseFromChart returns an UpdateReleaseResponse containing the updated release, if it exists
-func (c *FakeClient) UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
+// UpdateReleaseFromChart returns the updated release, if it exists
+func (c *FakeClient) UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*release.Release, error) {
 	// Check to see if the release already exists.
-	rel, err := c.ReleaseContent(rlsName, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rls.UpdateReleaseResponse{Release: rel.Release}, nil
+	return c.ReleaseContent(rlsName, 0)
 }
 
 // RollbackRelease returns nil, nil
-func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*release.Release, error) {
 	return nil, nil
 }
 
 // ReleaseStatus returns a release status response with info from the matching release name.
-func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+func (c *FakeClient) ReleaseStatus(rlsName string, version int) (*hapi.GetReleaseStatusResponse, error) {
 	for _, rel := range c.Rels {
 		if rel.Name == rlsName {
-			return &rls.GetReleaseStatusResponse{
+			return &hapi.GetReleaseStatusResponse{
 				Name:      rel.Name,
 				Info:      rel.Info,
 				Namespace: rel.Namespace,
 			}, nil
 		}
 	}
-	return nil, storage.ErrReleaseNotFound(rlsName)
+	return nil, errors.Errorf("no such release: %s", rlsName)
 }
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
-func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
+func (c *FakeClient) ReleaseContent(rlsName string, version int) (*release.Release, error) {
 	for _, rel := range c.Rels {
 		if rel.Name == rlsName {
-			return &rls.GetReleaseContentResponse{
-				Release: rel,
-			}, nil
+			return rel, nil
 		}
 	}
-	return resp, storage.ErrReleaseNotFound(rlsName)
+	return nil, errors.Errorf("no such release: %s", rlsName)
 }
 
 // ReleaseHistory returns a release's revision history.
-func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
-	return &rls.GetHistoryResponse{Releases: c.Rels}, nil
+func (c *FakeClient) ReleaseHistory(rlsName string, max int) ([]*release.Release, error) {
+	return c.Rels, nil
 }
 
 // RunReleaseTest executes a pre-defined tests on a release
-func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
+func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *hapi.TestReleaseResponse, <-chan error) {
 
-	results := make(chan *rls.TestReleaseResponse)
+	results := make(chan *hapi.TestReleaseResponse)
 	errc := make(chan error, 1)
 
 	go func() {
 		var wg sync.WaitGroup
-		for m, s := range c.Responses {
+		for m, s := range c.TestRunStatus {
 			wg.Add(1)
 
-			go func(msg string, status release.TestRun_Status) {
+			go func(msg string, status release.TestRunStatus) {
 				defer wg.Done()
-				results <- &rls.TestReleaseResponse{Msg: msg, Status: status}
+				results <- &hapi.TestReleaseResponse{Msg: msg, Status: status}
 			}(m, s)
 		}
 
@@ -204,11 +154,6 @@ func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (
 	}()
 
 	return results, errc
-}
-
-// PingTiller pings the Tiller pod and ensure's that it is up and running
-func (c *FakeClient) PingTiller() error {
-	return nil
 }
 
 // MockHookTemplate is the hook template used for all mock release objects.
@@ -228,24 +173,23 @@ metadata:
 
 // MockReleaseOptions allows for user-configurable options on mock release objects.
 type MockReleaseOptions struct {
-	Name        string
-	Version     int32
-	Chart       *chart.Chart
-	StatusCode  release.Status_Code
-	Namespace   string
-	Description string
+	Name      string
+	Version   int
+	Chart     *chart.Chart
+	Status    release.ReleaseStatus
+	Namespace string
 }
 
 // ReleaseMock creates a mock release object based on options set by MockReleaseOptions. This function should typically not be used outside of testing.
 func ReleaseMock(opts *MockReleaseOptions) *release.Release {
-	date := timestamp.Timestamp{Seconds: 242085845, Nanos: 0}
+	date := time.Unix(242085845, 0).UTC()
 
 	name := opts.Name
 	if name == "" {
 		name = "testrelease-" + string(rand.Intn(100))
 	}
 
-	var version int32 = 1
+	version := 1
 	if opts.Version != 0 {
 		version = opts.Version
 	}
@@ -255,11 +199,6 @@ func ReleaseMock(opts *MockReleaseOptions) *release.Release {
 		namespace = "default"
 	}
 
-	description := opts.Description
-	if description == "" {
-		description = "Release mock"
-	}
-
 	ch := opts.Chart
 	if opts.Chart == nil {
 		ch = &chart.Chart{
@@ -267,27 +206,27 @@ func ReleaseMock(opts *MockReleaseOptions) *release.Release {
 				Name:    "foo",
 				Version: "0.1.0-beta.1",
 			},
-			Templates: []*chart.Template{
+			Templates: []*chart.File{
 				{Name: "templates/foo.tpl", Data: []byte(MockManifest)},
 			},
 		}
 	}
 
-	scode := release.Status_DEPLOYED
-	if opts.StatusCode > 0 {
-		scode = opts.StatusCode
+	scode := release.StatusDeployed
+	if len(opts.Status) > 0 {
+		scode = opts.Status
 	}
 
 	return &release.Release{
 		Name: name,
 		Info: &release.Info{
-			FirstDeployed: &date,
-			LastDeployed:  &date,
-			Status:        &release.Status{Code: scode},
-			Description:   description,
+			FirstDeployed: date,
+			LastDeployed:  date,
+			Status:        scode,
+			Description:   "Release mock",
 		},
 		Chart:     ch,
-		Config:    &chart.Config{Raw: `name: "value"`},
+		Config:    map[string]interface{}{"name": "value"},
 		Version:   version,
 		Namespace: namespace,
 		Hooks: []*release.Hook{
@@ -296,8 +235,8 @@ func ReleaseMock(opts *MockReleaseOptions) *release.Release {
 				Kind:     "Job",
 				Path:     "pre-install-hook.yaml",
 				Manifest: MockHookTemplate,
-				LastRun:  &date,
-				Events:   []release.Hook_Event{release.Hook_PRE_INSTALL},
+				LastRun:  date,
+				Events:   []release.HookEvent{release.HookPreInstall},
 			},
 		},
 		Manifest: MockManifest,

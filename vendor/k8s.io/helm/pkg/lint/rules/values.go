@@ -17,9 +17,10 @@ limitations under the License.
 package rules
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
 
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/lint/support"
@@ -29,27 +30,24 @@ import (
 func Values(linter *support.Linter) {
 	file := "values.yaml"
 	vf := filepath.Join(linter.ChartDir, file)
-	fileExists := linter.RunLinterRule(support.InfoSev, file, validateValuesFileExistence(linter, vf))
+	fileExists := linter.RunLinterRule(support.InfoSev, file, validateValuesFileExistence(vf))
 
 	if !fileExists {
 		return
 	}
 
-	linter.RunLinterRule(support.ErrorSev, file, validateValuesFile(linter, vf))
+	linter.RunLinterRule(support.ErrorSev, file, validateValuesFile(vf))
 }
 
-func validateValuesFileExistence(linter *support.Linter, valuesPath string) error {
+func validateValuesFileExistence(valuesPath string) error {
 	_, err := os.Stat(valuesPath)
 	if err != nil {
-		return fmt.Errorf("file does not exist")
+		return errors.Errorf("file does not exist")
 	}
 	return nil
 }
 
-func validateValuesFile(linter *support.Linter, valuesPath string) error {
+func validateValuesFile(valuesPath string) error {
 	_, err := chartutil.ReadValuesFile(valuesPath)
-	if err != nil {
-		return fmt.Errorf("unable to parse YAML\n\t%s", err)
-	}
-	return nil
+	return errors.Wrap(err, "unable to parse YAML")
 }

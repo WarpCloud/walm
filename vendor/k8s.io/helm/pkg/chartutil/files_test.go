@@ -18,7 +18,6 @@ package chartutil
 import (
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,16 +31,16 @@ var cases = []struct {
 	{"multiline/test.txt", "bar\nfoo"},
 }
 
-func getTestFiles() []*any.Any {
-	a := []*any.Any{}
+func getTestFiles() Files {
+	a := make(Files, len(cases))
 	for _, c := range cases {
-		a = append(a, &any.Any{TypeUrl: c.path, Value: []byte(c.data)})
+		a[c.path] = []byte(c.data)
 	}
 	return a
 }
 
 func TestNewFiles(t *testing.T) {
-	files := NewFiles(getTestFiles())
+	files := getTestFiles()
 	if len(files) != len(cases) {
 		t.Errorf("Expected len() = %d, got %d", len(cases), len(files))
 	}
@@ -59,7 +58,7 @@ func TestNewFiles(t *testing.T) {
 func TestFileGlob(t *testing.T) {
 	as := assert.New(t)
 
-	f := NewFiles(getTestFiles())
+	f := getTestFiles()
 
 	matched := f.Glob("story/**")
 
@@ -70,27 +69,27 @@ func TestFileGlob(t *testing.T) {
 func TestToConfig(t *testing.T) {
 	as := assert.New(t)
 
-	f := NewFiles(getTestFiles())
+	f := getTestFiles()
 	out := f.Glob("**/captain.txt").AsConfig()
-	as.Equal("captain.txt: The Captain\n", out)
+	as.Equal("captain.txt: The Captain", out)
 
 	out = f.Glob("ship/**").AsConfig()
-	as.Equal("captain.txt: The Captain\nstowaway.txt: Legatt\n", out)
+	as.Equal("captain.txt: The Captain\nstowaway.txt: Legatt", out)
 }
 
 func TestToSecret(t *testing.T) {
 	as := assert.New(t)
 
-	f := NewFiles(getTestFiles())
+	f := getTestFiles()
 
 	out := f.Glob("ship/**").AsSecrets()
-	as.Equal("captain.txt: VGhlIENhcHRhaW4=\nstowaway.txt: TGVnYXR0\n", out)
+	as.Equal("captain.txt: VGhlIENhcHRhaW4=\nstowaway.txt: TGVnYXR0", out)
 }
 
 func TestLines(t *testing.T) {
 	as := assert.New(t)
 
-	f := NewFiles(getTestFiles())
+	f := getTestFiles()
 
 	out := f.Lines("multiline/test.txt")
 	as.Len(out, 2)
@@ -98,20 +97,20 @@ func TestLines(t *testing.T) {
 	as.Equal("bar", out[0])
 }
 
-func TestToYaml(t *testing.T) {
-	expect := "foo: bar\n"
+func TestToYAML(t *testing.T) {
+	expect := "foo: bar"
 	v := struct {
 		Foo string `json:"foo"`
 	}{
 		Foo: "bar",
 	}
 
-	if got := ToYaml(v); got != expect {
+	if got := ToYAML(v); got != expect {
 		t.Errorf("Expected %q, got %q", expect, got)
 	}
 }
 
-func TestToToml(t *testing.T) {
+func TestToTOML(t *testing.T) {
 	expect := "foo = \"bar\"\n"
 	v := struct {
 		Foo string `toml:"foo"`
@@ -119,29 +118,29 @@ func TestToToml(t *testing.T) {
 		Foo: "bar",
 	}
 
-	if got := ToToml(v); got != expect {
+	if got := ToTOML(v); got != expect {
 		t.Errorf("Expected %q, got %q", expect, got)
 	}
 
-	// Regression for https://github.com/kubernetes/helm/issues/2271
+	// Regression for https://github.com/helm/helm/issues/2271
 	dict := map[string]map[string]string{
 		"mast": {
 			"sail": "white",
 		},
 	}
-	got := ToToml(dict)
+	got := ToTOML(dict)
 	expect = "[mast]\n  sail = \"white\"\n"
 	if got != expect {
 		t.Errorf("Expected:\n%s\nGot\n%s\n", expect, got)
 	}
 }
 
-func TestFromYaml(t *testing.T) {
+func TestFromYAML(t *testing.T) {
 	doc := `hello: world
 one:
   two: three
 `
-	dict := FromYaml(doc)
+	dict := FromYAML(doc)
 	if err, ok := dict["Error"]; ok {
 		t.Fatalf("Parse error: %s", err)
 	}
@@ -161,13 +160,13 @@ one:
 - two
 - three
 `
-	dict = FromYaml(doc2)
+	dict = FromYAML(doc2)
 	if _, ok := dict["Error"]; !ok {
 		t.Fatal("Expected parser error")
 	}
 }
 
-func TestToJson(t *testing.T) {
+func TestToJSON(t *testing.T) {
 	expect := `{"foo":"bar"}`
 	v := struct {
 		Foo string `json:"foo"`
@@ -175,12 +174,12 @@ func TestToJson(t *testing.T) {
 		Foo: "bar",
 	}
 
-	if got := ToJson(v); got != expect {
+	if got := ToJSON(v); got != expect {
 		t.Errorf("Expected %q, got %q", expect, got)
 	}
 }
 
-func TestFromJson(t *testing.T) {
+func TestFromJSON(t *testing.T) {
 	doc := `{
   "hello": "world",
   "one": {
@@ -188,7 +187,7 @@ func TestFromJson(t *testing.T) {
   }
 }
 `
-	dict := FromJson(doc)
+	dict := FromJSON(doc)
 	if err, ok := dict["Error"]; ok {
 		t.Fatalf("Parse error: %s", err)
 	}
@@ -210,7 +209,7 @@ func TestFromJson(t *testing.T) {
  "three"
 ]
 `
-	dict = FromJson(doc2)
+	dict = FromJSON(doc2)
 	if _, ok := dict["Error"]; !ok {
 		t.Fatal("Expected parser error")
 	}

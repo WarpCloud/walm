@@ -1,38 +1,39 @@
 package helm
 
 import (
-	"sync"
-	"errors"
+	hapirelease "k8s.io/helm/pkg/hapi/release"
 	"time"
-	"fmt"
-	"io/ioutil"
-	"strings"
-	"walm/pkg/hook"
-
-	"walm/pkg/setting"
-	"walm/pkg/release"
-
-	"github.com/ghodss/yaml"
-	"github.com/sirupsen/logrus"
-	"k8s.io/helm/pkg/chartutil"
+	helmchart "k8s.io/helm/pkg/chart"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/storage/driver"
-	"walm/pkg/release/manager/helm/cache"
-	"walm/pkg/redis"
-	"walm/pkg/k8s/client"
-	"k8s.io/apimachinery/pkg/util/wait"
-	hapiRelease "k8s.io/helm/pkg/proto/hapi/release"
-	walmerr "walm/pkg/util/error"
-	"k8s.io/helm/pkg/transwarp"
+	"github.com/sirupsen/logrus"
+	"fmt"
+	"strings"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/k8s/adaptor"
-	"mime/multipart"
+	walmerr "walm/pkg/util/error"
+	"walm/pkg/release"
+	"sync"
+	"errors"
+	"k8s.io/helm/pkg/chart"
+	"walm/pkg/hook"
+	"walm/pkg/task"
+	"walm/pkg/release/manager/helm/cache"
+	"walm/pkg/redis"
+	"walm/pkg/setting"
+	"io/ioutil"
+	"walm/pkg/k8s/client"
+	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/hashicorp/golang-lru"
+	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/helm/pkg/chart/loader"
 )
 
 const (
+	defaultTimeoutSec              int64         = 60 * 5
+	defaultSleepTimeSecond         time.Duration = 1 * time.Second
 	helmCacheDefaultResyncInterval time.Duration = 5 * time.Minute
-	multiTenantClientsMaxSize int = 128
 )
 
 type ChartRepository struct {
@@ -43,20 +44,18 @@ type ChartRepository struct {
 }
 
 type HelmClient struct {
-	systemClient            *helm.Client
-	multiTenantClients      *cache.MultiTenantClientsCache
 	chartRepoMap            map[string]*ChartRepository
 	dryRun                  bool
 	helmCache               *cache.HelmCache
 	helmCacheResyncInterval time.Duration
+	releaseConfigHandler    *handler.ReleaseConfigHandler
+	helmClients             *lru.Cache
 }
 
 var helmClient *HelmClient
 
 func GetDefaultHelmClient() *HelmClient {
 	if helmClient == nil {
-		tillerHost := setting.Config.SysHelm.TillerHost
-		client1 := helm.NewClient(helm.Host(tillerHost))
 		chartRepoMap := make(map[string]*ChartRepository)
 
 		for _, chartRepo := range setting.Config.RepoList {
@@ -69,53 +68,292 @@ func GetDefaultHelmClient() *HelmClient {
 			chartRepoMap[chartRepo.Name] = &chartRepository
 		}
 
-		multiTenantClients := cache.NewMultiTenantClientsCache(multiTenantClientsMaxSize)
-		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient(), client1, multiTenantClients, client.GetKubeClient())
+		helmCache := cache.NewHelmCache(redis.GetDefaultRedisClient())
+
+		helmClients, _ := lru.New(100)
 
 		helmClient = &HelmClient{
-			systemClient:            client1,
-			multiTenantClients:      multiTenantClients,
 			chartRepoMap:            chartRepoMap,
 			dryRun:                  false,
 			helmCache:               helmCache,
 			helmCacheResyncInterval: helmCacheDefaultResyncInterval,
+			releaseConfigHandler:    handler.GetDefaultHandlerSet().GetReleaseConfigHandler(),
+			helmClients:             helmClients,
 		}
 	}
 	return helmClient
 }
 
-func InitHelmByParams(tillerHost string, chartRepoMap map[string]*ChartRepository, dryRun bool) {
-	client := helm.NewClient(helm.Host(tillerHost))
+func (hc *HelmClient) GetHelmCache() *cache.HelmCache {
+	return hc.helmCache
+}
 
-	helmClient = &HelmClient{
-		systemClient: client,
-		chartRepoMap: chartRepoMap,
-		dryRun:       dryRun,
+func (hc *HelmClient) GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
+	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
+	isJsonnetChart, nativeChart, jsonnetChart, err := hc.LoadChart(repoName, chartName, chartVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	subChartNames = []string{}
+	if isJsonnetChart {
+		appYamlPath := fmt.Sprintf("templates/%s/%s/app.yaml", nativeChart.Metadata.Name, nativeChart.Metadata.AppVersion)
+		for _, file := range jsonnetChart.Templates {
+			if file.Name == appYamlPath {
+				appDependency := &release.AppDependency{}
+				err := yaml.Unmarshal(file.Data, &appDependency)
+				if err != nil {
+					return nil, err
+				}
+				for _, dependency := range appDependency.Dependencies {
+					subChartNames = append(subChartNames, dependency.Name)
+				}
+				break
+			}
+		}
+	}
+	return
+}
+
+func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, error) {
+	if c, ok := hc.helmClients.Get(namespace); ok {
+		return c.(*helm.Client), nil
+	} else {
+		kc := client.GetKubeClient(namespace)
+		clientset, err := kc.KubernetesClientSet()
+		if err != nil {
+			return nil, err
+		}
+
+		d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
+		c = helm.NewClient(
+			helm.KubeClient(kc),
+			helm.Driver(d),
+			helm.Discovery(clientset.Discovery()),
+		)
+		hc.helmClients.Add(namespace, c)
+		return c.(*helm.Client), nil
 	}
 }
 
-func (client *HelmClient) GetDryRun() bool {
-	return client.dryRun
+func (hc *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
+	if repoName == "" {
+		repoName = "stable"
+	}
+	repo, ok := hc.chartRepoMap[repoName]
+	if !ok {
+		return "", fmt.Errorf("can not find repo name: %s", repoName)
+	}
+	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(repo.URL, "", "", charName, version)
+	if err != nil {
+		return "", err
+	}
+
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return "", err
+	}
+	filename, err := ChartMuseumDownloadTo(chartURL, tmpDir, httpGetter)
+	if err != nil {
+		logrus.Printf("DownloadTo err %v", err)
+		return "", err
+	}
+
+	return filename, nil
 }
 
-//Deprecated
-func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfo, error) {
+func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+	chartPath, err := hc.downloadChart(repoName, chartName, chartVersion)
+	if err != nil {
+		logrus.Errorf("failed to download chart : %s", err.Error())
+		return false,  nil, nil, err
+	}
+
+	return loadChartByPath(chartPath)
+}
+
+func (hc *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
+	logrus.Infof("start to resync release cache every %v", hc.helmCacheResyncInterval)
+	// first time should be sync
+	hc.helmCache.Resync()
+	firstTime := true
+	go wait.Until(func() {
+		if firstTime {
+			time.Sleep(hc.helmCacheResyncInterval)
+			firstTime = false
+		}
+		hc.helmCache.Resync()
+	}, hc.helmCacheResyncInterval, stopCh)
+}
+
+func (hc *HelmClient) GetRelease(namespace, name string) (releaseV2 *release.ReleaseInfoV2, err error) {
+	releaseTask, err := hc.helmCache.GetReleaseTask(namespace, name)
+	if err != nil {
+		return nil, err
+	}
+
+	releaseV2, err = hc.buildReleaseInfoV2ByReleaseTask(releaseTask, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+// 当task sig为空 或者task state已经ttl：build release by cache
+// 当task state没有ttl:
+// 1. 当task没完成：返回message
+// 2. 当task完成：
+//       a. 成功：build release by cache
+//       b. 失败：返回message
+func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.ReleaseTask, releaseCache *release.ReleaseCache) (releaseV2 *release.ReleaseInfoV2, err error) {
+	releaseV2 = &release.ReleaseInfoV2{
+		ReleaseInfo: release.ReleaseInfo{
+			ReleaseSpec: release.ReleaseSpec{
+				Namespace: releaseTask.Namespace,
+				Name:      releaseTask.Name,
+			},
+		},
+	}
+	if releaseTask.LatestReleaseTaskSig != nil {
+		taskState := releaseTask.LatestReleaseTaskSig.GetTaskState()
+		if taskState != nil && taskState.TaskName != "" {
+			if taskState.IsSuccess() {
+				if taskState.TaskName == deleteReleaseTaskName {
+					return nil, walmerr.NotFoundError{}
+				}
+			} else if taskState.IsFailure() {
+				releaseV2.Message = fmt.Sprintf("the release latest task %s-%s failed : %s", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID, taskState.Error)
+				return
+			} else {
+				releaseV2.Message = fmt.Sprintf("please wait for the release latest task %s-%s finished", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
+				return
+			}
+		}
+	}
+
+	if releaseCache == nil {
+		releaseCache, err = hc.helmCache.GetReleaseCache(releaseTask.Namespace, releaseTask.Name)
+		if err != nil {
+			logrus.Errorf("failed to get release cache of %s/%s : %s", releaseTask.Namespace, releaseTask.Name, err.Error())
+			return
+		}
+	}
+
+	releaseV2, err = hc.buildReleaseInfoV2(releaseCache)
+	if err != nil {
+		logrus.Errorf("failed to build v2 release info : %s", err.Error())
+		return nil, err
+	}
+	return
+}
+
+func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*release.ReleaseInfoV2, error) {
+	releaseV1, err := buildReleaseInfo(releaseCache)
+	if err != nil {
+		logrus.Errorf("failed to build release info: %s", err.Error())
+		return nil, err
+	}
+	releaseV2 := &release.ReleaseInfoV2{ReleaseInfo: *releaseV1}
+	releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(releaseCache.Namespace, releaseCache.Name)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			// Compatible
+			releaseV2.DependenciesConfigValues = map[string]interface{}{}
+			releaseV2.OutputConfigValues = map[string]interface{}{}
+			releaseV2.ReleaseLabels = map[string]string{}
+		} else {
+			logrus.Errorf("failed to get release config : %s", err.Error())
+			return nil, err
+		}
+	} else {
+		releaseV2.ConfigValues = releaseConfig.Spec.ConfigValues
+		releaseV2.Dependencies = releaseConfig.Spec.Dependencies
+		releaseV2.DependenciesConfigValues = releaseConfig.Spec.DependenciesConfigValues
+		releaseV2.OutputConfigValues = releaseConfig.Spec.OutputConfig
+		releaseV2.ReleaseLabels = releaseConfig.Labels
+	}
+	releaseV2.ComputedValues = releaseCache.ComputedValues
+	return releaseV2, nil
+}
+
+func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfoV2, error) {
 	logrus.Debugf("Enter ListReleases namespace=%s filter=%s\n", namespace, filter)
-	releaseCaches, err := client.helmCache.GetReleaseCaches(namespace, filter, 0)
+	releaseTasks, err := hc.helmCache.GetReleaseTasks(namespace, filter, 0)
+	if err != nil {
+		logrus.Errorf("failed to get release tasks with namespace=%s filter=%s : %s", namespace, filter, err.Error())
+		return nil, err
+	}
+
+	releaseCaches, err := hc.helmCache.GetReleaseCaches(namespace, filter, 0)
 	if err != nil {
 		logrus.Errorf("failed to get release caches with namespace=%s filter=%s : %s", namespace, filter, err.Error())
 		return nil, err
 	}
 
-	releaseInfos := []*release.ReleaseInfo{}
+	return hc.doListReleases(releaseTasks, releaseCaches)
+}
+
+func (hc *HelmClient) ListReleasesByLabels(namespace string, labelSelector *v1.LabelSelector) ([]*release.ReleaseInfoV2, error) {
+	releaseConfigs, err := hc.releaseConfigHandler.ListReleaseConfigs(namespace, labelSelector)
+	if err != nil {
+		logrus.Errorf("failed to list release configs : %s", err.Error())
+		return nil, err
+	}
+
+	releaseNames := []cache.ReleaseFieldName{}
+	for _, releaseConfig := range releaseConfigs {
+		releaseNames = append(releaseNames, cache.ReleaseFieldName{
+			Namespace: releaseConfig.Namespace,
+			Name: releaseConfig.Name,
+		})
+	}
+
+	releases, err := hc.listReleasesByNames(releaseNames)
+	if err != nil {
+		return nil, err
+	}
+	return releases, nil
+}
+
+func (hc *HelmClient) listReleasesByNames(names []cache.ReleaseFieldName) ([]*release.ReleaseInfoV2, error) {
+	if len(names) == 0 {
+		return []*release.ReleaseInfoV2{}, nil
+	}
+	releaseTasks, err := hc.helmCache.GetReleaseTasksByNames(names)
+	if err != nil {
+		logrus.Errorf("failed to get release tasks : %s", err.Error())
+		return nil, err
+	}
+
+	releaseCaches, err := hc.helmCache.GetReleaseCachesByNames(names)
+	if err != nil {
+		logrus.Errorf("failed to get release caches : %s", err.Error())
+		return nil, err
+	}
+
+	return hc.doListReleases(releaseTasks, releaseCaches)
+}
+
+func (hc *HelmClient) doListReleases(releaseTasks []*cache.ReleaseTask, releaseCaches []*release.ReleaseCache) (releaseInfos []*release.ReleaseInfoV2, err error) {
+	releaseCacheMap := map[string]*release.ReleaseCache{}
+	for _, releaseCache := range releaseCaches {
+		releaseCacheMap[releaseCache.Namespace+"/"+releaseCache.Name] = releaseCache
+	}
+
+	releaseInfos = []*release.ReleaseInfoV2{}
+	//TODO 限制协程的数量
 	mux := &sync.Mutex{}
 	var wg sync.WaitGroup
-	for _, releaseCache := range releaseCaches {
+	for _, releaseTask := range releaseTasks {
 		wg.Add(1)
-		go func(releaseCache *release.ReleaseCache) {
+		go func(releaseTask *cache.ReleaseTask, releaseCache *release.ReleaseCache) {
 			defer wg.Done()
-			info, err1 := BuildReleaseInfo(releaseCache)
+			info, err1 := hc.buildReleaseInfoV2ByReleaseTask(releaseTask, releaseCache)
 			if err1 != nil {
+				if walmerr.IsNotFoundError(err1) {
+					return
+				}
 				err = errors.New(fmt.Sprintf("failed to build release info: %s", err1.Error()))
 				logrus.Error(err.Error())
 				return
@@ -123,67 +361,246 @@ func (client *HelmClient) ListReleases(namespace, filter string) ([]*release.Rel
 			mux.Lock()
 			releaseInfos = append(releaseInfos, info)
 			mux.Unlock()
-		}(releaseCache)
+		}(releaseTask, releaseCacheMap[releaseTask.Namespace+"/"+releaseTask.Name])
 	}
 	wg.Wait()
 	if err != nil {
-		return nil, err
-	}
-	return releaseInfos, nil
-}
-
-//Deprecated
-func (client *HelmClient) GetReleasesByNames(namespace string, names ...string) ([]*release.ReleaseInfo, error) {
-	releaseCaches, err := client.helmCache.GetReleaseCachesByNames(namespace, names...)
-	if err != nil {
-		logrus.Errorf("failed to get release caches : %s", err.Error())
-		return nil, err
-	}
-
-	releaseInfos := []*release.ReleaseInfo{}
-	mux := &sync.Mutex{}
-	var wg sync.WaitGroup
-	for _, releaseCache := range releaseCaches {
-		wg.Add(1)
-		go func(releaseCache *release.ReleaseCache) {
-			defer wg.Done()
-			info, err1 := BuildReleaseInfo(releaseCache)
-			if err1 != nil {
-				err = errors.New(fmt.Sprintf("failed to build release info: %s\n", err1.Error()))
-				logrus.Error(err.Error())
-				return
-			}
-			mux.Lock()
-			releaseInfos = append(releaseInfos, info)
-			mux.Unlock()
-		}(releaseCache)
-	}
-	wg.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return releaseInfos, nil
-}
-
-//Deprecated
-func (client *HelmClient) GetRelease(namespace, releaseName string) (release *release.ReleaseInfo, err error) {
-	logrus.Debugf("Enter GetRelease %s %s\n", namespace, releaseName)
-	releaseCache, err := client.helmCache.GetReleaseCache(namespace, releaseName)
-	if err != nil {
-		logrus.Errorf("failed to get release cache of %s : %s", releaseName, err.Error())
-		return nil, err
-	}
-	release, err = BuildReleaseInfo(releaseCache)
-	if err != nil {
-		logrus.Errorf("failed to build release info: %s\n", err.Error())
 		return
 	}
 	return
 }
 
-func (client *HelmClient) RestartRelease(namespace, releaseName string) error {
+// reload dependencies config values, if changes, upgrade release
+func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error {
+	//TODO need to opt: task or cache?
+	_, err := hc.helmCache.GetReleaseCache(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	releaseConfig, err := handler.GetDefaultHandlerSet().GetReleaseConfigHandler().GetReleaseConfig(namespace, name)
+	if err != nil {
+		logrus.Errorf("failed to get release config of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	oldDependenciesConfigValues := releaseConfig.Spec.DependenciesConfigValues
+	newDependenciesConfigValues, err := hc.getDependencyOutputConfigs(namespace, releaseConfig.Spec.Dependencies)
+	if err != nil {
+		logrus.Errorf("failed to get dependencies output configs of %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	if ConfigValuesDiff(oldDependenciesConfigValues, newDependenciesConfigValues) {
+		releaseRequest := &release.ReleaseRequestV2{
+			ReleaseRequest: release.ReleaseRequest{
+				Name:         name,
+				ChartVersion: releaseConfig.Spec.ChartVersion,
+				ChartName:    releaseConfig.Spec.ChartName,
+				Dependencies: releaseConfig.Spec.Dependencies,
+				ConfigValues: releaseConfig.Spec.ConfigValues,
+			},
+			ReleaseLabels: releaseConfig.Labels,
+		}
+		err = hc.InstallUpgradeRelease(namespace, releaseRequest, isSystem, nil, false, 0)
+		if err != nil {
+			logrus.Errorf("failed to upgrade release v2 %s/%s : %s", namespace, name, err.Error())
+			return err
+		}
+		logrus.Infof("succeed to reload release %s/%s", namespace, name)
+	} else {
+		logrus.Infof("ignore reloading release %s/%s : dependencies config value does not change", namespace, name)
+	}
+
+	return nil
+}
+
+func (hc *HelmClient) validateReleaseTask(namespace, name string, allowReleaseTaskNotExist bool) (releaseTask *cache.ReleaseTask, err error) {
+	releaseTask, err = hc.helmCache.GetReleaseTask(namespace, name)
+	if err != nil {
+		if !walmerr.IsNotFoundError(err) {
+			logrus.Errorf("failed to get release task : %s", err.Error())
+			return
+		} else if !allowReleaseTaskNotExist {
+			return
+		} else {
+			err = nil
+		}
+	} else {
+		if releaseTask.LatestReleaseTaskSig != nil && !releaseTask.LatestReleaseTaskSig.IsTaskFinishedOrTimeout() {
+			err = fmt.Errorf("please wait for the release latest task %s-%s finished or timeout", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
+			logrus.Warn(err.Error())
+			return
+		}
+	}
+	return
+}
+
+func (hc *HelmClient) DeleteReleaseWithRetry(namespace, releaseName string, isSystem bool, deletePvcs bool, async bool, timeoutSec int64) error {
+	retryTimes := 5
+	for {
+		err := hc.DeleteRelease(namespace, releaseName, isSystem, deletePvcs, async, timeoutSec)
+		if err != nil {
+			if strings.Contains(err.Error(), "please wait for the release latest task") && retryTimes > 0 {
+				logrus.Warnf("retry to delete release %s/%s after 2 second", namespace, releaseName)
+				retryTimes --
+				time.Sleep(time.Second * 2)
+				continue
+			}
+		}
+		return err
+	}
+}
+
+func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool, deletePvcs bool, async bool, timeoutSec int64) error {
+	if timeoutSec == 0 {
+		timeoutSec = defaultTimeoutSec
+	}
+
+	oldReleaseTask, err := hc.validateReleaseTask(namespace, releaseName, false)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release task %s/%s is not found", namespace, releaseName)
+			return nil
+		}
+		logrus.Errorf("failed to validate release task : %s", err.Error())
+		return err
+	}
+
+	releaseTaskArgs := &DeleteReleaseTaskArgs{
+		Namespace:   namespace,
+		ReleaseName: releaseName,
+		IsSystem:    isSystem,
+		DeletePvcs:  deletePvcs,
+	}
+	taskSig, err := SendReleaseTask(releaseTaskArgs)
+	if err != nil {
+		logrus.Errorf("failed to send %s : %s", releaseTaskArgs.GetTaskName(), err.Error())
+		return err
+	}
+	taskSig.TimeoutSec = timeoutSec
+
+	releaseTask := &cache.ReleaseTask{
+		Namespace:            namespace,
+		Name:                 releaseName,
+		LatestReleaseTaskSig: taskSig,
+	}
+
+	err = hc.helmCache.CreateOrUpdateReleaseTask(releaseTask)
+	if err != nil {
+		logrus.Errorf("failed to set release task of %s/%s to redis: %s", namespace, releaseName, err.Error())
+		return err
+	}
+
+	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
+	}
+
+	if !async {
+		asyncResult := taskSig.GetAsyncResult()
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
+		if err != nil {
+			logrus.Errorf("failed to delete release  %s/%s: %s", namespace, releaseName, err.Error())
+			return err
+		}
+	}
+	logrus.Infof("succeed to call delete release %s/%s api", namespace, releaseName)
+	return nil
+}
+
+func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bool, deletePvcs bool) error {
+	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
+	if err != nil {
+		logrus.Errorf("failed to get current helm client : %s", err.Error())
+		return err
+	}
+
+	releaseCache, err := hc.helmCache.GetReleaseCache(namespace, releaseName)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release cache %s is not found in redis", releaseName)
+			return nil
+		}
+		logrus.Errorf("failed to get release cache %s : %s", releaseName, err.Error())
+		return err
+	}
+	releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
+	if err != nil {
+		logrus.Errorf("failed to build release info : %s", err.Error())
+		return err
+	}
+
+	opts := []helm.UninstallOption{
+		helm.UninstallPurge(true),
+	}
+	res, err := currentHelmClient.UninstallRelease(
+		releaseName, opts...,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			logrus.Warnf("release %s is not found in tiller", releaseName)
+		} else {
+			logrus.Errorf("failed to delete release : %s", err.Error())
+			return err
+		}
+	}
+	if res != nil && res.Info != "" {
+		logrus.Println(res.Info)
+	}
+
+	err = hc.helmCache.DeleteReleaseCache(namespace, releaseName)
+	if err != nil {
+		logrus.Errorf("failed to delete release cache of %s : %s", releaseName, err.Error())
+		return err
+	}
+
+	if deletePvcs {
+		statefulSets := []adaptor.WalmStatefulSet{}
+		if len(releaseInfo.Status.StatefulSets) > 0 {
+			statefulSets = append(statefulSets, releaseInfo.Status.StatefulSets...)
+		}
+
+		for _, instance := range releaseInfo.Status.Instances {
+			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0 {
+				statefulSets = append(statefulSets, instance.Modules.StatefulSets...)
+			}
+		}
+
+		for _, statefulSet := range statefulSets {
+			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0) {
+				pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
+				if err != nil {
+					logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
+					return err
+				}
+
+				for _, pvc := range pvcs {
+					err = handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
+					if err != nil {
+						if adaptor.IsNotFoundErr(err) {
+							logrus.Warnf("pvc %s/%s related to stateful set %s/%s is not found", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+							continue
+						}
+						logrus.Errorf("failed to delete pvc %s/%s related to stateful set %s/%s : %s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name, err.Error())
+						return err
+					}
+					logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+				}
+			}
+		}
+	}
+
+	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
+	return nil
+}
+
+func (hc *HelmClient) RestartRelease(namespace, releaseName string) error {
 	logrus.Debugf("Enter RestartRelease %s %s\n", namespace, releaseName)
-	releaseInfo, err := client.GetRelease(namespace, releaseName)
+	releaseInfo, err := hc.GetRelease(namespace, releaseName)
 	if err != nil {
 		logrus.Errorf("failed to get release info : %s", err.Error())
 		return err
@@ -219,435 +636,291 @@ func (client *HelmClient) RestartRelease(namespace, releaseName string) error {
 	return nil
 }
 
-//Deprecated
-func (client *HelmClient) UpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, chartArchive multipart.File) (err error) {
-	if releaseRequest.ConfigValues == nil {
-		releaseRequest.ConfigValues = map[string]interface{}{}
-	}
-	if releaseRequest.Dependencies == nil {
-		releaseRequest.Dependencies = map[string]string{}
-	}
-	hook.ProcessPrettyParams(releaseRequest)
-	var chartRequested *chart.Chart
-	if chartArchive != nil {
-		chartRequested, err = GetChart(chartArchive)
-	} else {
-		chartRequested, err = client.GetChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-	}
-	if err != nil {
-		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-		return err
-	}
-	depLinks := make(map[string]interface{})
-	for k, v := range releaseRequest.Dependencies {
-		depLinks[k] = v
-	}
-	releaseInfo, err := client.GetRelease(namespace, releaseRequest.Name)
-	if err != nil {
-		return err
-	}
-	logrus.Infof("releaseInfo.Dependencies OLD(%+v) NEW(%+v) %+v %+v\n", releaseInfo.Dependencies, releaseRequest.Dependencies, releaseInfo.Name, releaseInfo.ConfigValues)
-	for k, v := range releaseInfo.Dependencies {
-		depLinks[k] = v
-	}
-	for k, v := range releaseRequest.Dependencies {
-		depLinks[k] = v
-	}
-	//releaseInfo.Dependencies = releaseRequest.Dependencies
-	tempConfigValues := make(map[string]interface{}, 0)
-	MergeValues(tempConfigValues, releaseInfo.ConfigValues)
-	MergeValues(tempConfigValues, releaseRequest.ConfigValues)
-	helmRelease, err := client.installChart(releaseRequest.Name, namespace, tempConfigValues, depLinks, chartRequested, false)
-	if err != nil {
-		logrus.Errorf("failed to install chart : %s", err.Error())
-		return err
-	}
-
-	err = client.helmCache.CreateOrUpdateReleaseCache(helmRelease)
-	if err != nil {
-		logrus.Errorf("failed to create of update release cache of %s : %s", helmRelease.Name, err.Error())
-		return err
-	}
-
-	logrus.Infof("succeed to update release %s", releaseRequest.Name)
-	return nil
-}
-
-//Deprecated
-func (client *HelmClient) InstallUpgradeRealese(namespace string, releaseRequest *release.ReleaseRequest, isSystem bool, chartArchive multipart.File) (err error) {
-	if releaseRequest.ConfigValues == nil {
-		releaseRequest.ConfigValues = map[string]interface{}{}
-	}
-	if releaseRequest.Dependencies == nil {
-		releaseRequest.Dependencies = map[string]string{}
-	}
-	hook.ProcessPrettyParams(releaseRequest)
-	var chartRequested *chart.Chart
-	if chartArchive != nil {
-		chartRequested, err = GetChart(chartArchive)
-	} else {
-		chartRequested, err = client.GetChartRequest(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-	}
-	if err != nil {
-		logrus.Errorf("failed to get chart %s/%s:%s", releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-		return err
-	}
-
-	depLinks := make(map[string]interface{})
-	for k, v := range releaseRequest.Dependencies {
-		depLinks[k] = v
-	}
-	helmRelease, err := client.installChart(releaseRequest.Name, namespace, releaseRequest.ConfigValues, depLinks, chartRequested, isSystem)
-	if err != nil {
-		logrus.Errorf("failed to install chart : %s", err.Error())
-		return err
-	}
-
-	err = client.helmCache.CreateOrUpdateReleaseCache(helmRelease)
-	if err != nil {
-		logrus.Errorf("failed to create of update release cache of %s : %s", helmRelease.Name, err.Error())
-		return err
-	}
-
-	logrus.Infof("succeed to create or update release %s", releaseRequest.Name)
-	return nil
-}
-
-func (client *HelmClient) RollbackRealese(namespace, releaseName, version string) error {
-	return nil
-}
-
-//Deprecated
-func (client *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool, deletePvcs bool) error {
-	logrus.Debugf("Enter DeleteRelease %s %s\n", namespace, releaseName)
-	currentHelmClient := client.systemClient
-
-	if !isSystem {
-		multiTenant, err := cache.IsMultiTenant(namespace)
+func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
+	retryTimes := 5
+	for {
+		err := hc.InstallUpgradeRelease(namespace, releaseRequest, isSystem, chartFiles, async, timeoutSec)
 		if err != nil {
-			logrus.Errorf("InstallChart IsMultiTenant error %s\n", err.Error())
+			if strings.Contains(err.Error(), "please wait for the release latest task") && retryTimes > 0 {
+				logrus.Warnf("retry to install or upgrade release %s/%s after 2 second", namespace, releaseRequest.Name)
+				retryTimes --
+				time.Sleep(time.Second * 2)
+				continue
+			}
 		}
-		if multiTenant {
-			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
-		}
+		return err
+	}
+}
+
+func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
+	if timeoutSec == 0 {
+		timeoutSec = defaultTimeoutSec
 	}
 
-	releaseInfo, err := client.GetRelease(namespace, releaseName)
+	oldReleaseTask, err := hc.validateReleaseTask(namespace, releaseRequest.Name, true)
 	if err != nil {
-		if walmerr.IsNotFoundError(err) {
-			logrus.Warnf("release %s is not found in redis", releaseName)
-			return nil
-		}
-		logrus.Errorf("failed to get release %s : %s", releaseName, err.Error())
 		return err
 	}
 
-	opts := []helm.DeleteOption{
-		helm.DeletePurge(true),
+	releaseTaskArgs := &CreateReleaseTaskArgs{
+		Namespace:      namespace,
+		ReleaseRequest: releaseRequest,
+		IsSystem:       isSystem,
+		ChartFiles:     chartFiles,
 	}
-	res, err := currentHelmClient.DeleteRelease(
-		releaseName, opts...,
-	)
+	taskSig, err := SendReleaseTask(releaseTaskArgs)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			logrus.Warnf("release %s is not found in tiller", releaseName)
-		} else {
-			logrus.Errorf("failed to delete release : %s", err.Error())
+		logrus.Errorf("failed to send %s : %s", releaseTaskArgs.GetTaskName(), err.Error())
+		return err
+	}
+	taskSig.TimeoutSec = timeoutSec
+
+	releaseTask := &cache.ReleaseTask{
+		Namespace:            namespace,
+		Name:                 releaseRequest.Name,
+		LatestReleaseTaskSig: taskSig,
+	}
+
+	err = hc.helmCache.CreateOrUpdateReleaseTask(releaseTask)
+	if err != nil {
+		logrus.Errorf("failed to set release task of %s/%s to redis: %s", namespace, releaseRequest.Name, err.Error())
+		return err
+	}
+
+	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
+		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
+		if err != nil {
+			logrus.Warnf("failed to purge task state : %s", err.Error())
+		}
+	}
+
+	if !async {
+		asyncResult := taskSig.GetAsyncResult()
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
+		if err != nil {
+			logrus.Errorf("failed to create or update release  %s/%s: %s", namespace, releaseRequest.Name, err.Error())
 			return err
 		}
 	}
-	if res != nil && res.Info != "" {
-		logrus.Println(res.Info)
+	logrus.Infof("succeed to call create or update release %s/%s api", namespace, releaseRequest.Name)
+	return nil
+}
+
+func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile) error {
+	update := true
+	releaseCache, err := hc.helmCache.GetReleaseCache(namespace, releaseRequest.Name)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			update = false
+		} else {
+			logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+			return err
+		}
 	}
 
-	err = client.helmCache.DeleteReleaseCache(namespace, releaseName)
+	if releaseRequest.ConfigValues == nil {
+		releaseRequest.ConfigValues = map[string]interface{}{}
+	}
+	if releaseRequest.Dependencies == nil {
+		releaseRequest.Dependencies = map[string]string{}
+	}
+	if releaseRequest.ReleaseLabels == nil {
+		releaseRequest.ReleaseLabels = map[string]string{}
+	}
+
+	hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
+
+	// get all the dependency releases' output configs from ReleaseConfig
+	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, releaseRequest.Dependencies)
 	if err != nil {
-		logrus.Errorf("failed to delete release cache of %s : %s", releaseName, err.Error())
+		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
 		return err
 	}
 
-	if deletePvcs {
-		statefulSets := []adaptor.WalmStatefulSet{}
-		if len(releaseInfo.Status.StatefulSets) > 0 {
-			statefulSets = append(statefulSets, releaseInfo.Status.StatefulSets...)
-		}
-
-		for _, instance := range releaseInfo.Status.Instances {
-			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0{
-				statefulSets = append(statefulSets, instance.Modules.StatefulSets...)
-			}
-		}
-
-		for _, statefulSet := range statefulSets {
-			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0){
-				pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
+	// reuse config values
+	configValues := map[string]interface{}{}
+	if update {
+		releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(namespace, releaseRequest.Name)
+		if err != nil {
+			if adaptor.IsNotFoundErr(err) {
+				logrus.Warnf("release config %s/%s is not found", namespace, releaseRequest.Name)
+				releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
 				if err != nil {
-					logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
+					logrus.Errorf("failed to build release info : %s", err.Error())
 					return err
 				}
-
-				for _, pvc := range pvcs {
-					err = handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
-					if err != nil {
-						if adaptor.IsNotFoundErr(err) {
-							logrus.Warnf("pvc %s/%s related to stateful set %s/%s is not found", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
-							continue
-						}
-						logrus.Errorf("failed to delete pvc %s/%s related to stateful set %s/%s : %s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name, err.Error())
-						return err
+				mergeValues(configValues, releaseInfo.ConfigValues)
+				if len(releaseInfo.ReleaseLabels) > 0 {
+					oldProjectName, ok1 := releaseInfo.ReleaseLabels[cache.ProjectNameLabelKey]
+					_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
+					if ok1 && !ok2 {
+						releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
 					}
-					logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
+				}
+				if len(releaseInfo.Status.Instances) > 0 {
+					err = fmt.Errorf("now v1 release %s/%s with instances is not support to upgrade", namespace, releaseRequest.Name)
+					return err
+				}
+			} else {
+				logrus.Errorf("failed to get release config : %s", err.Error())
+				return err
+			}
+		} else {
+			mergeValues(configValues, releaseConfig.Spec.ConfigValues)
+			// project-name label can not be removed
+			if len(releaseConfig.Labels) > 0 {
+				oldProjectName, ok1 := releaseConfig.Labels[cache.ProjectNameLabelKey]
+				_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
+				if ok1 && !ok2 {
+					releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
 				}
 			}
 		}
 	}
+	mergeValues(configValues, releaseRequest.ConfigValues)
 
-	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
-	return err
-}
-
-func (client *HelmClient) GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
-	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
-	chartRequested, err := client.GetChartRequest(repoName, chartName, chartVersion)
-	if err != nil {
-		return nil, err
-	}
-	dependencies, err := parseChartDependencies(chartRequested)
-	if err != nil {
-		return nil, err
-	}
-	return dependencies, nil
-}
-
-func (client *HelmClient) GetHelmCache() *cache.HelmCache {
-	return client.helmCache
-}
-
-func(client *HelmClient) GetCurrentHelmClient(namespace string, isSystem bool) (*helm.Client, error) {
-	currentHelmClient := client.systemClient
-	if !isSystem {
-		multiTenant, err := cache.IsMultiTenant(namespace)
+	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
+	// app.yaml : used to define chart dependency relations
+	var chart, jsonnetChart *chart.Chart
+	var isJsonnetChart bool
+	if chartFiles != nil {
+		isJsonnetChart, chart, jsonnetChart, err = loadChartByChartFiles(chartFiles)
 		if err != nil {
-			logrus.Errorf("failed to check whether is multi tenant", err.Error())
-			return nil, err
+			logrus.Errorf("failed to load chart by archive : %s", err.Error())
+			return err
 		}
-		if multiTenant {
-			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
-		}
-	}
-
-	//TODO improve
-	retry := 20
-	for i := 0; i < retry; i++ {
-		err := currentHelmClient.PingTiller()
-		if err == nil {
-			break
-		}
-		if i == retry-1 {
-			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	return currentHelmClient, nil
-}
-
-func (client *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
-	if repoName == "" {
-		repoName = "stable"
-	}
-	repo, ok := client.chartRepoMap[repoName]
-	if !ok {
-		return "", fmt.Errorf("can not find repo name: %s", repoName)
-	}
-	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(repo.URL, "", "", charName, version)
-	if err != nil {
-		return "", err
-	}
-
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return "", err
-	}
-	filename, err := ChartMuseumDownloadTo(chartURL, tmpDir, httpGetter)
-	if err != nil {
-		logrus.Printf("DownloadTo err %v", err)
-		return "", err
-	}
-
-	return filename, nil
-}
-
-func (client *HelmClient) GetChartRequest(repoName, chartName, chartVersion string) (*chart.Chart, error) {
-	chartPath, err := client.downloadChart(repoName, chartName, chartVersion)
-	if err != nil {
-		logrus.Errorf("failed to download chart : %s", err.Error())
-		return nil, err
-	}
-	chartRequested, err := chartutil.Load(chartPath)
-	if err != nil {
-		logrus.Errorf("failed to load chart : %s", err.Error())
-		return nil, err
-	}
-
-	return chartRequested, nil
-}
-
-func GetChart(chartArchive multipart.File) (*chart.Chart, error) {
-	chartRequested, err := chartutil.LoadArchive(chartArchive)
-	if err != nil {
-		logrus.Errorf("failed to load chart : %s", err.Error())
-		return nil, err
-	}
-
-	return chartRequested, nil
-}
-
-func (client *HelmClient) installChart(releaseName, namespace string, configValues map[string]interface{}, depLinks map[string]interface{}, chart *chart.Chart, isSystem bool) (*hapiRelease.Release, error) {
-	currentHelmClient := client.systemClient
-	configVals, err := yaml.Marshal(configValues)
-	if err != nil {
-		logrus.Errorf("failed to marshal config values: %s", err.Error())
-		return nil, err
-	}
-
-	if !isSystem {
-		multiTenant, err := cache.IsMultiTenant(namespace)
+	} else {
+		isJsonnetChart, chart, jsonnetChart, err = hc.LoadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 		if err != nil {
-			logrus.Errorf("InstallChart IsMultiTenant error %s\n", err.Error())
-		}
-		if multiTenant {
-			tillerHosts := fmt.Sprintf("tiller-tenant.%s.svc:44134", namespace)
-			currentHelmClient = client.multiTenantClients.Get(tillerHosts)
+			logrus.Errorf("failed to load chart : %s", err.Error())
+			return err
 		}
 	}
 
-	retry := 20
-	for i := 0; i < retry; i++ {
-		err = currentHelmClient.PingTiller()
-		if err == nil {
-			break
+	if isJsonnetChart {
+		nativeTemplates := chart.Templates
+		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, configValues, dependencyConfigs, releaseRequest.ReleaseLabels)
+		if err != nil {
+			logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
+			return err
 		}
-		if i == retry-1 {
-			return nil, fmt.Errorf("tiller is not ready, PingTiller timeout: %s", err.Error())
+		if len(nativeTemplates) > 0 {
+			chart.Templates = append(chart.Templates, nativeTemplates...)
 		}
-		time.Sleep(500 * time.Millisecond)
+	} else {
+		//TODO native helm chart如何处理？
+		releaseConfigBytes, err := buildReleaseConfig(namespace, releaseRequest.Name, chart.Metadata.Name, chart.Metadata.Version,
+			chart.Metadata.AppVersion, releaseRequest.ReleaseLabels, releaseRequest.Dependencies,
+				dependencyConfigs, configValues, map[string]interface{}{})
+		if err != nil {
+			logrus.Errorf("failed to build release config : %s", err.Error())
+			return err
+		}
+		chart.Templates =  append(chart.Templates, &helmchart.File{
+			Name: "releaseconfig.yaml",
+			Data: releaseConfigBytes,
+		})
 	}
 
-	logrus.Infof("InstallChart Params %s %s %+v %+v", releaseName, namespace, configValues, depLinks)
-	helmRelease := &hapiRelease.Release{}
-	releaseHistory, err := currentHelmClient.ReleaseHistory(releaseName, helm.WithMaxHistory(1))
-	if err == nil {
-		previousReleaseNamespace := releaseHistory.Releases[0].Namespace
-		//TODO is it reasonable? it is wield, helm should support the same name in different namespace
-		if previousReleaseNamespace != namespace {
-			logrus.Warnf("namespace %s doesn't match with previous, release will be deployed to %s",
-				namespace, previousReleaseNamespace,
-			)
-		}
-		previousValues := map[string]interface{}{}
-		if err := yaml.Unmarshal([]byte(releaseHistory.Releases[0].GetConfig().GetRaw()), &previousValues); err != nil {
-			return nil, fmt.Errorf("failed to parse rawValues: %s", err)
-		}
-		mergedValues := map[string]interface{}{}
-		mergedValues = MergeValues(mergedValues, configValues)
-		mergedValues = MergeValues(previousValues, mergedValues)
-		mergedVals, err := yaml.Marshal(mergedValues)
-		if err != nil {
-			logrus.Errorf("failed to marshal mergedVals values: %s", err.Error())
-			return nil, err
-		}
+	valueOverride := map[string]interface{}{}
+	mergeValues(valueOverride, configValues)
 
-		logrus.Infof("UpdateChart %s ConfigValues %+v, previousValues %+v DepLinks %+v ", releaseName, mergedValues, previousValues, depLinks)
-		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
-		if err != nil {
-			return nil, err
-		}
-		if transwarpAppType == true {
-			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
-			if err != nil {
-				return nil, err
-			}
+	var release *hapirelease.Release
+	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
+	if err != nil {
+		logrus.Errorf("failed to get helm client : %s", err.Error())
+		return err
+	}
 
-			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(mergedVals[:]), appConfigMapName, dependencies)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		resp, err := currentHelmClient.UpdateReleaseFromChart(
-			releaseName,
+	if update {
+		release, err = currentHelmClient.UpdateReleaseFromChart(
+			releaseRequest.Name,
 			chart,
-			helm.UpdateValueOverrides([]byte(chart.Values.Raw)),
-			helm.ReuseValues(true),
-			helm.UpgradeDryRun(client.dryRun),
+			helm.UpdateValueOverrides(valueOverride),
+			helm.UpgradeDryRun(hc.dryRun),
 		)
 		if err != nil {
-			//TODO should rollback to prev version?
-			logrus.Errorf("failed to update release %s from chart : %s", releaseName, err.Error())
-			return nil, err
+			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
+			return err
 		}
-		helmRelease = resp.GetRelease()
-	} else if strings.Contains(err.Error(), driver.ErrReleaseNotFound(releaseName).Error()) {
-		logrus.Infof("InstallChart %s DepLinks %+v ConfigValues %+v", releaseName, depLinks, configValues)
-		appConfigMapName, transwarpAppType, appDependency, err := transwarp.ProcessTranswarpChartRequested(chart, releaseName, namespace)
-		if err != nil {
-			return nil, err
-		}
-		if transwarpAppType == true {
-			dependencies, err := transwarp.GetTranswarpInstanceCRDDependency(currentHelmClient, appDependency, depLinks, namespace, false)
-			if err != nil {
-				return nil, err
-			}
-
-			err = transwarp.ProcessTranswarpInstanceCRD(chart, releaseName, namespace, string(configVals[:]), appConfigMapName, dependencies)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		resp, err := currentHelmClient.InstallReleaseFromChart(
+	} else {
+		release, err = currentHelmClient.InstallReleaseFromChart(
 			chart,
 			namespace,
-			helm.ValueOverrides([]byte(chart.Values.Raw)),
-			helm.ReleaseName(releaseName),
-			helm.InstallDryRun(client.dryRun),
+			helm.ValueOverrides(valueOverride),
+			helm.ReleaseName(releaseRequest.Name),
+			helm.InstallDryRun(hc.dryRun),
 		)
 		if err != nil {
-			logrus.Errorf("failed to install release %s from chart : %s", releaseName, err.Error())
-			opts := []helm.DeleteOption{
-				helm.DeletePurge(true),
+			logrus.Errorf("failed to install release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
+			opts := []helm.UninstallOption{
+				helm.UninstallPurge(true),
 			}
-			_, err1 := currentHelmClient.DeleteRelease(
-				releaseName, opts...,
+			_, err1 := currentHelmClient.UninstallRelease(
+				releaseRequest.Name, opts...,
 			)
 			if err1 != nil {
-				logrus.Errorf("failed to rollback to delete release %s : %s", releaseName, err1.Error())
+				logrus.Errorf("failed to rollback to delete release %s/%s : %s", namespace, releaseRequest.Name, err1.Error())
 			}
-			return nil, err
+			return err
 		}
-		helmRelease = resp.GetRelease()
-	} else {
-		logrus.Errorf("failed to get release history : %s", err.Error())
-		return nil, err
 	}
 
-	return helmRelease, nil
+	err = hc.helmCache.CreateOrUpdateReleaseCache(release)
+	if err != nil {
+		logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
+
+	return nil
 }
 
-func (client *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
-	logrus.Infof("start to resync release cache every %v", client.helmCacheResyncInterval)
-	// first time should be sync
-	client.helmCache.Resync()
-	firstTime := true
-	go wait.Until(func() {
-		if firstTime {
-			time.Sleep(client.helmCacheResyncInterval)
-			firstTime = false
+func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {
+	dependencyConfigs = map[string]interface{}{}
+	for _, dependency := range dependencies {
+		ss := strings.Split(dependency, ".")
+		if len(ss) > 2 {
+			err = fmt.Errorf("dependency value %s should not contains more than 1 \".\"", dependency)
+			return
 		}
-		client.helmCache.Resync()
-	}, client.helmCacheResyncInterval, stopCh)
+		dependencyNamespace, dependencyName := "", ""
+		if len(ss) == 2 {
+			dependencyNamespace = ss[0]
+			dependencyName = ss[1]
+		} else {
+			dependencyNamespace = namespace
+			dependencyName = ss[0]
+		}
+		dependencyReleaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(dependencyNamespace, dependencyName)
+		if err != nil {
+			if adaptor.IsNotFoundErr(err) {
+				logrus.Warnf("release config %s/%s is not found", dependencyNamespace, dependencyName)
+				continue
+			}
+			logrus.Errorf("failed to get release config %s/%s : %s", dependencyNamespace, dependencyName, err.Error())
+			return nil, err
+		}
+
+		// TODO how to deal with key conflict?
+		if len(dependencyReleaseConfig.Spec.OutputConfig) > 0 {
+			// compatible
+			provideConfigValues, ok := dependencyReleaseConfig.Spec.OutputConfig["provides"].(map[string]interface{})
+			if ok {
+				valueToMerge := make(map[string]interface{}, len(provideConfigValues))
+				for key, value := range provideConfigValues {
+					if immediateValue, ok := value.(map[string]interface{}); ok {
+						if immediateValue["immediate_value"] != nil {
+							valueToMerge[key] = immediateValue["immediate_value"]
+						}
+					}
+				}
+				mergeValues(dependencyConfigs, valueToMerge)
+			} else {
+				mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
+			}
+		}
+	}
+	return
 }
-
-

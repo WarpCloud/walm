@@ -17,32 +17,23 @@ limitations under the License.
 package main
 
 import (
-	"io"
 	"testing"
 
-	"github.com/spf13/cobra"
-
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestGetCmd(t *testing.T) {
-	tests := []releaseCase{
-		{
-			name:     "get with a release",
-			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "thomas-guide"}),
-			args:     []string{"thomas-guide"},
-			expected: "REVISION: 1\nRELEASED: (.*)\nCHART: foo-0.1.0-beta.1\nUSER-SUPPLIED VALUES:\nname: \"value\"\nCOMPUTED VALUES:\nname: value\n\nHOOKS:\n---\n# pre-install-hook\n" + helm.MockHookTemplate + "\nMANIFEST:",
-			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "thomas-guide"})},
-		},
-		{
-			name: "get requires release name arg",
-			err:  true,
-		},
-	}
-
-	cmd := func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newGetCmd(c, out)
-	}
-	runReleaseCases(t, tests, cmd)
+	tests := []cmdTestCase{{
+		name:   "get with a release",
+		cmd:    "get thomas-guide",
+		golden: "output/get-release.txt",
+		rels:   []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "thomas-guide"})},
+	}, {
+		name:      "get requires release name arg",
+		cmd:       "get",
+		golden:    "output/get-no-args.txt",
+		wantError: true,
+	}}
+	runTestCmd(t, tests)
 }

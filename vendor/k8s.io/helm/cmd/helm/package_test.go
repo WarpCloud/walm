@@ -21,13 +21,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/helm/helmpath"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 )
 
 func TestSetVersion(t *testing.T) {
@@ -52,6 +54,7 @@ func TestSetVersion(t *testing.T) {
 }
 
 func TestPackage(t *testing.T) {
+	defer resetEnv()()
 
 	tests := []struct {
 		name    string
@@ -96,6 +99,12 @@ func TestPackage(t *testing.T) {
 			hasfile: "alpine-0.1.0.tgz",
 		},
 		{
+			name:    "package testdata/testcharts/issue1979",
+			args:    []string{"testdata/testcharts/issue1979"},
+			expect:  "",
+			hasfile: "alpine-0.1.0.tgz",
+		},
+		{
 			name:    "package --destination toot",
 			args:    []string{"testdata/testcharts/alpine"},
 			flags:   map[string]string{"destination": "toot"},
@@ -122,34 +131,29 @@ func TestPackage(t *testing.T) {
 			hasfile: "chart-missing-deps-0.1.0.tgz",
 			err:     true,
 		},
+		{
+			name:   "package --values does-not-exist",
+			args:   []string{"testdata/testcharts/alpine"},
+			flags:  map[string]string{"values": "does-not-exist"},
+			expect: "does-not-exist: no such file or directory",
+			err:    true,
+		},
 	}
 
-	// Because these tests are destructive, we run them in a tempdir.
 	origDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	tmp, err := ioutil.TempDir("", "helm-package-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmp := testTempDir(t)
 
 	t.Logf("Running tests in %s", tmp)
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
+	defer testChdir(t, tmp)()
 
 	if err := os.Mkdir("toot", 0777); err != nil {
 		t.Fatal(err)
 	}
 
-	ensureTestHome(helmpath.Home(tmp), t)
-	cleanup := resetEnv()
-	defer func() {
-		os.Chdir(origDir)
-		os.RemoveAll(tmp)
-		cleanup()
-	}()
+	ensureTestHome(t, helmpath.Home(tmp))
 
 	settings.Home = helmpath.Home(tmp)
 
@@ -202,22 +206,14 @@ func TestPackage(t *testing.T) {
 }
 
 func TestSetAppVersion(t *testing.T) {
+	defer resetEnv()()
+
 	var ch *chart.Chart
 	expectedAppVersion := "app-version-foo"
-	tmp, _ := ioutil.TempDir("", "helm-package-app-version-")
+	tmp := testTempDir(t)
 
-	thome, err := tempHelmHome(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleanup := resetEnv()
-	defer func() {
-		os.RemoveAll(tmp)
-		os.RemoveAll(thome.String())
-		cleanup()
-	}()
-
-	settings.Home = helmpath.Home(thome)
+	hh := testHelmHome(t)
+	settings.Home = hh
 
 	c := newPackageCmd(&bytes.Buffer{})
 	flags := map[string]string{
@@ -225,8 +221,7 @@ func TestSetAppVersion(t *testing.T) {
 		"app-version": expectedAppVersion,
 	}
 	setFlags(c, flags)
-	err = c.RunE(c, []string{"testdata/testcharts/alpine"})
-	if err != nil {
+	if err := c.RunE(c, []string{"testdata/testcharts/alpine"}); err != nil {
 		t.Errorf("unexpected error %q", err)
 	}
 
@@ -236,12 +231,137 @@ func TestSetAppVersion(t *testing.T) {
 	} else if fi.Size() == 0 {
 		t.Errorf("file %q has zero bytes.", chartPath)
 	}
-	ch, err = chartutil.Load(chartPath)
+	ch, err := loader.Load(chartPath)
 	if err != nil {
 		t.Errorf("unexpected error loading packaged chart: %v", err)
 	}
 	if ch.Metadata.AppVersion != expectedAppVersion {
 		t.Errorf("expected app-version %q, found %q", expectedAppVersion, ch.Metadata.AppVersion)
+	}
+}
+
+func TestPackageValues(t *testing.T) {
+	defer resetEnv()()
+
+	testCases := []struct {
+		desc               string
+		args               []string
+		valuefilesContents []string
+		flags              map[string]string
+		expected           []string
+	}{
+		{
+			desc:               "helm package, single values file",
+			args:               []string{"testdata/testcharts/alpine"},
+			valuefilesContents: []string{"Name: chart-name-foo"},
+			expected:           []string{"Name: chart-name-foo"},
+		},
+		{
+			desc:               "helm package, multiple values files",
+			args:               []string{"testdata/testcharts/alpine"},
+			valuefilesContents: []string{"Name: chart-name-foo", "foo: bar"},
+			expected:           []string{"Name: chart-name-foo", "foo: bar"},
+		},
+		{
+			desc:     "helm package, with set option",
+			args:     []string{"testdata/testcharts/alpine"},
+			flags:    map[string]string{"set": "Name=chart-name-foo"},
+			expected: []string{"Name: chart-name-foo"},
+		},
+		{
+			desc:               "helm package, set takes precedence over value file",
+			args:               []string{"testdata/testcharts/alpine"},
+			valuefilesContents: []string{"Name: chart-name-foo"},
+			flags:              map[string]string{"set": "Name=chart-name-bar"},
+			expected:           []string{"Name: chart-name-bar"},
+		},
+	}
+
+	hh := testHelmHome(t)
+	settings.Home = hh
+
+	for _, tc := range testCases {
+		var files []string
+		for _, contents := range tc.valuefilesContents {
+			f := createValuesFile(t, contents)
+			files = append(files, f)
+		}
+		valueFiles := strings.Join(files, ",")
+
+		expected, err := chartutil.ReadValues([]byte(strings.Join(tc.expected, "\n")))
+		if err != nil {
+			t.Errorf("unexpected error parsing values: %q", err)
+		}
+
+		runAndVerifyPackageCommandValues(t, tc.args, tc.flags, valueFiles, expected)
+	}
+}
+
+func runAndVerifyPackageCommandValues(t *testing.T, args []string, flags map[string]string, valueFiles string, expected chartutil.Values) {
+	t.Helper()
+	outputDir := testTempDir(t)
+
+	if len(flags) == 0 {
+		flags = make(map[string]string)
+	}
+	flags["destination"] = outputDir
+
+	if len(valueFiles) > 0 {
+		flags["values"] = valueFiles
+	}
+
+	cmd := newPackageCmd(&bytes.Buffer{})
+	setFlags(cmd, flags)
+	if err := cmd.RunE(cmd, args); err != nil {
+		t.Errorf("unexpected error: %q", err)
+	}
+
+	outputFile := filepath.Join(outputDir, "alpine-0.1.0.tgz")
+	verifyOutputChartExists(t, outputFile)
+
+	actual, err := getChartValues(outputFile)
+	if err != nil {
+		t.Errorf("unexpected error extracting chart values: %q", err)
+	}
+
+	verifyValues(t, actual, expected)
+}
+
+func createValuesFile(t *testing.T, data string) string {
+	outputDir := testTempDir(t)
+
+	outputFile := filepath.Join(outputDir, "values.yaml")
+	if err := ioutil.WriteFile(outputFile, []byte(data), 0755); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	return outputFile
+}
+
+func getChartValues(chartPath string) (chartutil.Values, error) {
+
+	chart, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return chart.Values, nil
+}
+
+func verifyValues(t *testing.T, actual, expected chartutil.Values) {
+	t.Helper()
+	for key, value := range expected.AsMap() {
+		if got := actual[key]; got != value {
+			t.Errorf("Expected %q, got %q (%v)", value, got, actual)
+		}
+	}
+}
+
+func verifyOutputChartExists(t *testing.T, chartPath string) {
+	if chartFile, err := os.Stat(chartPath); err != nil {
+		t.Errorf("expected file %q, got err %q", chartPath, err)
+	} else if chartFile.Size() == 0 {
+		t.Errorf("file %q has zero bytes.", chartPath)
 	}
 }
 

@@ -57,6 +57,7 @@ func SendDeleteProjectTask(deleteProjectTaskArgs *DeleteProjectTaskArgs) (*cache
 type DeleteProjectTaskArgs struct {
 	Namespace     string
 	Name          string
+	DeletePvcs    bool
 }
 
 func (deleteProjectTaskArgs *DeleteProjectTaskArgs) deleteProject() error {
@@ -67,10 +68,9 @@ func (deleteProjectTaskArgs *DeleteProjectTaskArgs) deleteProject() error {
 	}
 
 	for _, releaseInfo := range projectInfo.Releases {
-		releaseName := buildProjectReleaseName(projectInfo.Name, releaseInfo.Name)
-		err = GetDefaultProjectManager().helmClient.DeleteReleaseV2(deleteProjectTaskArgs.Namespace, releaseName, false, false, false, 0)
+		err = GetDefaultProjectManager().helmClient.DeleteReleaseWithRetry(deleteProjectTaskArgs.Namespace, releaseInfo.Name, false, deleteProjectTaskArgs.DeletePvcs, false, 0)
 		if err != nil {
-			logrus.Errorf("failed to delete release %s : %s", releaseName, err.Error())
+			logrus.Errorf("failed to delete release %s : %s", releaseInfo.Name, err.Error())
 			return err
 		}
 	}

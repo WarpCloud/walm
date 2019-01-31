@@ -21,8 +21,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"k8s.io/helm/pkg/proto/hapi/chart"
+	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
+
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
 )
 
 const (
@@ -129,8 +134,8 @@ kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
-    app: {{ include "<CHARTNAME>.name" . }}
-    chart: {{ include "<CHARTNAME>.chart" . }}
+    app: {{ template "<CHARTNAME>.name" . }}
+    chart: {{ template "<CHARTNAME>.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 {{- with .Values.ingress.annotations }}
@@ -143,14 +148,14 @@ spec:
   {{- range .Values.ingress.tls }}
     - hosts:
       {{- range .hosts }}
-        - {{ . | quote }}
+        - {{ . }}
       {{- end }}
       secretName: {{ .secretName }}
   {{- end }}
 {{- end }}
   rules:
   {{- range .Values.ingress.hosts }}
-    - host: {{ . | quote }}
+    - host: {{ . }}
       http:
         paths:
           - path: {{ $ingressPath }}
@@ -164,22 +169,22 @@ spec:
 const defaultDeployment = `apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: {{ include "<CHARTNAME>.fullname" . }}
+  name: {{ template "<CHARTNAME>.fullname" . }}
   labels:
-    app: {{ include "<CHARTNAME>.name" . }}
-    chart: {{ include "<CHARTNAME>.chart" . }}
+    app: {{ template "<CHARTNAME>.name" . }}
+    chart: {{ template "<CHARTNAME>.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "<CHARTNAME>.name" . }}
+      app: {{ template "<CHARTNAME>.name" . }}
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ include "<CHARTNAME>.name" . }}
+        app: {{ template "<CHARTNAME>.name" . }}
         release: {{ .Release.Name }}
     spec:
       containers:
@@ -217,10 +222,10 @@ spec:
 const defaultService = `apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "<CHARTNAME>.fullname" . }}
+  name: {{ template "<CHARTNAME>.fullname" . }}
   labels:
-    app: {{ include "<CHARTNAME>.name" . }}
-    chart: {{ include "<CHARTNAME>.chart" . }}
+    app: {{ template "<CHARTNAME>.name" . }}
+    chart: {{ template "<CHARTNAME>.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -231,7 +236,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: {{ include "<CHARTNAME>.name" . }}
+    app: {{ template "<CHARTNAME>.name" . }}
     release: {{ .Release.Name }}
 `
 
@@ -241,16 +246,16 @@ const defaultNotes = `1. Get the application URL by running these commands:
   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ . }}{{ $.Values.ingress.path }}
 {{- end }}
 {{- else if contains "NodePort" .Values.service.type }}
-  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "<CHARTNAME>.fullname" . }})
-  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  export NODE_PORT=$(kubectl get -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "<CHARTNAME>.fullname" . }})
+  export NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
   echo http://$NODE_IP:$NODE_PORT
 {{- else if contains "LoadBalancer" .Values.service.type }}
      NOTE: It may take a few minutes for the LoadBalancer IP to be available.
-           You can watch the status of by running 'kubectl get svc -w {{ include "<CHARTNAME>.fullname" . }}'
-  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "<CHARTNAME>.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+           You can watch the status of by running 'kubectl get svc -w {{ template "<CHARTNAME>.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc {{ template "<CHARTNAME>.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
   echo http://$SERVICE_IP:{{ .Values.service.port }}
 {{- else if contains "ClusterIP" .Values.service.type }}
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ include "<CHARTNAME>.name" . }},release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods -l "app={{ template "<CHARTNAME>.name" . }},release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
   echo "Visit http://127.0.0.1:8080 to use your application"
   kubectl port-forward $POD_NAME 8080:80
 {{- end }}
@@ -291,25 +296,33 @@ Create chart name and version as used by the chart label.
 `
 
 // CreateFrom creates a new chart, but scaffolds it from the src chart.
-func CreateFrom(chartfile *chart.Metadata, dest string, src string) error {
-	schart, err := Load(src)
+func CreateFrom(chartfile *chart.Metadata, dest, src string) error {
+	schart, err := loader.Load(src)
 	if err != nil {
-		return fmt.Errorf("could not load %s: %s", src, err)
+		return errors.Wrapf(err, "could not load %s", src)
 	}
 
 	schart.Metadata = chartfile
 
-	var updatedTemplates []*chart.Template
+	var updatedTemplates []*chart.File
 
 	for _, template := range schart.Templates {
-		newData := Transform(string(template.Data), "<CHARTNAME>", schart.Metadata.Name)
-		updatedTemplates = append(updatedTemplates, &chart.Template{Name: template.Name, Data: newData})
+		newData := transform(string(template.Data), schart.Name())
+		updatedTemplates = append(updatedTemplates, &chart.File{Name: template.Name, Data: newData})
 	}
 
 	schart.Templates = updatedTemplates
-	if schart.Values != nil {
-		schart.Values = &chart.Config{Raw: string(Transform(schart.Values.Raw, "<CHARTNAME>", schart.Metadata.Name))}
+	b, err := yaml.Marshal(schart.Values)
+	if err != nil {
+		return err
 	}
+
+	var m map[string]interface{}
+	if err := yaml.Unmarshal(transform(string(b), schart.Name()), &m); err != nil {
+		return err
+	}
+	schart.Values = m
+
 	return SaveDir(schart, dest)
 }
 
@@ -335,13 +348,13 @@ func Create(chartfile *chart.Metadata, dir string) (string, error) {
 	if fi, err := os.Stat(path); err != nil {
 		return path, err
 	} else if !fi.IsDir() {
-		return path, fmt.Errorf("no such directory %s", path)
+		return path, errors.Errorf("no such directory %s", path)
 	}
 
 	n := chartfile.Name
 	cdir := filepath.Join(path, n)
 	if fi, err := os.Stat(cdir); err == nil && !fi.IsDir() {
-		return cdir, fmt.Errorf("file %s already exists and is not a directory", cdir)
+		return cdir, errors.Errorf("file %s already exists and is not a directory", cdir)
 	}
 	if err := os.MkdirAll(cdir, 0755); err != nil {
 		return cdir, err
@@ -377,27 +390,27 @@ func Create(chartfile *chart.Metadata, dir string) (string, error) {
 		{
 			// ingress.yaml
 			path:    filepath.Join(cdir, TemplatesDir, IngressFileName),
-			content: Transform(defaultIngress, "<CHARTNAME>", chartfile.Name),
+			content: transform(defaultIngress, chartfile.Name),
 		},
 		{
 			// deployment.yaml
 			path:    filepath.Join(cdir, TemplatesDir, DeploymentName),
-			content: Transform(defaultDeployment, "<CHARTNAME>", chartfile.Name),
+			content: transform(defaultDeployment, chartfile.Name),
 		},
 		{
 			// service.yaml
 			path:    filepath.Join(cdir, TemplatesDir, ServiceName),
-			content: Transform(defaultService, "<CHARTNAME>", chartfile.Name),
+			content: transform(defaultService, chartfile.Name),
 		},
 		{
 			// NOTES.txt
 			path:    filepath.Join(cdir, TemplatesDir, NotesName),
-			content: Transform(defaultNotes, "<CHARTNAME>", chartfile.Name),
+			content: transform(defaultNotes, chartfile.Name),
 		},
 		{
 			// _helpers.tpl
 			path:    filepath.Join(cdir, TemplatesDir, HelpersName),
-			content: Transform(defaultHelpers, "<CHARTNAME>", chartfile.Name),
+			content: transform(defaultHelpers, chartfile.Name),
 		},
 	}
 
@@ -411,4 +424,10 @@ func Create(chartfile *chart.Metadata, dir string) (string, error) {
 		}
 	}
 	return cdir, nil
+}
+
+// transform performs a string replacement of the specified source for
+// a given key with the replacement string
+func transform(src, replacement string) []byte {
+	return []byte(strings.Replace(src, "<CHARTNAME>", replacement, -1))
 }

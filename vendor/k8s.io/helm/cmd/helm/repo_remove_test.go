@@ -18,128 +18,60 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
-	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/repo/repotest"
 )
 
 func TestRepoRemove(t *testing.T) {
-	ts, thome, err := repotest.NewTempServer("testdata/testserver/*.*")
+	defer resetEnv()()
+
+	ts, hh, err := repotest.NewTempServer("testdata/testserver/*.*")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hh := helmpath.Home(thome)
-	cleanup := resetEnv()
 	defer func() {
 		ts.Stop()
-		os.RemoveAll(thome.String())
-		cleanup()
+		os.RemoveAll(hh.String())
 	}()
-	if err := ensureTestHome(hh, t); err != nil {
-		t.Fatal(err)
-	}
+	ensureTestHome(t, hh)
+	settings.Home = hh
 
-	settings.Home = thome
+	const testRepoName = "test-name"
 
 	b := bytes.NewBuffer(nil)
-
-	if err := removeRepoLine(b, testName, hh); err == nil {
-		t.Errorf("Expected error removing %s, but did not get one.", testName)
+	if err := removeRepoLine(b, testRepoName, hh); err == nil {
+		t.Errorf("Expected error removing %s, but did not get one.", testRepoName)
 	}
-	if err := addRepository(testName, ts.URL(), "", "", hh, "", "", "", true); err != nil {
+	if err := addRepository(testRepoName, ts.URL(), "", "", hh, "", "", "", true); err != nil {
 		t.Error(err)
 	}
 
-	mf, _ := os.Create(hh.CacheIndex(testName))
+	mf, _ := os.Create(hh.CacheIndex(testRepoName))
 	mf.Close()
 
 	b.Reset()
-	if err := removeRepoLine(b, testName, hh); err != nil {
-		t.Errorf("Error removing %s from repositories", testName)
+	if err := removeRepoLine(b, testRepoName, hh); err != nil {
+		t.Errorf("Error removing %s from repositories", testRepoName)
 	}
 	if !strings.Contains(b.String(), "has been removed") {
 		t.Errorf("Unexpected output: %s", b.String())
 	}
 
-	if _, err := os.Stat(hh.CacheIndex(testName)); err == nil {
-		t.Errorf("Error cache file was not removed for repository %s", testName)
+	if _, err := os.Stat(hh.CacheIndex(testRepoName)); err == nil {
+		t.Errorf("Error cache file was not removed for repository %s", testRepoName)
 	}
 
-	f, err := repo.LoadRepositoriesFile(hh.RepositoryFile())
+	f, err := repo.LoadFile(hh.RepositoryFile())
 	if err != nil {
 		t.Error(err)
 	}
 
-	if f.Has(testName) {
-		t.Errorf("%s was not successfully removed from repositories list", testName)
-	}
-}
-
-func TestRepoRemove_NoArguments(t *testing.T) {
-	cmd := newRepoRemoveCmd(ioutil.Discard)
-	if err := cmd.RunE(cmd, []string{}); err == nil {
-		t.Errorf("Expected an error since no repo names were provided")
-	}
-}
-
-func TestRepoRemove_MultipleRepos(t *testing.T) {
-	ts, thome, err := repotest.NewTempServer("testdata/testserver/*.*")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	hh := helmpath.Home(thome)
-	cleanup := resetEnv()
-	defer func() {
-		ts.Stop()
-		os.RemoveAll(thome.String())
-		cleanup()
-	}()
-	if err := ensureTestHome(hh, t); err != nil {
-		t.Fatal(err)
-	}
-
-	settings.Home = thome
-
-	repoFoo := testName + "foo"
-	repoBar := testName + "bar"
-
-	if err := addRepository(repoFoo, ts.URL(), "", "", hh, "", "", "", true); err != nil {
-		t.Error(err)
-	}
-	if err := addRepository(repoBar, ts.URL(), "", "", hh, "", "", "", true); err != nil {
-		t.Error(err)
-	}
-
-	b := bytes.NewBuffer(nil)
-
-	cmd := newRepoRemoveCmd(b)
-	if err := cmd.RunE(cmd, []string{repoFoo, repoBar}); err != nil {
-		t.Error(err)
-	}
-
-	if !strings.Contains(b.String(), repoFoo) {
-		t.Errorf("Expected %q in output, found: %q", repoFoo, b.String())
-	}
-	if !strings.Contains(b.String(), repoBar) {
-		t.Errorf("Expected %q in output, found: %q", repoBar, b.String())
-	}
-
-	f, err := repo.LoadRepositoriesFile(hh.RepositoryFile())
-	if err != nil {
-		t.Error(err)
-	}
-
-	if f.Has(repoFoo) {
-		t.Errorf("%s was not successfully removed from repositories list", repoFoo)
-	}
-	if f.Has(repoBar) {
-		t.Errorf("%s was not successfully removed from repositories list", repoBar)
+	if f.Has(testRepoName) {
+		t.Errorf("%s was not successfully removed from repositories list", testRepoName)
 	}
 }

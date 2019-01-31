@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ func (c *FakeFlunders) List(opts v1.ListOptions) (result *wardle.FlunderList, er
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &wardle.FlunderList{}
+	list := &wardle.FlunderList{ListMeta: obj.(*wardle.FlunderList).ListMeta}
 	for _, item := range obj.(*wardle.FlunderList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
@@ -131,7 +131,7 @@ func (c *FakeFlunders) DeleteCollection(options *v1.DeleteOptions, listOptions v
 // Patch applies the patch and returns the patched flunder.
 func (c *FakeFlunders) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *wardle.Flunder, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(flundersResource, c.ns, name, data, subresources...), &wardle.Flunder{})
+		Invokes(testing.NewPatchSubresourceAction(flundersResource, c.ns, name, pt, data, subresources...), &wardle.Flunder{})
 
 	if obj == nil {
 		return nil, err

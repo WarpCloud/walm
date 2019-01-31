@@ -17,12 +17,14 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 	"testing"
-
-	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 )
 
+type pferror struct{}
+
+func (p *pferror) Preflight() bool { return true }
+func (p *pferror) Error() string   { return "" }
 func TestCheckErr(t *testing.T) {
 	var codeReturned int
 	errHandle := func(err string, code int) {
@@ -34,13 +36,13 @@ func TestCheckErr(t *testing.T) {
 		expected int
 	}{
 		{nil, 0},
-		{fmt.Errorf(""), DefaultErrorExitCode},
-		{&preflight.Error{}, PreFlightExitCode},
+		{errors.New(""), DefaultErrorExitCode},
+		{&pferror{}, PreFlightExitCode},
 	}
 
 	for _, rt := range tokenTest {
 		codeReturned = 0
-		checkErr("", rt.e, errHandle)
+		checkErr(rt.e, errHandle)
 		if codeReturned != rt.expected {
 			t.Errorf(
 				"failed checkErr:\n\texpected: %d\n\t  actual: %d",
@@ -61,14 +63,14 @@ func TestFormatErrMsg(t *testing.T) {
 	}{
 		{
 			errs: []error{
-				fmt.Errorf(errMsg1),
-				fmt.Errorf(errMsg2),
+				errors.New(errMsg1),
+				errors.New(errMsg2),
 			},
 			expect: "\t- " + errMsg1 + "\n" + "\t- " + errMsg2 + "\n",
 		},
 		{
 			errs: []error{
-				fmt.Errorf(errMsg1),
+				errors.New(errMsg1),
 			},
 			expect: "\t- " + errMsg1 + "\n",
 		},

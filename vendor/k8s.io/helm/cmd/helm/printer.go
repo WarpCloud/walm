@@ -17,21 +17,21 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"io"
 	"text/template"
 	"time"
 
+	"github.com/ghodss/yaml"
+
 	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/timeconv"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 var printReleaseTemplate = `REVISION: {{.Release.Version}}
 RELEASED: {{.ReleaseDate}}
 CHART: {{.Release.Chart.Metadata.Name}}-{{.Release.Chart.Metadata.Version}}
 USER-SUPPLIED VALUES:
-{{.Release.Config.Raw}}
+{{.Config}}
 COMPUTED VALUES:
 {{.ComputedValues}}
 HOOKS:
@@ -53,15 +53,21 @@ func printRelease(out io.Writer, rel *release.Release) error {
 	if err != nil {
 		return err
 	}
-	cfgStr, err := cfg.YAML()
+	computed, err := cfg.YAML()
+	if err != nil {
+		return err
+	}
+
+	config, err := yaml.Marshal(rel.Config)
 	if err != nil {
 		return err
 	}
 
 	data := map[string]interface{}{
 		"Release":        rel,
-		"ComputedValues": cfgStr,
-		"ReleaseDate":    timeconv.Format(rel.Info.LastDeployed, time.ANSIC),
+		"Config":         string(config),
+		"ComputedValues": computed,
+		"ReleaseDate":    rel.Info.LastDeployed.Format(time.ANSIC),
 	}
 	return tpl(printReleaseTemplate, data, out)
 }
@@ -75,8 +81,5 @@ func tpl(t string, vals map[string]interface{}, out io.Writer) error {
 }
 
 func debug(format string, args ...interface{}) {
-	if settings.Debug {
-		format = fmt.Sprintf("[debug] %s\n", format)
-		fmt.Printf(format, args...)
-	}
+	logf(format, args...)
 }

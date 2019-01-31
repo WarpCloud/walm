@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright 2016 The Kubernetes Authors.
 #
@@ -96,7 +96,7 @@ if [ $remote = true ] ; then
   test_suite=${TEST_SUITE:-"default"}
 
   # Get the compute zone
-  zone=$(gcloud info --format='value(config.properties.compute.zone)')
+  zone=${ZONE:-"$(gcloud info --format='value(config.properties.compute.zone)')"}
   if [[ $zone == "" ]]; then
     echo "Could not find gcloud compute/zone when running: \`gcloud info --format='value(config.properties.compute.zone)'\`"
     exit 1

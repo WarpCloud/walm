@@ -33,15 +33,13 @@ func TestManuallyProcessArgs(t *testing.T) {
 	input := []string{
 		"--debug",
 		"--foo", "bar",
-		"--host", "example.com",
-		"--kube-context", "test1",
+		"--context", "test1",
 		"--home=/tmp",
-		"--tiller-namespace=hello",
 		"command",
 	}
 
 	expectKnown := []string{
-		"--debug", "--host", "example.com", "--kube-context", "test1", "--home=/tmp", "--tiller-namespace=hello",
+		"--debug", "--context", "test1", "--home=/tmp",
 	}
 
 	expectUnknown := []string{
@@ -64,8 +62,7 @@ func TestManuallyProcessArgs(t *testing.T) {
 }
 
 func TestLoadPlugins(t *testing.T) {
-	cleanup := resetEnv()
-	defer cleanup()
+	defer resetEnv()()
 
 	settings.Home = "testdata/helmhome"
 
@@ -84,7 +81,6 @@ func TestLoadPlugins(t *testing.T) {
 		hh.Repository(),
 		hh.RepositoryFile(),
 		hh.Cache(),
-		hh.LocalRepository(),
 		os.Args[0],
 	}, "\n")
 
@@ -136,8 +132,7 @@ func TestLoadPlugins(t *testing.T) {
 }
 
 func TestLoadPlugins_HelmNoPlugins(t *testing.T) {
-	cleanup := resetEnv()
-	defer cleanup()
+	defer resetEnv()()
 
 	settings.Home = "testdata/helmhome"
 
@@ -154,6 +149,7 @@ func TestLoadPlugins_HelmNoPlugins(t *testing.T) {
 }
 
 func TestSetupEnv(t *testing.T) {
+	defer resetEnv()()
 	name := "pequod"
 	settings.Home = helmpath.Home("testdata/helmhome")
 	base := filepath.Join(settings.Home.Plugins(), name)
@@ -175,10 +171,7 @@ func TestSetupEnv(t *testing.T) {
 		{"HELM_PATH_REPOSITORY", settings.Home.Repository()},
 		{"HELM_PATH_REPOSITORY_FILE", settings.Home.RepositoryFile()},
 		{"HELM_PATH_CACHE", settings.Home.Cache()},
-		{"HELM_PATH_LOCAL_REPOSITORY", settings.Home.LocalRepository()},
 		{"HELM_PATH_STARTER", settings.Home.Starters()},
-		{"TILLER_HOST", settings.TillerHost},
-		{"TILLER_NAMESPACE", settings.TillerNamespace},
 	} {
 		if got := os.Getenv(tt.name); got != tt.expect {
 			t.Errorf("Expected $%s=%q, got %q", tt.name, tt.expect, got)

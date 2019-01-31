@@ -8,15 +8,6 @@ serverConfig:
   tlsCert: ""
   tlsCACert: ""
   tlsVerify: false
-sysHelmConfig:
-  helmHome: ""
-  tillerTimeout: 0
-  tillerHost: "172.26.0.5:31225"
-  tls: false
-  tlsKey: ""
-  tlsCert: ""
-  tlsCACert: ""
-  tlsVerify: false
 repoList:
   - name: "test"
     url: "http://172.16.1.41:8880/"
@@ -37,18 +28,10 @@ kafkaConfig:
   keyFile: ""
   caFile: ""
   VerifySsl: false
-multiTenant:
-  enable: true
-  tillerImage: "transwarp/helm:live"
-  certFile: ""
-  keyFile: ""
-  caFile: ""
-  VerifySsl: false
 taskConfig:
   broker: "redis://walmtest@172.16.1.45:6379/2"
   default_queue: "machinery_tasks"
   result_backend: "redis://walmtest@172.16.1.45:6379/2"
   results_expire_in: 360000
-v2:
-  jsonnetConfig:
-     commonTemplateFilesPath: "test/ksonnet-lib"
+jsonnetConfig:
+  commonTemplateFilesPath: "test/ksonnet-lib"

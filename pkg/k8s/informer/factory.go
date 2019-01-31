@@ -81,7 +81,8 @@ func newInformerFactory(client *kubernetes.Clientset, clientEx *clientsetex.Clie
 	factory.SecretLister = factory.Factory.Core().V1().Secrets().Lister()
 	factory.ServiceLister = factory.Factory.Core().V1().Services().Lister()
 	factory.StatefulSetLister = factory.Factory.Apps().V1beta1().StatefulSets().Lister()
-	factory.NodeLister = factory.Factory.Core().V1().Nodes().Lister()
+	//TODO
+	//factory.NodeLister = factory.Factory.Core().V1().Nodes().Lister()
 	factory.NamespaceLister = factory.Factory.Core().V1().Namespaces().Lister()
 	factory.ResourceQuotaLister = factory.Factory.Core().V1().ResourceQuotas().Lister()
 	factory.PersistentVolumeClaimLister = factory.Factory.Core().V1().PersistentVolumeClaims().Lister()

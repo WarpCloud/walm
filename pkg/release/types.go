@@ -2,7 +2,6 @@ package release
 
 import (
 	"walm/pkg/k8s/adaptor"
-	"k8s.io/helm/pkg/transwarp"
 )
 
 type ReleaseInfoList struct {
@@ -33,7 +32,7 @@ type ReleaseSpec struct {
 type ReleaseCache struct {
 	ReleaseSpec
 	ReleaseResourceMetas []ReleaseResourceMeta  `json:"release_resource_metas" description:"release resource metas"`
-	ComputedValues        map[string]interface{} `json:"computed_values" description:"release computed values"`
+	ComputedValues       map[string]interface{} `json:"computed_values" description:"release computed values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -72,9 +71,8 @@ type HelmExtraLabels struct {
 }
 
 type HelmValues struct {
-	HelmExtraLabels     *HelmExtraLabels         `json:"HelmExtraLabels"`
-	AppHelmValues       *transwarp.AppHelmValues `json:"HelmAdditionalValues"`
-	ReleasePrettyParams PrettyChartParams        `json:"release_pretty_params" description:"pretty chart params for market"`
+	HelmExtraLabels     *HelmExtraLabels  `json:"HelmExtraLabels"`
+	ReleasePrettyParams PrettyChartParams `json:"release_pretty_params" description:"pretty chart params for market"`
 }
 
 type RepoInfo struct {
@@ -87,9 +85,10 @@ type RepoInfoList struct {
 }
 
 type ChartDependencyInfo struct {
-	ChartName   string `json:"chart_name"`
-	MaxVersion	float32 `json:"max_version"`
-	MinVersion  float32 `json:"min_version"`
+	ChartName  string  `json:"chart_name"`
+	MaxVersion float32 `json:"max_version"`
+	MinVersion float32 `json:"min_version"`
+	DependencyOptional bool `json:"dependency_optional"`
 }
 
 type ChartInfo struct {
@@ -175,10 +174,10 @@ type BaseConfig struct {
 }
 
 type RoleConfig struct {
-	Name               string         `json:"name"`
-	Description        string         `json:"description"`
-	Replicas           int            `json:"replicas"`
-	RoleBaseConfig     []*BaseConfig  `json:"baseConfig"`
+	Name               string          `json:"name"`
+	Description        string          `json:"description"`
+	Replicas           int             `json:"replicas"`
+	RoleBaseConfig     []*BaseConfig   `json:"baseConfig"`
 	RoleResourceConfig *ResourceConfig `json:"resouceConfig"`
 }
 
@@ -192,7 +191,43 @@ type PrettyChartParams struct {
 	AdvanceConfig       []*BaseConfig `json:"advanceConfig"`
 }
 
+type DependencyDeclare struct {
+	// name of dependency declaration
+	Name string `json:"name,omitempty"`
+	// dependency variable mappings
+	Requires map[string]string `json:"requires,omitempty"`
+	// minVersion
+	MinVersion float32 `json:"minVersion"`
+	// maxVersion
+	MaxVersion float32 `json:"maxVersion"`
+
+	DependencyOptional bool `json:"dependencyOptional"`
+}
+
+type AppDependency struct {
+	Name         string               `json:"name,omitempty"`
+	Dependencies []*DependencyDeclare `json:"dependencies"`
+}
+
 type TranswarpAppInfo struct {
-	transwarp.AppDependency
+	AppDependency
 	UserInputParams PrettyChartParams `json:"userInputParams"`
+}
+
+type ReleaseInfoV2 struct {
+	ReleaseInfo
+	DependenciesConfigValues map[string]interface{} `json:"dependencies_config_values" description:"release's dependencies' config values"`
+	ComputedValues           map[string]interface{} `json:"computed_values" description:"config values to render chart templates"`
+	OutputConfigValues       map[string]interface{} `json:"output_config_values" description:"release's output config values'"`
+	ReleaseLabels            map[string]string `json:"release_labels" description:"release labels'"`
+}
+
+type ReleaseRequestV2 struct {
+	ReleaseRequest
+	ReleaseLabels map[string]string  `json:"release_labels" description:"release labels'"`
+}
+
+type ReleaseInfoV2List struct {
+	Num   int              `json:"num" description:"release num"`
+	Items []*ReleaseInfoV2 `json:"items" description:"release infos"`
 }

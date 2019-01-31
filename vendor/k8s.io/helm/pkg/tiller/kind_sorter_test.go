@@ -86,10 +86,6 @@ func TestKindSorter(t *testing.T) {
 			Head: &util.SimpleHead{Kind: "Pod"},
 		},
 		{
-			Name: "3",
-			Head: &util.SimpleHead{Kind: "PodSecurityPolicy"},
-		},
-		{
 			Name: "q",
 			Head: &util.SimpleHead{Kind: "ReplicaSet"},
 		},
@@ -140,8 +136,8 @@ func TestKindSorter(t *testing.T) {
 		order       SortOrder
 		expected    string
 	}{
-		{"install", InstallOrder, "abc3de1fgh2ijklmnopqrstuvw!"},
-		{"uninstall", UninstallOrder, "wvmutsrqponlkji2hgf1ed3cba!"},
+		{"install", InstallOrder, "abcde1fgh2ijklmnopqrstuvw!"},
+		{"uninstall", UninstallOrder, "wvmutsrqponlkji2hgf1edcba!"},
 	} {
 		var buf bytes.Buffer
 		t.Run(test.description, func(t *testing.T) {

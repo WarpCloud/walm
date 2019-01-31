@@ -18,225 +18,229 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
+	"time"
 
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/helm/pkg/tiller/environment"
+
+	shellwords "github.com/mattn/go-shellwords"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/internal/test"
+	"k8s.io/helm/pkg/action"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/helm/helmpath"
-	"k8s.io/helm/pkg/proto/hapi/release"
 	"k8s.io/helm/pkg/repo"
+	"k8s.io/helm/pkg/storage"
+	"k8s.io/helm/pkg/storage/driver"
 )
 
-// releaseCmd is a command that works with a FakeClient
-type releaseCmd func(c *helm.FakeClient, out io.Writer) *cobra.Command
+// base temp directory
+var testingDir string
 
-// runReleaseCases runs a set of release cases through the given releaseCmd.
-func runReleaseCases(t *testing.T, tests []releaseCase, rcmd releaseCmd) {
-	var buf bytes.Buffer
+func testTimestamper() time.Time { return time.Unix(242085845, 0).UTC() }
+
+func init() {
+	var err error
+	testingDir, err = ioutil.TempDir(testingDir, "helm")
+	if err != nil {
+		panic(err)
+	}
+
+	action.Timestamper = testTimestamper
+}
+
+func TestMain(m *testing.M) {
+	os.Unsetenv("HELM_HOME")
+
+	exitCode := m.Run()
+	os.RemoveAll(testingDir)
+	os.Exit(exitCode)
+}
+
+func testTempDir(t *testing.T) string {
+	t.Helper()
+	d, err := ioutil.TempDir(testingDir, "helm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func runTestCmd(t *testing.T, tests []cmdTestCase) {
+	t.Helper()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer resetEnv()()
+
 			c := &helm.FakeClient{
-				Rels:      tt.rels,
-				Responses: tt.responses,
+				Rels:          tt.rels,
+				TestRunStatus: tt.testRunStatus,
 			}
-			cmd := rcmd(c, &buf)
-			cmd.ParseFlags(tt.flags)
-			err := cmd.RunE(cmd, tt.args)
-			if (err != nil) != tt.err {
+			out, err := executeCommand(c, tt.cmd)
+			if (err != nil) != tt.wantError {
 				t.Errorf("expected error, got '%v'", err)
 			}
-			re := regexp.MustCompile(tt.expected)
-			if !re.Match(buf.Bytes()) {
-				t.Errorf("expected\n%q\ngot\n%q", tt.expected, buf.String())
+			if tt.golden != "" {
+				test.AssertGoldenString(t, out, tt.golden)
 			}
-			buf.Reset()
 		})
 	}
 }
 
-// releaseCase describes a test case that works with releases.
-type releaseCase struct {
-	name  string
-	args  []string
-	flags []string
-	// expected is the string to be matched. This supports regular expressions.
-	expected string
-	err      bool
-	resp     *release.Release
-	// Rels are the available releases at the start of the test.
-	rels      []*release.Release
-	responses map[string]release.TestRun_Status
+func runTestActionCmd(t *testing.T, tests []cmdTestCase) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer resetEnv()()
+
+			store := storageFixture()
+			for _, rel := range tt.rels {
+				store.Create(rel)
+			}
+			_, out, err := executeActionCommandC(store, tt.cmd)
+			if (err != nil) != tt.wantError {
+				t.Errorf("expected error, got '%v'", err)
+			}
+			if tt.golden != "" {
+				test.AssertGoldenString(t, out, tt.golden)
+			}
+		})
+	}
 }
 
-// tempHelmHome sets up a Helm Home in a temp dir.
-//
-// This does not clean up the directory. You must do that yourself.
-// You  must also set helmHome yourself.
-func tempHelmHome(t *testing.T) (helmpath.Home, error) {
-	oldhome := settings.Home
-	dir, err := ioutil.TempDir("", "helm_home-")
+func storageFixture() *storage.Storage {
+	return storage.Init(driver.NewMemory())
+}
+
+func executeActionCommandC(store *storage.Storage, cmd string) (*cobra.Command, string, error) {
+	args, err := shellwords.Parse(cmd)
 	if err != nil {
-		return helmpath.Home("n/"), err
+		return nil, "", err
+	}
+	buf := new(bytes.Buffer)
+
+	actionConfig := &action.Configuration{
+		Releases:   store,
+		KubeClient: &environment.PrintingKubeClient{Out: ioutil.Discard},
+		Discovery:  fake.NewSimpleClientset().Discovery(),
+		Log:        func(format string, v ...interface{}) {},
 	}
 
-	settings.Home = helmpath.Home(dir)
-	if err := ensureTestHome(settings.Home, t); err != nil {
-		return helmpath.Home("n/"), err
+	root := newRootCmd(nil, actionConfig, buf, args)
+	root.SetOutput(buf)
+	root.SetArgs(args)
+
+	c, err := root.ExecuteC()
+
+	return c, buf.String(), err
+}
+
+// cmdTestCase describes a test case that works with releases.
+type cmdTestCase struct {
+	name      string
+	cmd       string
+	golden    string
+	wantError bool
+	// Rels are the available releases at the start of the test.
+	rels          []*release.Release
+	testRunStatus map[string]release.TestRunStatus
+}
+
+// deprecated: Switch to executeActionCommandC
+func executeCommand(c helm.Interface, cmd string) (string, error) {
+	_, output, err := executeCommandC(c, cmd)
+	return output, err
+}
+
+// deprecated: Switch to executeActionCommandC
+func executeCommandC(client helm.Interface, cmd string) (*cobra.Command, string, error) {
+	args, err := shellwords.Parse(cmd)
+	if err != nil {
+		return nil, "", err
 	}
-	settings.Home = oldhome
-	return helmpath.Home(dir), nil
+	buf := new(bytes.Buffer)
+
+	actionConfig := &action.Configuration{
+		Releases: storage.Init(driver.NewMemory()),
+	}
+
+	root := newRootCmd(client, actionConfig, buf, args)
+	root.SetOutput(buf)
+	root.SetArgs(args)
+
+	c, err := root.ExecuteC()
+
+	return c, buf.String(), err
 }
 
 // ensureTestHome creates a home directory like ensureHome, but without remote references.
-//
-// t is used only for logging.
-func ensureTestHome(home helmpath.Home, t *testing.T) error {
-	configDirectories := []string{home.String(), home.Repository(), home.Cache(), home.LocalRepository(), home.Plugins(), home.Starters()}
-	for _, p := range configDirectories {
-		if fi, err := os.Stat(p); err != nil {
-			if err := os.MkdirAll(p, 0755); err != nil {
-				return fmt.Errorf("Could not create %s: %s", p, err)
-			}
-		} else if !fi.IsDir() {
-			return fmt.Errorf("%s must be a directory", p)
+func ensureTestHome(t *testing.T, home helmpath.Home) {
+	t.Helper()
+	for _, p := range []string{
+		home.String(),
+		home.Repository(),
+		home.Cache(),
+		home.Plugins(),
+		home.Starters(),
+	} {
+		if err := os.MkdirAll(p, 0755); err != nil {
+			t.Fatal(err)
 		}
 	}
 
 	repoFile := home.RepositoryFile()
-	if fi, err := os.Stat(repoFile); err != nil {
-		rf := repo.NewRepoFile()
+	if _, err := os.Stat(repoFile); err != nil {
+		rf := repo.NewFile()
 		rf.Add(&repo.Entry{
 			Name:  "charts",
 			URL:   "http://example.com/foo",
 			Cache: "charts-index.yaml",
-		}, &repo.Entry{
-			Name:  "local",
-			URL:   "http://localhost.com:7743/foo",
-			Cache: "local-index.yaml",
 		})
 		if err := rf.WriteFile(repoFile, 0644); err != nil {
-			return err
+			t.Fatal(err)
 		}
-	} else if fi.IsDir() {
-		return fmt.Errorf("%s must be a file, not a directory", repoFile)
 	}
-	if r, err := repo.LoadRepositoriesFile(repoFile); err == repo.ErrRepoOutOfDate {
-		t.Log("Updating repository file format...")
+	if r, err := repo.LoadFile(repoFile); err == repo.ErrRepoOutOfDate {
 		if err := r.WriteFile(repoFile, 0644); err != nil {
-			return err
+			t.Fatal(err)
 		}
 	}
-
-	localRepoIndexFile := home.LocalRepository(localRepositoryIndexFile)
-	if fi, err := os.Stat(localRepoIndexFile); err != nil {
-		i := repo.NewIndexFile()
-		if err := i.WriteFile(localRepoIndexFile, 0644); err != nil {
-			return err
-		}
-
-		//TODO: take this out and replace with helm update functionality
-		os.Symlink(localRepoIndexFile, home.CacheIndex("local"))
-	} else if fi.IsDir() {
-		return fmt.Errorf("%s must be a file, not a directory", localRepoIndexFile)
-	}
-
-	t.Logf("$HELM_HOME has been configured at %s.\n", settings.Home.String())
-	return nil
-
 }
 
-func TestRootCmd(t *testing.T) {
-	cleanup := resetEnv()
-	defer cleanup()
-
-	tests := []struct {
-		name   string
-		args   []string
-		envars map[string]string
-		home   string
-	}{
-		{
-			name: "defaults",
-			args: []string{"home"},
-			home: filepath.Join(os.Getenv("HOME"), "/.helm"),
-		},
-		{
-			name: "with --home set",
-			args: []string{"--home", "/foo"},
-			home: "/foo",
-		},
-		{
-			name: "subcommands with --home set",
-			args: []string{"home", "--home", "/foo"},
-			home: "/foo",
-		},
-		{
-			name:   "with $HELM_HOME set",
-			args:   []string{"home"},
-			envars: map[string]string{"HELM_HOME": "/bar"},
-			home:   "/bar",
-		},
-		{
-			name:   "subcommands with $HELM_HOME set",
-			args:   []string{"home"},
-			envars: map[string]string{"HELM_HOME": "/bar"},
-			home:   "/bar",
-		},
-		{
-			name:   "with $HELM_HOME and --home set",
-			args:   []string{"home", "--home", "/foo"},
-			envars: map[string]string{"HELM_HOME": "/bar"},
-			home:   "/foo",
-		},
-	}
-
-	// ensure not set locally
-	os.Unsetenv("HELM_HOME")
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer os.Unsetenv("HELM_HOME")
-
-			for k, v := range tt.envars {
-				os.Setenv(k, v)
-			}
-
-			cmd := newRootCmd(tt.args)
-			cmd.SetOutput(ioutil.Discard)
-			cmd.SetArgs(tt.args)
-			cmd.Run = func(*cobra.Command, []string) {}
-			if err := cmd.Execute(); err != nil {
-				t.Errorf("unexpected error: %s", err)
-			}
-
-			if settings.Home.String() != tt.home {
-				t.Errorf("expected home %q, got %q", tt.home, settings.Home)
-			}
-			homeFlag := cmd.Flag("home").Value.String()
-			homeFlag = os.ExpandEnv(homeFlag)
-			if homeFlag != tt.home {
-				t.Errorf("expected home %q, got %q", tt.home, homeFlag)
-			}
-		})
-	}
+// testHelmHome sets up a Helm Home in a temp dir.
+func testHelmHome(t *testing.T) helmpath.Home {
+	t.Helper()
+	dir := helmpath.Home(testTempDir(t))
+	ensureTestHome(t, dir)
+	return dir
 }
 
 func resetEnv() func() {
-	origSettings := settings
-	origEnv := os.Environ()
+	origSettings, origEnv := settings, os.Environ()
 	return func() {
+		os.Clearenv()
 		settings = origSettings
 		for _, pair := range origEnv {
 			kv := strings.SplitN(pair, "=", 2)
 			os.Setenv(kv[0], kv[1])
 		}
 	}
+}
+
+func testChdir(t *testing.T, dir string) func() {
+	t.Helper()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	return func() { os.Chdir(old) }
 }

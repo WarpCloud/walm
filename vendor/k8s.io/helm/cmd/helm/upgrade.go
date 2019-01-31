@@ -19,15 +19,14 @@ package main
 import (
 	"fmt"
 	"io"
-	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/strvals"
+	"k8s.io/helm/cmd/helm/require"
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/helm/pkg/transwarp"
 )
 
 const upgradeDesc = `
@@ -39,10 +38,8 @@ a packaged chart, or a fully qualified URL. For chart references, the latest
 version will be specified unless the '--version' flag is set.
 
 To override values in a chart, use either the '--values' flag and pass in a file
-or use the '--set' flag and pass configuration from the command line. To force string
-values in '--set', use '--set-string' instead. In case a value is large and therefore
-you want not to use neither '--values' nor '--set', use '--set-file' to read the
-single large value from file.
+or use the '--set' flag and pass configuration from the command line, to force string
+values, use '--set-string'.
 
 You can specify the '--values'/'-f' flag multiple times. The priority will be given to the
 last (right-most) file specified. For example, if both myvalues.yaml and override.yaml
@@ -57,215 +54,140 @@ set for a key called 'foo', the 'newbar' value would take precedence:
 	$ helm upgrade --set foo=bar --set foo=newbar redis ./redis
 `
 
-type upgradeCmd struct {
-	release      string
-	chart        string
-	out          io.Writer
-	client       helm.Interface
-	dryRun       bool
-	recreate     bool
-	force        bool
-	disableHooks bool
-	valueFiles   valueFiles
-	values       []string
-	links        []string
-	stringValues []string
-	fileValues   []string
-	verify       bool
-	keyring      string
-	install      bool
-	namespace    string
-	version      string
-	timeout      int64
-	resetValues  bool
-	reuseValues  bool
-	wait         bool
-	repoURL      string
-	username     string
-	password     string
-	devel        bool
-	description  string
+type upgradeOptions struct {
+	devel        bool  // --devel
+	disableHooks bool  // --disable-hooks
+	dryRun       bool  // --dry-run
+	force        bool  // --force
+	install      bool  // --install
+	recreate     bool  // --recreate-pods
+	resetValues  bool  // --reset-values
+	reuseValues  bool  // --reuse-values
+	timeout      int64 // --timeout
+	wait         bool  // --wait
+	maxHistory   int   // --max-history
 
-	certFile string
-	keyFile  string
-	caFile   string
+	valuesOptions
+	chartPathOptions
+
+	release string
+	chart   string
+
+	client helm.Interface
 }
 
 func newUpgradeCmd(client helm.Interface, out io.Writer) *cobra.Command {
-
-	upgrade := &upgradeCmd{
-		out:    out,
-		client: client,
-	}
+	o := &upgradeOptions{client: client}
 
 	cmd := &cobra.Command{
-		Use:     "upgrade [RELEASE] [CHART]",
-		Short:   "upgrade a release",
-		Long:    upgradeDesc,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "upgrade [RELEASE] [CHART]",
+		Short: "upgrade a release",
+		Long:  upgradeDesc,
+		Args:  require.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := checkArgsLength(len(args), "release name", "chart path"); err != nil {
-				return err
-			}
-
-			if upgrade.version == "" && upgrade.devel {
+			if o.version == "" && o.devel {
 				debug("setting version to >0.0.0-0")
-				upgrade.version = ">0.0.0-0"
+				o.version = ">0.0.0-0"
 			}
 
-			upgrade.release = args[0]
-			upgrade.chart = args[1]
-			upgrade.client = ensureHelmClient(upgrade.client)
+			o.release = args[0]
+			o.chart = args[1]
+			o.client = ensureHelmClient(o.client, false)
 
-			return upgrade.run()
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.VarP(&upgrade.valueFiles, "values", "f", "specify values in a YAML file or a URL(can specify multiple)")
-	f.BoolVar(&upgrade.dryRun, "dry-run", false, "simulate an upgrade")
-	f.BoolVar(&upgrade.recreate, "recreate-pods", false, "performs pods restart for the resource if applicable")
-	f.BoolVar(&upgrade.force, "force", false, "force resource update through delete/recreate if needed")
-	f.StringArrayVar(&upgrade.values, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&upgrade.links, "link", []string{}, "set links on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&upgrade.stringValues, "set-string", []string{}, "set STRING values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
-	f.StringArrayVar(&upgrade.fileValues, "set-file", []string{}, "set values from respective files specified via the command line (can specify multiple or separate values with commas: key1=path1,key2=path2)")
-	f.BoolVar(&upgrade.disableHooks, "disable-hooks", false, "disable pre/post upgrade hooks. DEPRECATED. Use no-hooks")
-	f.BoolVar(&upgrade.disableHooks, "no-hooks", false, "disable pre/post upgrade hooks")
-	f.BoolVar(&upgrade.verify, "verify", false, "verify the provenance of the chart before upgrading")
-	f.StringVar(&upgrade.keyring, "keyring", defaultKeyring(), "path to the keyring that contains public signing keys")
-	f.BoolVarP(&upgrade.install, "install", "i", false, "if a release by this name doesn't already exist, run an install")
-	f.StringVar(&upgrade.namespace, "namespace", "", "namespace to install the release into (only used if --install is set). Defaults to the current kube config namespace")
-	f.StringVar(&upgrade.version, "version", "", "specify the exact chart version to use. If this is not specified, the latest version is used")
-	f.Int64Var(&upgrade.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
-	f.BoolVar(&upgrade.resetValues, "reset-values", false, "when upgrading, reset the values to the ones built into the chart")
-	f.BoolVar(&upgrade.reuseValues, "reuse-values", false, "when upgrading, reuse the last release's values and merge in any overrides from the command line via --set and -f. If '--reset-values' is specified, this is ignored.")
-	f.BoolVar(&upgrade.wait, "wait", false, "if set, will wait until all Pods, PVCs, Services, and minimum number of Pods of a Deployment are in a ready state before marking the release as successful. It will wait for as long as --timeout")
-	f.StringVar(&upgrade.repoURL, "repo", "", "chart repository url where to locate the requested chart")
-	f.StringVar(&upgrade.username, "username", "", "chart repository username where to locate the requested chart")
-	f.StringVar(&upgrade.password, "password", "", "chart repository password where to locate the requested chart")
-	f.StringVar(&upgrade.certFile, "cert-file", "", "identify HTTPS client using this SSL certificate file")
-	f.StringVar(&upgrade.keyFile, "key-file", "", "identify HTTPS client using this SSL key file")
-	f.StringVar(&upgrade.caFile, "ca-file", "", "verify certificates of HTTPS-enabled servers using this CA bundle")
-	f.BoolVar(&upgrade.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored.")
-	f.StringVar(&upgrade.description, "description", "", "specify the description to use for the upgrade, rather than the default")
-
-	f.MarkDeprecated("disable-hooks", "use --no-hooks instead")
+	f.BoolVar(&o.dryRun, "dry-run", false, "simulate an upgrade")
+	f.BoolVar(&o.recreate, "recreate-pods", false, "performs pods restart for the resource if applicable")
+	f.BoolVar(&o.force, "force", false, "force resource update through delete/recreate if needed")
+	f.BoolVar(&o.disableHooks, "disable-hooks", false, "disable pre/post upgrade hooks. DEPRECATED. Use no-hooks")
+	f.BoolVar(&o.disableHooks, "no-hooks", false, "disable pre/post upgrade hooks")
+	f.BoolVarP(&o.install, "install", "i", false, "if a release by this name doesn't already exist, run an install")
+	f.Int64Var(&o.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
+	f.BoolVar(&o.resetValues, "reset-values", false, "when upgrading, reset the values to the ones built into the chart")
+	f.BoolVar(&o.reuseValues, "reuse-values", false, "when upgrading, reuse the last release's values and merge in any overrides from the command line via --set and -f. If '--reset-values' is specified, this is ignored.")
+	f.BoolVar(&o.wait, "wait", false, "if set, will wait until all Pods, PVCs, Services, and minimum number of Pods of a Deployment are in a ready state before marking the release as successful. It will wait for as long as --timeout")
+	f.BoolVar(&o.devel, "devel", false, "use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored.")
+	f.IntVar(&o.maxHistory, "history-max", 0, "limit the maximum number of revisions saved per release. Use 0 for no limit.")
+	o.valuesOptions.addFlags(f)
+	o.chartPathOptions.addFlags(f)
 
 	return cmd
 }
 
-func (u *upgradeCmd) run() error {
-	chartPath, err := locateChartPath(u.repoURL, u.username, u.password, u.chart, u.version, u.verify, u.keyring, u.certFile, u.keyFile, u.caFile)
+func (o *upgradeOptions) run(out io.Writer) error {
+	chartPath, err := o.locateChart(o.chart)
 	if err != nil {
 		return err
 	}
 
-	if u.install {
+	if o.install {
 		// If a release does not exist, install it. If another error occurs during
 		// the check, ignore the error and continue with the upgrade.
-		//
-		// The returned error is a grpc.rpcError that wraps the message from the original error.
-		// So we're stuck doing string matching against the wrapped error, which is nested somewhere
-		// inside of the grpc.rpcError message.
-		releaseHistory, err := u.client.ReleaseHistory(u.release, helm.WithMaxHistory(1))
-
-		if err == nil {
-			if u.namespace == "" {
-				u.namespace = defaultNamespace()
+		if _, err := o.client.ReleaseHistory(o.release, 1); err == driver.ErrReleaseNotFound {
+			fmt.Fprintf(out, "Release %q does not exist. Installing it now.\n", o.release)
+			io := &installOptions{
+				chartPath:        chartPath,
+				client:           o.client,
+				name:             o.release,
+				dryRun:           o.dryRun,
+				disableHooks:     o.disableHooks,
+				timeout:          o.timeout,
+				wait:             o.wait,
+				valuesOptions:    o.valuesOptions,
+				chartPathOptions: o.chartPathOptions,
 			}
-			previousReleaseNamespace := releaseHistory.Releases[0].Namespace
-			if previousReleaseNamespace != u.namespace {
-				fmt.Fprintf(u.out,
-					"WARNING: Namespace %q doesn't match with previous. Release will be deployed to %s\n",
-					u.namespace, previousReleaseNamespace,
-				)
-			}
-		}
-
-		if err != nil && strings.Contains(err.Error(), driver.ErrReleaseNotFound(u.release).Error()) {
-			fmt.Fprintf(u.out, "Release %q does not exist. Installing it now.\n", u.release)
-			ic := &installCmd{
-				chartPath:    chartPath,
-				client:       u.client,
-				out:          u.out,
-				name:         u.release,
-				valueFiles:   u.valueFiles,
-				dryRun:       u.dryRun,
-				verify:       u.verify,
-				disableHooks: u.disableHooks,
-				keyring:      u.keyring,
-				links:        u.links,
-				values:       u.values,
-				stringValues: u.stringValues,
-				fileValues:   u.fileValues,
-				namespace:    u.namespace,
-				timeout:      u.timeout,
-				wait:         u.wait,
-				description:  u.description,
-			}
-			return ic.run()
+			return io.run(out)
 		}
 	}
 
-	rawVals, err := vals(u.valueFiles, u.values, u.stringValues, u.fileValues, u.certFile, u.keyFile, u.caFile)
+	rawVals, err := o.mergedValues()
 	if err != nil {
 		return err
 	}
 
-	// Check chart requirements to make sure all dependencies are present in /charts
-	ch, err := chartutil.Load(chartPath)
-	if err == nil {
-		if req, err := chartutil.LoadRequirements(ch); err == nil {
-			if err := checkDependencies(ch, req); err != nil {
-				return err
-			}
-		} else if err != chartutil.ErrRequirementsNotFound {
-			return fmt.Errorf("cannot load requirements: %v", err)
+	// Check chart dependencies to make sure all are present in /charts
+	ch, err := loader.Load(chartPath)
+	if err != nil {
+		return err
+	}
+	if req := ch.Metadata.Dependencies; req != nil {
+		if err := checkDependencies(ch, req); err != nil {
+			return err
 		}
-		depLinks := map[string]interface{}{}
-		for _, value := range u.links {
-			if err := strvals.ParseInto(value, depLinks); err != nil {
-				return fmt.Errorf("failed parsing --set data: %s", err)
-			}
-		}
-		err = transwarp.ProcessAppCharts(u.client, ch, u.release, u.namespace, string(rawVals[:]), depLinks)
-		if err != nil {
-			return prettyError(err)
-		}
-	} else {
-		return prettyError(err)
 	}
 
-	resp, err := u.client.UpdateReleaseFromChart(
-		u.release,
-		ch,
+	resp, err := o.client.UpdateRelease(
+		o.release,
+		chartPath,
 		helm.UpdateValueOverrides(rawVals),
-		helm.UpgradeDryRun(u.dryRun),
-		helm.UpgradeRecreate(u.recreate),
-		helm.UpgradeForce(u.force),
-		helm.UpgradeDisableHooks(u.disableHooks),
-		helm.UpgradeTimeout(u.timeout),
-		helm.ResetValues(u.resetValues),
-		helm.ReuseValues(u.reuseValues),
-		helm.UpgradeWait(u.wait),
-		helm.UpgradeDescription(u.description))
+		helm.UpgradeDryRun(o.dryRun),
+		helm.UpgradeRecreate(o.recreate),
+		helm.UpgradeForce(o.force),
+		helm.UpgradeDisableHooks(o.disableHooks),
+		helm.UpgradeTimeout(o.timeout),
+		helm.ResetValues(o.resetValues),
+		helm.ReuseValues(o.reuseValues),
+		helm.UpgradeWait(o.wait),
+		helm.MaxHistory(o.maxHistory))
 	if err != nil {
-		return fmt.Errorf("UPGRADE FAILED: %v", prettyError(err))
+		return errors.Wrap(err, "UPGRADE FAILED")
 	}
 
 	if settings.Debug {
-		printRelease(u.out, resp.Release)
+		printRelease(out, resp)
 	}
 
-	fmt.Fprintf(u.out, "Release %q has been upgraded. Happy Helming!\n", u.release)
+	fmt.Fprintf(out, "Release %q has been upgraded. Happy Helming!\n", o.release)
 
 	// Print the status like status command does
-	status, err := u.client.ReleaseStatus(u.release)
+	status, err := o.client.ReleaseStatus(o.release, 0)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
-	PrintStatus(u.out, status)
+	PrintStatus(out, status)
 
 	return nil
 }

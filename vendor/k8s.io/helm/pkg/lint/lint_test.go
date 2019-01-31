@@ -24,7 +24,7 @@ import (
 	"testing"
 )
 
-var values = []byte{}
+var values map[string]interface{}
 
 const namespace = "testNamespace"
 const strict = false
@@ -82,7 +82,7 @@ func TestInvalidYaml(t *testing.T) {
 
 func TestBadValues(t *testing.T) {
 	m := All(badValuesFileDir, values, namespace, strict).Messages
-	if len(m) != 1 {
+	if len(m) < 1 {
 		t.Fatalf("All didn't fail with expected errors, got %#v", m)
 	}
 	if !strings.Contains(m[0].Err.Error(), "cannot unmarshal") {

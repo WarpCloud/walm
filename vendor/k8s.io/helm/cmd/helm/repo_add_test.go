@@ -17,87 +17,73 @@ limitations under the License.
 package main
 
 import (
-	"io"
+	"fmt"
 	"os"
 	"testing"
 
-	"github.com/spf13/cobra"
-
-	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/repo/repotest"
 )
 
-var testName = "test-name"
-
 func TestRepoAddCmd(t *testing.T) {
-	srv, thome, err := repotest.NewTempServer("testdata/testserver/*.*")
+	defer resetEnv()()
+
+	srv, hh, err := repotest.NewTempServer("testdata/testserver/*.*")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cleanup := resetEnv()
 	defer func() {
 		srv.Stop()
-		os.RemoveAll(thome.String())
-		cleanup()
+		os.RemoveAll(hh.String())
 	}()
-	if err := ensureTestHome(thome, t); err != nil {
-		t.Fatal(err)
-	}
+	ensureTestHome(t, hh)
+	settings.Home = hh
 
-	settings.Home = thome
+	tests := []cmdTestCase{{
+		name:   "add a repository",
+		cmd:    fmt.Sprintf("repo add test-name %s --home %s", srv.URL(), hh),
+		golden: "output/repo-add.txt",
+	}}
 
-	tests := []releaseCase{
-		{
-			name:     "add a repository",
-			args:     []string{testName, srv.URL()},
-			expected: "\"" + testName + "\" has been added to your repositories",
-		},
-	}
-
-	runReleaseCases(t, tests, func(c *helm.FakeClient, out io.Writer) *cobra.Command {
-		return newRepoAddCmd(out)
-	})
+	runTestCmd(t, tests)
 }
 
 func TestRepoAdd(t *testing.T) {
-	ts, thome, err := repotest.NewTempServer("testdata/testserver/*.*")
+	defer resetEnv()()
+
+	ts, hh, err := repotest.NewTempServer("testdata/testserver/*.*")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cleanup := resetEnv()
-	hh := thome
 	defer func() {
 		ts.Stop()
-		os.RemoveAll(thome.String())
-		cleanup()
+		os.RemoveAll(hh.String())
 	}()
-	if err := ensureTestHome(hh, t); err != nil {
-		t.Fatal(err)
-	}
+	ensureTestHome(t, hh)
+	settings.Home = hh
 
-	settings.Home = thome
+	const testRepoName = "test-name"
 
-	if err := addRepository(testName, ts.URL(), "", "", hh, "", "", "", true); err != nil {
+	if err := addRepository(testRepoName, ts.URL(), "", "", hh, "", "", "", true); err != nil {
 		t.Error(err)
 	}
 
-	f, err := repo.LoadRepositoriesFile(hh.RepositoryFile())
+	f, err := repo.LoadFile(hh.RepositoryFile())
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !f.Has(testName) {
-		t.Errorf("%s was not successfully inserted into %s", testName, hh.RepositoryFile())
+	if !f.Has(testRepoName) {
+		t.Errorf("%s was not successfully inserted into %s", testRepoName, hh.RepositoryFile())
 	}
 
-	if err := addRepository(testName, ts.URL(), "", "", hh, "", "", "", false); err != nil {
+	if err := addRepository(testRepoName, ts.URL(), "", "", hh, "", "", "", false); err != nil {
 		t.Errorf("Repository was not updated: %s", err)
 	}
 
-	if err := addRepository(testName, ts.URL(), "", "", hh, "", "", "", false); err != nil {
+	if err := addRepository(testRepoName, ts.URL(), "", "", hh, "", "", "", false); err != nil {
 		t.Errorf("Duplicate repository name was added")
 	}
 }

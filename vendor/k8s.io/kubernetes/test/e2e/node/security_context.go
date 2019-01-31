@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
+	imageutils "k8s.io/kubernetes/test/utils/image"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -49,7 +50,7 @@ func scTestPod(hostIPC bool, hostPID bool) *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:  "test-container",
-					Image: "busybox",
+					Image: imageutils.GetE2EImage(imageutils.BusyBox),
 				},
 			},
 			RestartPolicy: v1.RestartPolicyNever,
@@ -144,7 +145,7 @@ var _ = SIGDescribe("Security Context [Feature:SecurityContext]", func() {
 		// TODO: port to SecurityContext as soon as seccomp is out of alpha
 		pod := scTestPod(false, false)
 		pod.Annotations[v1.SeccompContainerAnnotationKeyPrefix+"test-container"] = "unconfined"
-		pod.Annotations[v1.SeccompPodAnnotationKey] = "docker/default"
+		pod.Annotations[v1.SeccompPodAnnotationKey] = v1.SeccompProfileRuntimeDefault
 		pod.Spec.Containers[0].Command = []string{"grep", "ecc", "/proc/self/status"}
 		f.TestContainerOutput(v1.SeccompPodAnnotationKey, pod, 0, []string{"0"}) // seccomp disabled
 	})
@@ -157,10 +158,10 @@ var _ = SIGDescribe("Security Context [Feature:SecurityContext]", func() {
 		f.TestContainerOutput(v1.SeccompPodAnnotationKey, pod, 0, []string{"0"}) // seccomp disabled
 	})
 
-	It("should support seccomp alpha docker/default annotation [Feature:Seccomp]", func() {
+	It("should support seccomp alpha runtime/default annotation [Feature:Seccomp]", func() {
 		// TODO: port to SecurityContext as soon as seccomp is out of alpha
 		pod := scTestPod(false, false)
-		pod.Annotations[v1.SeccompContainerAnnotationKeyPrefix+"test-container"] = "docker/default"
+		pod.Annotations[v1.SeccompContainerAnnotationKeyPrefix+"test-container"] = v1.SeccompProfileRuntimeDefault
 		pod.Spec.Containers[0].Command = []string{"grep", "ecc", "/proc/self/status"}
 		f.TestContainerOutput(v1.SeccompPodAnnotationKey, pod, 0, []string{"2"}) // seccomp filtered
 	})

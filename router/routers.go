@@ -7,7 +7,6 @@ import (
 	"walm/router/api/v1"
 	"walm/router/middleware"
 	releasetypes "walm/pkg/release"
-	releasetypesv2 "walm/pkg/release/v2"
 	walmtypes "walm/router/api"
 	tenanttypes "walm/pkg/tenant"
 	k8stypes "walm/pkg/k8s/adaptor"
@@ -292,16 +291,18 @@ func InitReleaseRouter() *restful.WebService {
 	ws.Route(ws.GET("/").To(v1.ListRelease).
 		Doc("获取所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(releasetypesv2.ReleaseInfoV2List{}).
-		Returns(200, "OK", releasetypesv2.ReleaseInfoV2List{}).
+		Param(ws.QueryParameter("labelselector", "标签过滤").DataType("string")).
+		Writes(releasetypes.ReleaseInfoV2List{}).
+		Returns(200, "OK", releasetypes.ReleaseInfoV2List{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}").To(v1.ListReleaseByNamespace).
 		Doc("获取Namepaces下的所有Release列表").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
-		Writes(releasetypesv2.ReleaseInfoV2List{}).
-		Returns(200, "OK", releasetypesv2.ReleaseInfoV2List{}).
+		Param(ws.QueryParameter("labelselector", "标签过滤").DataType("string")).
+		Writes(releasetypes.ReleaseInfoV2List{}).
+		Returns(200, "OK", releasetypes.ReleaseInfoV2List{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.GET("/{namespace}/name/{release}").To(v1.GetRelease).
@@ -309,8 +310,8 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
-		Writes(releasetypesv2.ReleaseInfoV2{}).
-		Returns(200, "OK", releasetypesv2.ReleaseInfoV2{}).
+		Writes(releasetypes.ReleaseInfoV2{}).
+		Returns(200, "OK", releasetypes.ReleaseInfoV2{}).
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -320,7 +321,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Reads(releasetypes.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -352,7 +353,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Reads(releasetypes.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -437,6 +438,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Param(ws.QueryParameter("deletePvcs", "是否删除Project Releases管理的statefulSet关联的所有pvc").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Server Error", walmtypes.ErrorMessageResponse{}))
 
@@ -447,7 +449,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Reads(releasetypes.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -458,7 +460,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("project", "Project名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
-		Reads(releasetypesv2.ReleaseRequestV2{}).
+		Reads(releasetypes.ReleaseRequestV2{}).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -481,6 +483,7 @@ func InitProjectRouter() *restful.WebService {
 		Param(ws.PathParameter("release", "Release名字").DataType("string")).
 		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Param(ws.QueryParameter("deletePvcs", "是否删除release管理的statefulSet关联的所有pvc").DataType("boolean").Required(false)).
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

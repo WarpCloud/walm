@@ -17,28 +17,27 @@ limitations under the License.
 package engine
 
 import (
-	"bytes"
-	"fmt"
 	"path"
 	"sort"
 	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/pkg/errors"
 
+	"k8s.io/helm/pkg/chart"
 	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 )
 
 // Engine is an implementation of 'cmd/tiller/environment'.Engine that uses Go templates.
 type Engine struct {
 	// FuncMap contains the template functions that will be passed to each
 	// render call. This may only be modified before the first call to Render.
-	FuncMap template.FuncMap
+	funcMap template.FuncMap
 	// If strict is enabled, template rendering will fail if a template references
 	// a value that was not passed in.
 	Strict           bool
-	CurrentTemplates map[string]renderable
+	currentTemplates map[string]renderable
 }
 
 // New creates a new Go template Engine instance.
@@ -49,10 +48,7 @@ type Engine struct {
 // The FuncMap sets all of the Sprig functions except for those that provide
 // access to the underlying OS (env, expandenv).
 func New() *Engine {
-	f := FuncMap()
-	return &Engine{
-		FuncMap: f,
-	}
+	return &Engine{funcMap: FuncMap()}
 }
 
 // FuncMap returns a mapping of all of the functions that Engine has.
@@ -76,11 +72,11 @@ func FuncMap() template.FuncMap {
 
 	// Add some extra functionality
 	extra := template.FuncMap{
-		"toToml":   chartutil.ToToml,
-		"toYaml":   chartutil.ToYaml,
-		"fromYaml": chartutil.FromYaml,
-		"toJson":   chartutil.ToJson,
-		"fromJson": chartutil.FromJson,
+		"toToml":   chartutil.ToTOML,
+		"toYaml":   chartutil.ToYAML,
+		"fromYaml": chartutil.FromYAML,
+		"toJson":   chartutil.ToJSON,
+		"fromJson": chartutil.FromJSON,
 
 		// This is a placeholder for the "include" function, which is
 		// late-bound to a template. By declaring it here, we preserve the
@@ -119,8 +115,8 @@ func FuncMap() template.FuncMap {
 func (e *Engine) Render(chrt *chart.Chart, values chartutil.Values) (map[string]string, error) {
 	// Render the charts
 	tmap := allTemplates(chrt, values)
-	e.CurrentTemplates = tmap
-	return e.render(tmap)
+	e.currentTemplates = tmap
+	return e.render(chrt, tmap)
 }
 
 // renderable is an object that can be rendered.
@@ -138,27 +134,25 @@ type renderable struct {
 // The resulting FuncMap is only valid for the passed-in template.
 func (e *Engine) alterFuncMap(t *template.Template) template.FuncMap {
 	// Clone the func map because we are adding context-specific functions.
-	var funcMap template.FuncMap = map[string]interface{}{}
-	for k, v := range e.FuncMap {
+	funcMap := make(template.FuncMap)
+	for k, v := range e.funcMap {
 		funcMap[k] = v
 	}
 
 	// Add the 'include' function here so we can close over t.
 	funcMap["include"] = func(name string, data interface{}) (string, error) {
-		buf := bytes.NewBuffer(nil)
-		if err := t.ExecuteTemplate(buf, name, data); err != nil {
-			return "", err
-		}
-		return buf.String(), nil
+		var buf strings.Builder
+		err := t.ExecuteTemplate(&buf, name, data)
+		return buf.String(), err
 	}
 
 	// Add the 'required' function here
 	funcMap["required"] = func(warn string, val interface{}) (interface{}, error) {
 		if val == nil {
-			return val, fmt.Errorf(warn)
+			return val, errors.Errorf(warn)
 		} else if _, ok := val.(string); ok {
 			if val == "" {
-				return val, fmt.Errorf(warn)
+				return val, errors.Errorf(warn)
 			}
 		}
 		return val, nil
@@ -168,7 +162,7 @@ func (e *Engine) alterFuncMap(t *template.Template) template.FuncMap {
 	funcMap["tpl"] = func(tpl string, vals chartutil.Values) (string, error) {
 		basePath, err := vals.PathValue("Template.BasePath")
 		if err != nil {
-			return "", fmt.Errorf("Cannot retrieve Template.Basepath from values inside tpl function: %s (%s)", tpl, err.Error())
+			return "", errors.Wrapf(err, "cannot retrieve Template.Basepath from values inside tpl function: %s", tpl)
 		}
 
 		r := renderable{
@@ -177,17 +171,17 @@ func (e *Engine) alterFuncMap(t *template.Template) template.FuncMap {
 			basePath: basePath.(string),
 		}
 
-		templates := map[string]renderable{}
 		templateName, err := vals.PathValue("Template.Name")
 		if err != nil {
-			return "", fmt.Errorf("Cannot retrieve Template.Name from values inside tpl function: %s (%s)", tpl, err.Error())
+			return "", errors.Wrapf(err, "cannot retrieve Template.Name from values inside tpl function: %s", tpl)
 		}
 
+		templates := make(map[string]renderable)
 		templates[templateName.(string)] = r
 
-		result, err := e.render(templates)
+		result, err := e.render(nil, templates)
 		if err != nil {
-			return "", fmt.Errorf("Error during tpl function execution for %q: %s", tpl, err.Error())
+			return "", errors.Wrapf(err, "error during tpl function execution for %q", tpl)
 		}
 		return result[templateName.(string)], nil
 	}
@@ -196,7 +190,7 @@ func (e *Engine) alterFuncMap(t *template.Template) template.FuncMap {
 }
 
 // render takes a map of templates/values and renders them.
-func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string, err error) {
+func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered map[string]string, err error) {
 	// Basically, what we do here is start with an empty parent template and then
 	// build up a list of templates -- one for each file. Once all of the templates
 	// have been parsed, we loop through again and execute every template.
@@ -206,7 +200,7 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 	// template engine.
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("rendering template failed: %v", r)
+			err = errors.Errorf("rendering template failed: %v", r)
 		}
 	}()
 	t := template.New("gotpl")
@@ -232,28 +226,25 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 			continue
 		}
 		r := tpls[fname]
-		t = t.New(fname).Funcs(funcMap)
-		if _, err := t.Parse(r.tpl); err != nil {
-			return map[string]string{}, fmt.Errorf("parse error in %q: %s", fname, err)
+		if _, err := t.New(fname).Funcs(funcMap).Parse(r.tpl); err != nil {
+			return map[string]string{}, errors.Wrapf(err, "parse error in %q", fname)
 		}
 		files = append(files, fname)
 	}
 
 	// Adding the engine's currentTemplates to the template context
 	// so they can be referenced in the tpl function
-	for fname, r := range e.CurrentTemplates {
+	for fname, r := range e.currentTemplates {
 		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
 			continue
 		}
 		if t.Lookup(fname) == nil {
-			t = t.New(fname).Funcs(funcMap)
-			if _, err := t.Parse(r.tpl); err != nil {
-				return map[string]string{}, fmt.Errorf("parse error in %q: %s", fname, err)
+			if _, err := t.New(fname).Funcs(funcMap).Parse(r.tpl); err != nil {
+				return map[string]string{}, errors.Wrapf(err, "parse error in %q", fname)
 			}
 		}
 	}
 
-	var buf bytes.Buffer
 	for _, file := range files {
 		// Don't render partials. We don't care out the direct output of partials.
 		// They are only included from other templates.
@@ -262,16 +253,23 @@ func (e *Engine) render(tpls map[string]renderable) (rendered map[string]string,
 		}
 		// At render time, add information about the template that is being rendered.
 		vals := tpls[file].vals
-		vals["Template"] = map[string]interface{}{"Name": file, "BasePath": tpls[file].basePath}
+		vals["Template"] = chartutil.Values{"Name": file, "BasePath": tpls[file].basePath}
+		var buf strings.Builder
 		if err := t.ExecuteTemplate(&buf, file, vals); err != nil {
-			return map[string]string{}, fmt.Errorf("render error in %q: %s", file, err)
+			return map[string]string{}, errors.Wrapf(err, "render error in %q", file)
 		}
 
 		// Work around the issue where Go will emit "<no value>" even if Options(missing=zero)
 		// is set. Since missing=error will never get here, we do not need to handle
 		// the Strict case.
-		rendered[file] = strings.Replace(buf.String(), "<no value>", "", -1)
-		buf.Reset()
+		f := &chart.File{
+			Name: strings.Replace(file, "/templates", "/manifests", -1),
+			Data: []byte(strings.Replace(buf.String(), "<no value>", "", -1)),
+		}
+		rendered[file] = string(f.Data)
+		if ch != nil {
+			ch.Files = append(ch.Files, f)
+		}
 	}
 
 	return rendered, nil
@@ -305,8 +303,8 @@ func (p byPathLen) Less(i, j int) bool {
 //
 // As it goes, it also prepares the values in a scope-sensitive manner.
 func allTemplates(c *chart.Chart, vals chartutil.Values) map[string]renderable {
-	templates := map[string]renderable{}
-	recAllTpls(c, templates, vals, true, "")
+	templates := make(map[string]renderable)
+	recAllTpls(c, templates, vals)
 	return templates
 }
 
@@ -314,44 +312,32 @@ func allTemplates(c *chart.Chart, vals chartutil.Values) map[string]renderable {
 //
 // As it recurses, it also sets the values to be appropriate for the template
 // scope.
-func recAllTpls(c *chart.Chart, templates map[string]renderable, parentVals chartutil.Values, top bool, parentID string) {
+func recAllTpls(c *chart.Chart, templates map[string]renderable, parentVals chartutil.Values) {
 	// This should never evaluate to a nil map. That will cause problems when
 	// values are appended later.
-	cvals := chartutil.Values{}
-	if top {
-		// If this is the top of the rendering tree, assume that parentVals
-		// is already resolved to the authoritative values.
+	cvals := make(chartutil.Values)
+	if c.IsRoot() {
 		cvals = parentVals
-	} else if c.Metadata != nil && c.Metadata.Name != "" {
-		// If there is a {{.Values.ThisChart}} in the parent metadata,
-		// copy that into the {{.Values}} for this template.
-		newVals := chartutil.Values{}
-		if vs, err := parentVals.Table("Values"); err == nil {
-			if tmp, err := vs.Table(c.Metadata.Name); err == nil {
-				newVals = tmp
-			}
-		}
-
+	} else if c.Name() != "" {
 		cvals = map[string]interface{}{
-			"Values":       newVals,
+			"Values":       make(chartutil.Values),
 			"Release":      parentVals["Release"],
 			"Chart":        c.Metadata,
 			"Files":        chartutil.NewFiles(c.Files),
 			"Capabilities": parentVals["Capabilities"],
 		}
+		// If there is a {{.Values.ThisChart}} in the parent metadata,
+		// copy that into the {{.Values}} for this template.
+		if vs, err := parentVals.Table("Values." + c.Name()); err == nil {
+			cvals["Values"] = vs
+		}
 	}
 
-	newParentID := c.Metadata.Name
-	if parentID != "" {
-		// We artificially reconstruct the chart path to child templates. This
-		// creates a namespaced filename that can be used to track down the source
-		// of a particular template declaration.
-		newParentID = path.Join(parentID, "charts", newParentID)
+	for _, child := range c.Dependencies() {
+		recAllTpls(child, templates, cvals)
 	}
 
-	for _, child := range c.Dependencies {
-		recAllTpls(child, templates, cvals, false, newParentID)
-	}
+	newParentID := c.ChartFullPath()
 	for _, t := range c.Templates {
 		templates[path.Join(newParentID, t.Name)] = renderable{
 			tpl:      string(t.Data),

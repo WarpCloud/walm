@@ -21,57 +21,51 @@ import (
 	"io"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/repo"
 )
 
-type repoRemoveCmd struct {
-	out  io.Writer
+type repoRemoveOptions struct {
 	name string
 	home helmpath.Home
 }
 
 func newRepoRemoveCmd(out io.Writer) *cobra.Command {
-	remove := &repoRemoveCmd{out: out}
+	o := &repoRemoveOptions{}
 
 	cmd := &cobra.Command{
-		Use:     "remove [flags] [NAME]",
+		Use:     "remove [NAME]",
 		Aliases: []string{"rm"},
 		Short:   "remove a chart repository",
+		Args:    require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("need at least one argument, name of chart repository")
-			}
+			o.name = args[0]
+			o.home = settings.Home
 
-			remove.home = settings.Home
-			for i := 0; i < len(args); i++ {
-				remove.name = args[i]
-				if err := remove.run(); err != nil {
-					return err
-				}
-			}
-			return nil
+			return o.run(out)
 		},
 	}
 
 	return cmd
 }
 
-func (r *repoRemoveCmd) run() error {
-	return removeRepoLine(r.out, r.name, r.home)
+func (r *repoRemoveOptions) run(out io.Writer) error {
+	return removeRepoLine(out, r.name, r.home)
 }
 
 func removeRepoLine(out io.Writer, name string, home helmpath.Home) error {
 	repoFile := home.RepositoryFile()
-	r, err := repo.LoadRepositoriesFile(repoFile)
+	r, err := repo.LoadFile(repoFile)
 	if err != nil {
 		return err
 	}
 
 	if !r.Remove(name) {
-		return fmt.Errorf("no repo named %q found", name)
+		return errors.Errorf("no repo named %q found", name)
 	}
 	if err := r.WriteFile(repoFile, 0644); err != nil {
 		return err

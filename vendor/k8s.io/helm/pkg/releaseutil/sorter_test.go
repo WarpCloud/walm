@@ -20,22 +20,21 @@ import (
 	"testing"
 	"time"
 
-	rspb "k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/timeconv"
+	rspb "k8s.io/helm/pkg/hapi/release"
 )
 
 // note: this test data is shared with filter_test.go.
 
 var releases = []*rspb.Release{
-	tsRelease("quiet-bear", 2, 2000, rspb.Status_SUPERSEDED),
-	tsRelease("angry-bird", 4, 3000, rspb.Status_DEPLOYED),
-	tsRelease("happy-cats", 1, 4000, rspb.Status_DELETED),
-	tsRelease("vocal-dogs", 3, 6000, rspb.Status_DELETED),
+	tsRelease("quiet-bear", 2, 2000, rspb.StatusSuperseded),
+	tsRelease("angry-bird", 4, 3000, rspb.StatusDeployed),
+	tsRelease("happy-cats", 1, 4000, rspb.StatusUninstalled),
+	tsRelease("vocal-dogs", 3, 6000, rspb.StatusUninstalled),
 }
 
-func tsRelease(name string, vers int32, dur time.Duration, code rspb.Status_Code) *rspb.Release {
-	tmsp := timeconv.Timestamp(time.Now().Add(time.Duration(dur)))
-	info := &rspb.Info{Status: &rspb.Status{Code: code}, LastDeployed: tmsp}
+func tsRelease(name string, vers int, dur time.Duration, status rspb.ReleaseStatus) *rspb.Release {
+	tmsp := time.Now().Add(dur)
+	info := &rspb.Info{Status: status, LastDeployed: tmsp}
 	return &rspb.Release{
 		Name:    name,
 		Version: vers,
@@ -65,8 +64,8 @@ func TestSortByDate(t *testing.T) {
 	SortByDate(releases)
 
 	check(t, "ByDate", func(i, j int) bool {
-		ti := releases[i].Info.LastDeployed.Seconds
-		tj := releases[j].Info.LastDeployed.Seconds
+		ti := releases[i].Info.LastDeployed.Second()
+		tj := releases[j].Info.LastDeployed.Second()
 		return ti < tj
 	})
 }

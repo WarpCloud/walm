@@ -2,15 +2,13 @@ package helm
 
 import (
 	"walm/pkg/release"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"github.com/sirupsen/logrus"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"walm/pkg/k8s/adaptor"
-	"k8s.io/helm/pkg/transwarp"
+	"reflect"
 )
 
-func BuildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
+func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
 	releaseInfo = &release.ReleaseInfo{}
 	releaseInfo.ReleaseSpec = releaseCache.ReleaseSpec
 
@@ -41,26 +39,7 @@ func buildReleaseStatus(releaseResourceMetas []release.ReleaseResourceMeta) (res
 	return
 }
 
-func parseChartDependencies(chart *chart.Chart) ([]string, error) {
-	var dependencies []string
-
-	for _, chartFile := range chart.Files {
-		if chartFile.TypeUrl == "transwarp-app-yaml" {
-			app := &transwarp.AppDependency{}
-			err := yaml.Unmarshal(chartFile.Value, &app)
-			if err != nil {
-				return dependencies, err
-			}
-			for _, dependency := range app.Dependencies {
-				dependencies = append(dependencies, dependency.Name)
-			}
-		}
-	}
-
-	return dependencies, nil
-}
-
-func MergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
@@ -81,7 +60,14 @@ func MergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 			continue
 		}
 		// If we got to this point, it is a map in both, so merge them
-		dest[k] = MergeValues(destMap, nextMap)
+		dest[k] = mergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+func ConfigValuesDiff(configValue1 map[string]interface{}, configValue2 map[string]interface{}) bool {
+	if len(configValue1) == 0 && len(configValue2) == 0 {
+		return false
+	}
+	return !reflect.DeepEqual(configValue1, configValue2)
 }

@@ -26,12 +26,13 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gosuri/uitable"
 	"github.com/gosuri/uitable/util/strutil"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
-	"k8s.io/helm/pkg/timeconv"
 )
 
 var statusHelp = `
@@ -39,104 +40,95 @@ This command shows the status of a named release.
 The status consists of:
 - last deployment time
 - k8s namespace in which the release lives
-- state of the release (can be: UNKNOWN, DEPLOYED, DELETED, SUPERSEDED, FAILED or DELETING)
+- state of the release (can be: unknown, deployed, deleted, superseded, failed or deleting)
 - list of resources that this release consists of, sorted by kind
 - details on last test suite run, if applicable
 - additional notes provided by the chart
 `
 
-type statusCmd struct {
+type statusOptions struct {
 	release string
-	out     io.Writer
 	client  helm.Interface
-	version int32
+	version int
 	outfmt  string
 }
 
 func newStatusCmd(client helm.Interface, out io.Writer) *cobra.Command {
-	status := &statusCmd{
-		out:    out,
-		client: client,
-	}
+	o := &statusOptions{client: client}
 
 	cmd := &cobra.Command{
-		Use:     "status [flags] RELEASE_NAME",
-		Short:   "displays the status of the named release",
-		Long:    statusHelp,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "status RELEASE_NAME",
+		Short: "displays the status of the named release",
+		Long:  statusHelp,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errReleaseRequired
-			}
-			status.release = args[0]
-			if status.client == nil {
-				status.client = newClient()
-			}
-			return status.run()
+			o.release = args[0]
+			o.client = ensureHelmClient(o.client, false)
+			return o.run(out)
 		},
 	}
 
-	cmd.PersistentFlags().Int32Var(&status.version, "revision", 0, "if set, display the status of the named release with revision")
-	cmd.PersistentFlags().StringVarP(&status.outfmt, "output", "o", "", "output the status in the specified format (json or yaml)")
+	cmd.PersistentFlags().IntVar(&o.version, "revision", 0, "if set, display the status of the named release with revision")
+	cmd.PersistentFlags().StringVarP(&o.outfmt, "output", "o", "", "output the status in the specified format (json or yaml)")
 
 	return cmd
 }
 
-func (s *statusCmd) run() error {
-	res, err := s.client.ReleaseStatus(s.release, helm.StatusReleaseVersion(s.version))
+func (o *statusOptions) run(out io.Writer) error {
+	res, err := o.client.ReleaseStatus(o.release, o.version)
 	if err != nil {
-		return prettyError(err)
+		return err
 	}
 
-	switch s.outfmt {
+	switch o.outfmt {
 	case "":
-		PrintStatus(s.out, res)
+		PrintStatus(out, res)
 		return nil
 	case "json":
 		data, err := json.Marshal(res)
 		if err != nil {
-			return fmt.Errorf("Failed to Marshal JSON output: %s", err)
+			return errors.Wrap(err, "failed to Marshal JSON output")
 		}
-		s.out.Write(data)
+		out.Write(data)
 		return nil
 	case "yaml":
 		data, err := yaml.Marshal(res)
 		if err != nil {
-			return fmt.Errorf("Failed to Marshal YAML output: %s", err)
+			return errors.Wrap(err, "failed to Marshal YAML output")
 		}
-		s.out.Write(data)
+		out.Write(data)
 		return nil
 	}
 
-	return fmt.Errorf("Unknown output format %q", s.outfmt)
+	return errors.Errorf("unknown output format %q", o.outfmt)
 }
 
 // PrintStatus prints out the status of a release. Shared because also used by
 // install / upgrade
-func PrintStatus(out io.Writer, res *services.GetReleaseStatusResponse) {
-	if res.Info.LastDeployed != nil {
-		fmt.Fprintf(out, "LAST DEPLOYED: %s\n", timeconv.String(res.Info.LastDeployed))
+func PrintStatus(out io.Writer, res *hapi.GetReleaseStatusResponse) {
+	if !res.Info.LastDeployed.IsZero() {
+		fmt.Fprintf(out, "LAST DEPLOYED: %s\n", res.Info.LastDeployed)
 	}
 	fmt.Fprintf(out, "NAMESPACE: %s\n", res.Namespace)
-	fmt.Fprintf(out, "STATUS: %s\n", res.Info.Status.Code)
+	fmt.Fprintf(out, "STATUS: %s\n", res.Info.Status.String())
 	fmt.Fprintf(out, "\n")
-	if len(res.Info.Status.Resources) > 0 {
+	if len(res.Info.Resources) > 0 {
 		re := regexp.MustCompile("  +")
 
 		w := tabwriter.NewWriter(out, 0, 0, 2, ' ', tabwriter.TabIndent)
-		fmt.Fprintf(w, "RESOURCES:\n%s\n", re.ReplaceAllString(res.Info.Status.Resources, "\t"))
+		fmt.Fprintf(w, "RESOURCES:\n%s\n", re.ReplaceAllString(res.Info.Resources, "\t"))
 		w.Flush()
 	}
-	if res.Info.Status.LastTestSuiteRun != nil {
-		lastRun := res.Info.Status.LastTestSuiteRun
+	if res.Info.LastTestSuiteRun != nil {
+		lastRun := res.Info.LastTestSuiteRun
 		fmt.Fprintf(out, "TEST SUITE:\n%s\n%s\n\n%s\n",
-			fmt.Sprintf("Last Started: %s", timeconv.String(lastRun.StartedAt)),
-			fmt.Sprintf("Last Completed: %s", timeconv.String(lastRun.CompletedAt)),
+			fmt.Sprintf("Last Started: %s", lastRun.StartedAt),
+			fmt.Sprintf("Last Completed: %s", lastRun.CompletedAt),
 			formatTestResults(lastRun.Results))
 	}
 
-	if len(res.Info.Status.Notes) > 0 {
-		fmt.Fprintf(out, "NOTES:\n%s\n", res.Info.Status.Notes)
+	if len(res.Info.Notes) > 0 {
+		fmt.Fprintf(out, "NOTES:\n%s\n", res.Info.Notes)
 	}
 }
 
@@ -149,8 +141,8 @@ func formatTestResults(results []*release.TestRun) string {
 		n := r.Name
 		s := strutil.PadRight(r.Status.String(), 10, ' ')
 		i := r.Info
-		ts := timeconv.String(r.StartedAt)
-		tc := timeconv.String(r.CompletedAt)
+		ts := r.StartedAt
+		tc := r.CompletedAt
 		tbl.AddRow(n, s, i, ts, tc)
 	}
 	return tbl.String()

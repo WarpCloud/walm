@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"walm/pkg/release/v2"
 	"walm/pkg/release/manager/helm/cache"
+	"walm/pkg/release"
 )
 
 const (
@@ -57,12 +57,16 @@ func SendUpgradeReleaseTask(upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) (*ca
 type UpgradeReleaseTaskArgs struct {
 	Namespace     string
 	ProjectName          string
-	ReleaseParams *v2.ReleaseRequestV2
+	ReleaseParams *release.ReleaseRequestV2
 }
 
 func (upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) upgradeRelease() (err error) {
-	upgradeReleaseTaskArgs.ReleaseParams.Name = buildProjectReleaseName(upgradeReleaseTaskArgs.ProjectName, upgradeReleaseTaskArgs.ReleaseParams.Name)
-	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseV2(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil, false, 0)
+	if upgradeReleaseTaskArgs.ReleaseParams.ReleaseLabels == nil {
+		upgradeReleaseTaskArgs.ReleaseParams.ReleaseLabels = map[string]string{}
+	}
+	upgradeReleaseTaskArgs.ReleaseParams.ReleaseLabels[cache.ProjectNameLabelKey] = upgradeReleaseTaskArgs.ProjectName
+
+	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseWithRetry(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil, false, 0)
 	if err != nil {
 		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName)
 		return

@@ -541,8 +541,9 @@ func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr)
 	case *ast.Ident:
 		refTypeName := fullTypeName(pkgName, expr.Name)
 		if _, isParsed := parser.swagger.Definitions[refTypeName]; !isParsed {
-			typedef := parser.TypeDefinitions[pkgName][expr.Name]
-			parser.ParseDefinition(pkgName, expr.Name, typedef)
+			if typedef, ok := parser.TypeDefinitions[pkgName][expr.Name]; ok{
+				parser.ParseDefinition(pkgName, expr.Name, typedef)
+			}
 		}
 		return parser.swagger.Definitions[refTypeName]
 
@@ -576,6 +577,16 @@ func (parser *Parser) parseTypeExpr(pkgName, typeName string, typeExpr ast.Expr)
 		}
 
 	// type Foo map[string]Bar
+	case *ast.MapType:
+		itemSchema := parser.parseTypeExpr(pkgName, "", expr.Value)
+		return spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				AdditionalProperties: &spec.SchemaOrBool{
+					Schema: &itemSchema,
+				},
+			},
+		}
 	// ...
 	default:
 		log.Printf("Type definition of type '%T' is not supported yet. Using 'object' instead.\n", typeExpr)

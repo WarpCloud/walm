@@ -17,15 +17,16 @@ limitations under the License.
 package rules
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
+
+	"k8s.io/helm/pkg/chart"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/lint/support"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 )
 
 const (
@@ -39,7 +40,7 @@ var (
 	nonExistingChartFilePath = filepath.Join(os.TempDir(), "Chart.yaml")
 )
 
-var badChart, chatLoadRrr = chartutil.LoadChartfile(badChartFilePath)
+var badChart, _ = chartutil.LoadChartfile(badChartFilePath)
 var goodChart, _ = chartutil.LoadChartfile(goodChartFilePath)
 
 // Validation functions Test
@@ -117,24 +118,6 @@ func TestValidateChartVersion(t *testing.T) {
 		if err != nil {
 			t.Errorf("validateChartVersion(%s) to return no error, got a linter error", version)
 		}
-	}
-}
-
-func TestValidateChartEngine(t *testing.T) {
-	var successTest = []string{"", "gotpl"}
-
-	for _, engine := range successTest {
-		badChart.Engine = engine
-		err := validateChartEngine(badChart)
-		if err != nil {
-			t.Errorf("validateChartEngine(%s) to return no error, got a linter error %s", engine, err.Error())
-		}
-	}
-
-	badChart.Engine = "foobar"
-	err := validateChartEngine(badChart)
-	if err == nil || !strings.Contains(err.Error(), "not valid. Valid options are [gotpl") {
-		t.Errorf("validateChartEngine(%s) to return an error, got no error", badChart.Engine)
 	}
 }
 

@@ -17,34 +17,32 @@ limitations under the License.
 package tiller
 
 import (
-	"errors"
-	"fmt"
+	"bytes"
 
-	ctx "golang.org/x/net/context"
+	"github.com/pkg/errors"
 
-	"k8s.io/helm/pkg/proto/hapi/release"
-	"k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/hapi"
+	"k8s.io/helm/pkg/hapi/release"
 )
 
 // GetReleaseStatus gets the status information for a named release.
-func (s *ReleaseServer) GetReleaseStatus(c ctx.Context, req *services.GetReleaseStatusRequest) (*services.GetReleaseStatusResponse, error) {
+func (s *ReleaseServer) GetReleaseStatus(req *hapi.GetReleaseStatusRequest) (*hapi.GetReleaseStatusResponse, error) {
 	if err := validateReleaseName(req.Name); err != nil {
-		s.Log("getStatus: Release name is invalid: %s", req.Name)
-		return nil, err
+		return nil, errors.Errorf("getStatus: Release name is invalid: %s", req.Name)
 	}
 
 	var rel *release.Release
 
 	if req.Version <= 0 {
 		var err error
-		rel, err = s.env.Releases.Last(req.Name)
+		rel, err = s.Releases.Last(req.Name)
 		if err != nil {
-			return nil, fmt.Errorf("getting deployed release %q: %s", req.Name, err)
+			return nil, errors.Wrapf(err, "getting deployed release %q", req.Name)
 		}
 	} else {
 		var err error
-		if rel, err = s.env.Releases.Get(req.Name, req.Version); err != nil {
-			return nil, fmt.Errorf("getting release '%s' (v%d): %s", req.Name, req.Version, err)
+		if rel, err = s.Releases.Get(req.Name, req.Version); err != nil {
+			return nil, errors.Wrapf(err, "getting release '%s' (v%d)", req.Name, req.Version)
 		}
 	}
 
@@ -55,8 +53,8 @@ func (s *ReleaseServer) GetReleaseStatus(c ctx.Context, req *services.GetRelease
 		return nil, errors.New("release chart is missing")
 	}
 
-	sc := rel.Info.Status.Code
-	statusResp := &services.GetReleaseStatusResponse{
+	sc := rel.Info.Status
+	statusResp := &hapi.GetReleaseStatusResponse{
 		Name:      rel.Name,
 		Namespace: rel.Namespace,
 		Info:      rel.Info,
@@ -64,14 +62,13 @@ func (s *ReleaseServer) GetReleaseStatus(c ctx.Context, req *services.GetRelease
 
 	// Ok, we got the status of the release as we had jotted down, now we need to match the
 	// manifest we stashed away with reality from the cluster.
-	resp, err := s.ReleaseModule.Status(rel, req, s.env)
-	if sc == release.Status_DELETED || sc == release.Status_FAILED {
+	resp, err := s.KubeClient.Get(rel.Namespace, bytes.NewBufferString(rel.Manifest))
+	if sc == release.StatusUninstalled || sc == release.StatusFailed {
 		// Skip errors if this is already deleted or failed.
 		return statusResp, nil
 	} else if err != nil {
-		s.Log("warning: Get for %s failed: %v", rel.Name, err)
-		return nil, err
+		return nil, errors.Wrapf(err, "warning: Get for %s failed", rel.Name)
 	}
-	rel.Info.Status.Resources = resp
+	rel.Info.Resources = resp
 	return statusResp, nil
 }

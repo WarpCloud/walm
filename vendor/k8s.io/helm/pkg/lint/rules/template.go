@@ -17,22 +17,20 @@ limitations under the License.
 package rules
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
+
+	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/engine"
 	"k8s.io/helm/pkg/lint/support"
-	cpb "k8s.io/helm/pkg/proto/hapi/chart"
-	"k8s.io/helm/pkg/timeconv"
-	tversion "k8s.io/helm/pkg/version"
 )
 
 // Templates lints the templates in the Linter.
-func Templates(linter *support.Linter, values []byte, namespace string, strict bool) {
+func Templates(linter *support.Linter, values map[string]interface{}, namespace string, strict bool) {
 	path := "templates/"
 	templatesPath := filepath.Join(linter.ChartDir, path)
 
@@ -44,7 +42,7 @@ func Templates(linter *support.Linter, values []byte, namespace string, strict b
 	}
 
 	// Load chart and parse templates, based on tiller/release_server
-	chart, err := chartutil.Load(linter.ChartDir)
+	chart, err := loader.Load(linter.ChartDir)
 
 	chartLoaded := linter.RunLinterRule(support.ErrorSev, path, err)
 
@@ -52,23 +50,14 @@ func Templates(linter *support.Linter, values []byte, namespace string, strict b
 		return
 	}
 
-	options := chartutil.ReleaseOptions{Name: "testRelease", Time: timeconv.Now(), Namespace: namespace}
-	caps := &chartutil.Capabilities{
-		APIVersions:   chartutil.DefaultVersionSet,
-		KubeVersion:   chartutil.DefaultKubeVersion,
-		TillerVersion: tversion.GetVersionProto(),
-	}
-	cvals, err := chartutil.CoalesceValues(chart, &cpb.Config{Raw: string(values)})
+	options := chartutil.ReleaseOptions{Name: "testRelease"}
+
+	cvals, err := chartutil.CoalesceValues(chart, values)
 	if err != nil {
 		return
 	}
-	// convert our values back into config
-	yvals, err := cvals.YAML()
-	if err != nil {
-		return
-	}
-	cc := &cpb.Config{Raw: yvals}
-	valuesToRender, err := chartutil.ToRenderValuesCaps(chart, cc, options, caps)
+	caps := chartutil.DefaultCapabilities
+	valuesToRender, err := chartutil.ToRenderValues(chart, cvals, options, caps)
 	if err != nil {
 		// FIXME: This seems to generate a duplicate, but I can't find where the first
 		// error is coming from.
@@ -105,14 +94,14 @@ func Templates(linter *support.Linter, values []byte, namespace string, strict b
 			continue
 		}
 
-		// NOTE: disabled for now, Refs https://github.com/kubernetes/helm/issues/1463
+		// NOTE: disabled for now, Refs https://github.com/helm/helm/issues/1463
 		// Check that all the templates have a matching value
 		//linter.RunLinterRule(support.WarningSev, path, validateNoMissingValues(templatesPath, valuesToRender, preExecutedTemplate))
 
-		// NOTE: disabled for now, Refs https://github.com/kubernetes/helm/issues/1037
+		// NOTE: disabled for now, Refs https://github.com/helm/helm/issues/1037
 		// linter.RunLinterRule(support.WarningSev, path, validateQuotes(string(preExecutedTemplate)))
 
-		renderedContent := renderedContentMap[filepath.Join(chart.GetMetadata().Name, fileName)]
+		renderedContent := renderedContentMap[filepath.Join(chart.Name(), fileName)]
 		var yamlStruct K8sYamlStruct
 		// Even though K8sYamlStruct only defines Metadata namespace, an error in any other
 		// key will be raised as well
@@ -146,14 +135,11 @@ func validateAllowedExtension(fileName string) error {
 		}
 	}
 
-	return fmt.Errorf("file extension '%s' not valid. Valid extensions are .yaml, .yml, .tpl, or .txt", ext)
+	return errors.Errorf("file extension '%s' not valid. Valid extensions are .yaml, .yml, .tpl, or .txt", ext)
 }
 
 func validateYamlContent(err error) error {
-	if err != nil {
-		return fmt.Errorf("unable to parse YAML\n\t%s", err)
-	}
-	return nil
+	return errors.Wrap(err, "unable to parse YAML")
 }
 
 // K8sYamlStruct stubs a Kubernetes YAML file.

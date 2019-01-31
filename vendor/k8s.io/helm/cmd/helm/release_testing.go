@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
+	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
-	"k8s.io/helm/pkg/proto/hapi/release"
 )
 
 const releaseTestDesc = `
@@ -33,72 +35,61 @@ The argument this command takes is the name of a deployed release.
 The tests to be run are defined in the chart that was installed.
 `
 
-type releaseTestCmd struct {
+type releaseTestOptions struct {
 	name    string
-	out     io.Writer
 	client  helm.Interface
 	timeout int64
 	cleanup bool
 }
 
 func newReleaseTestCmd(c helm.Interface, out io.Writer) *cobra.Command {
-	rlsTest := &releaseTestCmd{
-		out:    out,
-		client: c,
-	}
+	o := &releaseTestOptions{client: c}
 
 	cmd := &cobra.Command{
-		Use:     "test [RELEASE]",
-		Short:   "test a release",
-		Long:    releaseTestDesc,
-		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
+		Use:   "test [RELEASE]",
+		Short: "test a release",
+		Long:  releaseTestDesc,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := checkArgsLength(len(args), "release name"); err != nil {
-				return err
-			}
-
-			rlsTest.name = args[0]
-			rlsTest.client = ensureHelmClient(rlsTest.client)
-			return rlsTest.run()
+			o.name = args[0]
+			o.client = ensureHelmClient(o.client, false)
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.Int64Var(&rlsTest.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
-	f.BoolVar(&rlsTest.cleanup, "cleanup", false, "delete test pods upon completion")
+	f.Int64Var(&o.timeout, "timeout", 300, "time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks)")
+	f.BoolVar(&o.cleanup, "cleanup", false, "delete test pods upon completion")
 
 	return cmd
 }
 
-func (t *releaseTestCmd) run() (err error) {
-	c, errc := t.client.RunReleaseTest(
-		t.name,
-		helm.ReleaseTestTimeout(t.timeout),
-		helm.ReleaseTestCleanup(t.cleanup),
+func (o *releaseTestOptions) run(out io.Writer) (err error) {
+	c, errc := o.client.RunReleaseTest(
+		o.name,
+		helm.ReleaseTestTimeout(o.timeout),
+		helm.ReleaseTestCleanup(o.cleanup),
 	)
 	testErr := &testErr{}
 
 	for {
 		select {
 		case err := <-errc:
-			if prettyError(err) == nil && testErr.failed > 0 {
+			if err == nil && testErr.failed > 0 {
 				return testErr.Error()
 			}
-			return prettyError(err)
+			return err
 		case res, ok := <-c:
 			if !ok {
 				break
 			}
 
-			if res.Status == release.TestRun_FAILURE {
+			if res.Status == release.TestRunFailure {
 				testErr.failed++
 			}
-
-			fmt.Fprintf(t.out, res.Msg+"\n")
-
+			fmt.Fprintf(out, res.Msg+"\n")
 		}
 	}
-
 }
 
 type testErr struct {
@@ -106,5 +97,5 @@ type testErr struct {
 }
 
 func (err *testErr) Error() error {
-	return fmt.Errorf("%v test(s) failed", err.failed)
+	return errors.Errorf("%v test(s) failed", err.failed)
 }

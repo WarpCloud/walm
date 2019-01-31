@@ -16,39 +16,12 @@ limitations under the License.
 
 package version // import "k8s.io/helm/pkg/version"
 
-import "k8s.io/helm/pkg/proto/hapi/version"
-
-var (
-	// Version is the current version of the Helm.
-	// Update this whenever making a new release.
-	// The version is of the format Major.Minor.Patch[-Prerelease][+BuildMetadata]
-	//
-	// Increment major number for new feature additions and behavioral changes.
-	// Increment minor number for bug fixes and performance enhancements.
-	// Increment patch number for critical fixes to existing releases.
-	Version = "v2.10"
-
-	// BuildMetadata is extra build time data
-	BuildMetadata = "unreleased"
+// BuildInfo describes the compile time information.
+type BuildInfo struct {
+	// Version is the current semver.
+	Version string `json:"version,omitempty"`
 	// GitCommit is the git sha1
-	GitCommit = ""
+	GitCommit string `json:"git_commit,omitempty"`
 	// GitTreeState is the state of the git tree
-	GitTreeState = ""
-)
-
-// GetVersion returns the semver string of the version
-func GetVersion() string {
-	if BuildMetadata == "" {
-		return Version
-	}
-	return Version + "+" + BuildMetadata
-}
-
-// GetVersionProto returns protobuf representing the version
-func GetVersionProto() *version.Version {
-	return &version.Version{
-		SemVer:       GetVersion(),
-		GitCommit:    GitCommit,
-		GitTreeState: GitTreeState,
-	}
+	GitTreeState string `json:"git_tree_state,omitempty"`
 }

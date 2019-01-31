@@ -16,11 +16,11 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"io"
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/cmd/helm/require"
 	"k8s.io/helm/pkg/downloader"
 )
 
@@ -35,36 +35,32 @@ This command can be used to verify a local chart. Several other commands provide
 the 'helm package --sign' command.
 `
 
-type verifyCmd struct {
+type verifyOptions struct {
 	keyring   string
 	chartfile string
-
-	out io.Writer
 }
 
 func newVerifyCmd(out io.Writer) *cobra.Command {
-	vc := &verifyCmd{out: out}
+	o := &verifyOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "verify [flags] PATH",
+		Use:   "verify PATH",
 		Short: "verify that a chart at the given path has been signed and is valid",
 		Long:  verifyDesc,
+		Args:  require.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("a path to a package file is required")
-			}
-			vc.chartfile = args[0]
-			return vc.run()
+			o.chartfile = args[0]
+			return o.run(out)
 		},
 	}
 
 	f := cmd.Flags()
-	f.StringVar(&vc.keyring, "keyring", defaultKeyring(), "keyring containing public keys")
+	f.StringVar(&o.keyring, "keyring", defaultKeyring(), "keyring containing public keys")
 
 	return cmd
 }
 
-func (v *verifyCmd) run() error {
-	_, err := downloader.VerifyChart(v.chartfile, v.keyring)
+func (o *verifyOptions) run(out io.Writer) error {
+	_, err := downloader.VerifyChart(o.chartfile, o.keyring)
 	return err
 }
