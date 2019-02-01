@@ -17,27 +17,15 @@ type NodeHandler struct {
 }
 
 func (handler *NodeHandler) GetNode(name string) (*v1.Node, error) {
-	//TODO
-	//return handler.lister.Get(name)
-	return handler.client.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+	return handler.lister.Get(name)
 }
 
-func (handler *NodeHandler) ListNodes(labelSelector *metav1.LabelSelector) ([]v1.Node, error) {
-	//TODO
-	//selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return handler.lister.List(selector)
-	selectorStr, err := k8sutils.ConvertLabelSelectorToStr(labelSelector)
+func (handler *NodeHandler) ListNodes(labelSelector *metav1.LabelSelector) ([]*v1.Node, error) {
+	selector, err := k8sutils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {
 		return nil, err
 	}
-	nodeList, err := handler.client.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: selectorStr})
-	if err != nil {
-		return nil, err
-	}
-	return nodeList.Items, nil
+	return handler.lister.List(selector)
 }
 
 func (handler *NodeHandler) LabelNode(name string, labels map[string]string, remove []string) (node *v1.Node, err error) {
