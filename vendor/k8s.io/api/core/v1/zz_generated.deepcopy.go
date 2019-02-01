@@ -2500,6 +2500,13 @@ func (in *NodeStatus) DeepCopyInto(out *NodeStatus) {
 		*out = make([]AttachedVolume, len(*in))
 		copy(*out, *in)
 	}
+	if in.Used != nil {
+		in, out := &in.Used, &out.Used
+		*out = make(ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
 		*out = new(NodeConfigStatus)

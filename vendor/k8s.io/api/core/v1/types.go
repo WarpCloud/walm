@@ -4007,9 +4007,12 @@ type NodeStatus struct {
 	// List of volumes that are attached to the node.
 	// +optional
 	VolumesAttached []AttachedVolume `json:"volumesAttached,omitempty" protobuf:"bytes,10,rep,name=volumesAttached"`
+	// resource used
+	// +optional
+	Used ResourceList `protobuf:"bytes,11,rep,name=used,casttype=ResourceList,castkey=ResourceName"`
 	// Status of the config assigned to the node via the dynamic Kubelet config feature.
 	// +optional
-	Config *NodeConfigStatus `json:"config,omitempty" protobuf:"bytes,11,opt,name=config"`
+	Config *NodeConfigStatus `protobuf:"bytes,12,opt,name=config"`
 }
 
 type UniqueVolumeName string

@@ -14,10 +14,11 @@ func Test(t *testing.T) {
 		return
 	}
 
-	_, err = client.CoreV1().Nodes().Get("172.26.0.5", metav1.GetOptions{})
+	node, err := client.CoreV1().Nodes().Get("172.26.0.5", metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+	fmt.Println(node.Name)
 
 	//clientEx, err := k8sclient.CreateFakeApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
 	//if err != nil {

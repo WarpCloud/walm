@@ -2117,9 +2117,13 @@ message NodeStatus {
   // +optional
   repeated AttachedVolume volumesAttached = 10;
 
+  // resource used
+  // +optional
+  map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> used = 11;
+
   // Status of the config assigned to the node via the dynamic Kubelet config feature.
   // +optional
-  optional NodeConfigStatus config = 11;
+  optional NodeConfigStatus config = 12;
 }
 
 // NodeSystemInfo is a set of ids/uuids to uniquely identify the node.
