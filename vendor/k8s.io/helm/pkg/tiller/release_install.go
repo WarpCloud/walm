@@ -29,6 +29,7 @@ import (
 	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/hooks"
 	relutil "k8s.io/helm/pkg/releaseutil"
+	"k8s.io/helm/pkg/walm"
 )
 
 // deletePolices represents a mapping between the key in the annotation for label deleting policy and its real meaning
@@ -153,6 +154,12 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 		s.Log("install hooks disabled for %s", req.Name)
 	}
 
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, r)
+	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
+	if err != nil{
+		return r, err
+	}
+
 	switch h, err := s.Releases.History(req.Name); {
 	// if this is a replace operation, append to the release history
 	case req.ReuseName && err == nil && len(h) >= 1:
@@ -212,6 +219,11 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 			s.recordRelease(r, true)
 			return r, err
 		}
+	}
+
+	err = walmPluginManager.ExecPlugins(walm.Post_Install)
+	if err != nil {
+		return r, nil
 	}
 
 	r.Info.Status = release.StatusDeployed

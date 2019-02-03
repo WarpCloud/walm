@@ -28,6 +28,9 @@ import (
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chart/loader"
+	"k8s.io/helm/pkg/walm"
+
+	_ "k8s.io/helm/pkg/walm/plugins"
 )
 
 const (
@@ -162,11 +165,11 @@ func (hc *HelmClient) downloadChart(repoName, charName, version string) (string,
 	return filename, nil
 }
 
-func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart,err error) {
+func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
 	chartPath, err := hc.downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		logrus.Errorf("failed to download chart : %s", err.Error())
-		return false,  nil, nil, err
+		return false, nil, nil, err
 	}
 
 	return loadChartByPath(chartPath)
@@ -305,7 +308,7 @@ func (hc *HelmClient) ListReleasesByLabels(namespace string, labelSelector *v1.L
 	for _, releaseConfig := range releaseConfigs {
 		releaseNames = append(releaseNames, cache.ReleaseFieldName{
 			Namespace: releaseConfig.Namespace,
-			Name: releaseConfig.Name,
+			Name:      releaseConfig.Name,
 		})
 	}
 
@@ -811,19 +814,24 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		//TODO native helm chart如何处理？
 		releaseConfigBytes, err := buildReleaseConfig(namespace, releaseRequest.Name, chart.Metadata.Name, chart.Metadata.Version,
 			chart.Metadata.AppVersion, releaseRequest.ReleaseLabels, releaseRequest.Dependencies,
-				dependencyConfigs, configValues, map[string]interface{}{})
+			dependencyConfigs, configValues, map[string]interface{}{})
 		if err != nil {
 			logrus.Errorf("failed to build release config : %s", err.Error())
 			return err
 		}
-		chart.Templates =  append(chart.Templates, &helmchart.File{
+		chart.Templates = append(chart.Templates, &helmchart.File{
 			Name: "releaseconfig.yaml",
 			Data: releaseConfigBytes,
 		})
 	}
 
+	releaseRequest.Plugins = append(releaseRequest.Plugins, &walm.WalmPlugin{
+		Name: "ValidateReleaseConfig",
+	})
 	valueOverride := map[string]interface{}{}
 	mergeValues(valueOverride, configValues)
+	mergeValues(valueOverride, dependencyConfigs)
+	valueOverride[walm.WalmPluginConfigKey] = releaseRequest.Plugins
 
 	var release *hapirelease.Release
 	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)

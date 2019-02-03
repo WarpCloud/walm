@@ -2,6 +2,7 @@ package release
 
 import (
 	"walm/pkg/k8s/adaptor"
+	"k8s.io/helm/pkg/walm"
 )
 
 type ReleaseInfoList struct {
@@ -225,6 +226,7 @@ type ReleaseInfoV2 struct {
 type ReleaseRequestV2 struct {
 	ReleaseRequest
 	ReleaseLabels map[string]string  `json:"release_labels" description:"release labels'"`
+	Plugins []*walm.WalmPlugin `json:"plugins" description:"walm plugins'"`
 }
 
 type ReleaseInfoV2List struct {

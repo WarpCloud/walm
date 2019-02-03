@@ -98,7 +98,7 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 		var k8sResourceBytes []byte
 		if ok {
 			k8sResourceBytes, err = buildReleaseConfig(releaseNamespace, releaseName, nativeChart.Metadata.Name, nativeChart.Metadata.Version,
-			nativeChart.Metadata.AppVersion, releaseLabels, dependencies, dependencyConfigs, userConfigs, outputConfig)
+				nativeChart.Metadata.AppVersion, releaseLabels, dependencies, dependencyConfigs, userConfigs, outputConfig)
 			if err != nil {
 				logrus.Errorf("failed to build release config : %s", err.Error())
 				return nil, err
@@ -122,6 +122,10 @@ func convertJsonnetChart(releaseNamespace, releaseName string, dependencies map[
 
 func buildReleaseConfig(releaseNamespace, releaseName, chartName, chartVersion, chartAppVersion string,
 	labels, dependencies map[string]string, dependencyConfigs, userConfigs, outputConfig map[string]interface{}) ([]byte, error) {
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels["autogen"] = "true"
 	releaseConfig := &v1beta1.ReleaseConfig{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ReleaseConfig",
