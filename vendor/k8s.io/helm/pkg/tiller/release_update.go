@@ -28,6 +28,7 @@ import (
 	"k8s.io/helm/pkg/hapi"
 	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/hooks"
+	"k8s.io/helm/pkg/walm"
 )
 
 // UpdateRelease takes an existing release and new information, and upgrades the release.
@@ -260,6 +261,13 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 	} else {
 		s.Log("update hooks disabled for %s", req.Name)
 	}
+
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, updatedRelease)
+	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
+	if err != nil {
+		return updatedRelease, err
+	}
+
 	if err := s.updateRelease(originalRelease, updatedRelease, req); err != nil {
 		msg := fmt.Sprintf("Upgrade %q failed: %s", updatedRelease.Name, err)
 		s.Log("warning: %s", msg)
@@ -275,6 +283,11 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 		if err := s.execHook(updatedRelease.Hooks, updatedRelease.Name, updatedRelease.Namespace, hooks.PostUpgrade, req.Timeout); err != nil {
 			return updatedRelease, err
 		}
+	}
+
+	err = walmPluginManager.ExecPlugins(walm.Post_Install)
+	if err != nil {
+		return updatedRelease, err
 	}
 
 	originalRelease.Info.Status = release.StatusSuperseded
