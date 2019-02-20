@@ -1,3 +1,7 @@
+[[constraint]]
+  name = "transwarp/release-config"
+  branch = "master"
+  source = "ssh://git@172.16.1.41:10022/k8s/release-config.git"
 
 [[constraint]]
   name = "github.com/BurntSushi/toml"

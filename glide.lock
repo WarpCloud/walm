@@ -1,5 +1,5 @@
-hash: b8889ee17ecf8870cec9a205d70b8c212e4d9bf244a729564e706d359226fece
-updated: 2019-01-31T18:07:41.533514+08:00
+hash: 882cfcb0092eb4b17174e88b6a8ecb28b95622f0311900b6ba2e3c068ed9e9f5
+updated: 2019-02-20T19:23:03.070945+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
@@ -105,7 +105,7 @@ imports:
   subpackages:
   - spdy
 - name: github.com/eapache/go-resiliency
-  version: 487be0453c7b062bff8dcd0ca2570f09e780a9e2
+  version: 842e16ec2c98ef0c59eebfe60d2d3500a793ba19
   subpackages:
   - breaker
 - name: github.com/eapache/go-xerial-snappy
@@ -179,9 +179,9 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/golang/snappy
-  version: 2e65f85255dbc3072edf28d6b5b8efc472979f5a
+  version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/gomodule/redigo
-  version: aefe8f574a11aec83b39814aa06c8336a4192f5b
+  version: 4632c21b4f9e4bfb9d976ec42c0fdf84cc717f47
   subpackages:
   - redis
 - name: github.com/google/btree
@@ -201,6 +201,11 @@ imports:
   - OpenAPIv2
   - compiler
   - extensions
+- name: github.com/gosuri/uitable
+  version: 36ee7e946282a3fb1cfecd476ddc9b35d8847e42
+  subpackages:
+  - util/strutil
+  - util/wordwrap
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -234,7 +239,7 @@ imports:
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/json-iterator/go
-  version: f64ce68b6eea7b957a0d0d43e224dfe491b0babe
+  version: 5bc93205020f6311d7e4a34f82c5616a18ec35e5
 - name: github.com/kelseyhightower/envconfig
   version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
 - name: github.com/konsorten/go-windows-terminal-sequences
@@ -253,6 +258,8 @@ imports:
   version: 517734cc7d6470c0d07130e40fd40bdeb9bcd3fd
 - name: github.com/Masterminds/sprig
   version: 544a9b1d90f323f6509491b389714fbbd126bee3
+- name: github.com/mattn/go-runewidth
+  version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
 - name: github.com/mitchellh/go-wordwrap
   version: ad45545899c7b13c020ea92b2072220eefad42b8
 - name: github.com/mitchellh/mapstructure
@@ -300,7 +307,7 @@ imports:
 - name: github.com/opencontainers/go-digest
   version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
 - name: github.com/opentracing/opentracing-go
-  version: 8b5a441dc60e8d9bb9bf9d22060b6d94fa599983
+  version: 25a84ff92183e2f8ac018ba1db54f8a07b3c0e04
   subpackages:
   - ext
   - log
@@ -309,11 +316,11 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 473cd7ce01a1113208073166464b98819526150e
+  version: 7f42fed96396aa858623e7e51628123cda496462
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
-  version: ffb6e22f01932bf7ac35e0bad9be11f01d1c8685
+  version: 856c240a51a2bf8fb8269ea7f3f9b046aadde36e
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
@@ -373,9 +380,9 @@ imports:
 - name: github.com/spf13/viper
   version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/streadway/amqp
-  version: a314942b2fd9dde7a3f70ba3f1062848ce6eb392
+  version: 884228600bc96c993ab12fb81ba78bf0c280e88a
 - name: github.com/swaggo/swag
-  version: 4dfb5f32ddf2406b3cbbd4084e125c9f6126dbf2
+  version: d95e114626732976ed73a165365089d6e21986cc
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: golang.org/x/crypto
@@ -445,7 +452,7 @@ imports:
   - go/buildutil
   - go/loader
 - name: google.golang.org/appengine
-  version: e9657d882bb81064595ca3b56cbe2546bbabf7b1
+  version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
   subpackages:
   - internal
   - internal/base
@@ -476,7 +483,8 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 - name: k8s.io/api
-  version: a61488babbd64b32da2ed985e2e70fe7b4ffc05a
+  version: 627133f49b642e66319dd117e40f1436e5c05a0b
+  repo: ssh://git@172.16.1.41:10022/k8s/api.git
   subpackages:
   - admission/v1beta1
   - admissionregistration/v1alpha1
@@ -517,7 +525,7 @@ imports:
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
-  version: 572dfc7bdfcb4531361a17d27b92851f59acf0dc
+  version: e355a776c090890b639e31f4c5c409705d5948dd
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -572,7 +580,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: 0132e34a6615cb693b8ca0dc72c39b7fd94e4aa1
+  version: 9301ab5f464383610744485488482ba33226b6f2
   subpackages:
   - pkg/authentication/authenticator
   - pkg/authentication/serviceaccount
@@ -742,7 +750,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: f2cdf1481f9e0409389be80331fd1285523b98d1
+  version: 5f1ec242ada911d95bb414f0644f58a3c2c4aafe
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -772,6 +780,8 @@ imports:
   - pkg/tlsutil
   - pkg/urlutil
   - pkg/version
+  - pkg/walm
+  - pkg/walm/plugins
 - name: k8s.io/klog
   version: 8139d8cb77af419532b33dfa7dd09fbc5f1d344f
 - name: k8s.io/kube-openapi
@@ -780,7 +790,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: f305cd83b83760ae6fcbb128e4ed0e32e3fec46e
+  version: 4ef32ffb4e7c35985120a45702c5453c1bb6f6d2
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
