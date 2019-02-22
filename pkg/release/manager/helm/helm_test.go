@@ -1,10 +1,13 @@
 package helm
 
 import (
+	"path"
 	"testing"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"walm/pkg/k8s/informer"
+	"walm/pkg/setting"
 )
 
 func Test_downloadChart(t *testing.T) {
@@ -24,15 +27,22 @@ func Test_GetDependencies(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	chartRepoMap := make(map[string]*ChartRepository)
-	chartRepository := ChartRepository{
+	gopath := os.Getenv("GOPATH")
+
+	setting.Config.RepoList = make([]*setting.ChartRepo, 0)
+	setting.Config.RepoList = append(setting.Config.RepoList, &setting.ChartRepo{
 		Name: "stable",
 		URL: "http://172.16.1.41:8882/stable/",
-		Username: "",
-		Password: "",
+	})
+	setting.Config.RedisConfig = &setting.RedisConfig{
+		Addr: "172.16.1.45:6379",
+		DB: 0,
 	}
-	chartRepoMap["stable"] = &chartRepository
-	InitHelmByParams("172.26.0.5:31221", chartRepoMap, true)
+	setting.Config.KubeConfig = &setting.KubeConfig{
+		Config: path.Join(gopath, "src/walm/", "test/k8sconfig/kubeconfig"),
+	}
+	stopChan := make(chan struct{})
+	informer.StartInformer(stopChan)
 
 	os.Exit(m.Run())
 }

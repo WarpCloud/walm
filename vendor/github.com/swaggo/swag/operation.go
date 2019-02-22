@@ -30,23 +30,6 @@ type Operation struct {
 // Regular expression for comment with response
 const responseCommentPattern = `([\d]+)[\s]+([\w\{\}]+)[\s]+([\w\-\.\/]+)[^"]*(.*)?`
 
-var mimeTypeAliases = map[string]string{
-	"json":                  "application/json",
-	"xml":                   "text/xml",
-	"plain":                 "text/plain",
-	"html":                  "text/html",
-	"mpfd":                  "multipart/form-data",
-	"x-www-form-urlencoded": "application/x-www-form-urlencoded",
-	"json-api":              "application/vnd.api+json",
-	"json-stream":           "application/x-json-stream",
-	"octet-stream":          "application/octet-stream",
-	"png":                   "image/png",
-	"jpeg":                  "image/jpeg",
-	"gif":                   "image/gif",
-}
-
-var mimeTypePattern = regexp.MustCompile("^[^/]+/[^/]+$")
-
 // NewOperation creates a new Operation with default properties.
 // map[int]Response
 func NewOperation() *Operation {

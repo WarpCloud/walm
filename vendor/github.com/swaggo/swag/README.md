@@ -561,31 +561,6 @@ generate swagger doc as follows:
 }
 ```
 
-### How to using security annotations
-
-General API info.
-
-```go
-// @securityDefinitions.basic BasicAuth
-
-// @securitydefinitions.oauth2.application OAuth2Application
-// @tokenUrl https://example.com/oauth/token
-// @scope.write Grants write access
-// @scope.admin Grants read and write access to administrative information
-```
-
-Each API operation.
-
-```go
-// @Security ApiKeyAuth
-```
-
-Make it AND condition
-
-```go
-// @Security ApiKeyAuth
-// @Security OAuth2Application[write, admin]
-```
 
 ## About the Project
 This project was inspired by [yvasiyarov/swagger](https://github.com/yvasiyarov/swagger) but we simplified the usage and added support a variety of [web frameworks](#supported-web-frameworks). Gopher image source is [tenntenn/gopher-stickers](https://github.com/tenntenn/gopher-stickers). It has licenses [creative commons licensing](http://creativecommons.org/licenses/by/3.0/deed.en).

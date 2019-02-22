@@ -14,26 +14,26 @@ type ReleaseInfo struct {
 	ReleaseSpec
 	Ready   bool                     `json:"ready" description:"whether release is ready"`
 	Message string                   `json:"message" description:"why release is not ready"`
-	Status  *adaptor.WalmResourceSet `json:"release_status" description:"status of release"`
+	Status  *adaptor.WalmResourceSet `json:"releaseStatus" description:"status of release"`
 }
 
 type ReleaseSpec struct {
 	Name            string                 `json:"name" description:"name of the release"`
-	RepoName        string                 `json:"repo_name" description:"chart name"`
-	ConfigValues    map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
+	RepoName        string                 `json:"repoName" description:"chart name"`
+	ConfigValues    map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
 	Namespace       string                 `json:"namespace" description:"namespace of release"`
 	Dependencies    map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ChartName       string                 `json:"chart_name" description:"chart name"`
-	ChartVersion    string                 `json:"chart_version" description:"chart version"`
-	ChartAppVersion string                 `json:"chart_app_version" description:"jsonnet app version"`
+	ChartName       string                 `json:"chartName" description:"chart name"`
+	ChartVersion    string                 `json:"chartVersion" description:"chart version"`
+	ChartAppVersion string                 `json:"chartAppVersion" description:"jsonnet app version"`
 	HelmValues
 }
 
 type ReleaseCache struct {
 	ReleaseSpec
-	ReleaseResourceMetas []ReleaseResourceMeta  `json:"release_resource_metas" description:"release resource metas"`
-	ComputedValues       map[string]interface{} `json:"computed_values" description:"release computed values"`
+	ReleaseResourceMetas []ReleaseResourceMeta  `json:"releaseResourceMetas" description:"release resource metas"`
+	ComputedValues       map[string]interface{} `json:"computedValues" description:"release computed values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -42,29 +42,14 @@ type ReleaseResourceMeta struct {
 	Name      string `json:"name" description:"resource name"`
 }
 
-type ChartValicationInfo struct {
-	Name         string                 `json:"name" description:"name of the release"`
-	ConfigValues map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
-	Version      int32                  `json:"version" description:"version of the release"`
-	Namespace    string                 `json:"namespace" description:"namespace of release"`
-	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ChartName    string                 `json:"chart_name" description:"chart name"`
-	ChartVersion string                 `json:"chart_version" description:"chart version"`
-	RenderStatus string                 `json:"render_status" description:"status of rending "`
-	RenderResult map[string]string      `json:"render_result" description:"result of rending "`
-	DryRunStatus string                 `json:"dry_run_status" description:"status of dry run "`
-	DryRunResult map[string]string      `json:"dry_run_result" description:"result of dry run "`
-	ErrorMessage string                 `json:"error_message" description:" error msg "`
-}
-
 type ReleaseRequest struct {
 	Name                string                 `json:"name" description:"name of the release"`
-	RepoName            string                 `json:"repo_name" description:"chart name"`
-	ChartName           string                 `json:"chart_name" description:"chart name"`
-	ChartVersion        string                 `json:"chart_version" description:"chart repo"`
-	ConfigValues        map[string]interface{} `json:"config_values" description:"extra values added to the chart"`
+	RepoName            string                 `json:"repoName" description:"chart name"`
+	ChartName           string                 `json:"chartName" description:"chart name"`
+	ChartVersion        string                 `json:"chartVersion" description:"chart repo"`
+	ConfigValues        map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Dependencies        map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	ReleasePrettyParams PrettyChartParams      `json:"release_pretty_params" description:"pretty chart params for market"`
+	ReleasePrettyParams PrettyChartParams      `json:"releasePrettyParams" description:"pretty chart params for market"`
 }
 
 type HelmExtraLabels struct {
@@ -72,13 +57,12 @@ type HelmExtraLabels struct {
 }
 
 type HelmValues struct {
-	HelmExtraLabels     *HelmExtraLabels  `json:"HelmExtraLabels"`
-	ReleasePrettyParams PrettyChartParams `json:"release_pretty_params" description:"pretty chart params for market"`
+	HelmExtraLabels *HelmExtraLabels `json:"HelmExtraLabels"`
 }
 
 type RepoInfo struct {
-	TenantRepoName string `json:"repo_name"`
-	TenantRepoURL  string `json:"repo_url"`
+	TenantRepoName string `json:"repoName"`
+	TenantRepoURL  string `json:"repoUrl"`
 }
 
 type RepoInfoList struct {
@@ -86,21 +70,30 @@ type RepoInfoList struct {
 }
 
 type ChartDependencyInfo struct {
-	ChartName  string  `json:"chart_name"`
-	MaxVersion float32 `json:"max_version"`
-	MinVersion float32 `json:"min_version"`
-	DependencyOptional bool `json:"dependency_optional"`
+	ChartName          string  `json:"chartName"`
+	MaxVersion         float32 `json:"maxVersion"`
+	MinVersion         float32 `json:"minVersion"`
+	DependencyOptional bool    `json:"dependencyOptional"`
 }
 
 type ChartInfo struct {
-	ChartName         string                `json:"chart_name"`
-	ChartVersion      string                `json:"chart_version"`
-	ChartDescription  string                `json:"chart_description"`
-	ChartAppVersion   string                `json:"chart_appVersion"`
-	ChartEngine       string                `json:"chart_engine"`
-	DefaultValue      string                `json:"default_value" description:"default values.yaml defined by the chart"`
-	DependencyCharts  []ChartDependencyInfo `json:"dependency_charts" description:"dependency chart name"`
-	ChartPrettyParams PrettyChartParams     `json:"chart_pretty_params" description:"pretty chart params for market"`
+	ChartName         string                `json:"chartName"`
+	ChartVersion      string                `json:"chartVersion"`
+	ChartDescription  string                `json:"chartDescription"`
+	ChartAppVersion   string                `json:"chartAppVersion"`
+	ChartEngine       string                `json:"chartEngine"`
+	DefaultValue      string                `json:"defaultValue" description:"default values.yaml defined by the chart"`
+	DependencyCharts  []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
+	ChartPrettyParams PrettyChartParams     `json:"chartPrettyParams" description:"pretty chart params for market"`
+	Metainfo          *ChartMetaInfo        `json:"metainfo" description:"transwarp chart metainfo"`
+}
+
+type ChartDetailInfo struct {
+	ChartInfo
+	// additional info
+	Advantage    []byte `json:"category" description:"chart production advantage description(rich text)"`
+	Architecture []byte `json:"architecture" description:"chart production architecture description(rich text)"`
+	Icon         []byte `json:"icon" description:"chart icon"`
 }
 
 type ChartInfoList struct {
@@ -120,16 +113,16 @@ type ReleaseConfigDeltaEvent struct {
 }
 
 type ReleaseConfig struct {
-	AppName      string             `json:"app_name" description:"chart name"`
+	AppName      string             `json:"appName" description:"release name"`
 	Version      string             `json:"version" description:"chart version"`
-	InstanceName string             `json:"instance_name" description:"release name"`
+	InstanceName string             `json:"instanceName" description:"release name"`
 	ConfigSets   []ReleaseConfigSet `json:"configsets" description:"configsets"`
 }
 
 type ReleaseConfigSet struct {
 	Name        string              `json:"name" description:"name"`
-	CreatedBy   string              `json:"created_by" description:"created by"`
-	ConfigItems []ReleaseConfigItem `json:"config_items" description:"config items"`
+	CreatedBy   string              `json:"createdBy" description:"created by"`
+	ConfigItems []ReleaseConfigItem `json:"configItems" description:"config items"`
 	Format      string              `json:"format" description:"format"`
 }
 
@@ -139,94 +132,18 @@ type ReleaseConfigItem struct {
 	Type  string                 `json:"type" description:"value"`
 }
 
-type DummyServiceConfig struct {
-	Provides map[string]DummyServiceConfigImmediateValue `json:"provides" description:"dummy service provides"`
-}
-
-type DummyServiceConfigImmediateValue struct {
-	ImmediateValue map[string]interface{} `json:"immediate_value" description:"dummy service immediate value"`
-}
-
-// Pretty Paramters
-type ResourceStorageConfig struct {
-	Name         string   `json:"name"`
-	StorageType  string   `json:"type"`
-	StorageClass string   `json:"storageClass"`
-	Size         string   `json:"size"`
-	AccessModes  []string `json:"accessModes"`
-	AccessMode   string   `json:"accessMode"`
-}
-
-type ResourceConfig struct {
-	CpuLimit            float64                 `json:"cpu_limit"`
-	CpuRequest          float64                 `json:"cpu_request"`
-	MemoryLimit         float64                 `json:"memory_limit"`
-	MemoryRequest       float64                 `json:"memory_request"`
-	GpuLimit            int                     `json:"gpu_limit"`
-	GpuRequest          int                     `json:"gpu_request"`
-	ResourceStorageList []ResourceStorageConfig `json:"storage"`
-}
-
-type BaseConfig struct {
-	ValueName        string      `json:"variable" description:"variable name"`
-	DefaultValue     interface{} `json:"default" description:"variable default value"`
-	ValueDescription string      `json:"description" description:"variable description"`
-	ValueType        string      `json:"type" description:"variable type"`
-}
-
-type RoleConfig struct {
-	Name               string          `json:"name"`
-	Description        string          `json:"description"`
-	Replicas           int             `json:"replicas"`
-	RoleBaseConfig     []*BaseConfig   `json:"baseConfig"`
-	RoleResourceConfig *ResourceConfig `json:"resouceConfig"`
-}
-
-type CommonConfig struct {
-	Roles []*RoleConfig `json:"roles"`
-}
-
-type PrettyChartParams struct {
-	CommonConfig        CommonConfig  `json:"commonConfig"`
-	TranswarpBaseConfig []*BaseConfig `json:"transwarpBundleConfig"`
-	AdvanceConfig       []*BaseConfig `json:"advanceConfig"`
-}
-
-type DependencyDeclare struct {
-	// name of dependency declaration
-	Name string `json:"name,omitempty"`
-	// dependency variable mappings
-	Requires map[string]string `json:"requires,omitempty"`
-	// minVersion
-	MinVersion float32 `json:"minVersion"`
-	// maxVersion
-	MaxVersion float32 `json:"maxVersion"`
-
-	DependencyOptional bool `json:"dependencyOptional"`
-}
-
-type AppDependency struct {
-	Name         string               `json:"name,omitempty"`
-	Dependencies []*DependencyDeclare `json:"dependencies"`
-}
-
-type TranswarpAppInfo struct {
-	AppDependency
-	UserInputParams PrettyChartParams `json:"userInputParams"`
-}
-
 type ReleaseInfoV2 struct {
 	ReleaseInfo
-	DependenciesConfigValues map[string]interface{} `json:"dependencies_config_values" description:"release's dependencies' config values"`
-	ComputedValues           map[string]interface{} `json:"computed_values" description:"config values to render chart templates"`
-	OutputConfigValues       map[string]interface{} `json:"output_config_values" description:"release's output config values'"`
-	ReleaseLabels            map[string]string `json:"release_labels" description:"release labels'"`
+	DependenciesConfigValues map[string]interface{} `json:"dependenciesConfigValues" description:"release's dependencies' config values"`
+	ComputedValues           map[string]interface{} `json:"computedValues" description:"config values to render chart templates"`
+	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
+	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
 }
 
 type ReleaseRequestV2 struct {
 	ReleaseRequest
-	ReleaseLabels map[string]string  `json:"release_labels" description:"release labels'"`
-	Plugins []*walm.WalmPlugin `json:"plugins" description:"walm plugins'"`
+	ReleaseLabels map[string]string  `json:"releaseLabels" description:"release labels"`
+	Plugins       []*walm.WalmPlugin `json:"plugins" description:"plugins"`
 }
 
 type ReleaseInfoV2List struct {

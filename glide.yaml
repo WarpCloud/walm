@@ -2,7 +2,7 @@ package: walm
 import:
 - package: k8s.io/helm
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
-  version: dev-v3
+  version: dev-v3-fix
 - package: transwarp/application-instance
   repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
   version: release-1.10
@@ -73,6 +73,7 @@ import:
   version: 1.0.3
 - package: github.com/tidwall/gjson
   version: 1.2.1
+
 - package: github.com/deislabs/oras
   version: 0.3.3
 - package: github.com/containerd/containerd

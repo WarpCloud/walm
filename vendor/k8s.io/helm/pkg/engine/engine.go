@@ -306,6 +306,9 @@ func (p byPathLen) Less(i, j int) bool {
 // As it goes, it also prepares the values in a scope-sensitive manner.
 func allTemplates(c *chart.Chart, vals chartutil.Values) map[string]renderable {
 	templates := make(map[string]renderable)
+	if c.Metadata.Engine == "jsonnet" {
+		jsonnetRecAllTpls(c, templates, vals)
+	}
 	recAllTpls(c, templates, vals)
 	return templates
 }

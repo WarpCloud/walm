@@ -7,6 +7,7 @@ import (
 	walmerr "walm/pkg/util/error"
 	"strconv"
 	"github.com/sirupsen/logrus"
+	"walm/pkg/util/transwarpjsonnet"
 	"walm/router/api"
 	"walm/pkg/release/manager/helm"
 	"walm/pkg/release"
@@ -85,7 +86,7 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 	defer chartArchive.Close()
-	chartFiles, err := helm.LoadArchive(chartArchive)
+	chartFiles, err := transwarpjsonnet.LoadArchive(chartArchive)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
 		return
@@ -138,7 +139,7 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 		return
 	}
 	defer chartArchive.Close()
-	chartFiles, err := helm.LoadArchive(chartArchive)
+	chartFiles, err := transwarpjsonnet.LoadArchive(chartArchive)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
 		return

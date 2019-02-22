@@ -616,10 +616,10 @@ func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 	kc := client.GetKubeClient("")
 	clientset, err := kc.KubernetesClientSet()
 	if err != nil {
-		logrus.Fatal("failed to get clientset")
+		logrus.Fatal("failed to get clientset, error %v", err)
 	}
 
-	d := driver.NewSecrets(clientset.CoreV1().Secrets(""))
+	d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(""))
 	store := storage.Init(d)
 	config := &action.Configuration{
 		KubeClient: kc,
