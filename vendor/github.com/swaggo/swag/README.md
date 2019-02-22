@@ -341,6 +341,37 @@ $ swag init
 `swag` accepts all MIME Types which are in the correct format, that is, match `*/*`.
 Besides that, `swag` also accepts aliases for some MIME Types as follows:
 
+
+| Alias                 | MIME Type                         |
+|-----------------------|-----------------------------------|
+| json                  | application/json                  |
+| xml                   | text/xml                          |
+| plain                 | text/plain                        |
+| html                  | text/html                         |
+| mpfd                  | multipart/form-data               |
+| x-www-form-urlencoded | application/x-www-form-urlencoded |
+| json-api              | application/vnd.api+json          |
+| json-stream           | application/x-json-stream         |
+| octet-stream          | application/octet-stream          |
+| png                   | image/png                         |
+| jpeg                  | image/jpeg                        |
+| gif                   | image/gif                         |
+
+## Security
+
+General API info.
+
+```go
+// @securityDefinitions.basic BasicAuth
+
+// @securitydefinitions.oauth2.application OAuth2Application
+// @tokenUrl https://example.com/oauth/token
+// @scope.write Grants write access
+// @scope.admin Grants read and write access to administrative information
+```
+
+Each API operation.
+
 | Alias                 | MIME Type                         |
 |-----------------------|-----------------------------------|
 | json                  | application/json                  |

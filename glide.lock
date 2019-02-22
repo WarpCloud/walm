@@ -1,6 +1,5 @@
-hash: 612f138c04a01e21d602a56d4af2cad40bb98d6fa9bdf7f06935dc2593d706cf
-updated: 2019-02-25T16:16:58.458346+08:00
-
+hash: f489784af94570bacd43bc0ea4a9a0fb8cccd6764fb11dc56b9d658101c0dbf4
+updated: 2019-02-22T16:00:08.51139529+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 3391d3790d23d03408670993e957e8f408993c34
@@ -197,7 +196,7 @@ imports:
 - name: github.com/golang/snappy
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/gomodule/redigo
-  version: 43fe51054af5fb7acdc89c38a3f8098fbf997a53
+  version: 4b40ddb4586bdd2805bcfba564ed0dfa28ec3886
   subpackages:
   - redis
 - name: github.com/google/btree
@@ -319,7 +318,7 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 062282ea0dcff40c9fb8525789eef9644b1fbd6e
+  version: 7f42fed96396aa858623e7e51628123cda496462
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
@@ -375,9 +374,9 @@ imports:
 - name: github.com/spf13/viper
   version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/streadway/amqp
-  version: f16568b23ee61c7d911a5b9d306b8fe2092c33b7
+  version: 884228600bc96c993ab12fb81ba78bf0c280e88a
 - name: github.com/swaggo/swag
-  version: 50660570fd78f4658c71f2612a970123ae36711b
+  version: a8247dc5ca8e9d866e15a9b968abfd0045a8efb8
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: github.com/tidwall/gjson
@@ -565,7 +564,7 @@ imports:
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
-  version: e355a776c090890b639e31f4c5c409705d5948dd
+  version: 86fb29eff6288413d76bd8506874fddd9fccdff0
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -620,7 +619,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: 9301ab5f464383610744485488482ba33226b6f2
+  version: 5838f549963bed8c4af81f430f23a29eccad093e
   subpackages:
   - pkg/authentication/authenticator
   - pkg/authentication/serviceaccount
@@ -637,6 +636,7 @@ imports:
   version: e64494209f554a6723674bd494d69445fb76a1d4
   subpackages:
   - discovery
+  - discovery/fake
   - dynamic
   - informers
   - informers/admissionregistration
@@ -685,39 +685,72 @@ imports:
   - informers/storage/v1alpha1
   - informers/storage/v1beta1
   - kubernetes
+  - kubernetes/fake
   - kubernetes/scheme
   - kubernetes/typed/admissionregistration/v1alpha1
+  - kubernetes/typed/admissionregistration/v1alpha1/fake
   - kubernetes/typed/admissionregistration/v1beta1
+  - kubernetes/typed/admissionregistration/v1beta1/fake
   - kubernetes/typed/apps/v1
+  - kubernetes/typed/apps/v1/fake
   - kubernetes/typed/apps/v1beta1
+  - kubernetes/typed/apps/v1beta1/fake
   - kubernetes/typed/apps/v1beta2
+  - kubernetes/typed/apps/v1beta2/fake
   - kubernetes/typed/auditregistration/v1alpha1
+  - kubernetes/typed/auditregistration/v1alpha1/fake
   - kubernetes/typed/authentication/v1
+  - kubernetes/typed/authentication/v1/fake
   - kubernetes/typed/authentication/v1beta1
+  - kubernetes/typed/authentication/v1beta1/fake
   - kubernetes/typed/authorization/v1
+  - kubernetes/typed/authorization/v1/fake
   - kubernetes/typed/authorization/v1beta1
+  - kubernetes/typed/authorization/v1beta1/fake
   - kubernetes/typed/autoscaling/v1
+  - kubernetes/typed/autoscaling/v1/fake
   - kubernetes/typed/autoscaling/v2beta1
+  - kubernetes/typed/autoscaling/v2beta1/fake
   - kubernetes/typed/autoscaling/v2beta2
+  - kubernetes/typed/autoscaling/v2beta2/fake
   - kubernetes/typed/batch/v1
+  - kubernetes/typed/batch/v1/fake
   - kubernetes/typed/batch/v1beta1
+  - kubernetes/typed/batch/v1beta1/fake
   - kubernetes/typed/batch/v2alpha1
+  - kubernetes/typed/batch/v2alpha1/fake
   - kubernetes/typed/certificates/v1beta1
+  - kubernetes/typed/certificates/v1beta1/fake
   - kubernetes/typed/coordination/v1beta1
+  - kubernetes/typed/coordination/v1beta1/fake
   - kubernetes/typed/core/v1
+  - kubernetes/typed/core/v1/fake
   - kubernetes/typed/events/v1beta1
+  - kubernetes/typed/events/v1beta1/fake
   - kubernetes/typed/extensions/v1beta1
+  - kubernetes/typed/extensions/v1beta1/fake
   - kubernetes/typed/networking/v1
+  - kubernetes/typed/networking/v1/fake
   - kubernetes/typed/policy/v1beta1
+  - kubernetes/typed/policy/v1beta1/fake
   - kubernetes/typed/rbac/v1
+  - kubernetes/typed/rbac/v1/fake
   - kubernetes/typed/rbac/v1alpha1
+  - kubernetes/typed/rbac/v1alpha1/fake
   - kubernetes/typed/rbac/v1beta1
+  - kubernetes/typed/rbac/v1beta1/fake
   - kubernetes/typed/scheduling/v1alpha1
+  - kubernetes/typed/scheduling/v1alpha1/fake
   - kubernetes/typed/scheduling/v1beta1
+  - kubernetes/typed/scheduling/v1beta1/fake
   - kubernetes/typed/settings/v1alpha1
+  - kubernetes/typed/settings/v1alpha1/fake
   - kubernetes/typed/storage/v1
+  - kubernetes/typed/storage/v1/fake
   - kubernetes/typed/storage/v1alpha1
+  - kubernetes/typed/storage/v1alpha1/fake
   - kubernetes/typed/storage/v1beta1
+  - kubernetes/typed/storage/v1beta1/fake
   - listers/admissionregistration/v1alpha1
   - listers/admissionregistration/v1beta1
   - listers/apps/v1
@@ -762,6 +795,7 @@ imports:
   - scale/scheme/autoscalingv1
   - scale/scheme/extensionsint
   - scale/scheme/extensionsv1beta1
+  - testing
   - third_party/forked/golang/template
   - tools/auth
   - tools/cache
@@ -790,7 +824,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: aa8ce709f325fd749ad9996d7b4800f5da209764
+  version: 482061d9773c9d7b61b4da5544233d7384b97db3
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -831,7 +865,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 046d69bd61d96a59f3b1f6030ad82f5a3323b8e2
+  version: 7e0181c6fe6e4fc4789b4f25e1b0c60b2ae5c264
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
