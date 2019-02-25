@@ -8,4 +8,5 @@
 /docs/man
 _dist/
 bin/
+vendor/
 *.iml

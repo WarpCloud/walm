@@ -81,8 +81,13 @@ func (i *Install) Run(chrt *chart.Chart, rawValues map[string]interface{}) (*rel
 
 	caps := i.cfg.capabilities()
 
+	revision := 1
+	ts := time.Now()
 	options := chartutil.ReleaseOptions{
 		Name:      i.ReleaseName,
+		Time:      ts,
+		Namespace: i.Namespace,
+		Revision:  revision,
 		IsInstall: true,
 	}
 	valuesToRender, err := chartutil.ToRenderValues(chrt, rawValues, options, caps)

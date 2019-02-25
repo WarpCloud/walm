@@ -43,8 +43,6 @@ type Metadata struct {
 	Keywords []string `json:"keywords,omitempty"`
 	// A list of name and URL/email address combinations for the maintainer(s)
 	Maintainers []*Maintainer `json:"maintainers,omitempty"`
-	// The name of the template engine to use. Defaults to 'gotpl'.
-	Engine string `json:"engine,omitempty"`
 	// The URL to an icon file.
 	Icon string `json:"icon,omitempty"`
 	// The API Version of this chart.
@@ -64,4 +62,6 @@ type Metadata struct {
 	KubeVersion string `json:"kubeVersion,omitempty"`
 	// Dependencies are a list of dependencies for a chart.
 	Dependencies []*Dependency `json:"dependencies,omitempty"`
+	// Specifies the chart type: application or library
+	Type string `json:"type,omitempty"`
 }

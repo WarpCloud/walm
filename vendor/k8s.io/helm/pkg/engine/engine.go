@@ -29,6 +29,8 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 )
 
+const transwarpJsonetFileSuffix = ".transwarp-jsonnet.yaml"
+
 // Engine is an implementation of 'cmd/tiller/environment'.Engine that uses Go templates.
 type Engine struct {
 	// FuncMap contains the template functions that will be passed to each
@@ -221,7 +223,7 @@ func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered m
 	files := []string{}
 	rendered = make(map[string]string, len(files))
 	for _, fname := range keys {
-		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+		if strings.HasSuffix(path.Base(fname), transwarpJsonetFileSuffix) {
 			rendered[fname] = tpls[fname].tpl
 			continue
 		}
@@ -235,7 +237,7 @@ func (e *Engine) render(ch *chart.Chart, tpls map[string]renderable) (rendered m
 	// Adding the engine's currentTemplates to the template context
 	// so they can be referenced in the tpl function
 	for fname, r := range e.currentTemplates {
-		if strings.HasPrefix(path.Base(fname), "NOTRENDER-") {
+		if strings.HasSuffix(path.Base(fname), transwarpJsonetFileSuffix) {
 			continue
 		}
 		if t.Lookup(fname) == nil {
