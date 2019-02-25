@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes/fake"
+
 	"k8s.io/helm/pkg/chart"
 	"k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/storage"
@@ -136,7 +137,7 @@ func releaseStub() *release.Release {
 	return namedReleaseStub("angry-panda", release.StatusDeployed)
 }
 
-func namedReleaseStub(name string, status release.ReleaseStatus) *release.Release {
+func namedReleaseStub(name string, status release.Status) *release.Release {
 	now := time.Now()
 	return &release.Release{
 		Name: name,

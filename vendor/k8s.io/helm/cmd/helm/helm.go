@@ -52,7 +52,7 @@ func logf(format string, v ...interface{}) {
 }
 
 func main() {
-	cmd := newRootCmd(nil, newActionConfig(false), os.Stdout, os.Args[1:])
+	cmd := newRootCmd(nil, os.Stdout, os.Args[1:])
 	if err := cmd.Execute(); err != nil {
 		logf("%+v", err)
 		os.Exit(1)
@@ -81,7 +81,7 @@ func newClient(allNamespaces bool) helm.Interface {
 		namespace = getNamespace()
 	}
 	// TODO add other backends
-	d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
+	d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(namespace))
 	d.Log = logf
 
 	return helm.NewClient(

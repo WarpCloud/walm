@@ -1,0 +1,8 @@
+apiVersion: "apiextensions.transwarp.io/v1beta1"
+kind: ReleaseConfig
+metadata:
+  name: zookeeper1
+  namespace: default
+spec:
+
+

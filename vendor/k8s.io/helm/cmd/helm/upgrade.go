@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"k8s.io/helm/pkg/action"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -73,10 +74,12 @@ type upgradeOptions struct {
 	release string
 	chart   string
 
+	cfg *action.Configuration
+
 	client helm.Interface
 }
 
-func newUpgradeCmd(client helm.Interface, out io.Writer) *cobra.Command {
+func newUpgradeCmd(client helm.Interface, cfg *action.Configuration, out io.Writer) *cobra.Command {
 	o := &upgradeOptions{client: client}
 
 	cmd := &cobra.Command{
@@ -93,6 +96,7 @@ func newUpgradeCmd(client helm.Interface, out io.Writer) *cobra.Command {
 			o.release = args[0]
 			o.chart = args[1]
 			o.client = ensureHelmClient(o.client, false)
+			o.cfg = cfg
 
 			return o.run(out)
 		},
@@ -138,6 +142,7 @@ func (o *upgradeOptions) run(out io.Writer) error {
 				wait:             o.wait,
 				valuesOptions:    o.valuesOptions,
 				chartPathOptions: o.chartPathOptions,
+				cfg:              o.cfg,
 			}
 			return io.run(out)
 		}

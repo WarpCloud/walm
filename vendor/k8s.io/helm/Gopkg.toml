@@ -1,7 +1,3 @@
-[[constraint]]
-  name = "transwarp/release-config"
-  branch = "master"
-  source = "ssh://git@172.16.1.41:10022/k8s/release-config.git"
 
 [[constraint]]
   name = "github.com/BurntSushi/toml"
@@ -59,9 +55,24 @@
   name = "github.com/imdario/mergo"
   version = "v0.3.5"
 
+[[constraint]]
+  name = "github.com/deislabs/oras"
+  version = "v0.3.3"
+
+[[constraint]]
+  name = "github.com/docker/go-units"
+  version = "v0.3.3"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "^1.3.0"
+
 [prune]
   go-tests = true
   unused-packages = true
 
-[[constraint]]
-  name = "github.com/stretchr/testify"
+# This override below necessary for using docker/distribution as a test dependency
+[[override]]
+  name = "rsc.io/letsencrypt"
+  branch = "master"
+  source = "https://github.com/dmcgowan/letsencrypt.git"

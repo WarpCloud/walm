@@ -24,11 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/helm/pkg/tiller/environment"
-
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"k8s.io/helm/internal/test"
 	"k8s.io/helm/pkg/action"
@@ -38,34 +36,24 @@ import (
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/storage"
 	"k8s.io/helm/pkg/storage/driver"
+	"k8s.io/helm/pkg/tiller/environment"
 )
-
-// base temp directory
-var testingDir string
 
 func testTimestamper() time.Time { return time.Unix(242085845, 0).UTC() }
 
 func init() {
-	var err error
-	testingDir, err = ioutil.TempDir(testingDir, "helm")
-	if err != nil {
-		panic(err)
-	}
-
 	action.Timestamper = testTimestamper
 }
 
 func TestMain(m *testing.M) {
 	os.Unsetenv("HELM_HOME")
-
 	exitCode := m.Run()
-	os.RemoveAll(testingDir)
 	os.Exit(exitCode)
 }
 
 func testTempDir(t *testing.T) string {
 	t.Helper()
-	d, err := ioutil.TempDir(testingDir, "helm")
+	d, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		t.Fatal(err)
 	}

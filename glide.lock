@@ -1,5 +1,5 @@
-hash: 882cfcb0092eb4b17174e88b6a8ecb28b95622f0311900b6ba2e3c068ed9e9f5
-updated: 2019-02-20T19:23:03.070945+08:00
+hash: 6c9fc0e4646031c14839bc4dd433df8a58ee43a0f463ab474ef5b730f7121e83
+updated: 2019-02-25T15:27:29.078782+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
@@ -60,10 +60,25 @@ imports:
   - gettext/mo
   - gettext/plural
   - gettext/po
+- name: github.com/containerd/containerd
+  version: 9b32062dc1f5a7c2564315c269b5059754f12b9d
+  subpackages:
+  - content
+  - errdefs
+  - images
+  - log
+  - platforms
+  - reference
+  - remotes
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8
   subpackages:
   - spew
+- name: github.com/deislabs/oras
+  version: e8a1fa6ff9a507b99eedd45745959e8c5b826d9f
+  subpackages:
+  - pkg/content
+  - pkg/oras
 - name: github.com/dgrijalva/jwt-go
   version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
 - name: github.com/docker/distribution
@@ -100,6 +115,8 @@ imports:
   - pkg/sysinfo
   - pkg/term
   - pkg/term/windows
+- name: github.com/docker/go-units
+  version: 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
 - name: github.com/docker/spdystream
   version: 449fdfce4d962303d702fec724ef0ad181c92528
   subpackages:
@@ -120,7 +137,7 @@ imports:
   version: f6154fc4effc2950a299faa5ac752ebf8b44a86e
   repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
 - name: github.com/evanphx/json-patch
-  version: 36442dbdb585210f8d5a1b45e67aa323c197d5c4
+  version: 5858425f75500d40c52783dce87d085a483ce135
 - name: github.com/exponent-io/jsonpath
   version: d6023ce2651d8eafb5c75bb0c7167536102ec9f5
 - name: github.com/fsnotify/fsnotify
@@ -181,7 +198,7 @@ imports:
 - name: github.com/golang/snappy
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/gomodule/redigo
-  version: 4632c21b4f9e4bfb9d976ec42c0fdf84cc717f47
+  version: 4b40ddb4586bdd2805bcfba564ed0dfa28ec3886
   subpackages:
   - redis
 - name: github.com/google/btree
@@ -306,6 +323,11 @@ imports:
   - types
 - name: github.com/opencontainers/go-digest
   version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+- name: github.com/opencontainers/image-spec
+  version: 372ad780f63454fbbbbcc7cf80e5b90245c13e13
+  subpackages:
+  - specs-go
+  - specs-go/v1
 - name: github.com/opentracing/opentracing-go
   version: 25a84ff92183e2f8ac018ba1db54f8a07b3c0e04
   subpackages:
@@ -316,7 +338,7 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 7f42fed96396aa858623e7e51628123cda496462
+  version: 062282ea0dcff40c9fb8525789eef9644b1fbd6e
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
@@ -380,11 +402,13 @@ imports:
 - name: github.com/spf13/viper
   version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/streadway/amqp
-  version: 884228600bc96c993ab12fb81ba78bf0c280e88a
+  version: f16568b23ee61c7d911a5b9d306b8fe2092c33b7
 - name: github.com/swaggo/swag
-  version: d95e114626732976ed73a165365089d6e21986cc
+  version: aabc0566bfce01f830f8d56ee99724001504946d
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
+- name: github.com/tidwall/sjson
+  version: c943cc8c8d751d9b33444adf78ae04c2fc8be754
 - name: golang.org/x/crypto
   version: de0752318171da717af4ce24d0a2e8626afaeb11
   subpackages:
@@ -417,6 +441,10 @@ imports:
   - internal
   - jws
   - jwt
+- name: golang.org/x/sync
+  version: 37e7f081c4d4c64e13b10787722085407fe5d15f
+  subpackages:
+  - errgroup
 - name: golang.org/x/sys
   version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
@@ -461,6 +489,40 @@ imports:
   - internal/remote_api
   - internal/urlfetch
   - urlfetch
+- name: google.golang.org/genproto
+  version: 09f6ed296fc66555a25fe4ce95173148778dfa85
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: 168a6198bcb0ef175f7dacec0b8691fc141dc9b8
+  subpackages:
+  - balancer
+  - balancer/base
+  - balancer/roundrobin
+  - codes
+  - connectivity
+  - credentials
+  - encoding
+  - encoding/proto
+  - grpclb/grpc_lb_v1/messages
+  - grpclog
+  - health
+  - health/grpc_health_v1
+  - internal
+  - internal/backoff
+  - internal/channelz
+  - internal/grpcrand
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - resolver
+  - resolver/dns
+  - resolver/passthrough
+  - stats
+  - status
+  - tap
+  - transport
 - name: gopkg.in/igm/sockjs-go.v2
   version: d276e9ffe5cc5c271b81198cc77a2adf6c4482d2
   subpackages:
@@ -521,11 +583,11 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: 80aa1ff92762056fadf699d39bf7f57fe8b34976
+  version: bfb440be4b874c001bc64ea4b3324d37ab3c98dd
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
-  version: e355a776c090890b639e31f4c5c409705d5948dd
+  version: 86fb29eff6288413d76bd8506874fddd9fccdff0
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -580,7 +642,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: 9301ab5f464383610744485488482ba33226b6f2
+  version: 5838f549963bed8c4af81f430f23a29eccad093e
   subpackages:
   - pkg/authentication/authenticator
   - pkg/authentication/serviceaccount
@@ -588,7 +650,7 @@ imports:
   - pkg/features
   - pkg/util/feature
 - name: k8s.io/cli-runtime
-  version: 20f904c5b669c7c5c1364c89775ae36076baf6ff
+  version: d8fee89e76cab0bcb976c2fd2ff013b4ce54850f
   subpackages:
   - pkg/genericclioptions
   - pkg/genericclioptions/printers
@@ -750,7 +812,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 5f1ec242ada911d95bb414f0644f58a3c2c4aafe
+  version: 276822769d32194e388038d95cbe6a84ac8eaf8d
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -769,6 +831,7 @@ imports:
   - pkg/kube
   - pkg/plugin
   - pkg/provenance
+  - pkg/registry
   - pkg/releasetesting
   - pkg/releaseutil
   - pkg/repo
@@ -790,7 +853,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 4ef32ffb4e7c35985120a45702c5453c1bb6f6d2
+  version: ff6a78dd494a7f03c4f9585b419a1d42b891c7f5
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
