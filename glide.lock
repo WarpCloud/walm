@@ -1,5 +1,5 @@
-hash: 6c9fc0e4646031c14839bc4dd433df8a58ee43a0f463ab474ef5b730f7121e83
-updated: 2019-02-25T15:27:29.078782+08:00
+hash: 612f138c04a01e21d602a56d4af2cad40bb98d6fa9bdf7f06935dc2593d706cf
+updated: 2019-02-25T16:16:58.458346+08:00
 imports:
 - name: github.com/aokoli/goutils
   version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
@@ -407,6 +407,12 @@ imports:
   version: aabc0566bfce01f830f8d56ee99724001504946d
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
+- name: github.com/tidwall/gjson
+  version: eee0b6226f0d1db2675a176fdfaa8419bcad4ca8
+- name: github.com/tidwall/match
+  version: 33827db735fff6510490d69a8622612558a557ed
+- name: github.com/tidwall/pretty
+  version: 65a9db5fad5105a89e17f38adcc9878685be6d78
 - name: github.com/tidwall/sjson
   version: c943cc8c8d751d9b33444adf78ae04c2fc8be754
 - name: golang.org/x/crypto

@@ -141,7 +141,7 @@ func GetChartList(TenantRepoName string) (*release.ChartInfoList, error) {
 			chartInfo.ChartName = cv.Name
 			chartInfo.ChartVersion = cv.Version
 			chartInfo.ChartAppVersion = cv.AppVersion
-			chartInfo.ChartEngine = cv.Engine
+			chartInfo.ChartEngine = "transwarp"
 			chartInfo.ChartDescription = cv.Description
 			chartInfoList.Items = append(chartInfoList.Items, chartInfo)
 		}
@@ -163,7 +163,7 @@ func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.Char
 	chartInfo.ChartName = nativeChart.Metadata.Name
 	chartInfo.ChartVersion = nativeChart.Metadata.Version
 	chartInfo.ChartAppVersion = nativeChart.Metadata.AppVersion
-	chartInfo.ChartEngine = nativeChart.Metadata.Engine
+	chartInfo.ChartEngine = "transwarp"
 	chartInfo.ChartDescription = nativeChart.Metadata.Description
 
 	defaultValues := map[string]interface{}{}
