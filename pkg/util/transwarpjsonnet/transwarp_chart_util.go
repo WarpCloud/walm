@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 
+
 	"walm/pkg/setting"
 	"walm/pkg/util"
 )
@@ -32,6 +33,7 @@ const (
 	TranswarpJsonnetTemplateDir = "template-jsonnet/"
 	TranswarpJsonetAppLibDir    = "applib/"
 	TranswarpMetadataDir        = "transwarp-meta/"
+	TranswarpCiDir              = "ci/"
 )
 
 var commonTemplateFilesPath string
@@ -114,6 +116,7 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 	userConfigs, dependencyConfigs map[string]interface{}, dependencies, releaseLabels map[string]string,
 ) error {
 	jsonnetTemplateFiles := make(map[string]string, 0)
+	rawChartFiles := []*chart.File{}
 	for _, f := range rawChart.Files {
 		if strings.HasPrefix(f.Name, TranswarpJsonnetTemplateDir) {
 			cname := strings.TrimPrefix(f.Name, TranswarpJsonnetTemplateDir)
@@ -123,9 +126,10 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 			}
 			appcname := path.Join(releaseName, rawChart.Metadata.AppVersion, TranswarpJsonnetTemplateDir, cname)
 			jsonnetTemplateFiles[appcname] = string(f.Data)
-		}
-		if strings.HasPrefix(f.Name, TranswarpJsonetAppLibDir) {
+		} else if strings.HasPrefix(f.Name, TranswarpJsonetAppLibDir) {
 			jsonnetTemplateFiles[f.Name] = string(f.Data)
+		} else if !strings.HasPrefix(f.Name, TranswarpMetadataDir) && !strings.HasPrefix(f.Name, TranswarpCiDir) {
+			rawChartFiles = append(rawChartFiles, f)
 		}
 	}
 
@@ -140,6 +144,7 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 		Name: BuildNotRenderedFileName("autogen-releaseconfig.json"),
 		Data: autoGenReleaseConfig,
 	})
+	rawChart.Files = rawChartFiles
 
 	if len(jsonnetTemplateFiles) == 0 {
 		// native chart
