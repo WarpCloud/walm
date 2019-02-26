@@ -164,6 +164,8 @@ func GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion string) (*releas
 	chartDetailInfo.ChartName = rawChart.Metadata.Name
 	chartDetailInfo.ChartVersion = rawChart.Metadata.Version
 	chartDetailInfo.ChartAppVersion = rawChart.Metadata.AppVersion
+
+	chartDetailInfo.ChartEngine = "transwarp"
 	chartDetailInfo.ChartDescription = rawChart.Metadata.Description
 
 	for _, f := range rawChart.Files {

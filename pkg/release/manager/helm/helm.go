@@ -29,12 +29,9 @@ import (
 	"walm/pkg/setting"
 	"walm/pkg/task"
 	walmerr "walm/pkg/util/error"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
-	"github.com/ghodss/yaml"
-	"k8s.io/helm/pkg/walm/plugins"
 	"k8s.io/helm/pkg/walm"
+	"k8s.io/helm/pkg/walm/plugins"
 )
 
 const (
@@ -770,18 +767,6 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		return err
 	}
 
-	autoGenReleaseConfig, err := buildAutoGenReleaseConfig(namespace, releaseRequest.Name,
-		rawChart.Metadata.Name, rawChart.Metadata.Version, rawChart.Metadata.AppVersion,
-		releaseRequest.ReleaseLabels, releaseRequest.Dependencies, dependencyConfigs, configValues)
-	if err != nil {
-		logrus.Errorf("failed to auto gen release config : %s", err.Error())
-		return err
-	}
-	rawChart.Templates = append(rawChart.Templates, &chart.File{
-		Name: transwarpjsonnet.BuildNotRenderedFileName("autogen-releaseconfig.json"),
-		Data: autoGenReleaseConfig,
-	})
-
 	// add default plugin
 	releaseRequest.Plugins = append(releaseRequest.Plugins, &walm.WalmPlugin{
 		Name: plugins.LabelPodPluginName,
@@ -815,7 +800,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	return nil
 }
 
-func (hc *HelmClient)doInstallUpgradeReleaseFromChart(currentHelmClient *helm.Client, namespace string,
+func (hc *HelmClient) doInstallUpgradeReleaseFromChart(currentHelmClient *helm.Client, namespace string,
 	releaseRequest *release.ReleaseRequestV2, rawChart *chart.Chart, valueOverride map[string]interface{},
 	update bool) (releaseInfo *hapirelease.Release, err error) {
 	if update {
@@ -864,42 +849,6 @@ func preProcessRequest(releaseRequest *release.ReleaseRequestV2) {
 	if releaseRequest.ReleaseLabels == nil {
 		releaseRequest.ReleaseLabels = map[string]string{}
 	}
-}
-
-func buildAutoGenReleaseConfig(releaseNamespace, releaseName, chartName, chartVersion, chartAppVersion string,
-	labels, dependencies map[string]string, dependencyConfigs, userConfigs map[string]interface{}) ([]byte, error) {
-	if labels == nil {
-		labels = map[string]string{}
-	}
-	labels[plugins.AutoGenLabelKey] = "true"
-
-	releaseConfig := &v1beta1.ReleaseConfig{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ReleaseConfig",
-			APIVersion: "apiextensions.transwarp.io/v1beta1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: releaseNamespace,
-			Name:      releaseName,
-			Labels:    labels,
-		},
-		Spec: v1beta1.ReleaseConfigSpec{
-			DependenciesConfigValues: dependencyConfigs,
-			ChartVersion:             chartVersion,
-			ChartName:                chartName,
-			ChartAppVersion:          chartAppVersion,
-			ConfigValues:             userConfigs,
-			Dependencies:             dependencies,
-			OutputConfig:             map[string]interface{}{},
-		},
-	}
-
-	releaseConfigBytes, err := yaml.Marshal(releaseConfig)
-	if err != nil {
-		logrus.Errorf("failed to marshal release config : %s", err.Error())
-		return nil, err
-	}
-	return releaseConfigBytes, nil
 }
 
 func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {

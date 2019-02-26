@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"k8s.io/helm/pkg/chart/loader"
+
 	"os"
 	"path"
 	"path/filepath"
@@ -17,7 +17,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/chart"
-
+	"k8s.io/helm/pkg/chart/loader"
+	"k8s.io/helm/pkg/walm/plugins"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 
 	"walm/pkg/setting"
 	"walm/pkg/util"
@@ -86,6 +89,7 @@ func buildConfigValuesToRender(rawChart *chart.Chart, namespace, name string, us
 	util.MergeValues(configValues, dependencyConfigs)
 
 	configValues["helmReleaseName"] = name
+	configValues["helmReleaseNamespace"] = namespace
 	configValues["chartVersion"] = rawChart.Metadata.Version
 	configValues["chartName"] = rawChart.Metadata.Name
 	configValues["chartAppVersion"] = rawChart.Metadata.AppVersion
@@ -124,6 +128,19 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 			jsonnetTemplateFiles[f.Name] = string(f.Data)
 		}
 	}
+
+	autoGenReleaseConfig, err := buildAutoGenReleaseConfig(releaseNamespace, releaseName,
+		rawChart.Metadata.Name, rawChart.Metadata.Version, rawChart.Metadata.AppVersion,
+		releaseLabels, dependencies, dependencyConfigs, userConfigs)
+	if err != nil {
+		logrus.Errorf("failed to auto gen release config : %s", err.Error())
+		return err
+	}
+	rawChart.Templates = append(rawChart.Templates, &chart.File{
+		Name: BuildNotRenderedFileName("autogen-releaseconfig.json"),
+		Data: autoGenReleaseConfig,
+	})
+
 	if len(jsonnetTemplateFiles) == 0 {
 		// native chart
 		logrus.Infof("chart %s is native chart", rawChart.Metadata.Name)
@@ -165,6 +182,43 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 		})
 	}
 	return nil
+}
+
+
+func buildAutoGenReleaseConfig(releaseNamespace, releaseName, chartName, chartVersion, chartAppVersion string,
+	labels, dependencies map[string]string, dependencyConfigs, userConfigs map[string]interface{}) ([]byte, error) {
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[plugins.AutoGenLabelKey] = "true"
+
+	releaseConfig := &v1beta1.ReleaseConfig{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ReleaseConfig",
+			APIVersion: "apiextensions.transwarp.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: releaseNamespace,
+			Name:      releaseName,
+			Labels:    labels,
+		},
+		Spec: v1beta1.ReleaseConfigSpec{
+			DependenciesConfigValues: dependencyConfigs,
+			ChartVersion:             chartVersion,
+			ChartName:                chartName,
+			ChartAppVersion:          chartAppVersion,
+			ConfigValues:             userConfigs,
+			Dependencies:             dependencies,
+			OutputConfig:             map[string]interface{}{},
+		},
+	}
+
+	releaseConfigBytes, err := yaml.Marshal(releaseConfig)
+	if err != nil {
+		logrus.Errorf("failed to marshal release config : %s", err.Error())
+		return nil, err
+	}
+	return releaseConfigBytes, nil
 }
 
 func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
