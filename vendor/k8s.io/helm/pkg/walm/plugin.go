@@ -7,7 +7,8 @@ import (
 	"bytes"
 	"strings"
 	"github.com/ghodss/yaml"
-	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var pluginRunners map[string]*WalmPluginRunner
@@ -20,7 +21,7 @@ func Register(name string, runner *WalmPluginRunner) {
 }
 
 type WalmPluginRunner struct {
-	Run func(context *WalmPluginManagerContext, args string) error
+	Run  func(context *WalmPluginManagerContext, args string) error
 	Type RunnerType
 }
 
@@ -35,8 +36,9 @@ const (
 )
 
 type WalmPlugin struct {
-	Name string
-	Args string
+	Name    string `json:"name" description:"plugin name"`
+	Args    string `json:"args" description:"plugin args"`
+	Version string `json:"version" description:"plugin version"`
 }
 
 func (walmPlugin *WalmPlugin) getRunner() *WalmPluginRunner {
@@ -54,7 +56,7 @@ type WalmPluginManager struct {
 type WalmPluginManagerContext struct {
 	KubeClient environment.KubeClient
 	R          *release.Release
-	Resources  map[string]runtime.Object
+	Resources  []runtime.Object
 }
 
 func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release) (manager *WalmPluginManager) {
@@ -68,7 +70,7 @@ func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release)
 	if len(r.Config) > 0 {
 		walmPlugins, ok := r.Config[WalmPluginConfigKey]
 		if ok {
-			for _, plugin := range walmPlugins.([]*WalmPlugin){
+			for _, plugin := range walmPlugins.([]*WalmPlugin) {
 				runner := plugin.getRunner()
 				if runner != nil {
 					manager.plugins[runner.Type] = append(manager.plugins[runner.Type], plugin)
@@ -79,26 +81,36 @@ func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release)
 	return
 }
 
-func BuildResourceKey(kind, namespace, name string) string {
-	return kind + "/" + namespace + "/" + name
+func convertUnstructured(unStruct *unstructured.Unstructured) (runtime.Object, error) {
+	unStructBytes, err := unStruct.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	defaultGVK := unStruct.GetObjectKind().GroupVersionKind()
+
+	decoder := scheme.Codecs.UniversalDecoder(defaultGVK.GroupVersion())
+	obj, _, err := decoder.Decode(unStructBytes, &defaultGVK, nil)
+	if err != nil {
+		return nil,  err
+	}
+	return obj, nil
 }
 
-func (manager *WalmPluginManager) ExecPlugins(runnerType RunnerType) error{
+func (manager *WalmPluginManager) ExecPlugins(runnerType RunnerType) error {
 	if runnerType == Pre_Install {
 		resources, err := manager.context.KubeClient.BuildUnstructured(manager.context.R.Namespace, bytes.NewBufferString(manager.context.R.Manifest))
 		if err != nil {
 			return err
 		}
-		manager.context.Resources = map[string]runtime.Object{}
+		manager.context.Resources = []runtime.Object{}
 		for _, resource := range resources {
-			resourceKey := BuildResourceKey(resource.Object.GetObjectKind().GroupVersionKind().Kind,
-				resource.Namespace, resource.Name)
-			if _, ok := manager.context.Resources[resourceKey]; ok {
-				return fmt.Errorf("%s %s in namespace %s has already existed", resource.Object.GetObjectKind().GroupVersionKind().Kind,
-					resource.Namespace, resource.Name)
-			} else {
-				manager.context.Resources[resourceKey] = resource.Object
+			unStruct := resource.Object.(*unstructured.Unstructured)
+			obj, err := convertUnstructured(unStruct)
+			if err != nil {
+				return err
 			}
+			manager.context.Resources = append(manager.context.Resources, obj)
 		}
 	}
 
@@ -123,7 +135,7 @@ func (manager *WalmPluginManager) ExecPlugins(runnerType RunnerType) error{
 	return nil
 }
 
-func buildManifest(resources map[string]runtime.Object) (string,  error) {
+func buildManifest(resources []runtime.Object) (string, error) {
 	var sb strings.Builder
 	for _, resource := range resources {
 		resourceBytes, err := yaml.Marshal(resource)
