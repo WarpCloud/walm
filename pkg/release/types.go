@@ -3,6 +3,7 @@ package release
 import (
 	"walm/pkg/k8s/adaptor"
 	"k8s.io/helm/pkg/walm"
+	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 )
 
 type ReleaseInfoList struct {
@@ -113,23 +114,9 @@ type ReleaseConfigDeltaEvent struct {
 }
 
 type ReleaseConfig struct {
-	AppName      string             `json:"appName" description:"release name"`
-	Version      string             `json:"version" description:"chart version"`
-	InstanceName string             `json:"instanceName" description:"release name"`
-	ConfigSets   []ReleaseConfigSet `json:"configsets" description:"configsets"`
-}
-
-type ReleaseConfigSet struct {
-	Name        string              `json:"name" description:"name"`
-	CreatedBy   string              `json:"createdBy" description:"created by"`
-	ConfigItems []ReleaseConfigItem `json:"configItems" description:"config items"`
-	Format      string              `json:"format" description:"format"`
-}
-
-type ReleaseConfigItem struct {
-	Name  string                 `json:"name" description:"name"`
-	Value map[string]interface{} `json:"value" description:"value"`
-	Type  string                 `json:"type" description:"value"`
+	v1beta1.ReleaseConfigSpec `json:"config" description:"release config spec"`
+	Namespace string          `json:"namespace" description:"release namespace"`
+	Name      string          `json:"name" description:"release name"`
 }
 
 type ReleaseInfoV2 struct {

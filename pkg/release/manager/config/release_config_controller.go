@@ -11,6 +11,12 @@ import (
 	"strings"
 	"walm/pkg/k8s/informer"
 	"walm/pkg/release/manager/helm"
+	"reflect"
+	"walm/pkg/k8s/adaptor"
+	"walm/pkg/release"
+	"walm/pkg/kafka"
+	"encoding/json"
+	walmerr "walm/pkg/util/error"
 )
 
 // 动态依赖管理核心需求：
@@ -22,6 +28,7 @@ import (
 const (
 	defaultWorkers                       = 1
 	defaultReloadDependingReleaseWorkers = 10
+	defaultKafkaWorkers                  = 2
 )
 
 type ReleaseConfigController struct {
@@ -30,6 +37,8 @@ type ReleaseConfigController struct {
 	workers                            int
 	reloadDependingReleaseWorkingQueue workqueue.DelayingInterface
 	reloadDependingReleaseWorkers      int
+	kafkaWorkingQueue                  workqueue.DelayingInterface
+	kafkaWorkers                       int
 	started                            bool
 	releaseConfigHandler               *handler.ReleaseConfigHandler
 }
@@ -40,6 +49,8 @@ func NewReleaseConfigController() *ReleaseConfigController {
 		workers:                            defaultWorkers,
 		reloadDependingReleaseWorkingQueue: workqueue.NewNamedDelayingQueue("reload-depending-release"),
 		reloadDependingReleaseWorkers:      defaultReloadDependingReleaseWorkers,
+		kafkaWorkingQueue:                  workqueue.NewNamedDelayingQueue("kafka"),
+		kafkaWorkers:                       defaultKafkaWorkers,
 		releaseConfigHandler:               handler.GetDefaultHandlerSet().GetReleaseConfigHandler(),
 	}
 
@@ -59,6 +70,11 @@ func (controller *ReleaseConfigController) Start(stopChan <-chan struct{}) {
 		go wait.Until(controller.worker, time.Second, stopChan)
 	}
 
+	defer controller.kafkaWorkingQueue.ShutDown()
+	for i := 0; i < controller.kafkaWorkers; i++ {
+		go wait.Until(controller.kafkaWorker, time.Second, stopChan)
+	}
+
 	defer controller.reloadDependingReleaseWorkingQueue.ShutDown()
 	for i := 0; i < controller.reloadDependingReleaseWorkers; i++ {
 		go wait.Until(controller.reloadDependingReleaseWorker, time.Second, stopChan)
@@ -71,6 +87,7 @@ func (controller *ReleaseConfigController) Start(stopChan <-chan struct{}) {
 					return
 				}
 				controller.enqueueReleaseConfig(obj)
+				controller.enqueueKafka(obj)
 			},
 			UpdateFunc: func(old, cur interface{}) {
 				if !controller.started {
@@ -89,12 +106,15 @@ func (controller *ReleaseConfigController) Start(stopChan <-chan struct{}) {
 				if controller.needsUpdate(oldReleaseConfig, curReleaseConfig) {
 					controller.enqueueReleaseConfig(cur)
 				}
+				if !reflect.DeepEqual(oldReleaseConfig.Spec, curReleaseConfig.Spec) {
+					controller.enqueueKafka(cur)
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
-				//if !controller.started {
-				//	return
-				//}
-				//controller.enqueueReleaseConfig(obj)
+				if !controller.started {
+					return
+				}
+				controller.enqueueKafka(obj)
 			},
 		}
 		informer.GetDefaultFactory().ReleaseConifgFactory.Transwarp().V1beta1().ReleaseConfigs().Informer().AddEventHandler(controller.handlerFuncs)
@@ -110,6 +130,15 @@ func (controller *ReleaseConfigController) enqueueReleaseConfig(obj interface{})
 		return
 	}
 	controller.workingQueue.Add(key)
+}
+
+func (controller *ReleaseConfigController) enqueueKafka(obj interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		logrus.Errorf("Couldn't get key for object %#v: %v", obj, err)
+		return
+	}
+	controller.kafkaWorkingQueue.Add(key)
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
@@ -130,6 +159,79 @@ func (controller *ReleaseConfigController) worker() {
 	}
 }
 
+func (controller *ReleaseConfigController) kafkaWorker() {
+	for {
+		func() {
+			key, quit := controller.kafkaWorkingQueue.Get()
+			if quit {
+				return
+			}
+			defer controller.kafkaWorkingQueue.Done(key)
+			err := controller.publishToKafka(key.(string))
+			if err != nil {
+				logrus.Errorf("failed to publish release config of %s to kafka", key.(string), err.Error())
+			}
+		}()
+	}
+}
+
+func (controller *ReleaseConfigController) publishToKafka(releaseKey string) error {
+	logrus.Infof("start to publish release config of %s to kafka", releaseKey)
+	namespace, name, err := cache.SplitMetaNamespaceKey(releaseKey)
+	if err != nil {
+		return err
+	}
+
+	eventType := release.CreateOrUpdate
+
+	releaseConfig, err := controller.releaseConfigHandler.GetReleaseConfig(namespace, name)
+	if err != nil {
+		if adaptor.IsNotFoundErr(err) {
+			eventType = release.Delete
+		} else {
+			logrus.Errorf("failed to get release config of %s", releaseKey)
+			return err
+		}
+	} else {
+		_, err = helm.GetDefaultHelmClient().GetRelease(namespace, name)
+		if err != nil {
+			if walmerr.IsNotFoundError(err) {
+				logrus.Warnf("release %s is not found， ignore to publish release config to kafka", releaseKey)
+				return nil
+			}
+			logrus.Errorf("failed to get release %s : %s", releaseKey, err.Error())
+			return err
+		}
+	}
+
+	event := release.ReleaseConfigDeltaEvent{
+		Type: eventType,
+		Data: release.ReleaseConfig{
+			Namespace: namespace,
+			Name: name,
+		},
+	}
+
+	if eventType == release.CreateOrUpdate {
+		event.Data.ReleaseConfigSpec = releaseConfig.Spec
+	}
+
+	eventMsg, err := json.Marshal(event)
+	if err != nil {
+		logrus.Errorf("failed to marshal event : %s", err.Error())
+		return err
+	}
+
+	err = kafka.GetDefaultKafkaClient().SyncSendMessage(kafka.ReleaseConfigTopic, string(eventMsg))
+	if err != nil {
+		logrus.Errorf("failed to send release config event of %s to kafka : %s", releaseKey, err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to send release config event of %s to kafka", releaseKey)
+	return nil
+}
+
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the syncHandler is never invoked concurrently with the same key.
 func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
@@ -144,7 +246,7 @@ func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
 			if err != nil {
 				if strings.Contains(err.Error(), "please wait for the release latest task") {
 					logrus.Warnf("depending release %s would be reloaded after 5 second", key.(string))
-					controller.reloadDependingReleaseWorkingQueue.AddAfter(key, time.Second * 5)
+					controller.reloadDependingReleaseWorkingQueue.AddAfter(key, time.Second*5)
 				} else {
 					logrus.Errorf("Error reload depending release %s: %v", key.(string), err)
 				}
@@ -171,12 +273,13 @@ func (controller *ReleaseConfigController) reloadDependingRelease(releaseKey str
 		logrus.Errorf("failed to reload release %s/%s : %s", namespace, name, err.Error())
 		return err
 	}
+	logrus.Infof("succeed to reload release %s", releaseKey)
 	return nil
 }
 
-//TODO retry?
+// 两级work queue设计初衷：利用work queue压缩相同key的功能， 尽可能地减少reload release的次数
+// a 有多个依赖 b, c, d...， 当b, c, d... 同时更新了，a最好的情况是只更新一次
 func (controller *ReleaseConfigController) syncReleaseConfig(releaseConfigKey string) error {
-	//TODO 上报配置中心 : get latest release config using release config lister
 	namespace, name, err := cache.SplitMetaNamespaceKey(releaseConfigKey)
 	if err != nil {
 		return err

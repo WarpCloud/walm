@@ -371,10 +371,13 @@ func (hc *HelmClient) doListReleases(releaseTasks []*cache.ReleaseTask, releaseC
 
 // reload dependencies config values, if changes, upgrade release
 func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error {
-	//TODO need to opt: task or cache?
-	_, err := hc.helmCache.GetReleaseCache(namespace, name)
+	_, err := hc.GetRelease(namespace, name)
 	if err != nil {
-		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release %s/%s is not found， ignore to reload release", namespace, name)
+			return nil
+		}
+		logrus.Errorf("failed to get release %s/%s : %s", namespace, name, err.Error())
 		return err
 	}
 
@@ -769,7 +772,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 
 	// add default plugin
 	releaseRequest.Plugins = append(releaseRequest.Plugins, &walm.WalmPlugin{
-		Name: plugins.LabelPodPluginName,
+		Name: plugins.ValidateReleaseConfigPluginName,
 	})
 
 	valueOverride := map[string]interface{}{}
