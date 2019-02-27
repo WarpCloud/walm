@@ -120,13 +120,14 @@ func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, erro
 		}
 
 		d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(namespace))
-		c = helm.NewClient(
+		client := helm.NewClient(
 			helm.KubeClient(kc),
 			helm.Driver(d),
 			helm.Discovery(clientset.Discovery()),
 		)
-		hc.helmClients.Add(namespace, c)
-		return c.(*helm.Client), nil
+		client.GetTiller().Log = logrus.Infof
+		hc.helmClients.Add(namespace, client)
+		return client, nil
 	}
 }
 
