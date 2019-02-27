@@ -634,7 +634,8 @@ func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 
 	result.list.AllNamespaces = true
 	result.list.All = true
-	result.list.StateMask = action.ListAll
+	result.list.StateMask = action.ListDeployed | action.ListFailed | action.ListPendingInstall | action.ListPendingRollback |
+		action.ListPendingUpgrade | action.ListUninstalled | action.ListUninstalling | action.ListUnknown
 
 	return result
 }

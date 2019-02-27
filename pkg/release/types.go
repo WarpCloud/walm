@@ -125,6 +125,7 @@ type ReleaseInfoV2 struct {
 	ComputedValues           map[string]interface{} `json:"computedValues" description:"config values to render chart templates"`
 	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
 	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
+	Plugins                  []*walm.WalmPlugin     `json:"plugins" description:"plugins"`
 }
 
 type ReleaseRequestV2 struct {

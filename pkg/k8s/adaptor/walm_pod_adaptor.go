@@ -10,7 +10,7 @@ import (
 )
 
 type WalmPodAdaptor struct {
-	handler *handler.PodHandler
+	handler      *handler.PodHandler
 	eventHandler *handler.EventHandler
 }
 
@@ -111,23 +111,31 @@ func (adaptor *WalmPodAdaptor) GetWalmPodLogs(namespace, podName, containerName 
 
 func BuildWalmPod(pod corev1.Pod) *WalmPod {
 	walmPod := WalmPod{
-		WalmMeta: buildWalmMeta("Pod", pod.Namespace, pod.Name, BuildWalmPodState(pod)),
-		PodIp:    pod.Status.PodIP,
-		HostIp:   pod.Status.HostIP,
-		Containers: buildWalmPodContainers(pod),
+		WalmMeta:    buildWalmMeta("Pod", pod.Namespace, pod.Name, BuildWalmPodState(pod)),
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
+		PodIp:       pod.Status.PodIP,
+		HostIp:      pod.Status.HostIP,
+		Containers:  buildWalmPodContainers(pod),
+	}
+	if len(pod.Labels) > 0 {
+		walmPod.Labels = pod.Labels
+	}
+	if len(pod.Annotations) > 0 {
+		walmPod.Annotations = pod.Annotations
 	}
 	return &walmPod
 }
 
-func buildWalmPodContainers (pod corev1.Pod) (walmContainers []WalmContainer) {
+func buildWalmPodContainers(pod corev1.Pod) (walmContainers []WalmContainer) {
 	walmContainers = []WalmContainer{}
 	for _, container := range pod.Status.ContainerStatuses {
 		walmContainer := WalmContainer{
-			Name: container.Name,
-			Ready: container.Ready,
-			Image: container.Image,
+			Name:         container.Name,
+			Ready:        container.Ready,
+			Image:        container.Image,
 			RestartCount: container.RestartCount,
-			State: buildPodContainerState(container.State),
+			State:        buildPodContainerState(container.State),
 		}
 		walmContainers = append(walmContainers, walmContainer)
 	}
@@ -143,6 +151,7 @@ func buildPodContainerState(state corev1.ContainerState) (walmState WalmState) {
 	}
 	return
 }
+
 // Pending, Running, Ready, Succeeded, Failed, Terminating, Unknown
 func BuildWalmPodState(pod corev1.Pod) WalmState {
 	podState := WalmState{}

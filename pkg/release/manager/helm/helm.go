@@ -273,6 +273,22 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.ReleaseLabels = releaseConfig.Labels
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
+	releaseV2.Plugins = []*walm.WalmPlugin{}
+	if releaseV2.ComputedValues != nil {
+		if walmPlugins, ok := releaseV2.ComputedValues[walm.WalmPluginConfigKey]; ok {
+			delete(releaseV2.ComputedValues, walm.WalmPluginConfigKey)
+			for _, plugin := range walmPlugins.([]interface{}) {
+				walmPlugin := plugin.(map[string]interface{})
+				if walmPlugin["name"].(string) != plugins.ValidateReleaseConfigPluginName {
+					releaseV2.Plugins = append(releaseV2.Plugins, &walm.WalmPlugin{
+						Name: walmPlugin["name"].(string),
+						Args: walmPlugin["args"].(string),
+						Version: walmPlugin["version"].(string),
+					})
+				}
+			}
+		}
+	}
 	return releaseV2, nil
 }
 
