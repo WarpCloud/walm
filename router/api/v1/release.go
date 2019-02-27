@@ -163,31 +163,53 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 func ListReleaseByNamespace(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	labelSelectorStr := request.QueryParameter("labelselector")
-	labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
-	if err != nil {
-		api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
-		return
+	var infos []*release.ReleaseInfoV2
+	var err error
+	if labelSelectorStr == "" {
+		infos, err = helm.GetDefaultHelmClient().ListReleases(namespace, "")
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
+			return
+		}
+	} else {
+		labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
+		if err != nil {
+			api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
+			return
+		}
+		infos, err = helm.GetDefaultHelmClient().ListReleasesByLabels(namespace, labelSelector)
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
+			return
+		}
 	}
-	infos, err := helm.GetDefaultHelmClient().ListReleasesByLabels(namespace, labelSelector)
-	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
-		return
-	}
+
 	response.WriteEntity(release.ReleaseInfoV2List{len(infos), infos})
 }
 
 func ListRelease(request *restful.Request, response *restful.Response) {
 	labelSelectorStr := request.QueryParameter("labelselector")
-	labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
-	if err != nil {
-		api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
-		return
+	var infos []*release.ReleaseInfoV2
+	var err error
+	if labelSelectorStr == "" {
+		infos, err = helm.GetDefaultHelmClient().ListReleases("", "")
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
+			return
+		}
+	} else {
+		labelSelector, err := metav1.ParseToLabelSelector(labelSelectorStr)
+		if err != nil {
+			api.WriteErrorResponse(response, -1,  fmt.Sprintf("parse label selector failed: %s", err.Error()))
+			return
+		}
+		infos, err = helm.GetDefaultHelmClient().ListReleasesByLabels("", labelSelector)
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
+			return
+		}
 	}
-	infos, err := helm.GetDefaultHelmClient().ListReleasesByLabels("", labelSelector)
-	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to list release: %s", err.Error()))
-		return
-	}
+
 	response.WriteEntity(release.ReleaseInfoV2List{len(infos), infos})
 }
 
