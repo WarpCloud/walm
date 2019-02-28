@@ -1,4 +1,4 @@
-package helm
+package transwarpjsonnet
 
 import (
 	"github.com/sirupsen/logrus"
@@ -35,27 +35,12 @@ func renderMainJsonnetFile(templateFiles map[string]string, configValues map[str
 	return
 }
 
-func renderConfigJsonnetFile(templateFiles map[string]string) (jsonStr string, err error) {
-	configJsonFileName, err := getConfigJsonnetFile(templateFiles)
-	if err != nil {
-		logrus.Errorf("failed to get config jsonnet file : %s", err.Error())
-		return "", err
-	}
-
-	jsonStr, err = parseTemplateWithTLAString(configJsonFileName, "", "", templateFiles)
-	if err != nil {
-		logrus.Errorf("failed to parse config jsonnet template file : %s", err.Error())
-		return "", err
-	}
+func BuildNotRenderedFileName(fileName string) (notRenderFileName string) {
+	notRenderFileName = path.Join(path.Dir(fileName),  path.Base(fileName) + TranswarpJsonetFileSuffix)
 	return
 }
 
-func buildNotRenderedFileName(fileName string) (notRenderFileName string) {
-	notRenderFileName = path.Join(path.Dir(fileName),  "NOTRENDER-" + path.Base(fileName))
-	return
-}
-
-func buildK8sResourcesByJsonStr(jsonStr string) (resources map[string]runtime.Object, err error) {
+func buildKubeResourcesByJsonStr(jsonStr string) (resources map[string]runtime.Object, err error) {
 	// key: resource.json, value: resource template(map)
 	resourcesMap := make(map[string]map[string]interface{})
 	err = json.Unmarshal([]byte(jsonStr), &resourcesMap)

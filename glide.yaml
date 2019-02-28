@@ -73,6 +73,7 @@ import:
   version: 1.0.3
 - package: github.com/tidwall/gjson
   version: 1.2.1
+
 - package: github.com/deislabs/oras
   version: 0.3.3
 - package: github.com/containerd/containerd

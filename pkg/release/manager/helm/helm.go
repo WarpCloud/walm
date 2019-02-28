@@ -1,36 +1,37 @@
 package helm
 
 import (
-	hapirelease "k8s.io/helm/pkg/hapi/release"
-	"time"
-	helmchart "k8s.io/helm/pkg/chart"
-	"k8s.io/helm/pkg/helm"
-	"github.com/sirupsen/logrus"
-	"fmt"
-	"strings"
-	"walm/pkg/k8s/handler"
-	"walm/pkg/k8s/adaptor"
-	walmerr "walm/pkg/util/error"
-	"walm/pkg/release"
-	"sync"
 	"errors"
-	"k8s.io/helm/pkg/chart"
-	"walm/pkg/hook"
-	"walm/pkg/task"
-	"walm/pkg/release/manager/helm/cache"
-	"walm/pkg/redis"
-	"walm/pkg/setting"
+	"fmt"
 	"io/ioutil"
-	"walm/pkg/k8s/client"
-	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"github.com/hashicorp/golang-lru"
-	"github.com/ghodss/yaml"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/helm/pkg/chart/loader"
-	"k8s.io/helm/pkg/walm"
+	"strings"
+	"sync"
+	"time"
+	"walm/pkg/util"
+	"walm/pkg/util/transwarpjsonnet"
 
-	_ "k8s.io/helm/pkg/walm/plugins"
+	"github.com/hashicorp/golang-lru"
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/helm/pkg/chart"
+	"k8s.io/helm/pkg/chart/loader"
+	hapirelease "k8s.io/helm/pkg/hapi/release"
+	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/storage/driver"
+	"walm/pkg/hook"
+	"walm/pkg/k8s/adaptor"
+	"walm/pkg/k8s/client"
+	"walm/pkg/k8s/handler"
+	"walm/pkg/redis"
+	"walm/pkg/release"
+	"walm/pkg/release/manager/helm/cache"
+	"walm/pkg/setting"
+	"walm/pkg/task"
+	walmerr "walm/pkg/util/error"
+
+	"k8s.io/helm/pkg/walm"
+	"k8s.io/helm/pkg/walm/plugins"
 )
 
 const (
@@ -93,29 +94,19 @@ func (hc *HelmClient) GetHelmCache() *cache.HelmCache {
 
 func (hc *HelmClient) GetDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
 	logrus.Debugf("Enter GetDependencies %s %s\n", chartName, chartVersion)
-	isJsonnetChart, nativeChart, jsonnetChart, err := hc.LoadChart(repoName, chartName, chartVersion)
+
+	subChartNames = []string{}
+	detailChartInfo, err := GetDetailChartInfo(repoName, chartName, chartVersion)
 	if err != nil {
 		return nil, err
 	}
-
-	subChartNames = []string{}
-	if isJsonnetChart {
-		appYamlPath := fmt.Sprintf("templates/%s/%s/app.yaml", nativeChart.Metadata.Name, nativeChart.Metadata.AppVersion)
-		for _, file := range jsonnetChart.Templates {
-			if file.Name == appYamlPath {
-				appDependency := &release.AppDependency{}
-				err := yaml.Unmarshal(file.Data, &appDependency)
-				if err != nil {
-					return nil, err
-				}
-				for _, dependency := range appDependency.Dependencies {
-					subChartNames = append(subChartNames, dependency.Name)
-				}
-				break
-			}
+	if detailChartInfo.Metainfo != nil && detailChartInfo.Metainfo.ChartDependenciesInfo != nil {
+		for _, dependency := range detailChartInfo.Metainfo.ChartDependenciesInfo {
+			subChartNames = append(subChartNames, dependency.Name)
 		}
 	}
-	return
+
+	return subChartNames, nil
 }
 
 func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, error) {
@@ -128,14 +119,15 @@ func (hc *HelmClient) GetCurrentHelmClient(namespace string) (*helm.Client, erro
 			return nil, err
 		}
 
-		d := driver.NewSecrets(clientset.CoreV1().Secrets(namespace))
-		c = helm.NewClient(
+		d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(namespace))
+		client := helm.NewClient(
 			helm.KubeClient(kc),
 			helm.Driver(d),
 			helm.Discovery(clientset.Discovery()),
 		)
-		hc.helmClients.Add(namespace, c)
-		return c.(*helm.Client), nil
+		client.GetTiller().Log = logrus.Infof
+		hc.helmClients.Add(namespace, client)
+		return client, nil
 	}
 }
 
@@ -165,14 +157,20 @@ func (hc *HelmClient) downloadChart(repoName, charName, version string) (string,
 	return filename, nil
 }
 
-func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (isJsonnetChart bool, nativeChart, jsonnetChart *chart.Chart, err error) {
+func (hc *HelmClient) LoadChart(repoName, chartName, chartVersion string) (rawChart *chart.Chart, err error) {
 	chartPath, err := hc.downloadChart(repoName, chartName, chartVersion)
 	if err != nil {
 		logrus.Errorf("failed to download chart : %s", err.Error())
-		return false, nil, nil, err
+		return nil, err
 	}
 
-	return loadChartByPath(chartPath)
+	chartLoader, err := loader.Loader(chartPath)
+	if err != nil {
+		logrus.Errorf("failed to init chartLoader : %s", err.Error())
+		return nil, err
+	}
+
+	return chartLoader.Load()
 }
 
 func (hc *HelmClient) StartResyncReleaseCaches(stopCh <-chan struct{}) {
@@ -261,7 +259,6 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 	releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(releaseCache.Namespace, releaseCache.Name)
 	if err != nil {
 		if adaptor.IsNotFoundErr(err) {
-			// Compatible
 			releaseV2.DependenciesConfigValues = map[string]interface{}{}
 			releaseV2.OutputConfigValues = map[string]interface{}{}
 			releaseV2.ReleaseLabels = map[string]string{}
@@ -277,6 +274,22 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.ReleaseLabels = releaseConfig.Labels
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
+	releaseV2.Plugins = []*walm.WalmPlugin{}
+	if releaseV2.ComputedValues != nil {
+		if walmPlugins, ok := releaseV2.ComputedValues[walm.WalmPluginConfigKey]; ok {
+			delete(releaseV2.ComputedValues, walm.WalmPluginConfigKey)
+			for _, plugin := range walmPlugins.([]interface{}) {
+				walmPlugin := plugin.(map[string]interface{})
+				if walmPlugin["name"].(string) != plugins.ValidateReleaseConfigPluginName {
+					releaseV2.Plugins = append(releaseV2.Plugins, &walm.WalmPlugin{
+						Name: walmPlugin["name"].(string),
+						Args: walmPlugin["args"].(string),
+						Version: walmPlugin["version"].(string),
+					})
+				}
+			}
+		}
+	}
 	return releaseV2, nil
 }
 
@@ -375,10 +388,13 @@ func (hc *HelmClient) doListReleases(releaseTasks []*cache.ReleaseTask, releaseC
 
 // reload dependencies config values, if changes, upgrade release
 func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error {
-	//TODO need to opt: task or cache?
-	_, err := hc.helmCache.GetReleaseCache(namespace, name)
+	_, err := hc.GetRelease(namespace, name)
 	if err != nil {
-		logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, name, err.Error())
+		if walmerr.IsNotFoundError(err) {
+			logrus.Warnf("release %s/%s is not found， ignore to reload release", namespace, name)
+			return nil
+		}
+		logrus.Errorf("failed to get release %s/%s : %s", namespace, name, err.Error())
 		return err
 	}
 
@@ -721,15 +737,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		}
 	}
 
-	if releaseRequest.ConfigValues == nil {
-		releaseRequest.ConfigValues = map[string]interface{}{}
-	}
-	if releaseRequest.Dependencies == nil {
-		releaseRequest.Dependencies = map[string]string{}
-	}
-	if releaseRequest.ReleaseLabels == nil {
-		releaseRequest.ReleaseLabels = map[string]string{}
-	}
+	preProcessRequest(releaseRequest)
 
 	hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
 
@@ -743,117 +751,92 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	// reuse config values
 	configValues := map[string]interface{}{}
 	if update {
-		releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(namespace, releaseRequest.Name)
+		releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
 		if err != nil {
-			if adaptor.IsNotFoundErr(err) {
-				logrus.Warnf("release config %s/%s is not found", namespace, releaseRequest.Name)
-				releaseInfo, err := hc.buildReleaseInfoV2(releaseCache)
-				if err != nil {
-					logrus.Errorf("failed to build release info : %s", err.Error())
-					return err
-				}
-				mergeValues(configValues, releaseInfo.ConfigValues)
-				if len(releaseInfo.ReleaseLabels) > 0 {
-					oldProjectName, ok1 := releaseInfo.ReleaseLabels[cache.ProjectNameLabelKey]
-					_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
-					if ok1 && !ok2 {
-						releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
-					}
-				}
-				if len(releaseInfo.Status.Instances) > 0 {
-					err = fmt.Errorf("now v1 release %s/%s with instances is not support to upgrade", namespace, releaseRequest.Name)
-					return err
-				}
-			} else {
-				logrus.Errorf("failed to get release config : %s", err.Error())
-				return err
-			}
-		} else {
-			mergeValues(configValues, releaseConfig.Spec.ConfigValues)
-			// project-name label can not be removed
-			if len(releaseConfig.Labels) > 0 {
-				oldProjectName, ok1 := releaseConfig.Labels[cache.ProjectNameLabelKey]
-				_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
-				if ok1 && !ok2 {
-					releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
-				}
+			logrus.Errorf("failed to build release info : %s", err.Error())
+			return err
+		}
+		util.MergeValues(configValues, releaseInfo.ConfigValues)
+
+		if len(releaseInfo.ReleaseLabels) > 0 {
+			oldProjectName, ok1 := releaseInfo.ReleaseLabels[cache.ProjectNameLabelKey]
+			_, ok2 := releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey]
+			if ok1 && !ok2 {
+				releaseRequest.ReleaseLabels[cache.ProjectNameLabelKey] = oldProjectName
 			}
 		}
 	}
-	mergeValues(configValues, releaseRequest.ConfigValues)
+	util.MergeValues(configValues, releaseRequest.ConfigValues)
 
-	// if jsonnet chart, add template-jsonnet/, app.yaml to chart.Files
-	// app.yaml : used to define chart dependency relations
-	var chart, jsonnetChart *chart.Chart
-	var isJsonnetChart bool
+	var rawChart *chart.Chart
+	var chartErr error
 	if chartFiles != nil {
-		isJsonnetChart, chart, jsonnetChart, err = loadChartByChartFiles(chartFiles)
-		if err != nil {
-			logrus.Errorf("failed to load chart by archive : %s", err.Error())
-			return err
-		}
+		rawChart, chartErr = loader.LoadFiles(chartFiles)
 	} else {
-		isJsonnetChart, chart, jsonnetChart, err = hc.LoadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
-		if err != nil {
-			logrus.Errorf("failed to load chart : %s", err.Error())
-			return err
-		}
+		rawChart, chartErr = hc.LoadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
+	}
+	if chartErr != nil {
+		logrus.Errorf("failed to load chart : %s", chartErr.Error())
+		return chartErr
 	}
 
-	if isJsonnetChart {
-		nativeTemplates := chart.Templates
-		chart, err = convertJsonnetChart(namespace, releaseRequest.Name, releaseRequest.Dependencies, jsonnetChart, configValues, dependencyConfigs, releaseRequest.ReleaseLabels)
-		if err != nil {
-			logrus.Errorf("failed to convert jsonnet chart %s-%s from %s : %s", releaseRequest.ChartName, releaseRequest.ChartVersion, releaseRequest.RepoName, err.Error())
-			return err
-		}
-		if len(nativeTemplates) > 0 {
-			chart.Templates = append(chart.Templates, nativeTemplates...)
-		}
-	} else {
-		//TODO native helm chart如何处理？
-		releaseConfigBytes, err := buildReleaseConfig(namespace, releaseRequest.Name, chart.Metadata.Name, chart.Metadata.Version,
-			chart.Metadata.AppVersion, releaseRequest.ReleaseLabels, releaseRequest.Dependencies,
-			dependencyConfigs, configValues, map[string]interface{}{})
-		if err != nil {
-			logrus.Errorf("failed to build release config : %s", err.Error())
-			return err
-		}
-		chart.Templates = append(chart.Templates, &helmchart.File{
-			Name: "releaseconfig.yaml",
-			Data: releaseConfigBytes,
-		})
+	err = transwarpjsonnet.ProcessJsonnetChart(rawChart, namespace, releaseRequest.Name, configValues,
+		dependencyConfigs, releaseRequest.Dependencies, releaseRequest.ReleaseLabels)
+	if err != nil {
+		logrus.Errorf("failed to ProcessJsonnetChart : %s", err.Error())
+		return err
 	}
 
+	// add default plugin
 	releaseRequest.Plugins = append(releaseRequest.Plugins, &walm.WalmPlugin{
-		Name: "ValidateReleaseConfig",
+		Name: plugins.ValidateReleaseConfigPluginName,
 	})
+
 	valueOverride := map[string]interface{}{}
-	mergeValues(valueOverride, configValues)
-	mergeValues(valueOverride, dependencyConfigs)
+	util.MergeValues(valueOverride, configValues)
+	util.MergeValues(valueOverride, dependencyConfigs)
 	valueOverride[walm.WalmPluginConfigKey] = releaseRequest.Plugins
 
-	var release *hapirelease.Release
 	currentHelmClient, err := hc.GetCurrentHelmClient(namespace)
 	if err != nil {
 		logrus.Errorf("failed to get helm client : %s", err.Error())
 		return err
 	}
 
+	releaseInfo, err := hc.doInstallUpgradeReleaseFromChart(currentHelmClient, namespace, releaseRequest, rawChart, valueOverride, update)
+	if err != nil {
+		logrus.Errorf("failed to create or update release from chart : %s", err.Error())
+		return err
+	}
+
+	err = hc.helmCache.CreateOrUpdateReleaseCache(releaseInfo)
+	if err != nil {
+		logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+		return err
+	}
+
+	logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
+
+	return nil
+}
+
+func (hc *HelmClient) doInstallUpgradeReleaseFromChart(currentHelmClient *helm.Client, namespace string,
+	releaseRequest *release.ReleaseRequestV2, rawChart *chart.Chart, valueOverride map[string]interface{},
+	update bool) (releaseInfo *hapirelease.Release, err error) {
 	if update {
-		release, err = currentHelmClient.UpdateReleaseFromChart(
+		releaseInfo, err = currentHelmClient.UpdateReleaseFromChart(
 			releaseRequest.Name,
-			chart,
+			rawChart,
 			helm.UpdateValueOverrides(valueOverride),
 			helm.UpgradeDryRun(hc.dryRun),
 		)
 		if err != nil {
 			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
-			return err
+			return nil, err
 		}
 	} else {
-		release, err = currentHelmClient.InstallReleaseFromChart(
-			chart,
+		releaseInfo, err = currentHelmClient.InstallReleaseFromChart(
+			rawChart,
 			namespace,
 			helm.ValueOverrides(valueOverride),
 			helm.ReleaseName(releaseRequest.Name),
@@ -870,27 +853,30 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 			if err1 != nil {
 				logrus.Errorf("failed to rollback to delete release %s/%s : %s", namespace, releaseRequest.Name, err1.Error())
 			}
-			return err
+			return nil, err
 		}
 	}
+	return
+}
 
-	err = hc.helmCache.CreateOrUpdateReleaseCache(release)
-	if err != nil {
-		logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
-		return err
+func preProcessRequest(releaseRequest *release.ReleaseRequestV2) {
+	if releaseRequest.ConfigValues == nil {
+		releaseRequest.ConfigValues = map[string]interface{}{}
 	}
-
-	logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
-
-	return nil
+	if releaseRequest.Dependencies == nil {
+		releaseRequest.Dependencies = map[string]string{}
+	}
+	if releaseRequest.ReleaseLabels == nil {
+		releaseRequest.ReleaseLabels = map[string]string{}
+	}
 }
 
 func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string) (dependencyConfigs map[string]interface{}, err error) {
 	dependencyConfigs = map[string]interface{}{}
 	for _, dependency := range dependencies {
-		ss := strings.Split(dependency, ".")
+		ss := strings.Split(dependency, "/")
 		if len(ss) > 2 {
-			err = fmt.Errorf("dependency value %s should not contains more than 1 \".\"", dependency)
+			err = fmt.Errorf("dependency value %s should not contains more than 1 \"/\"", dependency)
 			return
 		}
 		dependencyNamespace, dependencyName := "", ""
@@ -913,21 +899,7 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 
 		// TODO how to deal with key conflict?
 		if len(dependencyReleaseConfig.Spec.OutputConfig) > 0 {
-			// compatible
-			provideConfigValues, ok := dependencyReleaseConfig.Spec.OutputConfig["provides"].(map[string]interface{})
-			if ok {
-				valueToMerge := make(map[string]interface{}, len(provideConfigValues))
-				for key, value := range provideConfigValues {
-					if immediateValue, ok := value.(map[string]interface{}); ok {
-						if immediateValue["immediate_value"] != nil {
-							valueToMerge[key] = immediateValue["immediate_value"]
-						}
-					}
-				}
-				mergeValues(dependencyConfigs, valueToMerge)
-			} else {
-				mergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
-			}
+			util.MergeValues(dependencyConfigs, dependencyReleaseConfig.Spec.OutputConfig)
 		}
 	}
 	return

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	LabelPodPluginName = "ValidateReleaseConfig"
+	LabelPodPluginName = "LabelPod"
 )
 
 // ValidateReleaseConfig plugin is used to make sure:
@@ -28,6 +28,9 @@ type LabelPodArgs struct {
 }
 
 func LabelPod(context *walm.WalmPluginManagerContext, args string) (err error) {
+	if args == "" {
+		return nil
+	}
 	labelPodArgs := &LabelPodArgs{}
 	err = json.Unmarshal([]byte(args), labelPodArgs)
 	if err != nil {

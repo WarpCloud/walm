@@ -32,6 +32,10 @@ type Client struct {
 	tiller *tiller.ReleaseServer
 }
 
+func (c *Client) GetTiller() *tiller.ReleaseServer {
+	return c.tiller
+}
+
 // NewClient creates a new client.
 func NewClient(opts ...Option) *Client {
 	var c Client

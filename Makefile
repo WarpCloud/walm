@@ -12,6 +12,15 @@ LDFLAGS += -X walm/pkg/version.BuildDate=${BUILD_DATE}
 
 .PHONY: build
 build:
-	go build -ldflags '$(LDFLAGS)'
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmcli walm/walmcli
 
-all: build
+build_darwin:
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm-darwin-amd64
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmcli-darwin-amd64 walm/walmcli
+
+build_windows:
+	GOOS=windows GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm-windows-amd64.exe
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmcli-windows-amd64.exe walm/walmcli
+
+all: build build_darwin build_windows

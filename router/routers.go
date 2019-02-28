@@ -525,6 +525,51 @@ func InitChartRouter() *restful.WebService {
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.GET("/{repo-name}/chart/{chart-name}").To(v1.GetChartInfo).
+		Doc("获取chart详细信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
+		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
+		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
+		Writes(releasetypes.ChartInfo{}).
+		Returns(200, "OK", releasetypes.ChartInfo{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{repo-name}/chart/{chart-name}/icon").To(v1.GetChartIcon).
+		Doc("获取chart图标信息").
+		Produces("multipart/form-data").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
+		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
+		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
+		Writes([]byte{}).
+		Returns(200, "OK", []byte{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{repo-name}/chart/{chart-name}/advantage").To(v1.GetChartAdvantage).
+		Doc("获取chart产品优势信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
+		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
+		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
+		Writes([]byte{}).
+		Returns(200, "OK", []byte{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.GET("/{repo-name}/chart/{chart-name}/architecture").To(v1.GetChartArchitecture).
+		Doc("获取chart架构信息").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
+		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
+		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
+		Writes([]byte{}).
+		Returns(200, "OK", []byte{}).
+		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	return ws
 }
 
@@ -533,7 +578,7 @@ func InitPodRouter() *restful.WebService {
 
 	ws.Path(apiV1Path + "/pod").
 		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML)
+		Produces("*/*")
 
 	tags := []string{"pod"}
 

@@ -1,8 +1,6 @@
 hash: 612f138c04a01e21d602a56d4af2cad40bb98d6fa9bdf7f06935dc2593d706cf
-updated: 2019-02-25T16:16:58.458346+08:00
+updated: 2019-02-28T16:32:57.688045515+08:00
 imports:
-- name: github.com/aokoli/goutils
-  version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
   subpackages:
@@ -137,7 +135,7 @@ imports:
   version: f6154fc4effc2950a299faa5ac752ebf8b44a86e
   repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
 - name: github.com/evanphx/json-patch
-  version: 5858425f75500d40c52783dce87d085a483ce135
+  version: 36442dbdb585210f8d5a1b45e67aa323c197d5c4
 - name: github.com/exponent-io/jsonpath
   version: d6023ce2651d8eafb5c75bb0c7167536102ec9f5
 - name: github.com/fsnotify/fsnotify
@@ -167,7 +165,7 @@ imports:
 - name: github.com/go-resty/resty
   version: 03c09fa32a21b7b27b8dbb3877826c1ab3d2daa2
 - name: github.com/gobwas/glob
-  version: 5ccd90ef52e1e632236f7326478d4faa74f99438
+  version: e7a84e9525fe90abcda167b604e483cc959ad4aa
   subpackages:
   - compiler
   - match
@@ -198,7 +196,7 @@ imports:
 - name: github.com/golang/snappy
   version: 2a8bb927dd31d8daada140a5d09578521ce5c36a
 - name: github.com/gomodule/redigo
-  version: 4b40ddb4586bdd2805bcfba564ed0dfa28ec3886
+  version: b47395aa17662ff86cb5c52f3bf669bf842ec27a
   subpackages:
   - redis
 - name: github.com/google/btree
@@ -211,7 +209,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8
+  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -260,7 +258,7 @@ imports:
 - name: github.com/kelseyhightower/envconfig
   version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
 - name: github.com/konsorten/go-windows-terminal-sequences
-  version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
+  version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/magiconair/properties
   version: 7757cc9fdb852f7579b24170bcacda2c7471bb6a
 - name: github.com/mailru/easyjson
@@ -271,10 +269,12 @@ imports:
   - jwriter
 - name: github.com/MakeNowJust/heredoc
   version: bb23615498cded5e105af4ce27de75b089cbe851
+- name: github.com/Masterminds/goutils
+  version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
 - name: github.com/Masterminds/semver
-  version: 517734cc7d6470c0d07130e40fd40bdeb9bcd3fd
+  version: c84ddcca87bf5a941b138dde832a7e20b0159ad8
 - name: github.com/Masterminds/sprig
-  version: 544a9b1d90f323f6509491b389714fbbd126bee3
+  version: b1fe2752acccf8c3d7f8a1e7c75c7ae7d83a1975
 - name: github.com/mattn/go-runewidth
   version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
 - name: github.com/mitchellh/go-wordwrap
@@ -342,7 +342,7 @@ imports:
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
-  version: 856c240a51a2bf8fb8269ea7f3f9b046aadde36e
+  version: 27936f6d90f9c8e1145f11ed52ffffbfdb9e0af7
 - name: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
@@ -402,17 +402,13 @@ imports:
 - name: github.com/spf13/viper
   version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/streadway/amqp
-  version: f16568b23ee61c7d911a5b9d306b8fe2092c33b7
+  version: 30f8ed68076eedf14990dafc696f469f58fc1342
 - name: github.com/swaggo/swag
-  version: aabc0566bfce01f830f8d56ee99724001504946d
+  version: 21ed79894db368d8c3cec96c61d39d26c619b729
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: github.com/tidwall/gjson
   version: eee0b6226f0d1db2675a176fdfaa8419bcad4ca8
-- name: github.com/tidwall/match
-  version: 33827db735fff6510490d69a8622612558a557ed
-- name: github.com/tidwall/pretty
-  version: 65a9db5fad5105a89e17f38adcc9878685be6d78
 - name: github.com/tidwall/sjson
   version: c943cc8c8d751d9b33444adf78ae04c2fc8be754
 - name: golang.org/x/crypto
@@ -435,6 +431,7 @@ imports:
   version: 0ed95abb35c445290478a5348a7b38bb154135fd
   subpackages:
   - context
+  - context/ctxhttp
   - http2
   - http2/hpack
   - idna
@@ -448,7 +445,7 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sync
-  version: 37e7f081c4d4c64e13b10787722085407fe5d15f
+  version: e225da77a7e68af35c70ccbf71af2b83e6acac3c
   subpackages:
   - errgroup
 - name: golang.org/x/sys
@@ -485,6 +482,7 @@ imports:
   - go/ast/astutil
   - go/buildutil
   - go/loader
+  - imports
 - name: google.golang.org/appengine
   version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
   subpackages:
@@ -665,6 +663,7 @@ imports:
   version: e64494209f554a6723674bd494d69445fb76a1d4
   subpackages:
   - discovery
+  - discovery/fake
   - dynamic
   - informers
   - informers/admissionregistration
@@ -713,39 +712,72 @@ imports:
   - informers/storage/v1alpha1
   - informers/storage/v1beta1
   - kubernetes
+  - kubernetes/fake
   - kubernetes/scheme
   - kubernetes/typed/admissionregistration/v1alpha1
+  - kubernetes/typed/admissionregistration/v1alpha1/fake
   - kubernetes/typed/admissionregistration/v1beta1
+  - kubernetes/typed/admissionregistration/v1beta1/fake
   - kubernetes/typed/apps/v1
+  - kubernetes/typed/apps/v1/fake
   - kubernetes/typed/apps/v1beta1
+  - kubernetes/typed/apps/v1beta1/fake
   - kubernetes/typed/apps/v1beta2
+  - kubernetes/typed/apps/v1beta2/fake
   - kubernetes/typed/auditregistration/v1alpha1
+  - kubernetes/typed/auditregistration/v1alpha1/fake
   - kubernetes/typed/authentication/v1
+  - kubernetes/typed/authentication/v1/fake
   - kubernetes/typed/authentication/v1beta1
+  - kubernetes/typed/authentication/v1beta1/fake
   - kubernetes/typed/authorization/v1
+  - kubernetes/typed/authorization/v1/fake
   - kubernetes/typed/authorization/v1beta1
+  - kubernetes/typed/authorization/v1beta1/fake
   - kubernetes/typed/autoscaling/v1
+  - kubernetes/typed/autoscaling/v1/fake
   - kubernetes/typed/autoscaling/v2beta1
+  - kubernetes/typed/autoscaling/v2beta1/fake
   - kubernetes/typed/autoscaling/v2beta2
+  - kubernetes/typed/autoscaling/v2beta2/fake
   - kubernetes/typed/batch/v1
+  - kubernetes/typed/batch/v1/fake
   - kubernetes/typed/batch/v1beta1
+  - kubernetes/typed/batch/v1beta1/fake
   - kubernetes/typed/batch/v2alpha1
+  - kubernetes/typed/batch/v2alpha1/fake
   - kubernetes/typed/certificates/v1beta1
+  - kubernetes/typed/certificates/v1beta1/fake
   - kubernetes/typed/coordination/v1beta1
+  - kubernetes/typed/coordination/v1beta1/fake
   - kubernetes/typed/core/v1
+  - kubernetes/typed/core/v1/fake
   - kubernetes/typed/events/v1beta1
+  - kubernetes/typed/events/v1beta1/fake
   - kubernetes/typed/extensions/v1beta1
+  - kubernetes/typed/extensions/v1beta1/fake
   - kubernetes/typed/networking/v1
+  - kubernetes/typed/networking/v1/fake
   - kubernetes/typed/policy/v1beta1
+  - kubernetes/typed/policy/v1beta1/fake
   - kubernetes/typed/rbac/v1
+  - kubernetes/typed/rbac/v1/fake
   - kubernetes/typed/rbac/v1alpha1
+  - kubernetes/typed/rbac/v1alpha1/fake
   - kubernetes/typed/rbac/v1beta1
+  - kubernetes/typed/rbac/v1beta1/fake
   - kubernetes/typed/scheduling/v1alpha1
+  - kubernetes/typed/scheduling/v1alpha1/fake
   - kubernetes/typed/scheduling/v1beta1
+  - kubernetes/typed/scheduling/v1beta1/fake
   - kubernetes/typed/settings/v1alpha1
+  - kubernetes/typed/settings/v1alpha1/fake
   - kubernetes/typed/storage/v1
+  - kubernetes/typed/storage/v1/fake
   - kubernetes/typed/storage/v1alpha1
+  - kubernetes/typed/storage/v1alpha1/fake
   - kubernetes/typed/storage/v1beta1
+  - kubernetes/typed/storage/v1beta1/fake
   - listers/admissionregistration/v1alpha1
   - listers/admissionregistration/v1beta1
   - listers/apps/v1
@@ -790,6 +822,7 @@ imports:
   - scale/scheme/autoscalingv1
   - scale/scheme/extensionsint
   - scale/scheme/extensionsv1beta1
+  - testing
   - third_party/forked/golang/template
   - tools/auth
   - tools/cache
@@ -818,7 +851,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 276822769d32194e388038d95cbe6a84ac8eaf8d
+  version: 9c0484e4e51a8134e347d92da93b1276c211bcab
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -859,7 +892,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: ff6a78dd494a7f03c4f9585b419a1d42b891c7f5
+  version: c27b913fddd1a6c480c229191a087698aa92f0b1
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service

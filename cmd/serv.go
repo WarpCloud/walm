@@ -25,6 +25,8 @@ import (
 	"walm/pkg/task"
 	"context"
 	"time"
+	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 )
 
 const servDesc = `
@@ -64,6 +66,8 @@ func NewServCmd() *cobra.Command {
 func (sc *ServCmd) run() error {
 	sc.initConfig()
 	stopChan := make(chan struct{})
+	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
+
 	informer.StartInformer(stopChan)
 	task.GetDefaultTaskManager().StartWorker()
 	startElect(stopChan)
@@ -87,13 +91,13 @@ func (sc *ServCmd) run() error {
 	}
 	task.GetDefaultTaskManager().StopWorker()
 	close(stopChan)
-    logrus.Info("waiting for informer stopping")
+	logrus.Info("waiting for informer stopping")
 	time.Sleep(2 * time.Second)
 	logrus.Info("walm server stopped gracefully")
 	return nil
 }
 
-func (sc *ServCmd)initConfig() {
+func (sc *ServCmd) initConfig() {
 	logrus.Infof("loading configuration from [%s]", sc.cfgFile)
 	setting.InitConfig(sc.cfgFile)
 	settingConfig, err := json.Marshal(setting.Config)
