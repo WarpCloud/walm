@@ -91,10 +91,5 @@ func (dc *deleteCmd) run() error {
 		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	fmt.Sprintf("release %s in namespace %s deleted.", dc.releaseName, namespace)
 	return nil
 }
