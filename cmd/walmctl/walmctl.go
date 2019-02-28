@@ -10,9 +10,17 @@ import (
 )
 
 var globalUsage = `walmctl controls the walm application lifecycle manager.
-To begin working with walmctl, Find docs at:
+To begin working with walmctl,Find detail docs at:
 http://172.16.1.168:8090/display/TOS/Walmctl+MileStone/
+
+WARNING: 
+Before use walmctl commands, you must refer walm host with --server/-s and namespace with --namespace/-n
+
+Environment:
+  $WALM_HOST		set a required walm host to substitute --server/-s in commands. The format is host:port (export $WALM_HOST=...)
+
 `
+
 var (
 	settings walmctlEnv.EnvSettings
 	walmserver string
@@ -43,12 +51,17 @@ func newRootCmd(args []string) *cobra.Command {
 
 	}
 
+	cmd.SetHelpCommand(&cobra.Command{
+		Hidden: true,
+	})
+
 	viper.AutomaticEnv()
 	flags := cmd.PersistentFlags()
 
 	flags.String("walm_host", "", "walm apiserver env. Overrides $WALM_HOST")
-	flags.StringVarP(&walmserver, "server", "s", "", "walm apiserver address (Required)")
-	flags.StringVarP(&namespace, "namespace", "n", "", "kubernates namespace (Required)")
+	flags.MarkHidden("walm_host")
+	flags.StringVarP(&walmserver, "server", "s", "", "walm apiserver address (Required only once)")
+	flags.StringVarP(&namespace, "namespace", "n", "", "kubernates namespace (Required only once)")
 
 	viper.BindPFlag("walm_host", flags.Lookup("walm_host"))
 
@@ -59,7 +72,7 @@ func newRootCmd(args []string) *cobra.Command {
 	cmd.AddCommand(
 
 		newCreateCmd(out),
-		newUpgradeCmd(out),
+		newUpdateCmd(out),
 		newGetCmd(out),
 		newListCmd(out),
 		newDeleteCmd(out),

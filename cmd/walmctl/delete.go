@@ -5,16 +5,15 @@ import (
 	"github.com/spf13/cobra"
 	"walm/cmd/walmctl/walmctlclient"
 	"fmt"
-	"errors"
+	"github.com/pkg/errors"
 )
 
-const deleteDesc = `
-This command delete a walm release, project or a release of project.
-Usage:
+const deleteDesc = `This command delete a walm release, project or a release of project.
+
+support cmds format:
 walmctl delete release releaseName
 walmctl delete project projectName
 walmctl delete release releaseName -p projectName
-
 `
 
 type deleteCmd struct {
@@ -31,7 +30,7 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 	dc := &deleteCmd{out: out}
 
 	cmd := &cobra.Command{
-		Use:   "delete",
+		Use:   "delete release/project releaseName/projectName",
 		Short: "delete a release, project or a release of project",
 		Long:  deleteDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +44,7 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 			} else if dc.sourceType == "project" {
 				dc.projectName = args[1]
 			} else {
-				return errors.New("delete [args]: first arg must be one of: release|project")
+				return errors.New("delete [args]: first arg must be release or project")
 			}
 
 			return dc.run()
@@ -53,26 +52,42 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&dc.deletePvcs, "deletePvcs", true, "whether to delete pvcs related release")
-	cmd.Flags().Int64Var(&dc.timeoutSec, "timeoutSec", 0, "timeout for task complete")
-	cmd.Flags().BoolVar(&dc.async, "async", false, "asynchronous: true, synchronous: false")
-	cmd.Flags().StringVarP(&dc.projectName, "project", "p", "", "指定一个 project 进行操作")
+	cmd.Flags().Int64Var(&dc.timeoutSec, "timeoutSec", 0, "timeout (default 0)")
+	cmd.Flags().BoolVar(&dc.async, "async", true, "whether asynchronous")
+	cmd.Flags().StringVarP(&dc.projectName, "project", "p", "", "operate resources of the project")
 	return cmd
 }
 
-func (c *deleteCmd) run() error {
+func (dc *deleteCmd) run() error {
 
-	//var resp *resty.Response
+	// Todo: [Bug] delete release which not exists, also return OK
 	var err error
 
 	client := walmctlclient.CreateNewClient(walmserver)
 
-	if c.sourceType == "project" {
-		_, err = client.DeleteProject(namespace, c.projectName, c.async, c.timeoutSec, c.deletePvcs)
+	if dc.sourceType == "project" {
+		_, err = client.DeleteProject(namespace, dc.projectName, dc.async, dc.timeoutSec, dc.deletePvcs)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("project %s deleted", dc.projectName)
 	} else {
-		if c.projectName == "" {
-			_, err = client.DeleteRelease(namespace, c.releaseName, c.async, c.timeoutSec, c.deletePvcs)
+		if dc.projectName == "" {
+			_, err = client.DeleteRelease(namespace, dc.releaseName, dc.async, dc.timeoutSec, dc.deletePvcs)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("release %s deleted", dc.releaseName)
+
 		} else {
-			_, err = client.DeleteReleaseInProject(namespace, c.projectName, c.releaseName, c.async, c.timeoutSec, c.deletePvcs)
+			_, err = client.DeleteReleaseInProject(namespace, dc.projectName, dc.releaseName, dc.async, dc.timeoutSec, dc.deletePvcs)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("release %s in project %s deleted", dc.releaseName, dc.projectName)
 		}
 	}
 
@@ -80,6 +95,6 @@ func (c *deleteCmd) run() error {
 		return err
 	}
 
-	fmt.Sprintf("release %s in namespace %s deleted.", c.releaseName, namespace)
+	fmt.Sprintf("release %s in namespace %s deleted.", dc.releaseName, namespace)
 	return nil
 }

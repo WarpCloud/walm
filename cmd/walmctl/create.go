@@ -9,10 +9,8 @@ import (
 	"fmt"
 )
 
-const createDesc = `
-This command creates a walm release along with the yaml/json files.
-walmctl[create] takes a flag means the filepath of sourcefile 
-example: walmctl create xxx.json/xxx.yaml
+const createDesc = `This command creates a walm release or project along with existing yaml/json files.
+'walmctl create' takes a parameter which decide the source type, release or project.
 `
 
 type createCmd struct {
@@ -29,7 +27,7 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 	cc := &createCmd{out:out}
 
 	cmd := &cobra.Command{
-		Use: "create",
+		Use: "create release/project",
 		Short: "create a release/project based on json/yaml",
 		Long: createDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,29 +36,26 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 
 			//
 			if len(args) != 1 {
-				return errors.New("arguments release|project required after command create")
+				return errors.New("arguments release/project required after command create")
 			}
 
 			cc.sourceType = args[0]
+
 			if cc.sourceType != "release" && cc.sourceType != "project" {
 				return errors.New("arguments error, release/project accept only")
 			}
-			if cc.sourceType == "project" && cc.name == "" {
-				return errors.New("flag --name required when create project")
-			}
-
-			if cc.file == "" {
-				return errors.New("flag -f/--file required after command create")
-			}
-
 			return cc.run()
 		},
 	}
 
-	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "指定创建的资源的路径")
-	cmd.Flags().StringVar(&cc.name, "name", "", "指定创建的 project/release 名称")
-	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout 超时")
-	cmd.Flags().BoolVar(&cc.async, "async", false, "是否异步")
+	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
+	cmd.Flags().StringVar(&cc.name, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
+	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout, (default 0)")
+	cmd.Flags().BoolVar(&cc.async, "async", true, "whether asynchronous")
+
+	cmd.MarkFlagRequired("file")
+	cmd.MarkFlagRequired("name")
+
 	return cmd
 }
 
@@ -68,15 +63,12 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 func (c *createCmd) run() error {
 
 	// Todo:// read url files
-	//var resp *resty.Response
 	var err error
 
 	filePath, err := filepath.Abs(c.file)
 	if err != nil {
 		return err
 	}
-
-
 
 	client := walmctlclient.CreateNewClient(walmserver)
 
@@ -91,6 +83,6 @@ func (c *createCmd) run() error {
 		return err
 	}
 
-	fmt.Sprintf("%s %s created", c.sourceType, c.name)
+	fmt.Printf("%s %s created", c.sourceType, c.name)
 	return nil
 }
