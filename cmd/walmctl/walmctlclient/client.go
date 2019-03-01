@@ -57,23 +57,30 @@ func (c *WalmctlClient) CreateRelease(namespace string, releaseName string, file
 	return resp, err
 }
 
-func (c *WalmctlClient) UpgradeRelease(namespace string, file string) (resp *resty.Response, err error) {
-
-	fullUrl := walmctlClient.baseURL + "release" + namespace + "?async=false&timeoutSec=0"
-
-	fileByte, err := ioutil.ReadFile(file)
-	if err != nil {
-		fmt.Println("ReadFile Error: ", err.Error())
-	}
-
-	filestr := string(fileByte[:])
+func (c *WalmctlClient) UpdateRelease(namespace string, newConfigStr string, async bool, timeoutSec int64) (resp *resty.Response, err error) {
+	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "?async=false&timeoutSec=0"
 
 	resp, err = resty.R().SetHeader("Content-Type", "application/json").
-		SetBody(filestr).
+		SetBody(newConfigStr).
 		Put(fullUrl)
 
 	return resp, err
 }
+
+func (c *WalmctlClient) UpdateReleaseWithChart(namespace string, releaseName string, newConfigStr string, file string) (resp *resty.Response, err error) {
+
+	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "/name/" + releaseName + "/withchart"
+
+	resp, err = resty.R().SetHeader("Content-Type", "multipart/form-data").
+		SetFile("chart", file).
+		SetFormData(map[string]string{
+		"body": newConfigStr,
+	}).Put(fullUrl)
+
+	return resp, err
+
+}
+
 
 func (c *WalmctlClient) DeleteRelease(namespace string, releaseName string, async bool, timeoutSec int64, deletePvcs bool) (resp *resty.Response, err error) {
 

@@ -10,7 +10,8 @@ import (
 )
 
 const getDesc = `
-This command get a walm release under specific namespace
+This command get a walm release or project info under specific namespace
+use --output/-o to print with json/yaml format.
 `
 
 type getCmd struct {
@@ -25,8 +26,8 @@ func newGetCmd(out io.Writer) *cobra.Command {
 	gc := getCmd{out:out}
 
 	cmd := &cobra.Command{
-		Use: "get [release|project] [releaseName|projectName]",
-		Short: "get a release|project info",
+		Use: "get release/project releaseName/projectName",
+		Short: "get a release/project info",
 		Long: getDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -39,7 +40,7 @@ func newGetCmd(out io.Writer) *cobra.Command {
 			}
 
 			if gc.output != "yaml" && gc.output != "json" && gc.output != "" {
-				return errors.New("flag --output|-o needs an argument, yaml |json")
+				return errors.New("flag --output/-o needs an argument, yaml/json")
 			}
 			gc.sourceName = args[1]
 			return gc.run()
@@ -47,20 +48,18 @@ func newGetCmd(out io.Writer) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&gc.output, "output", "o", "", "-o, --output='': Output format for detail description. One of: json|yaml")
+	cmd.MarkFlagRequired("output")
 	return cmd
 }
 
 
 func (c *getCmd) run() error {
 
-
-
 	resp, err := walmctlclient.CreateNewClient(walmserver).GetSource(namespace, c.sourceName, c.sourceType)
+
 	if err != nil {
 		return err
 	}
-
-	// Todo: yaml type output not in order
 
 	if c.output == "yaml" {
 		respByte, err := yaml.JSONToYAML(resp.Body())
@@ -72,8 +71,7 @@ func (c *getCmd) run() error {
 	} else if c.output == "json" {
 		fmt.Println(resp)
 	} else {
-		// Todo: optimization in processing without flag --output|-o
-		fmt.Printf("optimization in processing without flag --output|-o\n")
+		// Todo: optimization in processing without flag --output|-o, consider add in the future
 	}
 
 	return nil

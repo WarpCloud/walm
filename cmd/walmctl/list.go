@@ -12,11 +12,12 @@ import (
 	"walm/pkg/release"
 	"github.com/ghodss/yaml"
 	"github.com/gosuri/uitable"
+	"github.com/bitly/go-simplejson"
 )
 
 const listDesc = `
-This command shows walm release or project in a specific namespace
-Advance: list release --project|-p projectName
+This command shows walm releases,projects or releases in a project under namespace.
+list release support only currently.
 `
 
 type listCmd struct {
@@ -41,12 +42,12 @@ func newListCmd(out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use: "list",
-		Short: "show release|project under specific namespace",
+		Short: "show release/project under specific namespace",
 		Long: listDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if len(args) != 1 {
-				return errors.New("arguments release|project required after command list")
+				return errors.New("arguments release/project required after command list")
 			}
 			lc.sourceType = args[0]
 			if lc.sourceType != "release" && lc.sourceType != "project" {
@@ -58,12 +59,12 @@ func newListCmd(out io.Writer) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&lc.output, "output", "", "output the specified format (json or yaml)")
-	cmd.Flags().StringVarP(&lc.projectName, "project", "p", "", "指定一个 project 进行操作")
+	cmd.Flags().StringVarP(&lc.projectName, "project", "p", "", "operate resources of the project")
 
 	return cmd
 }
 
-
+// Todo: currently support list release only
 func (c *listCmd) run() error {
 
 	var resp *resty.Response
@@ -81,7 +82,9 @@ func (c *listCmd) run() error {
 	} else {
 		if c.projectName == "" {
 			resp, err = client.ListRelease(namespace)
-			err = json.Unmarshal(resp.Body(), &releases)
+			respJson, _ := simplejson.NewJson(resp.Body())
+			respByte, _ := respJson.Get("items").MarshalJSON()
+			err = json.Unmarshal(respByte, &releases)
 
 		} else {
 			resp, err = client.GetSource(namespace, c.projectName, "project")
@@ -99,7 +102,7 @@ func (c *listCmd) run() error {
 
 
 	result := c.getListResult(releases)
-	output, err := formatResult(c.output, result, c.colWidth)
+	output, err := formatResult(c.output, result)
 
 	fmt.Fprintln(c.out, output)
 
@@ -130,7 +133,7 @@ func (c *listCmd) getListResult(releases []*release.ReleaseInfoV2) []listRelease
 
 }
 
-func formatResult(format string, result []listRelease, colWidth uint) (string, error) {
+func formatResult(format string, result []listRelease) (string, error) {
 
 	var output string
 	var err error
@@ -140,7 +143,7 @@ func formatResult(format string, result []listRelease, colWidth uint) (string, e
 
 	switch format {
 	case "":
-		output = formatText(result, colWidth)
+		output = formatText(result)
 
 	case "json":
 		o, e := json.Marshal(finalResult)
@@ -165,7 +168,7 @@ func formatResult(format string, result []listRelease, colWidth uint) (string, e
 }
 
 
-func formatText(result []listRelease, colWidth uint) string {
+func formatText(result []listRelease) string {
 
 	table := uitable.New()
 	table.MaxColWidth = 60
