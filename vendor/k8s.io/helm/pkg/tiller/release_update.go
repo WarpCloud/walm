@@ -262,7 +262,7 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 		s.Log("update hooks disabled for %s", req.Name)
 	}
 
-	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, updatedRelease)
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, updatedRelease, s.Log)
 	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
 	if err != nil {
 		return updatedRelease, err

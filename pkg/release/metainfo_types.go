@@ -1,5 +1,7 @@
 package release
 
+import "k8s.io/helm/pkg/walm"
+
 // chart metainfo
 type ChartMetaInfo struct {
 	FriendlyName          string                     `json:"friendlyName" description:"friendlyName"`
@@ -7,6 +9,7 @@ type ChartMetaInfo struct {
 	ChartDependenciesInfo []*ChartDependencyMetaInfo `json:"dependencies" description:"dependency metainfo"`
 	ChartRoles            []*MetaRoleConfig          `json:"roles"`
 	ChartParams           []*MetaCommonConfig        `json:"params"`
+	Plugins               []*walm.WalmPlugin         `json:"plugins"`
 }
 
 type ChartDependencyMetaInfo struct {
@@ -15,6 +18,9 @@ type ChartDependencyMetaInfo struct {
 	MaxVersion         string `json:"maxVersion"`
 	DependencyOptional bool   `json:"dependencyOptional"`
 	AliasConfigVar     string `json:"aliasConfigVar,omitempty"`
+	ChartName          string `json:"chartName"`
+	DependencyType     string `json:"type"`
+	AutoDependency     bool   `json:"autoDependency"`
 }
 
 type MetaCommonConfig struct {
