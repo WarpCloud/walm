@@ -41,8 +41,8 @@ func newPackageCmd() *cobra.Command {
 			return pack.run()
 		},
 	}
-	cmd.PersistentFlags().StringVar(&pack.chartPath, "chartPath", ".", "test transwarp chart path")
-	cmd.PersistentFlags().StringVar(&pack.destination, "destination", ".", "location to write the chart")
+	cmd.PersistentFlags().StringVarP(&pack.chartPath, "chartPath", "c",".", "transwarp chart path")
+	cmd.PersistentFlags().StringVarP(&pack.destination, "destination", "d",".", "location to write the chart")
 
 	return cmd
 }
