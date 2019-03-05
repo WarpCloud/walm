@@ -9,3 +9,4 @@ MAINTAINER TOS <tos@transwarp.io>
 
 COPY --from=build-env /go/src/walm/swagger-ui /swagger-ui
 COPY --from=build-env /go/src/walm/_output/walm /usr/bin/
+COPY --from=build-env /go/src/walm/test/ksonnet-lib /opt/ksonnet-lib
