@@ -19,7 +19,6 @@ import (
 	hapirelease "k8s.io/helm/pkg/hapi/release"
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/storage/driver"
-	"walm/pkg/hook"
 	"walm/pkg/k8s/adaptor"
 	"walm/pkg/k8s/client"
 	"walm/pkg/k8s/handler"
@@ -730,20 +729,6 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	}
 
 	preProcessRequest(releaseRequest)
-	hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
-
-	// reuse config values, dependencies, release labels, walm plugins
-	configValues := releaseRequest.ConfigValues
-	dependencies := releaseRequest.Dependencies
-	releaseLabels := releaseRequest.ReleaseLabels
-	walmPlugins := releaseRequest.Plugins
-	if update {
-		configValues, dependencies, releaseLabels, walmPlugins, err = hc.reuseReleaseRequest(releaseCache, releaseRequest)
-		if err != nil {
-			logrus.Errorf("failed to reuse release request : %s", err.Error())
-			return err
-		}
-	}
 
 	var rawChart *chart.Chart
 	var chartErr error
@@ -761,6 +746,29 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	if err != nil {
 		logrus.Errorf("failed to build chart info : %s", err.Error())
 		return err
+	}
+	//hook.ProcessPrettyParams(&(releaseRequest.ReleaseRequest))
+	// support meta pretty parameters
+	configValues := releaseRequest.ConfigValues
+	if releaseRequest.MetaInfoParams != nil {
+		metaInfoConfigs, err := releaseRequest.MetaInfoParams.ToConfigValues(chartInfo.MetaInfo)
+		if err != nil {
+			logrus.Errorf("failed to get meta info parameters : %s", err.Error())
+			return err
+		}
+		util.MergeValues(configValues, metaInfoConfigs)
+	}
+
+	dependencies := releaseRequest.Dependencies
+	releaseLabels := releaseRequest.ReleaseLabels
+	walmPlugins := releaseRequest.Plugins
+	if update {
+		// reuse config values, dependencies, release labels, walm plugins
+		configValues, dependencies, releaseLabels, walmPlugins, err = hc.reuseReleaseRequest(releaseCache, releaseRequest)
+		if err != nil {
+			logrus.Errorf("failed to reuse release request : %s", err.Error())
+			return err
+		}
 	}
 
 	walmPlugins, err = mergeWalmPlugins(walmPlugins, chartInfo.MetaInfo.Plugins)

@@ -151,6 +151,7 @@ type ReleaseRequestV2 struct {
 	ReleaseRequest
 	ReleaseLabels map[string]string  `json:"releaseLabels" description:"release labels"`
 	Plugins       []*walm.WalmPlugin `json:"plugins" description:"plugins"`
+	MetaInfoParams *MetaInfoParams   `json:"metaInfoParams" description:"meta info parameters"`
 }
 
 type ReleaseInfoV2List struct {
