@@ -7,8 +7,6 @@ import (
 	"bytes"
 	"strings"
 	"github.com/ghodss/yaml"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var pluginRunners map[string]*WalmPluginRunner
@@ -39,6 +37,7 @@ type WalmPlugin struct {
 	Name    string `json:"name" description:"plugin name"`
 	Args    string `json:"args" description:"plugin args"`
 	Version string `json:"version" description:"plugin version"`
+	Disable bool   `json:"disable" description:"disable plugin"`
 }
 
 func (walmPlugin *WalmPlugin) getRunner() *WalmPluginRunner {
@@ -56,24 +55,31 @@ type WalmPluginManager struct {
 type WalmPluginManagerContext struct {
 	KubeClient environment.KubeClient
 	R          *release.Release
+	Log        func(string, ...interface{})
 	Resources  []runtime.Object
 }
 
-func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release) (manager *WalmPluginManager) {
+func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release, log func(string, ...interface{})) (manager *WalmPluginManager) {
 	manager = &WalmPluginManager{
 		plugins: map[RunnerType][]*WalmPlugin{},
 		context: &WalmPluginManagerContext{
 			KubeClient: kubeClient,
 			R:          r,
+			Log:        log,
 		},
 	}
 	if len(r.Config) > 0 {
 		walmPlugins, ok := r.Config[WalmPluginConfigKey]
 		if ok {
 			for _, plugin := range walmPlugins.([]*WalmPlugin) {
+				if plugin.Disable {
+					continue
+				}
 				runner := plugin.getRunner()
 				if runner != nil {
 					manager.plugins[runner.Type] = append(manager.plugins[runner.Type], plugin)
+				} else {
+					log("failed to get runner of plugin %s", plugin.Name)
 				}
 			}
 		}
@@ -81,57 +87,42 @@ func NewWalmPluginManager(kubeClient environment.KubeClient, r *release.Release)
 	return
 }
 
-func convertUnstructured(unStruct *unstructured.Unstructured) (runtime.Object, error) {
-	unStructBytes, err := unStruct.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-
-	defaultGVK := unStruct.GetObjectKind().GroupVersionKind()
-
-	decoder := scheme.Codecs.UniversalDecoder(defaultGVK.GroupVersion())
-	obj, _, err := decoder.Decode(unStructBytes, &defaultGVK, nil)
-	if err != nil {
-		return nil,  err
-	}
-	return obj, nil
-}
-
 func (manager *WalmPluginManager) ExecPlugins(runnerType RunnerType) error {
+	manager.context.Log("start to exec %s plugins of release %s/%s", runnerType, manager.context.R.Namespace, manager.context.R.Name)
 	if runnerType == Pre_Install {
 		resources, err := manager.context.KubeClient.BuildUnstructured(manager.context.R.Namespace, bytes.NewBufferString(manager.context.R.Manifest))
 		if err != nil {
+			manager.context.Log("failed to build k8s resources : %s", err.Error())
 			return err
 		}
 		manager.context.Resources = []runtime.Object{}
 		for _, resource := range resources {
-			unStruct := resource.Object.(*unstructured.Unstructured)
-			obj, err := convertUnstructured(unStruct)
-			if err != nil {
-				return err
-			}
-			manager.context.Resources = append(manager.context.Resources, obj)
+			manager.context.Resources = append(manager.context.Resources, resource.Object)
 		}
 	}
 
 	for _, plugin := range manager.plugins[runnerType] {
 		runner := plugin.getRunner()
 		if runner != nil {
+			manager.context.Log("start to exec %s plugin %s", runnerType, plugin.Name)
 			err := runner.Run(manager.context, plugin.Args)
 			if err != nil {
+				manager.context.Log("failed to exec %s plugin %s : %s", runnerType, plugin.Name, err.Error())
 				return err
 			}
+			manager.context.Log("succeed to exec %s plugin %s", runnerType, plugin.Name)
 		}
 	}
 
 	if runnerType == Pre_Install {
 		manifest, err := buildManifest(manager.context.Resources)
 		if err != nil {
+			manager.context.Log("failed to build manifest : %s", err.Error())
 			return err
 		}
 		manager.context.R.Manifest = manifest
 	}
-
+	manager.context.Log("succeed to exec %s plugins of release %s/%s", runnerType, manager.context.R.Namespace, manager.context.R.Name)
 	return nil
 }
 

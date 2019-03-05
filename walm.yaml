@@ -10,7 +10,7 @@ serverConfig:
   tlsVerify: false
 repoList:
   - name: "test"
-    url: "http://172.16.1.41:8880/"
+    url: "http://172.16.1.40:8880/"
   - name: "stable"
     url: "http://172.16.1.41:8882/stable/"
 kubeConfig:

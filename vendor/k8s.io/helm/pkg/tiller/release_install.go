@@ -154,7 +154,7 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 		s.Log("install hooks disabled for %s", req.Name)
 	}
 
-	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, r)
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, r, s.Log)
 	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
 	if err != nil{
 		return r, err

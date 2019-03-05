@@ -16,6 +16,8 @@ import (
 	"walm/pkg/release"
 	walmerr "walm/pkg/util/error"
 	"walm/pkg/util/transwarpjsonnet"
+	"encoding/json"
+	"k8s.io/helm/pkg/chart"
 )
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
@@ -151,8 +153,6 @@ func GetChartList(TenantRepoName string) (*release.ChartInfoList, error) {
 }
 
 func GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.ChartDetailInfo, error) {
-	chartDetailInfo := new(release.ChartDetailInfo)
-
 	rawChart, err := GetDefaultHelmClient().LoadChart(TenantRepoName, ChartName, ChartVersion)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") {
@@ -161,12 +161,26 @@ func GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion string) (*releas
 		return nil, err
 	}
 
+	return BuildChartInfo(rawChart)
+}
+
+func BuildChartInfo(rawChart *chart.Chart) (*release.ChartDetailInfo, error) {
+	chartDetailInfo := new(release.ChartDetailInfo)
+
 	chartDetailInfo.ChartName = rawChart.Metadata.Name
 	chartDetailInfo.ChartVersion = rawChart.Metadata.Version
 	chartDetailInfo.ChartAppVersion = rawChart.Metadata.AppVersion
-
 	chartDetailInfo.ChartEngine = "transwarp"
 	chartDetailInfo.ChartDescription = rawChart.Metadata.Description
+
+	if len(rawChart.Values) != 0 {
+		defaultValueBytes, err := json.Marshal(rawChart.Values)
+		if err != nil {
+			logrus.Errorf("failed to marshal raw chart values: %s", err.Error())
+			return nil, err
+		}
+		chartDetailInfo.DefaultValue = string(defaultValueBytes)
+	}
 
 	for _, f := range rawChart.Files {
 		if strings.HasPrefix(f.Name, transwarpjsonnet.TranswarpMetadataDir) {
@@ -187,15 +201,14 @@ func GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion string) (*releas
 			}
 			if cname == "metainfo.yaml" {
 				chartMetaInfo := release.ChartMetaInfo{}
-				err = yaml.Unmarshal(f.Data, &chartMetaInfo)
+				err := yaml.Unmarshal(f.Data, &chartMetaInfo)
 				if err != nil {
 					logrus.Error(errors.Wrapf(err, "chartMetaInfo Unmarshal metainfo.yaml error"))
 				}
-				chartDetailInfo.Metainfo = &chartMetaInfo
+				chartDetailInfo.MetaInfo = &chartMetaInfo
 			}
 		}
 	}
-
 	return chartDetailInfo, nil
 }
 

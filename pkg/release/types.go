@@ -20,6 +20,7 @@ type ReleaseInfo struct {
 
 type ReleaseSpec struct {
 	Name            string                 `json:"name" description:"name of the release"`
+	//Deprecated
 	RepoName        string                 `json:"repoName" description:"chart name"`
 	ConfigValues    map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
@@ -28,6 +29,7 @@ type ReleaseSpec struct {
 	ChartName       string                 `json:"chartName" description:"chart name"`
 	ChartVersion    string                 `json:"chartVersion" description:"chart version"`
 	ChartAppVersion string                 `json:"chartAppVersion" description:"jsonnet app version"`
+	//Deprecated
 	HelmValues
 }
 
@@ -50,6 +52,7 @@ type ReleaseRequest struct {
 	ChartVersion        string                 `json:"chartVersion" description:"chart repo"`
 	ConfigValues        map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Dependencies        map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
+	//Deprecated
 	ReleasePrettyParams PrettyChartParams      `json:"releasePrettyParams" description:"pretty chart params for market"`
 }
 
@@ -84,9 +87,11 @@ type ChartInfo struct {
 	ChartAppVersion   string                `json:"chartAppVersion"`
 	ChartEngine       string                `json:"chartEngine"`
 	DefaultValue      string                `json:"defaultValue" description:"default values.yaml defined by the chart"`
+	//Deprecated
 	DependencyCharts  []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
-	ChartPrettyParams PrettyChartParams     `json:"chartPrettyParams" description:"pretty chart params for market"`
-	Metainfo          *ChartMetaInfo        `json:"metainfo" description:"transwarp chart metainfo"`
+	//Deprecated
+	ChartPrettyParams PrettyChartParams `json:"chartPrettyParams" description:"pretty chart params for market"`
+	MetaInfo          *ChartMetaInfo    `json:"metaInfo" description:"transwarp chart meta info"`
 }
 
 type ChartDetailInfo struct {
@@ -126,6 +131,20 @@ type ReleaseInfoV2 struct {
 	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
 	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
 	Plugins                  []*walm.WalmPlugin     `json:"plugins" description:"plugins"`
+}
+
+func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
+	return &ReleaseRequestV2{
+		ReleaseRequest: ReleaseRequest{
+			Name:         releaseInfo.Name,
+			ChartVersion: releaseInfo.ChartVersion,
+			ChartName:    releaseInfo.ChartName,
+			Dependencies: releaseInfo.Dependencies,
+			ConfigValues: releaseInfo.ConfigValues,
+		},
+		ReleaseLabels: releaseInfo.ReleaseLabels,
+		Plugins: releaseInfo.Plugins,
+	}
 }
 
 type ReleaseRequestV2 struct {
