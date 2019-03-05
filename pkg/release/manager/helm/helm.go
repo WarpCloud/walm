@@ -824,10 +824,14 @@ func (hc *HelmClient) reuseReleaseRequest(releaseCache *release.ReleaseCache, re
 		return nil, nil, nil, nil, err
 	}
 
-	configValues = releaseInfo.ConfigValues
+	configValues = map[string]interface{}{}
+	util.MergeValues(configValues,	releaseInfo.ConfigValues)
 	util.MergeValues(configValues, releaseRequest.ConfigValues)
 
-	dependencies = releaseInfo.Dependencies
+	dependencies = map[string]string{}
+	for key, value := range releaseInfo.Dependencies {
+		dependencies[key] = value
+	}
 	for key, value := range releaseRequest.Dependencies {
 		if value == "" {
 			if _, ok := dependencies[key]; ok {
@@ -838,7 +842,10 @@ func (hc *HelmClient) reuseReleaseRequest(releaseCache *release.ReleaseCache, re
 		}
 	}
 
-	releaseLabels = releaseInfo.ReleaseLabels
+	releaseLabels = map[string]string{}
+	for key, value := range releaseInfo.ReleaseLabels {
+		releaseLabels[key] = value
+	}
 	for key, value := range releaseRequest.ReleaseLabels {
 		if value == "" {
 			if _, ok := releaseLabels[key]; ok {
