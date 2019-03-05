@@ -129,8 +129,8 @@ func appendHelmIgnoreFile(path string, ignoreFiles []string) error {
 	}
 	defer f.Close()
 
-	for _, ignore := range ignoreFiles {
-		f.WriteString(ignore)
+	for _, tmpFile := range ignoreFiles {
+		f.WriteString(tmpFile)
 		f.WriteString("\n")
 	}
 
