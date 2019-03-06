@@ -224,6 +224,9 @@ func (controller *ReleaseConfigController) publishToKafka(releaseKey string) err
 
 	err = kafka.GetDefaultKafkaClient().SyncSendMessage(kafka.ReleaseConfigTopic, string(eventMsg))
 	if err != nil {
+		if kafka.IsNotEnableError(err) {
+			return nil
+		}
 		logrus.Errorf("failed to send release config event of %s to kafka : %s", releaseKey, err.Error())
 		return err
 	}

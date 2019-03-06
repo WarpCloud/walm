@@ -457,7 +457,7 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 	if !isRemove {
 		g.Add(releaseParams.Name)
 		for _, helmRelease := range projectInfo.Releases {
-			subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+			subCharts, err := manager.helmClient.GetAutoDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 			if err != nil {
 				return nil, err
 			}
@@ -468,7 +468,7 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 				}
 			}
 		}
-		releaseSubCharts, err := manager.helmClient.GetDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
+		releaseSubCharts, err := manager.helmClient.GetAutoDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -545,7 +545,7 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectPara
 
 	// init edge
 	for _, helmRelease := range projectParams.Releases {
-		subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+		subCharts, err := manager.helmClient.GetAutoDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 		if err != nil {
 			return nil, err
 		}

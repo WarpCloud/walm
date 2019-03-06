@@ -22,7 +22,7 @@ func Test_downloadChart(t *testing.T) {
 }
 
 func Test_GetDependencies(t *testing.T) {
-	subCharts, _ := GetDefaultHelmClient().GetDependencies("stable", "inceptor", "")
+	subCharts, _ := GetDefaultHelmClient().GetAutoDependencies("stable", "inceptor", "")
 	fmt.Printf("%v\n", subCharts)
 }
 
