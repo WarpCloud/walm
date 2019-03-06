@@ -175,12 +175,7 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 		return err
 	}
 
-	for fileName, kubeResource := range kubeResources {
-		kubeResourceBytes, err := yaml.Marshal(kubeResource)
-		if err != nil {
-			logrus.Errorf("failed to marshal k8s resource : %s", err.Error())
-			return err
-		}
+	for fileName, kubeResourceBytes := range kubeResources {
 		rawChart.Templates = append(rawChart.Templates, &chart.File{
 			Name: BuildNotRenderedFileName(fileName),
 			Data: kubeResourceBytes,

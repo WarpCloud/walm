@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"github.com/google/go-jsonnet"
 	"path/filepath"
-	"sort"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
 	"path"
+	"gopkg.in/yaml.v2"
 )
 
 func renderMainJsonnetFile(templateFiles map[string]string, configValues map[string]interface{}) (jsonStr string, err error) {
@@ -40,7 +37,7 @@ func BuildNotRenderedFileName(fileName string) (notRenderFileName string) {
 	return
 }
 
-func buildKubeResourcesByJsonStr(jsonStr string) (resources map[string]runtime.Object, err error) {
+func buildKubeResourcesByJsonStr(jsonStr string) (resources map[string][]byte, err error) {
 	// key: resource.json, value: resource template(map)
 	resourcesMap := make(map[string]map[string]interface{})
 	err = json.Unmarshal([]byte(jsonStr), &resourcesMap)
@@ -49,68 +46,16 @@ func buildKubeResourcesByJsonStr(jsonStr string) (resources map[string]runtime.O
 		return nil, err
 	}
 
-	//TODO use hook to fix the issue that configMap, secret load first
-	keys := make([]string, 0, len(resourcesMap))
-	for k := range resourcesMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	// WARP-28357 reorder keys to confirm configmap will be synced before other resources, e.g. statefulset
-	startAt := 0
-	for keyIdx, key := range keys {
-		switch resourcesMap[key]["kind"] {
-		case "ConfigMap", "Secret":
-			if startAt < keyIdx {
-				keys[startAt], keys[keyIdx] = keys[keyIdx], keys[startAt]
-			}
-			startAt = startAt + 1
-		default:
-		}
-	}
-
-	resources = make(map[string]runtime.Object, len(resourcesMap))
-	for _, key := range keys {
-		resource := resourcesMap[key]
-		apiVersion, exists := resource["apiVersion"]
-		if !exists {
-			err = fmt.Errorf("%s does not have apiVersion", key)
-			logrus.Errorf(err.Error())
-			return
-		}
-		kind, exists := resource["kind"]
-		if !exists {
-			err = fmt.Errorf("%s does not have kind", key)
-			logrus.Errorf(err.Error())
-			return
-		}
-		var group, version string
-		gvs := strings.Split(apiVersion.(string), "/")
-		if len(gvs) == 2 {
-			group, version = gvs[0], gvs[1]
-		} else {
-			group, version = "", apiVersion.(string)
-		}
-		defaultGVK := schema.GroupVersionKind{Group: group, Version: version, Kind: kind.(string)}
-		resourceBytes, err := json.Marshal(resource)
+	resources = map[string][]byte{}
+	for fileName, resource := range resourcesMap {
+		resourceBytes, err := yaml.Marshal(resource)
 		if err != nil {
-			logrus.Errorf("failed to marshal resource : %s", key)
+			logrus.Errorf("failed to marshal resource to yaml bytes : %s", err.Error())
 			return nil, err
 		}
-
-		decoder := scheme.Codecs.UniversalDecoder(defaultGVK.GroupVersion())
-		obj, gvk, err := decoder.Decode(resourceBytes, &defaultGVK, nil)
-		if err != nil {
-			logrus.Errorf("failed to decode resource : %s", key)
-			return nil, err
-		}
-		if gvk.GroupVersion() != defaultGVK.GroupVersion() {
-			err = fmt.Errorf("API version in the data (%s) does not match expected API version (%s)", gvk.GroupVersion().String(), defaultGVK.GroupVersion().String())
-			logrus.Errorf(err.Error())
-			return nil, err
-		}
-
-		resources[key] = obj
+		resources[fileName] = resourceBytes
 	}
+
 	return
 }
 
@@ -121,15 +66,6 @@ func getMainJsonnetFile(templateFiles map[string]string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("failed to find main jsonnet file")
-}
-
-func getConfigJsonnetFile(templateFiles map[string]string) (string, error) {
-	for fileName := range templateFiles {
-		if strings.HasSuffix(fileName, "config.jsonnet") {
-			return fileName, nil
-		}
-	}
-	return "", fmt.Errorf("failed to find config jsonnet file")
 }
 
 type MemoryImporter struct {
