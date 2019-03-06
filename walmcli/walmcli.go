@@ -19,6 +19,7 @@ func newWalmClientCmd(args []string) *cobra.Command {
 
 	walmClientCmd.AddCommand(
 		newLintCmd(),
+		newPackageCmd(),
 	)
 
 	flags.Parse(args)
