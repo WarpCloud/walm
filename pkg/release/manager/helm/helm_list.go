@@ -106,6 +106,7 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.RepoName = releaseConfig.Spec.Repo
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
+	releaseV2.MetaInfoValues = releaseCache.MetaInfoValues
 	releaseV2.Plugins = []*walm.WalmPlugin{}
 	if releaseV2.ComputedValues != nil {
 		if walmPlugins, ok := releaseV2.ComputedValues[walm.WalmPluginConfigKey]; ok {

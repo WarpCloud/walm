@@ -24,6 +24,7 @@ import (
 
 	"walm/pkg/setting"
 	"walm/pkg/util"
+	"walm/pkg/release"
 )
 
 const (
@@ -33,6 +34,7 @@ const (
 	TranswarpJsonetAppLibDir    = "applib/"
 	TranswarpMetadataDir        = "transwarp-meta/"
 	TranswarpCiDir              = "ci/"
+	TranswarpMetaInfoFileName   = "metainfo.yaml"
 )
 
 var commonTemplateFilesPath string
@@ -127,7 +129,7 @@ func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, r
 			jsonnetTemplateFiles[appcname] = string(f.Data)
 		} else if strings.HasPrefix(f.Name, TranswarpJsonetAppLibDir) {
 			jsonnetTemplateFiles[f.Name] = string(f.Data)
-		} else if !strings.HasPrefix(f.Name, TranswarpMetadataDir) && !strings.HasPrefix(f.Name, TranswarpCiDir) {
+		} else if !strings.HasPrefix(f.Name, TranswarpCiDir) {
 			rawChartFiles = append(rawChartFiles, f)
 		}
 	}
@@ -274,4 +276,19 @@ func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
 	}
 
 	return files, nil
+}
+
+func GetChartMetaInfo(rawChart *chart.Chart) (chartMetaInfo *release.ChartMetaInfo, err error) {
+	for _, f := range rawChart.Files {
+		if f.Name == TranswarpMetadataDir+TranswarpMetaInfoFileName {
+			chartMetaInfo = &release.ChartMetaInfo{}
+			err = yaml.Unmarshal(f.Data, chartMetaInfo)
+			if err != nil {
+				logrus.Error(errors.Wrapf(err, "chartMetaInfo Unmarshal metainfo.yaml error"))
+				return
+			}
+			return
+		}
+	}
+	return
 }

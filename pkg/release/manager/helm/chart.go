@@ -3,7 +3,6 @@ package helm
 import (
 	"fmt"
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"k8s.io/helm/pkg/getter"
@@ -183,59 +182,56 @@ func BuildChartInfo(rawChart *chart.Chart) (*release.ChartDetailInfo, error) {
 		chartDetailInfo.DefaultValue = string(defaultValueBytes)
 	}
 
-	for _, f := range rawChart.Files {
-		if strings.HasPrefix(f.Name, transwarpjsonnet.TranswarpMetadataDir) {
-			cname := strings.TrimPrefix(f.Name, transwarpjsonnet.TranswarpMetadataDir)
-			if strings.IndexAny(cname, "._") == 0 {
-				// Ignore charts/ that start with . or _.
-				continue
-			}
+	chartMetaInfo, err := transwarpjsonnet.GetChartMetaInfo(rawChart)
+	if err != nil {
+		logrus.Errorf("failed to get chart meta info : %s", err.Error())
+		return nil, err
+	}
 
-			if strings.HasPrefix(cname, "icon") {
-				chartDetailInfo.Icon = f.Data
+	if chartMetaInfo != nil {
+		chartDetailInfo.MetaInfo = chartMetaInfo
+		if chartDetailInfo.DefaultValue != "" {
+			for _, chartParam := range chartDetailInfo.MetaInfo.ChartParams {
+				chartParam.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, chartParam.MapKey).Value()
 			}
-			if cname == "advantage.html" {
-				chartDetailInfo.Advantage = f.Data
-			}
-			if cname == "architecture.html" {
-				chartDetailInfo.Architecture = f.Data
-			}
-			if cname == "metainfo.yaml" {
-				chartMetaInfo := release.ChartMetaInfo{}
-				err := yaml.Unmarshal(f.Data, &chartMetaInfo)
-				if err != nil {
-					logrus.Error(errors.Wrapf(err, "chartMetaInfo Unmarshal metainfo.yaml error"))
+			for _, chartRole := range chartDetailInfo.MetaInfo.ChartRoles {
+				for _, roleBaseConfig := range chartRole.RoleBaseConfig {
+					roleBaseConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, roleBaseConfig.MapKey).Value()
 				}
-				chartDetailInfo.MetaInfo = &chartMetaInfo
-				if chartDetailInfo.DefaultValue != "" {
-					for _, chartParam := range chartDetailInfo.MetaInfo.ChartParams {
-						chartParam.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, chartParam.MapKey).Value()
-					}
-					for _, chartRole := range chartDetailInfo.MetaInfo.ChartRoles {
-						for _, roleBaseConfig := range chartRole.RoleBaseConfig {
-							roleBaseConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, roleBaseConfig.MapKey).Value()
-						}
+				if chartRole.RoleResourceConfig != nil {
+					if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
 						chartRole.RoleResourceConfig.LimitsMemoryKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey).Value()
+					}
+					if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
 						chartRole.RoleResourceConfig.LimitsGpuKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsGpuKey.MapKey).Value()
+					}
+					if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
 						chartRole.RoleResourceConfig.LimitsCpuKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsCpuKey.MapKey).Value()
+					}
+					if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
 						chartRole.RoleResourceConfig.RequestsMemoryKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey).Value()
+					}
+					if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
 						chartRole.RoleResourceConfig.RequestsGpuKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsGpuKey.MapKey).Value()
+					}
+					if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
 						chartRole.RoleResourceConfig.RequestsCpuKey.DefaultValue =
 							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsCpuKey.MapKey).Value()
+					}
 
-						for _, storageConfig := range chartRole.RoleResourceConfig.StorageResources {
-							storageConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, storageConfig.MapKey).Value()
-						}
+					for _, storageConfig := range chartRole.RoleResourceConfig.StorageResources {
+						storageConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, storageConfig.MapKey).Value()
 					}
 				}
 			}
 		}
 	}
+
 	return chartDetailInfo, nil
 }
 
