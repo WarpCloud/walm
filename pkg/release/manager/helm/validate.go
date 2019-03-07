@@ -201,7 +201,7 @@ package helm
 //func checkDependencies(ch *chart.Chart, reqs *chartutil.Requirements) error {
 //	missing := []string{}
 //
-//	deps := ch.GetDependencies()
+//	deps := ch.GetAutoDependencies()
 //	for _, r := range reqs.Dependencies {
 //		found := false
 //		for _, d := range deps {

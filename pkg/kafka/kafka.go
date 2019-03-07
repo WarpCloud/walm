@@ -55,10 +55,20 @@ type KafkaClient struct {
 	syncProducer sarama.SyncProducer
 }
 
+type NotEnableError struct{}
+func (err NotEnableError) Error() string {
+	return "kafka client is not enabled"
+}
+
+func IsNotEnableError(err error) bool {
+	_, ok := err.(NotEnableError)
+	return ok
+}
+
 func (client *KafkaClient) SyncSendMessage(topic, message string) error {
 	if !client.Enable {
 		logrus.Warnf("kafka client is not enabled, failed to send message %s to topic %s", message, topic)
-		return nil
+		return NotEnableError{}
 	}
 	_, _, err := client.syncProducer.SendMessage(&sarama.ProducerMessage{
 		Topic: topic,

@@ -70,6 +70,7 @@ func ValidateReleaseConfig(context *walm.WalmPluginManagerContext, args string) 
 			releaseConfig.Spec.ChartName = autoGenReleaseConfig.Spec.ChartName
 			releaseConfig.Spec.ChartVersion = autoGenReleaseConfig.Spec.ChartVersion
 			releaseConfig.Spec.ChartAppVersion = autoGenReleaseConfig.Spec.ChartAppVersion
+			releaseConfig.Spec.Repo = autoGenReleaseConfig.Spec.Repo
 			if releaseConfig.Labels == nil {
 				releaseConfig.Labels = map[string]string{}
 			}

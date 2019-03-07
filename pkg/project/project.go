@@ -19,12 +19,12 @@ import (
 
 const (
 	defaultSleepTimeSecond time.Duration = 1 * time.Second
-	defaultTimeoutSec      int64 = 60
+	defaultTimeoutSec      int64         = 60
 )
 
 type ProjectManager struct {
-	helmClient     *helm.HelmClient
-	redisClient    *redis.RedisClient
+	helmClient  *helm.HelmClient
+	redisClient *redis.RedisClient
 }
 
 var projectManager *ProjectManager
@@ -32,8 +32,8 @@ var projectManager *ProjectManager
 func GetDefaultProjectManager() *ProjectManager {
 	if projectManager == nil {
 		projectManager = &ProjectManager{
-			helmClient:     helm.GetDefaultHelmClient(),
-			redisClient:    redis.GetDefaultRedisClient(),
+			helmClient:  helm.GetDefaultHelmClient(),
+			redisClient: redis.GetDefaultRedisClient(),
 		}
 	}
 	return projectManager
@@ -94,16 +94,16 @@ func (manager *ProjectManager) GetProjectInfo(namespace, projectName string) (*P
 func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache) (projectInfo *ProjectInfo, err error) {
 	taskState := projectCache.GetLatestTaskState()
 	projectInfo = &ProjectInfo{
-		ProjectCache:    *projectCache,
-		Releases:        []*release.ReleaseInfoV2{},
+		ProjectCache: *projectCache,
+		Releases:     []*release.ReleaseInfoV2{},
 	}
 	if taskState != nil {
 		projectInfo.LatestTaskState = &task.WalmTaskState{
-			TaskUUID: taskState.TaskUUID,
-			TaskName: taskState.TaskName,
-			Error: taskState.Error,
+			TaskUUID:  taskState.TaskUUID,
+			TaskName:  taskState.TaskName,
+			Error:     taskState.Error,
 			CreatedAt: taskState.CreatedAt,
-			State: taskState.State,
+			State:     taskState.State,
 		}
 	}
 
@@ -112,7 +112,7 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		return nil, err
 	}
 
-	if taskState == nil || taskState.TaskName == ""{
+	if taskState == nil || taskState.TaskName == "" {
 		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
 
 	} else if taskState.IsSuccess() {
@@ -212,7 +212,7 @@ func (manager *ProjectManager) CreateProject(namespace string, project string, p
 
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to create project  %s/%s: %s", namespace, project, err.Error())
 			return err
@@ -239,8 +239,8 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 	}
 
 	deleteProjectTaskSig, err := SendDeleteProjectTask(&DeleteProjectTaskArgs{
-		Name:      project,
-		Namespace: namespace,
+		Name:       project,
+		Namespace:  namespace,
 		DeletePvcs: deletePvcs,
 	})
 	if err != nil {
@@ -269,7 +269,7 @@ func (manager *ProjectManager) DeleteProject(namespace string, project string, a
 
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to delete project  %s/%s : %s", namespace, project, err.Error())
 			return err
@@ -320,8 +320,8 @@ func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, project
 	}
 
 	upgradeReleaseTaskSig, err := SendUpgradeReleaseTask(&UpgradeReleaseTaskArgs{
-		Namespace:   namespace,
-		ProjectName:        projectName,
+		Namespace:     namespace,
+		ProjectName:   projectName,
 		ReleaseParams: releaseParams,
 	})
 	if err != nil {
@@ -350,7 +350,7 @@ func (manager *ProjectManager) UpgradeReleaseInProject(namespace string, project
 
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", releaseParams.Name, namespace, projectName, err.Error())
 			return err
@@ -427,7 +427,7 @@ func (manager *ProjectManager) RemoveReleaseInProject(namespace, projectName, re
 
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to remove release %s in project %s/%s : %s", releaseName, namespace, projectName, err.Error())
 			return err
@@ -457,7 +457,7 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 	if !isRemove {
 		g.Add(releaseParams.Name)
 		for _, helmRelease := range projectInfo.Releases {
-			subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+			subCharts, err := manager.helmClient.GetAutoDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 			if err != nil {
 				return nil, err
 			}
@@ -468,7 +468,7 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 				}
 			}
 		}
-		releaseSubCharts, err := manager.helmClient.GetDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
+		releaseSubCharts, err := manager.helmClient.GetAutoDependencies(releaseParams.RepoName, releaseParams.ChartName, releaseParams.ChartVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -491,6 +491,9 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 			}
 			_, ok := upperRelease.Dependencies[releaseParams.ChartName]
 			if !ok {
+				if upperRelease.Dependencies == nil {
+					upperRelease.Dependencies = map[string]string{}
+				}
 				upperRelease.Dependencies[releaseParams.ChartName] = releaseParams.Name
 			}
 			affectReleases = append(affectReleases, upperRelease)
@@ -504,7 +507,7 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 			}
 			_, ok := releaseParams.Dependencies[downRelease.ChartName]
 			if !ok {
-			    if releaseParams.Dependencies == nil {
+				if releaseParams.Dependencies == nil {
 					releaseParams.Dependencies = make(map[string]string)
 				}
 				releaseParams.Dependencies[downRelease.ChartName] = downRelease.Name
@@ -512,16 +515,14 @@ func (manager *ProjectManager) brainFuckRuntimeDepParse(projectInfo *ProjectInfo
 			}
 		}
 	} else {
-		logrus.Infof("remove %+v\n", g.UpEdges(releaseParams.Name).List())
+		logrus.Infof("%+v are depending on %s", g.UpEdges(releaseParams.Name).List(), releaseParams.Name)
 		for _, upperReleaseName := range g.UpEdges(releaseParams.Name).List() {
 			upperRelease := buildReleaseRequest(projectInfo, upperReleaseName.(string))
 			if upperRelease == nil {
 				continue
 			}
-			_, ok := upperRelease.Dependencies[releaseParams.ChartName]
-			if ok {
-				delete(upperRelease.Dependencies, releaseParams.ChartName)
-			}
+
+			helm.DeleteReleaseDependency(upperRelease.Dependencies, releaseParams.ChartName)
 			affectReleases = append(affectReleases, upperRelease)
 		}
 	}
@@ -545,7 +546,7 @@ func (manager *ProjectManager) brainFuckChartDepParse(projectParams *ProjectPara
 
 	// init edge
 	for _, helmRelease := range projectParams.Releases {
-		subCharts, err := manager.helmClient.GetDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
+		subCharts, err := manager.helmClient.GetAutoDependencies(helmRelease.RepoName, helmRelease.ChartName, helmRelease.ChartVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -629,7 +630,7 @@ func (manager *ProjectManager) AddReleasesInProject(namespace string, projectNam
 
 	if !async {
 		asyncResult := task.GetDefaultTaskManager().NewAsyncResult(projectCache.GetLatestTaskSignature())
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec) * time.Second, defaultSleepTimeSecond)
+		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
 		if err != nil {
 			logrus.Errorf("failed to add releases in project %s/%s : %s", namespace, projectName, err.Error())
 			return err

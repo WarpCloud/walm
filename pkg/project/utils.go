@@ -1,7 +1,6 @@
 package project
 
 import (
-	"time"
 	"walm/pkg/release"
 )
 
@@ -33,28 +32,13 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 }
 
 func buildReleaseRequest(projectInfo *ProjectInfo, releaseName string) *release.ReleaseRequestV2 {
-	var releaseRequest release.ReleaseRequestV2
-	found := false
+	var releaseRequest *release.ReleaseRequestV2
 	for _, releaseInfo := range projectInfo.Releases {
-		if releaseInfo.Name != releaseName {
-			continue
+		if releaseInfo.Name == releaseName {
+			releaseRequest = releaseInfo.BuildReleaseRequestV2()
+			break
 		}
-		releaseRequest.ConfigValues = make(map[string]interface{})
-		releaseRequest.ConfigValues["UPDATE"] = time.Now().String()
-		releaseRequest.Dependencies = make(map[string]string)
-		for k, v := range releaseInfo.Dependencies {
-			releaseRequest.Dependencies[k] = v
-		}
-		releaseRequest.Name = releaseInfo.Name
-		releaseRequest.ChartName = releaseInfo.ChartName
-		releaseRequest.ChartVersion = releaseInfo.ChartVersion
-		releaseRequest.ReleaseLabels = releaseInfo.ReleaseLabels
-		found = true
-		break
 	}
 
-	if !found {
-		return nil
-	}
-	return &releaseRequest
+	return releaseRequest
 }

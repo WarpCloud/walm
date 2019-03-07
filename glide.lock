@@ -1,5 +1,5 @@
 hash: a0d12ce419ade47b667ab9a4cd000944bd1993c85e781fd7fe9a11c9958af9c0
-updated: 2019-03-05T18:19:03.346193438+08:00
+updated: 2019-03-06T19:45:42.746004909+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -334,7 +334,7 @@ imports:
   - ext
   - log
 - name: github.com/pelletier/go-toml
-  version: e1803f96f6945c1061f538abc1a01a18f4d963fb
+  version: bef2d19cb02636f36436cf436ec0bfb28c30195b
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
@@ -404,7 +404,7 @@ imports:
 - name: github.com/streadway/amqp
   version: 30f8ed68076eedf14990dafc696f469f58fc1342
 - name: github.com/swaggo/swag
-  version: e60975705876192c16adf38ddbdbd9d8e1b58585
+  version: 93c4fa280f003d8efa540be37c6bbd037117c8ab
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: github.com/tidwall/gjson
@@ -897,7 +897,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: b5f55a8fc542efd87871b02991e3d930692c64a2
+  version: 6c1e64b94a3e111199c934c39a0c25bc219ed5f9
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
@@ -1023,7 +1023,7 @@ imports:
   - pkg/client/informers/externalversions/transwarp/v1beta1
   - pkg/client/listers/transwarp/v1beta1
 - name: transwarp/release-config
-  version: fa5870de70b4bed4f07b91a0cd67c8c50ab7de9a
+  version: 66bbb68e2642a46baf2d4e1a00eb5e04ec5fc6d0
   repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
   subpackages:
   - pkg/apis/transwarp

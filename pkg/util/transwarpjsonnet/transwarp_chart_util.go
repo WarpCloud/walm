@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 
-
 	"walm/pkg/setting"
 	"walm/pkg/util"
 )
@@ -112,7 +111,7 @@ func buildConfigValuesToRender(rawChart *chart.Chart, namespace, name string, us
 //     c. merge dependency release output configs
 //     d. merge configs user provided
 // 3. render jsonnet template files to generate native chart templates
-func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName string,
+func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, releaseName string,
 	userConfigs, dependencyConfigs map[string]interface{}, dependencies, releaseLabels map[string]string,
 ) error {
 	jsonnetTemplateFiles := make(map[string]string, 0)
@@ -133,7 +132,7 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 		}
 	}
 
-	autoGenReleaseConfig, err := buildAutoGenReleaseConfig(releaseNamespace, releaseName,
+	autoGenReleaseConfig, err := buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo,
 		rawChart.Metadata.Name, rawChart.Metadata.Version, rawChart.Metadata.AppVersion,
 		releaseLabels, dependencies, dependencyConfigs, userConfigs)
 	if err != nil {
@@ -184,8 +183,7 @@ func ProcessJsonnetChart(rawChart *chart.Chart, releaseNamespace, releaseName st
 	return nil
 }
 
-
-func buildAutoGenReleaseConfig(releaseNamespace, releaseName, chartName, chartVersion, chartAppVersion string,
+func buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo, chartName, chartVersion, chartAppVersion string,
 	labels, dependencies map[string]string, dependencyConfigs, userConfigs map[string]interface{}) ([]byte, error) {
 	if labels == nil {
 		labels = map[string]string{}
@@ -210,6 +208,7 @@ func buildAutoGenReleaseConfig(releaseNamespace, releaseName, chartName, chartVe
 			ConfigValues:             userConfigs,
 			Dependencies:             dependencies,
 			OutputConfig:             map[string]interface{}{},
+			Repo:                     repo,
 		},
 	}
 

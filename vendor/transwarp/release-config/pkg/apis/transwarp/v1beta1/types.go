@@ -40,6 +40,7 @@ type ReleaseConfigSpec struct {
 	ChartVersion             string                 `json:"chartVersion" description:"chart version"`
 	ChartAppVersion          string                 `json:"chartAppVersion" description:"jsonnet app version"`
 	OutputConfig             map[string]interface{} `json:"outputConfig"`
+	Repo                     string                 `json:"repo" description:"chart repo"`
 }
 
 // ReleaseConfigStatus is the status for a ReleaseConfig resource

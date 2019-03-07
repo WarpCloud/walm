@@ -20,7 +20,6 @@ type ReleaseInfo struct {
 
 type ReleaseSpec struct {
 	Name            string                 `json:"name" description:"name of the release"`
-	//Deprecated
 	RepoName        string                 `json:"repoName" description:"chart name"`
 	ConfigValues    map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Version         int32                  `json:"version" description:"version of the release"`
@@ -46,14 +45,14 @@ type ReleaseResourceMeta struct {
 }
 
 type ReleaseRequest struct {
-	Name                string                 `json:"name" description:"name of the release"`
-	RepoName            string                 `json:"repoName" description:"chart name"`
-	ChartName           string                 `json:"chartName" description:"chart name"`
-	ChartVersion        string                 `json:"chartVersion" description:"chart repo"`
-	ConfigValues        map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
-	Dependencies        map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
+	Name         string                 `json:"name" description:"name of the release"`
+	RepoName     string                 `json:"repoName" description:"chart name"`
+	ChartName    string                 `json:"chartName" description:"chart name"`
+	ChartVersion string                 `json:"chartVersion" description:"chart repo"`
+	ConfigValues map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
+	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 	//Deprecated
-	ReleasePrettyParams PrettyChartParams      `json:"releasePrettyParams" description:"pretty chart params for market"`
+	ReleasePrettyParams PrettyChartParams `json:"releasePrettyParams" description:"pretty chart params for market"`
 }
 
 type HelmExtraLabels struct {
@@ -81,14 +80,14 @@ type ChartDependencyInfo struct {
 }
 
 type ChartInfo struct {
-	ChartName         string                `json:"chartName"`
-	ChartVersion      string                `json:"chartVersion"`
-	ChartDescription  string                `json:"chartDescription"`
-	ChartAppVersion   string                `json:"chartAppVersion"`
-	ChartEngine       string                `json:"chartEngine"`
-	DefaultValue      string                `json:"defaultValue" description:"default values.yaml defined by the chart"`
+	ChartName        string `json:"chartName"`
+	ChartVersion     string `json:"chartVersion"`
+	ChartDescription string `json:"chartDescription"`
+	ChartAppVersion  string `json:"chartAppVersion"`
+	ChartEngine      string `json:"chartEngine"`
+	DefaultValue     string `json:"defaultValue" description:"default values.yaml defined by the chart"`
 	//Deprecated
-	DependencyCharts  []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
+	DependencyCharts []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
 	//Deprecated
 	ChartPrettyParams PrettyChartParams `json:"chartPrettyParams" description:"pretty chart params for market"`
 	MetaInfo          *ChartMetaInfo    `json:"metaInfo" description:"transwarp chart meta info"`
@@ -137,21 +136,22 @@ func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
 	return &ReleaseRequestV2{
 		ReleaseRequest: ReleaseRequest{
 			Name:         releaseInfo.Name,
+			RepoName:     releaseInfo.RepoName,
 			ChartVersion: releaseInfo.ChartVersion,
 			ChartName:    releaseInfo.ChartName,
 			Dependencies: releaseInfo.Dependencies,
 			ConfigValues: releaseInfo.ConfigValues,
 		},
 		ReleaseLabels: releaseInfo.ReleaseLabels,
-		Plugins: releaseInfo.Plugins,
+		Plugins:       releaseInfo.Plugins,
 	}
 }
 
 type ReleaseRequestV2 struct {
 	ReleaseRequest
-	ReleaseLabels map[string]string  `json:"releaseLabels" description:"release labels"`
-	Plugins       []*walm.WalmPlugin `json:"plugins" description:"plugins"`
-	MetaInfoParams *MetaInfoParams   `json:"metaInfoParams" description:"meta info parameters"`
+	ReleaseLabels  map[string]string  `json:"releaseLabels" description:"release labels"`
+	Plugins        []*walm.WalmPlugin `json:"plugins" description:"plugins"`
+	MetaInfoParams *MetaInfoParams    `json:"metaInfoParams" description:"meta info parameters"`
 }
 
 type ReleaseInfoV2List struct {
