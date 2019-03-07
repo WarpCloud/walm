@@ -45,3 +45,9 @@ func ConfigValuesDiff(configValue1 map[string]interface{}, configValue2 map[stri
 	}
 	return !reflect.DeepEqual(configValue1, configValue2)
 }
+
+func DeleteReleaseDependency(dependencies map[string]string, dependencyKey string) {
+	if _, ok := dependencies[dependencyKey]; ok {
+		dependencies[dependencyKey] = ""
+	}
+}

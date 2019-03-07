@@ -84,6 +84,7 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 	}
 	releaseV2 := &release.ReleaseInfoV2{ReleaseInfo: *releaseV1}
 	releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(releaseCache.Namespace, releaseCache.Name)
+	releaseConfig.DeepCopy()
 	if err != nil {
 		if adaptor.IsNotFoundErr(err) {
 			releaseV2.DependenciesConfigValues = map[string]interface{}{}
@@ -94,11 +95,15 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 			return nil, err
 		}
 	} else {
-		releaseV2.ConfigValues = releaseConfig.Spec.ConfigValues
-		releaseV2.Dependencies = releaseConfig.Spec.Dependencies
-		releaseV2.DependenciesConfigValues = releaseConfig.Spec.DependenciesConfigValues
-		releaseV2.OutputConfigValues = releaseConfig.Spec.OutputConfig
-		releaseV2.ReleaseLabels = releaseConfig.Labels
+		// if release config is not deeply copied, release config cache in memory would be changed when
+		// the var below who is referred is changed(such as dependencies, releaseLabels)
+		releaseConfigCopy := releaseConfig.DeepCopy()
+		releaseV2.ConfigValues = releaseConfigCopy.Spec.ConfigValues
+		releaseV2.Dependencies = releaseConfigCopy.Spec.Dependencies
+		releaseV2.DependenciesConfigValues = releaseConfigCopy.Spec.DependenciesConfigValues
+		releaseV2.OutputConfigValues = releaseConfigCopy.Spec.OutputConfig
+		releaseV2.ReleaseLabels = releaseConfigCopy.Labels
+		releaseV2.RepoName = releaseConfig.Spec.Repo
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
 	releaseV2.Plugins = []*walm.WalmPlugin{}

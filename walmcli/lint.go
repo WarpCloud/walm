@@ -99,7 +99,7 @@ func (lint *lintOptions) run() error {
 			return err
 		}
 
-		err = transwarpjsonnet.ProcessJsonnetChart(rawChart, testCase.caseNamespace, testCase.caseName,
+		err = transwarpjsonnet.ProcessJsonnetChart("", rawChart, testCase.caseNamespace, testCase.caseName,
 			testCase.userConfigs, testCase.dependencyConfigs, testCase.dependencies, testCase.releaseLabels)
 
 		inst := mockInst()

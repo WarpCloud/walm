@@ -91,7 +91,7 @@ func (hc *HelmClient) GetAutoDependencies(repoName, chartName, chartVersion stri
 	}
 	if detailChartInfo.MetaInfo != nil && detailChartInfo.MetaInfo.ChartDependenciesInfo != nil {
 		for _, dependency := range detailChartInfo.MetaInfo.ChartDependenciesInfo {
-			if dependency.AutoDependency {
+			if dependency.AutoDependency() {
 				subChartNames = append(subChartNames, dependency.Name)
 			}
 		}

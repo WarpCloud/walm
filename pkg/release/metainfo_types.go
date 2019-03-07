@@ -120,7 +120,20 @@ type ChartDependencyMetaInfo struct {
 	AliasConfigVar     string `json:"aliasConfigVar,omitempty"`
 	ChartName          string `json:"chartName"`
 	DependencyType     string `json:"type"`
-	AutoDependency     bool   `json:"autoDependency"`
+}
+
+func (chartDependencyMetaInfo *ChartDependencyMetaInfo) AutoDependency() bool {
+	if chartDependencyMetaInfo.Name == "" {
+		return false
+	}
+	if chartDependencyMetaInfo.ChartName == "" {
+		// 默认chartName = name
+		return true
+	}
+	if chartDependencyMetaInfo.Name == chartDependencyMetaInfo.ChartName {
+		return true
+	}
+	return false
 }
 
 type MetaCommonConfig struct {
