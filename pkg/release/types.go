@@ -36,6 +36,7 @@ type ReleaseCache struct {
 	ReleaseSpec
 	ReleaseResourceMetas []ReleaseResourceMeta  `json:"releaseResourceMetas" description:"release resource metas"`
 	ComputedValues       map[string]interface{} `json:"computedValues" description:"release computed values"`
+	MetaInfoValues       *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -130,6 +131,7 @@ type ReleaseInfoV2 struct {
 	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
 	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
 	Plugins                  []*walm.WalmPlugin     `json:"plugins" description:"plugins"`
+	MetaInfoValues           *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
 }
 
 func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {

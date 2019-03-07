@@ -59,23 +59,38 @@ func roleConfigMapping(roles []*MetaRoleConfigValue, chartRoles []*MetaRoleConfi
 				}
 			}
 
-			mapping[chartRole.RoleResourceConfig.LimitsCpuKey.MapKey] = role.RoleResourceConfig.LimitsCpuKey
-			mapping[chartRole.RoleResourceConfig.LimitsGpuKey.MapKey] = role.RoleResourceConfig.LimitsGpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsCpuKey.MapKey] = role.RoleResourceConfig.RequestsCpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsGpuKey.MapKey] = role.RoleResourceConfig.RequestsGpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey] = role.RoleResourceConfig.RequestsMemoryKey
-			mapping[chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey] = role.RoleResourceConfig.LimitsMemoryKey
+			if chartRole.RoleResourceConfig != nil &&  role.RoleResourceConfig != nil {
+				if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
+					mapping[chartRole.RoleResourceConfig.LimitsCpuKey.MapKey] = role.RoleResourceConfig.LimitsCpuKey
+				}
+				if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
+					mapping[chartRole.RoleResourceConfig.LimitsGpuKey.MapKey] = role.RoleResourceConfig.LimitsGpuKey
+				}
+				if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
+					mapping[chartRole.RoleResourceConfig.RequestsCpuKey.MapKey] = role.RoleResourceConfig.RequestsCpuKey
+				}
+				if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
+					mapping[chartRole.RoleResourceConfig.RequestsGpuKey.MapKey] = role.RoleResourceConfig.RequestsGpuKey
+				}
+				if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
+					mapping[chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey] = role.RoleResourceConfig.RequestsMemoryKey
+				}
+				if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
+					mapping[chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey] = role.RoleResourceConfig.LimitsMemoryKey
+				}
 
-			chartStorageConfigMap := map[string]*MetaCommonConfig{}
-			for _, chartStorageConfig := range chartRole.RoleResourceConfig.StorageResources {
-				chartStorageConfigMap[chartStorageConfig.Name] = chartStorageConfig
-			}
+				chartStorageConfigMap := map[string]*MetaCommonConfig{}
+				for _, chartStorageConfig := range chartRole.RoleResourceConfig.StorageResources {
+					chartStorageConfigMap[chartStorageConfig.Name] = chartStorageConfig
+				}
 
-			for _, storageConfig := range role.RoleResourceConfig.StorageResources {
-				if chartStorageConfig, ok := chartStorageConfigMap[storageConfig.Name]; ok {
-					mapping[chartStorageConfig.MapKey] = storageConfig.Value
+				for _, storageConfig := range role.RoleResourceConfig.StorageResources {
+					if chartStorageConfig, ok := chartStorageConfigMap[storageConfig.Name]; ok {
+						mapping[chartStorageConfig.MapKey] = storageConfig.Value
+					}
 				}
 			}
+
 		}
 	}
 
