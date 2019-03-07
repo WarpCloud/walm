@@ -59,12 +59,12 @@ func roleConfigMapping(roles []*MetaRoleConfigValue, chartRoles []*MetaRoleConfi
 				}
 			}
 
-			mapping[chartRole.RoleResourceConfig.LimitsCpuKey] = role.RoleResourceConfig.LimitsCpuKey
-			mapping[chartRole.RoleResourceConfig.LimitsGpuKey] = role.RoleResourceConfig.LimitsGpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsCpuKey] = role.RoleResourceConfig.RequestsCpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsGpuKey] = role.RoleResourceConfig.RequestsGpuKey
-			mapping[chartRole.RoleResourceConfig.RequestsMemoryKey] = role.RoleResourceConfig.RequestsMemoryKey
-			mapping[chartRole.RoleResourceConfig.LimitsMemoryKey] = role.RoleResourceConfig.LimitsMemoryKey
+			mapping[chartRole.RoleResourceConfig.LimitsCpuKey.MapKey] = role.RoleResourceConfig.LimitsCpuKey
+			mapping[chartRole.RoleResourceConfig.LimitsGpuKey.MapKey] = role.RoleResourceConfig.LimitsGpuKey
+			mapping[chartRole.RoleResourceConfig.RequestsCpuKey.MapKey] = role.RoleResourceConfig.RequestsCpuKey
+			mapping[chartRole.RoleResourceConfig.RequestsGpuKey.MapKey] = role.RoleResourceConfig.RequestsGpuKey
+			mapping[chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey] = role.RoleResourceConfig.RequestsMemoryKey
+			mapping[chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey] = role.RoleResourceConfig.LimitsMemoryKey
 
 			chartStorageConfigMap := map[string]*MetaCommonConfig{}
 			for _, chartStorageConfig := range chartRole.RoleResourceConfig.StorageResources {
@@ -151,12 +151,12 @@ type MetaCommonConfigValue struct {
 }
 
 type MetaResourceConfig struct {
-	LimitsMemoryKey   string              `json:"limitsMemoryKey" description:"resource memory limit"`
-	LimitsCpuKey      string              `json:"limitsCpuKey" description:"resource cpu limit"`
-	LimitsGpuKey      string              `json:"limitsGpuKey" description:"resource gpu limit"`
-	RequestsMemoryKey string              `json:"requestsMemoryKey" description:"resource memory request"`
-	RequestsCpuKey    string              `json:"requestsCpuKey" description:"resource cpu request"`
-	RequestsGpuKey    string              `json:"requestsGpuKey" description:"resource gpu request"`
+	LimitsMemoryKey   *MetaCommonConfig    `json:"limitsMemoryKey" description:"resource memory limit"`
+	LimitsCpuKey      *MetaCommonConfig    `json:"limitsCpuKey" description:"resource cpu limit"`
+	LimitsGpuKey      *MetaCommonConfig    `json:"limitsGpuKey" description:"resource gpu limit"`
+	RequestsMemoryKey *MetaCommonConfig    `json:"requestsMemoryKey" description:"resource memory request"`
+	RequestsCpuKey    *MetaCommonConfig    `json:"requestsCpuKey" description:"resource cpu request"`
+	RequestsGpuKey    *MetaCommonConfig    `json:"requestsGpuKey" description:"resource gpu request"`
 	StorageResources  []*MetaCommonConfig `json:"storageResources" description:"resource storage request"`
 }
 
