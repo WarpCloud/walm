@@ -143,14 +143,16 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		}
 	}
 
-	walmPlugins, err = mergeWalmPlugins(walmPlugins, chartInfo.MetaInfo.Plugins)
-	if err != nil {
-		logrus.Errorf("failed to merge chart default plugins : %s", err.Error())
-		return err
+	if chartInfo.MetaInfo != nil {
+		walmPlugins, err = mergeWalmPlugins(walmPlugins, chartInfo.MetaInfo.Plugins)
+		if err != nil {
+			logrus.Errorf("failed to merge chart default plugins : %s", err.Error())
+			return err
+		}
 	}
 
 	// get all the dependency releases' output configs from ReleaseConfig
-	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, dependencies, chartInfo.MetaInfo.ChartDependenciesInfo)
+	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, dependencies, chartInfo.MetaInfo)
 	if err != nil {
 		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
 		return err

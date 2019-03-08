@@ -197,7 +197,7 @@ func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error
 	}
 
 	oldDependenciesConfigValues := releaseInfo.DependenciesConfigValues
-	newDependenciesConfigValues, err := hc.getDependencyOutputConfigs(namespace, releaseInfo.Dependencies, chartInfo.MetaInfo.ChartDependenciesInfo)
+	newDependenciesConfigValues, err := hc.getDependencyOutputConfigs(namespace, releaseInfo.Dependencies, chartInfo.MetaInfo)
 	if err != nil {
 		logrus.Errorf("failed to get dependencies output configs of %s/%s : %s", namespace, name, err.Error())
 		return err
@@ -239,13 +239,18 @@ func (hc *HelmClient) validateReleaseTask(namespace, name string, allowReleaseTa
 	return
 }
 
-func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartDependencies []*release.ChartDependencyMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
+func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
+	dependencyConfigs = map[string]interface{}{}
+	if chartMetaInfo == nil {
+		return
+	}
+
+	chartDependencies := chartMetaInfo.ChartDependenciesInfo
 	dependencyAliasConfigVars := map[string]string{}
 	for _, chartDependency := range chartDependencies {
 		dependencyAliasConfigVars[chartDependency.Name] = chartDependency.AliasConfigVar
 	}
 
-	dependencyConfigs = map[string]interface{}{}
 	for dependencyKey, dependency := range dependencies {
 		dependencyAliasConfigVar, ok := dependencyAliasConfigVars[dependencyKey]
 		if !ok {
