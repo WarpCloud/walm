@@ -6,6 +6,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"encoding/json"
 )
 
 type WalmNodeAdaptor struct {
@@ -65,6 +66,7 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 		Annotations: node.Annotations,
 		Capacity:    convertResourceListToMap(node.Status.Capacity),
 		Allocatable: convertResourceListToMap(node.Status.Allocatable),
+		WarpDriveStorageList: []WarpDriveStorage{},
 	}
 	requestsAllocated, limitsAllocated, err := adaptor.buildAllocated(node)
 	if err != nil {
@@ -73,6 +75,26 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 	}
 	walmNode.RequestsAllocated = convertResourceListToMap(requestsAllocated)
 	walmNode.LimitsAllocated = convertResourceListToMap(limitsAllocated)
+	if len(node.Annotations) > 0 {
+		poolResourceListStr := node.Annotations["ResourceVolumePoolList"]
+		if poolResourceListStr != "" {
+			poolResourceList := []PoolResource{}
+			err = json.Unmarshal([]byte(poolResourceListStr), &poolResourceList)
+			if err != nil {
+				logrus.Warnf("failed to unmarshal pool resource list str %s : %s", poolResourceListStr, err.Error())
+			} else {
+				for _, poolResource := range poolResourceList {
+					warpDriveStorage := WarpDriveStorage{
+						PoolName: poolResource.PoolName,
+					}
+					for _, subPool := range poolResource.SubPools {
+						warpDriveStorage.StorageLeft += subPool.Size - subPool.UsedSize
+					}
+					walmNode.WarpDriveStorageList = append(walmNode.WarpDriveStorageList, warpDriveStorage)
+				}
+			}
+		}
+	}
 
 	return
 }
