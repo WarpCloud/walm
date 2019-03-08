@@ -98,6 +98,11 @@ func roleConfigMapping(roles []*MetaRoleConfigValue, chartRoles []*MetaRoleConfi
 }
 
 func (metaInfoParams *MetaInfoParams) ToConfigValues(metaInfo *ChartMetaInfo) (configValues map[string]interface{}, err error) {
+	configValues = map[string]interface{}{}
+	if metaInfo == nil {
+		return
+	}
+
 	jsonStr := "{}"
 	mapping := commonConfigMapping(metaInfoParams.Params, metaInfo.ChartParams)
 	for key, value := range mapping {
@@ -117,7 +122,6 @@ func (metaInfoParams *MetaInfoParams) ToConfigValues(metaInfo *ChartMetaInfo) (c
 		}
 	}
 
-	configValues = map[string]interface{}{}
 	err = json.Unmarshal([]byte(jsonStr), &configValues)
 	if err != nil {
 		logrus.Errorf("failed to unmarshal config values : %s", err.Error())
