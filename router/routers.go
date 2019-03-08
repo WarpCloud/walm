@@ -543,8 +543,8 @@ func InitChartRouter() *restful.WebService {
 		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
 		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
 		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
-		Writes([]byte{}).
-		Returns(200, "OK", []byte{}).
+		Writes("").
+		Returns(200, "OK", "").
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -554,8 +554,8 @@ func InitChartRouter() *restful.WebService {
 		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
 		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
 		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
-		Writes([]byte{}).
-		Returns(200, "OK", []byte{}).
+		Writes("").
+		Returns(200, "OK", "").
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
@@ -565,8 +565,8 @@ func InitChartRouter() *restful.WebService {
 		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
 		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
 		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
-		Writes([]byte{}).
-		Returns(200, "OK", []byte{}).
+		Writes("").
+		Returns(200, "OK", "").
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 

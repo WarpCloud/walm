@@ -1,9 +1,9 @@
 package release
 
 import (
-	"walm/pkg/k8s/adaptor"
 	"k8s.io/helm/pkg/walm"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
+	"walm/pkg/k8s/adaptor"
 )
 
 type ReleaseInfoList struct {
@@ -97,9 +97,9 @@ type ChartInfo struct {
 type ChartDetailInfo struct {
 	ChartInfo
 	// additional info
-	Advantage    []byte `json:"category" description:"chart production advantage description(rich text)"`
-	Architecture []byte `json:"architecture" description:"chart production architecture description(rich text)"`
-	Icon         []byte `json:"icon" description:"chart icon"`
+	Advantage    string `json:"advantage" description:"chart production advantage description(rich text)"`
+	Architecture string `json:"architecture" description:"chart production architecture description(rich text)"`
+	Icon         string `json:"icon" description:"chart icon"`
 }
 
 type ChartInfoList struct {
@@ -120,8 +120,8 @@ type ReleaseConfigDeltaEvent struct {
 
 type ReleaseConfig struct {
 	v1beta1.ReleaseConfigSpec `json:"config" description:"release config spec"`
-	Namespace string          `json:"namespace" description:"release namespace"`
-	Name      string          `json:"name" description:"release name"`
+	Namespace                 string `json:"namespace" description:"release namespace"`
+	Name                      string `json:"name" description:"release name"`
 }
 
 type ReleaseInfoV2 struct {
