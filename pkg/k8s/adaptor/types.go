@@ -389,13 +389,38 @@ type WalmSecretList struct {
 
 type WalmNode struct {
 	WalmMeta
-	Labels            map[string]string `json:"labels" description:"node labels"`
-	Annotations       map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp            string            `json:"node_ip" description:"ip of node"`
-	Capacity          map[string]string `json:"capacity" description:"resource capacity"`
-	Allocatable       map[string]string `json:"allocatable" description:"resource allocatable"`
-	RequestsAllocated map[string]string `json:"requests_allocated" description:"requests resource allocated"`
-	LimitsAllocated   map[string]string `json:"limits_allocated" description:"limits resource allocated"`
+	Labels               map[string]string `json:"labels" description:"node labels"`
+	Annotations          map[string]string `json:"annotations" description:"node annotations"`
+	NodeIp               string            `json:"node_ip" description:"ip of node"`
+	Capacity             map[string]string `json:"capacity" description:"resource capacity"`
+	Allocatable          map[string]string `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated    map[string]string `json:"requests_allocated" description:"requests resource allocated"`
+	LimitsAllocated      map[string]string `json:"limits_allocated" description:"limits resource allocated"`
+	WarpDriveStorageList []WarpDriveStorage `json:"warpDriveStorageList" description:"warp drive storage list"`
+}
+
+type WarpDriveStorage struct {
+	PoolName    string `json:"poolName" description:"pool name"`
+	StorageLeft int64 `json:"storageLeft" description:"storage left, unit: kb"`
+}
+
+type PoolResource struct {
+	PoolName string
+	SubPools map[string]SubPoolInfo
+}
+
+type SubPoolInfo struct {
+	Phase      string `json:"-"`
+	Name       string `json:"name,omitempty"`
+	DriverName string `json:"driverName,omitempty"`
+	// This 'Parent' just use for create and delete from api.
+	// Can't get parent from pool.Info()
+	Parent            string `json:"parent,omitempty"`
+	Size              int64  `json:"size,omitempty"`
+	Throughput        int64  `json:"throughput,omitempty"`
+	UsedSize          int64  `json:"usedSize,omitempty"`
+	RequestSize       int64  `json:"requestSize,omitempty"`
+	RequestThroughput int64  `json:"requestThroughput,omitempty"`
 }
 
 func (resource WalmNode) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
