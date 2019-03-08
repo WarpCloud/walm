@@ -64,24 +64,27 @@ func NewServCmd() *cobra.Command {
 }
 
 func (sc *ServCmd) run() error {
+	sig := make(chan os.Signal, 1)
+
 	sc.initConfig()
 	stopChan := make(chan struct{})
 	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
 
 	informer.StartInformer(stopChan)
 	task.GetDefaultTaskManager().StartWorker()
-	startElect(stopChan)
+	startElect(stopChan, sig)
 	initRestApi()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
 	go func() {
-		logrus.Error(server.ListenAndServe())
+		err := server.ListenAndServe()
+		if err != nil {
+			logrus.Error(err.Error())
+			sig <- syscall.SIGINT
+		}
 	}()
-	logrus.Info("walm server started")
-	// server.ListenAndServeTLS()
 
 	//shut down gracefully
-	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
@@ -141,7 +144,7 @@ func initRestApi() {
 	logrus.Infof("ready to serve on port %d", setting.Config.HttpConfig.HTTPPort)
 }
 
-func startElect(stopCh <-chan struct{}) {
+func startElect(stopCh <-chan struct{}, sig chan os.Signal) {
 	// TODO investigate it (from scheduler)
 	ctx, cancel := context.WithCancel(context.TODO())
 	go func() {
@@ -168,6 +171,7 @@ func startElect(stopCh <-chan struct{}) {
 	}
 	onStoppedLeadingFunc := func() {
 		logrus.Info("Stopped being a leader")
+		sig <- syscall.SIGINT
 	}
 
 	config := &elect.ElectorConfig{
