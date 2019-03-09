@@ -182,6 +182,18 @@ func BuildChartInfo(rawChart *chart.Chart) (*release.ChartDetailInfo, error) {
 		chartDetailInfo.DefaultValue = string(defaultValueBytes)
 	}
 
+	for _, f := range rawChart.Files {
+		if f.Name == transwarpjsonnet.TranswarpMetadataDir+transwarpjsonnet.TranswarpArchitectureFileName {
+			chartDetailInfo.Architecture = string(f.Data[:])
+		}
+		if f.Name == transwarpjsonnet.TranswarpMetadataDir+transwarpjsonnet.TranswarpAdvantageFileName {
+			chartDetailInfo.Advantage = string(f.Data[:])
+		}
+		if f.Name == transwarpjsonnet.TranswarpMetadataDir+transwarpjsonnet.TranswarpIconFileName {
+			chartDetailInfo.Icon = string(f.Data[:])
+		}
+	}
+
 	chartMetaInfo, err := transwarpjsonnet.GetChartMetaInfo(rawChart)
 	if err != nil {
 		logrus.Errorf("failed to get chart meta info : %s", err.Error())

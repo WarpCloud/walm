@@ -28,13 +28,16 @@ import (
 )
 
 const (
-	CommonTemplateDir           = "applib/ksonnet-lib"
-	TranswarpJsonetFileSuffix   = ".transwarp-jsonnet.yaml"
-	TranswarpJsonnetTemplateDir = "template-jsonnet/"
-	TranswarpJsonetAppLibDir    = "applib/"
-	TranswarpMetadataDir        = "transwarp-meta/"
-	TranswarpCiDir              = "ci/"
-	TranswarpMetaInfoFileName   = "metainfo.yaml"
+	CommonTemplateDir             = "applib/ksonnet-lib"
+	TranswarpJsonetFileSuffix     = ".transwarp-jsonnet.yaml"
+	TranswarpJsonnetTemplateDir   = "template-jsonnet/"
+	TranswarpJsonetAppLibDir      = "applib/"
+	TranswarpMetadataDir          = "transwarp-meta/"
+	TranswarpCiDir                = "ci/"
+	TranswarpMetaInfoFileName     = "metainfo.yaml"
+	TranswarpIconFileName         = "icon.svg"
+	TranswarpAdvantageFileName    = "advantage.html"
+	TranswarpArchitectureFileName = "architecture.html"
 )
 
 var commonTemplateFilesPath string

@@ -1,11 +1,9 @@
 package v1
 
 import (
-	"bytes"
 	"fmt"
+
 	"github.com/emicklei/go-restful"
-	"net/http"
-	"time"
 	"walm/pkg/release/manager/helm"
 	walmerr "walm/pkg/util/error"
 	"walm/router/api"
@@ -57,8 +55,9 @@ func GetChartIcon(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart: %s", err.Error()))
 		return
 	}
-	r := bytes.NewReader(chartDetailInfo.Icon)
-	http.ServeContent(response.ResponseWriter, request.Request, "Icon", time.Now(), r)
+	response.WriteEntity(chartDetailInfo.Icon)
+	//r := bytes.NewReader(chartDetailInfo.Icon)
+	//http.ServeContent(response.ResponseWriter, request.Request, "Icon", time.Now(), r)
 }
 
 func GetChartAdvantage(request *restful.Request, response *restful.Response) {
@@ -75,8 +74,9 @@ func GetChartAdvantage(request *restful.Request, response *restful.Response) {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart: %s", err.Error()))
 		return
 	}
-	r := bytes.NewReader(chartDetailInfo.Advantage)
-	http.ServeContent(response.ResponseWriter, request.Request, "Advantage", time.Now(), r)
+	response.WriteEntity(chartDetailInfo.Advantage)
+	//r := bytes.NewReader(chartDetailInfo.Advantage)
+	//http.ServeContent(response.ResponseWriter, request.Request, "Advantage", time.Now(), r)
 }
 
 func GetChartArchitecture(request *restful.Request, response *restful.Response) {
@@ -93,6 +93,7 @@ func GetChartArchitecture(request *restful.Request, response *restful.Response) 
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart: %s", err.Error()))
 		return
 	}
-	r := bytes.NewReader(chartDetailInfo.Architecture)
-	http.ServeContent(response.ResponseWriter, request.Request, "Architecture", time.Now(), r)
+	response.WriteEntity(chartDetailInfo.Architecture)
+	//r := bytes.NewReader(chartDetailInfo.Architecture)
+	//http.ServeContent(response.ResponseWriter, request.Request, "Architecture", time.Now(), r)
 }
