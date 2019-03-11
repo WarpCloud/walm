@@ -169,7 +169,7 @@ func (controller *ReleaseConfigController) kafkaWorker() {
 			defer controller.kafkaWorkingQueue.Done(key)
 			err := controller.publishToKafka(key.(string))
 			if err != nil {
-				logrus.Errorf("failed to publish release config of %s to kafka", key.(string), err.Error())
+				logrus.Errorf("failed to publish release config of %s to kafka: %s", key.(string), err.Error())
 			}
 		}()
 	}

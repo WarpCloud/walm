@@ -27,6 +27,7 @@ import (
 	"time"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
+	"github.com/x-cray/logrus-prefixed-formatter"
 )
 
 const servDesc = `
@@ -66,7 +67,9 @@ func NewServCmd() *cobra.Command {
 func (sc *ServCmd) run() error {
 	sig := make(chan os.Signal, 1)
 
+	logrus.SetFormatter(&prefixed.TextFormatter{})
 	sc.initConfig()
+	initLogLevel()
 	stopChan := make(chan struct{})
 	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
 
@@ -100,14 +103,26 @@ func (sc *ServCmd) run() error {
 	return nil
 }
 
+func initLogLevel() {
+	if setting.Config.LogConfig != nil {
+		level, err := logrus.ParseLevel(setting.Config.LogConfig.Level)
+		if err != nil {
+			logrus.Warnf("failed to parse log level %s : %s", setting.Config.LogConfig.Level, err.Error())
+		} else {
+			logrus.SetLevel(level)
+			logrus.Infof("log level is set to %s", setting.Config.LogConfig.Level)
+		}
+	}
+}
+
 func (sc *ServCmd) initConfig() {
 	logrus.Infof("loading configuration from [%s]", sc.cfgFile)
 	setting.InitConfig(sc.cfgFile)
-	settingConfig, err := json.Marshal(setting.Config)
+	settingConfig, err := json.MarshalIndent(setting.Config, "", "  ")
 	if err != nil {
 		logrus.Fatal("failed to marshal setting config")
 	}
-	logrus.Infof("finished loading configuration: %s", string(settingConfig))
+	logrus.Infof("finished loading configuration:\n%s", string(settingConfig))
 }
 
 func initRestApi() {

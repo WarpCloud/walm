@@ -51,8 +51,8 @@ type TaskConfig struct {
 }
 
 type WalmConfig struct {
-	Debug bool `json:"debug"`
-
+	Debug         bool           `json:"debug"`
+	LogConfig     *LogConfig     `json:"logConfig"`
 	HttpConfig    *HttpConfig    `json:"serverConfig"`
 	RepoList      []*ChartRepo   `json:"repoList"`
 	KubeConfig    *KubeConfig    `json:"kubeConfig"`
@@ -60,6 +60,10 @@ type WalmConfig struct {
 	KafkaConfig   *KafkaConfig   `json:"kafkaConfig"`
 	TaskConfig    *TaskConfig    `json:"taskConfig"`
 	JsonnetConfig *JsonnetConfig `json:"jsonnetConfig"`
+}
+
+type LogConfig struct {
+	Level string `json:"level"`
 }
 
 type JsonnetConfig struct {
