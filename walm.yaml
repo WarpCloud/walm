@@ -35,3 +35,5 @@ taskConfig:
   results_expire_in: 360000
 jsonnetConfig:
   commonTemplateFilesPath: "test/ksonnet-lib"
+logConfig:
+  level: "debug"
