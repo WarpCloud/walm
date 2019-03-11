@@ -1,5 +1,5 @@
-hash: a0d12ce419ade47b667ab9a4cd000944bd1993c85e781fd7fe9a11c9958af9c0
-updated: 2019-03-06T19:45:42.746004909+08:00
+hash: 0be5205911165f3902b72c06a8d025956a3479fb4ce9a4d6458f8936e16bc2d2
+updated: 2019-03-11T15:56:37.592937435+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -139,7 +139,7 @@ imports:
 - name: github.com/exponent-io/jsonpath
   version: d6023ce2651d8eafb5c75bb0c7167536102ec9f5
 - name: github.com/fsnotify/fsnotify
-  version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
+  version: 11844c0959f6fff69ba325d097fce35bd85a8e93
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 - name: github.com/go-ini/ini
@@ -151,7 +151,7 @@ imports:
 - name: github.com/go-openapi/spec
   version: 53d776530bf78a11b03a7b52dd8a083086b045e5
 - name: github.com/go-openapi/swag
-  version: b28747f5c7f9eb6b0b82d2f87f365fff72b535c9
+  version: b3e2804c8535ee0d1b89320afd98474d5b8e9e3b
 - name: github.com/go-redis/redis
   version: 480db94d33e6088e08d628833b6c0705451d24bb
   subpackages:
@@ -254,7 +254,7 @@ imports:
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/json-iterator/go
-  version: 5bc93205020f6311d7e4a34f82c5616a18ec35e5
+  version: 0ff49de124c6f76f8494e194af75bde0f1a49a29
 - name: github.com/kelseyhightower/envconfig
   version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
 - name: github.com/konsorten/go-windows-terminal-sequences
@@ -275,8 +275,14 @@ imports:
   version: c84ddcca87bf5a941b138dde832a7e20b0159ad8
 - name: github.com/Masterminds/sprig
   version: 9f8fceff796fb9f4e992cd2bece016be0121ab74
+- name: github.com/mattn/go-colorable
+  version: 3a70a971f94a22f2fa562ffcc7a0eb45f5daf045
+- name: github.com/mattn/go-isatty
+  version: 369ecd8cea9851e459abb67eb171853e3986591e
 - name: github.com/mattn/go-runewidth
   version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
+- name: github.com/mgutz/ansi
+  version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/mitchellh/go-wordwrap
   version: ad45545899c7b13c020ea92b2072220eefad42b8
 - name: github.com/mitchellh/mapstructure
@@ -415,6 +421,8 @@ imports:
   version: 65a9db5fad5105a89e17f38adcc9878685be6d78
 - name: github.com/tidwall/sjson
   version: c943cc8c8d751d9b33444adf78ae04c2fc8be754
+- name: github.com/x-cray/logrus-prefixed-formatter
+  version: bb2702d423886830dee131692131d35648c382e2
 - name: golang.org/x/crypto
   version: de0752318171da717af4ce24d0a2e8626afaeb11
   subpackages:
@@ -855,7 +863,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 0f138557c94d3d8b2d59e79e159b9aa3e2ae9d68
+  version: 3bf122f6b38547a7515b32d3d6ae389997fa2d31
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
