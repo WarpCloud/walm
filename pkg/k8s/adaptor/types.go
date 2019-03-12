@@ -155,8 +155,8 @@ type WalmEvent struct {
 	Message        string      `json:"message" description:"event message"`
 	From           string      `json:"from" description:"component reporting this event"`
 	Count          int32       `json:"count" description:"the number of times this event has occurred"`
-	FirstTimestamp metav1.Time `json:"first_timestamp" description:"The time at which the event was first recorded"`
-	LastTimestamp  metav1.Time `json:"last_timestamp" description:"The time at which the most recent occurrence of this event was recorded"`
+	FirstTimestamp metav1.Time `json:"firstTimestamp" description:"The time at which the event was first recorded"`
+	LastTimestamp  metav1.Time `json:"lastTimestamp" description:"The time at which the most recent occurrence of this event was recorded"`
 }
 
 type WalmEventList struct {
@@ -167,10 +167,10 @@ type WalmDeployment struct {
 	WalmMeta
 	Labels            map[string]string `json:"labels" description:"deployment labels"`
 	Annotations       map[string]string `json:"annotations" description:"deployment annotations"`
-	ExpectedReplicas  int32             `json:"expected_replicas" description:"expected replicas"`
-	UpdatedReplicas   int32             `json:"updated_replicas" description:"updated replicas"`
-	CurrentReplicas   int32             `json:"current_replicas" description:"current replicas"`
-	AvailableReplicas int32             `json:"available_replicas" description:"available replicas"`
+	ExpectedReplicas  int32             `json:"expectedReplicas" description:"expected replicas"`
+	UpdatedReplicas   int32             `json:"updatedReplicas" description:"updated replicas"`
+	CurrentReplicas   int32             `json:"currentReplicas" description:"current replicas"`
+	AvailableReplicas int32             `json:"availableReplicas" description:"available replicas"`
 	Pods              []*WalmPod        `json:"pods" description:"deployment pods"`
 }
 
@@ -182,8 +182,8 @@ type WalmPod struct {
 	WalmMeta
 	Labels      map[string]string `json:"labels" description:"pod labels"`
 	Annotations map[string]string `json:"annotations" description:"pod annotations"`
-	HostIp      string            `json:"host_ip" description:"host ip where pod is on"`
-	PodIp       string            `json:"pod_ip" description:"pod ip"`
+	HostIp      string            `json:"hostIp" description:"host ip where pod is on"`
+	PodIp       string            `json:"podIp" description:"pod ip"`
 	Containers  []WalmContainer   `json:"containers" description:"pod containers"`
 }
 
@@ -191,7 +191,7 @@ type WalmContainer struct {
 	Name         string    `json:"name" description:"container name"`
 	Image        string    `json:"image" description:"container image"`
 	Ready        bool      `json:"ready" description:"container ready"`
-	RestartCount int32     `json:"restart_count" description:"container restart count"`
+	RestartCount int32     `json:"restartCount" description:"container restart count"`
 	State        WalmState `json:"state" description:"container state"`
 }
 
@@ -201,8 +201,8 @@ func (resource WalmPod) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
 type WalmService struct {
 	WalmMeta
 	Ports       []WalmServicePort  `json:"ports" description:"service ports"`
-	ClusterIp   string             `json:"cluster_ip" description:"service cluster ip"`
-	ServiceType corev1.ServiceType `json:"service_type" description:"service type"`
+	ClusterIp   string             `json:"clusterIp" description:"service cluster ip"`
+	ServiceType corev1.ServiceType `json:"serviceType" description:"service type"`
 }
 
 func (resource WalmService) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
@@ -213,8 +213,8 @@ type WalmServicePort struct {
 	Name       string          `json:"name" description:"service port name"`
 	Protocol   corev1.Protocol `json:"protocol" description:"service port protocol"`
 	Port       int32           `json:"port" description:"service port"`
-	TargetPort string          `json:"target_port" description:"backend pod port"`
-	NodePort   int32           `json:"node_port" description:"node port"`
+	TargetPort string          `json:"targetPort" description:"backend pod port"`
+	NodePort   int32           `json:"nodePort" description:"node port"`
 	Endpoints  []string        `json:"endpoints" description:"service endpoints"`
 }
 
@@ -222,10 +222,10 @@ type WalmStatefulSet struct {
 	WalmMeta
 	Labels           map[string]string     `json:"labels" description:"stateful set labels"`
 	Annotations      map[string]string     `json:"annotations" description:"stateful set annotations"`
-	ExpectedReplicas int32                 `json:"expected_replicas" description:"expected replicas"`
-	ReadyReplicas    int32                 `json:"ready_replicas" description:"ready replicas"`
-	CurrentVersion   string                `json:"current_version" description:"stateful set pods"`
-	UpdateVersion    string                `json:"update_version" description:"stateful set pods"`
+	ExpectedReplicas int32                 `json:"expectedReplicas" description:"expected replicas"`
+	ReadyReplicas    int32                 `json:"readyReplicas" description:"ready replicas"`
+	CurrentVersion   string                `json:"currentVersion" description:"stateful set pods"`
+	UpdateVersion    string                `json:"updateVersion" description:"stateful set pods"`
 	Pods             []*WalmPod            `json:"pods" description:"stateful set pods"`
 	Selector         *metav1.LabelSelector `json:"-" description:"stateful set label selector"`
 }
@@ -238,9 +238,9 @@ type WalmDaemonSet struct {
 	WalmMeta
 	Labels                 map[string]string `json:"labels" description:"daemon set labels"`
 	Annotations            map[string]string `json:"annotations" description:"daemon set annotations"`
-	DesiredNumberScheduled int32             `json:"desired_number_scheduled" description:"desired number scheduled"`
-	UpdatedNumberScheduled int32             `json:"updated_number_scheduled" description:"updated number scheduled"`
-	NumberAvailable        int32             `json:"number_available" description:"number available"`
+	DesiredNumberScheduled int32             `json:"desiredNumberScheduled" description:"desired number scheduled"`
+	UpdatedNumberScheduled int32             `json:"updatedNumberScheduled" description:"updated number scheduled"`
+	NumberAvailable        int32             `json:"numberAvailable" description:"number available"`
 	Pods                   []*WalmPod        `json:"pods" description:"daemon set pods"`
 }
 
@@ -252,7 +252,7 @@ type WalmJob struct {
 	WalmMeta
 	Labels             map[string]string `json:"labels" description:"job labels"`
 	Annotations        map[string]string `json:"annotations" description:"job annotations"`
-	ExpectedCompletion int32             `json:"expected_completion" description:"expected num which is succeeded"`
+	ExpectedCompletion int32             `json:"expectedCompletion" description:"expected num which is succeeded"`
 	Succeeded          int32             `json:"succeeded" description:"succeeded pods"`
 	Failed             int32             `json:"failed" description:"failed pods"`
 	Active             int32             `json:"active" description:"active pods"`
@@ -276,8 +276,8 @@ type WalmIngress struct {
 	WalmMeta
 	Host        string `json:"host" description:"ingress host"`
 	Path        string `json:"path" description:"ingress path"`
-	ServiceName string `json:"service_name" description:"ingress backend service name"`
-	ServicePort string `json:"service_port" description:"ingress backend service port"`
+	ServiceName string `json:"serviceName" description:"ingress backend service name"`
+	ServicePort string `json:"servicePort" description:"ingress backend service port"`
 }
 
 func (resource WalmIngress) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
@@ -303,11 +303,11 @@ type WalmNode struct {
 	WalmMeta
 	Labels               map[string]string `json:"labels" description:"node labels"`
 	Annotations          map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp               string            `json:"node_ip" description:"ip of node"`
+	NodeIp               string            `json:"nodeIp" description:"ip of node"`
 	Capacity             map[string]string `json:"capacity" description:"resource capacity"`
 	Allocatable          map[string]string `json:"allocatable" description:"resource allocatable"`
-	RequestsAllocated    map[string]string `json:"requests_allocated" description:"requests resource allocated"`
-	LimitsAllocated      map[string]string `json:"limits_allocated" description:"limits resource allocated"`
+	RequestsAllocated    map[string]string `json:"requestsAllocated" description:"requests resource allocated"`
+	LimitsAllocated      map[string]string `json:"limitsAllocated" description:"limits resource allocated"`
 	WarpDriveStorageList []WarpDriveStorage `json:"warpDriveStorageList" description:"warp drive storage list"`
 }
 
@@ -353,11 +353,11 @@ func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResource
 
 type WalmPersistentVolumeClaim struct {
 	WalmMeta
-	StorageClass string
-	VolumeName   string
-	Capacity     string
-	AccessModes  []corev1.PersistentVolumeAccessMode
-	VolumeMode   string
+	StorageClass string `json:"storageClass" description:"storage class"`
+	VolumeName   string `json:"volumeName" description:"volume name"`
+	Capacity     string `json:"capacity" description:"capacity"`
+	AccessModes  []corev1.PersistentVolumeAccessMode `json:"accessModes" description:"access modes"`
+	VolumeMode   string `json:"volumeMode" description:"volume mode"`
 }
 
 func (resource WalmPersistentVolumeClaim) AddToWalmResourceSet(resourceSet *WalmResourceSet) {
@@ -371,9 +371,9 @@ type WalmPersistentVolumeClaimList struct {
 type WalmStorageClass struct {
 	WalmMeta
 	Provisioner          string `json:"provisioner"description:"sc provisioner"`
-	ReclaimPolicy        string `json:"reclaim_policy" description:"sc reclaim policy"`
-	AllowVolumeExpansion bool   `json:"allow_volume_expansion" description:"sc allow volume expansion"`
-	VolumeBindingMode    string `json:"volume_binding_mode" description:"sc volume binding mode"`
+	ReclaimPolicy        string `json:"reclaimPolicy" description:"sc reclaim policy"`
+	AllowVolumeExpansion bool   `json:"allowVolumeExpansion" description:"sc allow volume expansion"`
+	VolumeBindingMode    string `json:"volumeBindingMode" description:"sc volume binding mode"`
 }
 
 func (resource WalmStorageClass) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

@@ -7,7 +7,7 @@ import (
 )
 
 type ProjectParams struct {
-	CommonValues map[string]interface{} `json:"common_values" description:"common values added to the chart"`
+	CommonValues map[string]interface{} `json:"commonValues" description:"common values added to the chart"`
 	Releases     []*release.ReleaseRequestV2      `json:"releases" description:"list of release of the project"`
 }
 
@@ -16,7 +16,7 @@ type ProjectInfo struct {
 	Releases        []*release.ReleaseInfoV2 `json:"releases" description:"list of release of the project"`
 	Ready           bool                `json:"ready" description:"whether all the project releases are ready"`
 	Message         string              `json:"message" description:"why project is not ready"`
-	LatestTaskState *task.WalmTaskState      `json:"latest_task_state" description:"latest task state"`
+	LatestTaskState *task.WalmTaskState      `json:"latestTaskState" description:"latest task state"`
 }
 
 type ProjectInfoList struct {

@@ -8,11 +8,11 @@ import (
 )
 
 type WalmTaskState struct {
-	TaskUUID  string    `json:"task_uuid" description:"task uuid"`
-	TaskName  string    `json:"task_name" description:"task name"`
-	State     string    `json:"task_state" description:"task state"`
-	Error     string    `json:"task_error" description:"task error"`
-	CreatedAt time.Time `json:"created_at" description:"task creation time"`
+	TaskUUID  string    `json:"taskUuid" description:"task uuid"`
+	TaskName  string    `json:"taskName" description:"task name"`
+	State     string    `json:"taskState" description:"task state"`
+	Error     string    `json:"taskError" description:"task error"`
+	CreatedAt time.Time `json:"createdAt" description:"task creation time"`
 }
 
 type WalmTaskSig struct {
