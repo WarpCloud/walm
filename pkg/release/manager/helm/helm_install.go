@@ -36,6 +36,11 @@ func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRe
 }
 
 func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
+	err := validateParams(releaseRequest, chartFiles)
+	if err != nil {
+		return err
+	}
+
 	if timeoutSec == 0 {
 		timeoutSec = defaultTimeoutSec
 	}
@@ -86,6 +91,18 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 		}
 	}
 	logrus.Infof("succeed to call create or update release %s/%s api", namespace, releaseRequest.Name)
+	return nil
+}
+
+func validateParams(releaseRequest *release.ReleaseRequestV2, chartFiles []*loader.BufferedFile) error {
+	if releaseRequest.Name == "" {
+		return fmt.Errorf("release name can not be empty")
+	}
+
+	if releaseRequest.ChartName == "" && len(chartFiles) == 0 {
+		return fmt.Errorf("chart name or chart should be supported")
+	}
+
 	return nil
 }
 

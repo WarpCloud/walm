@@ -31,6 +31,9 @@ func commonConfigMapping(params []*MetaCommonConfigValue, chartParams []*MetaCom
 	}
 
 	for _, param := range params {
+		if param.Value == nil {
+			continue
+		}
 		if chartParam, ok := chartParamsMap[param.Name]; ok {
 			mapping[chartParam.MapKey] = param.Value
 		}
@@ -54,28 +57,31 @@ func roleConfigMapping(roles []*MetaRoleConfigValue, chartRoles []*MetaRoleConfi
 			}
 
 			for _, roleBaseConfig := range role.RoleBaseConfig {
+				if roleBaseConfig.Value == nil {
+					continue
+				}
 				if chartRoleBaseConfig, ok := chartRoleBaseConfigMap[roleBaseConfig.Name]; ok {
 					mapping[chartRoleBaseConfig.MapKey] = roleBaseConfig.Value
 				}
 			}
 
 			if chartRole.RoleResourceConfig != nil &&  role.RoleResourceConfig != nil {
-				if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
+				if chartRole.RoleResourceConfig.LimitsCpuKey != nil && role.RoleResourceConfig.LimitsCpuKey != nil{
 					mapping[chartRole.RoleResourceConfig.LimitsCpuKey.MapKey] = role.RoleResourceConfig.LimitsCpuKey
 				}
-				if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
+				if chartRole.RoleResourceConfig.LimitsGpuKey != nil && role.RoleResourceConfig.LimitsGpuKey != nil{
 					mapping[chartRole.RoleResourceConfig.LimitsGpuKey.MapKey] = role.RoleResourceConfig.LimitsGpuKey
 				}
-				if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
+				if chartRole.RoleResourceConfig.RequestsCpuKey != nil && role.RoleResourceConfig.RequestsCpuKey != nil{
 					mapping[chartRole.RoleResourceConfig.RequestsCpuKey.MapKey] = role.RoleResourceConfig.RequestsCpuKey
 				}
-				if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
+				if chartRole.RoleResourceConfig.RequestsGpuKey != nil && role.RoleResourceConfig.RequestsGpuKey != nil{
 					mapping[chartRole.RoleResourceConfig.RequestsGpuKey.MapKey] = role.RoleResourceConfig.RequestsGpuKey
 				}
-				if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
+				if chartRole.RoleResourceConfig.RequestsMemoryKey != nil && role.RoleResourceConfig.RequestsMemoryKey != nil{
 					mapping[chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey] = role.RoleResourceConfig.RequestsMemoryKey
 				}
-				if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
+				if chartRole.RoleResourceConfig.LimitsMemoryKey != nil && role.RoleResourceConfig.LimitsMemoryKey != nil{
 					mapping[chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey] = role.RoleResourceConfig.LimitsMemoryKey
 				}
 
@@ -85,6 +91,9 @@ func roleConfigMapping(roles []*MetaRoleConfigValue, chartRoles []*MetaRoleConfi
 				}
 
 				for _, storageConfig := range role.RoleResourceConfig.StorageResources {
+					if storageConfig.Value == nil {
+						continue
+					}
 					if chartStorageConfig, ok := chartStorageConfigMap[storageConfig.Name]; ok {
 						mapping[chartStorageConfig.MapKey] = storageConfig.Value
 					}
