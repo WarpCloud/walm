@@ -13,7 +13,6 @@ func GetDefaultHandlerSet() *HandlerSet {
 	if handlerSets == nil {
 		handlerSets = &HandlerSet{
 			client: client.GetDefaultClient(),
-			clientEx: client.GetDefaultClientEx(),
 			releaseConfigClient: client.GetDefaultReleaseConfigClient(),
 			factory: informer.GetDefaultFactory(),
 		}
@@ -24,7 +23,6 @@ func GetDefaultHandlerSet() *HandlerSet {
 func NewFakeHandlerSet(client *kubernetes.Clientset, clientEx *versioned.Clientset, factory *informer.InformerFactory) *HandlerSet{
 	return &HandlerSet{
 		client: client,
-		clientEx: clientEx,
 		factory: factory,
 	}
 }

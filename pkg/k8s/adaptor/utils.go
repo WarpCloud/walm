@@ -2,6 +2,8 @@ package adaptor
 
 import (
 	"k8s.io/apimachinery/pkg/api/errors"
+	"strings"
+	"k8s.io/api/core/v1"
 )
 
 func buildWalmState(state string, reason string, message string) WalmState {
@@ -57,4 +59,10 @@ func buildNotFoundWalmMeta(kind string, namespace string, name string) WalmMeta 
 	return buildWalmMeta(kind, namespace, name, buildWalmState("NotFound", "", ""))
 }
 
-
+func formatEventSource(es v1.EventSource) string {
+	EventSourceString := []string{es.Component}
+	if len(es.Host) > 0 {
+		EventSourceString = append(EventSourceString, es.Host)
+	}
+	return strings.Join(EventSourceString, ", ")
+}
