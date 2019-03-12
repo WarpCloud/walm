@@ -30,7 +30,12 @@ func newGetCmd(out io.Writer) *cobra.Command {
 		Short: "get a release/project info",
 		Long: getDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
-
+			if namespace == "" {
+				return errors.New("flag --namespace/-n required")
+			}
+			if walmserver == "" {
+				return errors.New("flag --server/-s required")
+			}
 			if len(args) != 2 {
 				return errors.New("arguments error, get release [releaseName] or get project [projectName]")
 			}

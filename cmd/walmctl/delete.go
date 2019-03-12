@@ -35,6 +35,13 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 		Long:  deleteDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			if namespace == "" {
+				return errors.New("flag --namespace/-n required")
+			}
+			if walmserver == "" {
+				return errors.New("flag --server/-s required")
+
+			}
 			if len(args) != 2 {
 				return errors.New("arguments error, delete release [releaseName] or delete project [projectName]")
 			}
