@@ -10,15 +10,15 @@ import (
 type ReleaseTask struct {
 	Name                 string                `json:"name" description:"release name"`
 	Namespace            string                `json:"namespace" description:"release namespace"`
-	LatestReleaseTaskSig *task.WalmTaskSig     `json:"latest_release_task_signature" description:"latest release task signature"`
+	LatestReleaseTaskSig *task.WalmTaskSig     `json:"latestReleaseTaskSignature" description:"latest release task signature"`
 }
 
 type ProjectCache struct {
 	Name                 string                `json:"name" description:"project name"`
 	Namespace            string                `json:"namespace" description:"project namespace"`
 	//TODO refactor to use WalmTaskSig
-	LatestTaskSignature  *ProjectTaskSignature `json:"latest_task_signature" description:"latest task signature"`
-	LatestTaskTimeoutSec int64                 `json:"latest_task_timeout_sec" description:"latest task timeout sec"`
+	LatestTaskSignature  *ProjectTaskSignature `json:"latestTaskSignature" description:"latest task signature"`
+	LatestTaskTimeoutSec int64                 `json:"latestTaskTimeoutSec" description:"latest task timeout sec"`
 }
 
 type ProjectTaskSignature struct {
