@@ -2,14 +2,12 @@ package handler
 
 import (
 	"k8s.io/client-go/kubernetes"
-	"transwarp/application-instance/pkg/client/clientset/versioned"
 	"walm/pkg/k8s/informer"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )
 
 type HandlerSet struct {
 	client *kubernetes.Clientset
-	clientEx *versioned.Clientset
 	releaseConfigClient *releaseconfigclientset.Clientset
 	factory *informer.InformerFactory
 	configMapHandler *ConfigMapHandler
@@ -17,7 +15,6 @@ type HandlerSet struct {
 	deploymentHandler *DeploymentHandler
 	eventHandler     *EventHandler
 	ingressHandler *IngressHandler
-	instanceHandler *InstanceHandler
 	jobHandler *JobHandler
 	namespaceHandler *NamespaceHandler
 	nodeHandler *NodeHandler
@@ -65,13 +62,6 @@ func (set *HandlerSet)GetIngressHandler() *IngressHandler {
 		set.ingressHandler = &IngressHandler{client: set.client, lister: set.factory.IngressLister}
 	}
 	return set.ingressHandler
-}
-
-func (set *HandlerSet)GetInstanceHandler() *InstanceHandler {
-	if set.instanceHandler == nil {
-		set.instanceHandler = &InstanceHandler{client: set.clientEx, lister: set.factory.InstanceLister}
-	}
-	return set.instanceHandler
 }
 
 func (set *HandlerSet)GetJobHandler() *JobHandler {

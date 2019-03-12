@@ -8,7 +8,6 @@ import (
 	discovery "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
 	"k8s.io/helm/pkg/kube"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )
@@ -88,28 +87,6 @@ func createApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes
 	return client, nil
 }
 
-// k8s client to deal with instance, only for k8s 1.9+
-func createApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.QPS = defaultQPS
-	cfg.Burst = defaultBurst
-	//TODO to investigate protobuf
-	//cfg.ContentType = "application/vnd.kubernetes.protobuf"
-
-	Log.Infof("Creating API clientEx for %s", cfg.Host)
-
-	client, err := clientsetex.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
-}
-
 // k8s client to deal with release config, only for k8s 1.9+
 func createReleaseConfigClient(apiserverHost string, kubeConfig string) (*releaseconfigclientset.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(apiserverHost, kubeConfig)
@@ -135,11 +112,6 @@ func createReleaseConfigClient(apiserverHost string, kubeConfig string) (*releas
 // for test
 func CreateFakeApiserverClient(apiserverHost string, kubeConfig string) (*kubernetes.Clientset, error) {
 	return createApiserverClient(apiserverHost, kubeConfig)
-}
-
-// for test
-func CreateFakeApiserverClientEx(apiserverHost string, kubeConfig string) (*clientsetex.Clientset, error) {
-	return createApiserverClientEx(apiserverHost, kubeConfig)
 }
 
 // for test

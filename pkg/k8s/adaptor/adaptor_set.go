@@ -19,7 +19,6 @@ type AdaptorSet struct {
 	walmDaemonSetAdaptor * WalmDaemonSetAdaptor
 	walmDeploymentAdaptor *WalmDeploymentAdaptor
 	walmIngressAdaptor *WalmIngressAdaptor
-	walmInstanceAdaptor *WalmInstanceAdaptor
 	walmJobAdaptor *WalmJobAdaptor
 	walmPodAdaptor *WalmPodAdaptor
 	walmSecretAdaptor *WalmSecretAdaptor
@@ -39,11 +38,6 @@ func(set *AdaptorSet) GetHandlerSet() *handler.HandlerSet{
 func(set *AdaptorSet) GetAdaptor(kind string) (resourceAdaptor ResourceAdaptor){
 
 	switch kind {
-	case "ApplicationInstance":
-		if set.walmInstanceAdaptor == nil {
-			set.walmInstanceAdaptor = &WalmInstanceAdaptor{set}
-		}
-		resourceAdaptor = set.walmInstanceAdaptor
 	case "Deployment":
 		if set.walmDeploymentAdaptor == nil {
 			set.walmDeploymentAdaptor = &WalmDeploymentAdaptor{set.handlerSet.GetDeploymentHandler(), set.GetAdaptor("Pod").(*WalmPodAdaptor)}

@@ -139,12 +139,6 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 			statefulSets = append(statefulSets, releaseInfo.Status.StatefulSets...)
 		}
 
-		for _, instance := range releaseInfo.Status.Instances {
-			if instance.Modules != nil && len(instance.Modules.StatefulSets) > 0 {
-				statefulSets = append(statefulSets, instance.Modules.StatefulSets...)
-			}
-		}
-
 		for _, statefulSet := range statefulSets {
 			if statefulSet.Selector != nil && (len(statefulSet.Selector.MatchLabels) > 0 || len(statefulSet.Selector.MatchExpressions) > 0) {
 				pvcs, err := handler.GetDefaultHandlerSet().GetPersistentVolumeClaimHandler().ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)

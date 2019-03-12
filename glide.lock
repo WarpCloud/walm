@@ -1,5 +1,5 @@
-hash: 0be5205911165f3902b72c06a8d025956a3479fb4ce9a4d6458f8936e16bc2d2
-updated: 2019-03-11T15:56:37.592937435+08:00
+hash: 16e564017f94ab029c8c8c983157890d9cd90009275c392a8893ae07a64be03d
+updated: 2019-03-12T16:33:34.066445438+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -392,7 +392,7 @@ imports:
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
 - name: github.com/sirupsen/logrus
-  version: e1e72e9de974bd926e5c56f83753fba2df402ce5
+  version: dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4
 - name: github.com/spf13/afero
   version: f4711e4db9e9a1d3887343acb72b2bbfc2f686f5
   subpackages:
@@ -408,9 +408,9 @@ imports:
 - name: github.com/spf13/viper
   version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/streadway/amqp
-  version: 30f8ed68076eedf14990dafc696f469f58fc1342
+  version: 61ee40d2027bce731de63888bdbf60a72ea173d2
 - name: github.com/swaggo/swag
-  version: 93c4fa280f003d8efa540be37c6bbd037117c8ab
+  version: c5b05a6644e8f3569d7a340058b284c2abee9aa9
 - name: github.com/thoas/stats
   version: e97827ebd7cae2adefa1b681e9b78e32dc41db48
 - name: github.com/tidwall/gjson
@@ -1016,20 +1016,6 @@ imports:
   - pointer
 - name: sigs.k8s.io/yaml
   version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
-- name: transwarp/application-instance
-  version: f8bb8699ceec6fc1b174e07524baf366ede3965b
-  repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
-  subpackages:
-  - pkg/apis/transwarp
-  - pkg/apis/transwarp/v1beta1
-  - pkg/client/clientset/versioned
-  - pkg/client/clientset/versioned/scheme
-  - pkg/client/clientset/versioned/typed/transwarp/v1beta1
-  - pkg/client/informers/externalversions
-  - pkg/client/informers/externalversions/internalinterfaces
-  - pkg/client/informers/externalversions/transwarp
-  - pkg/client/informers/externalversions/transwarp/v1beta1
-  - pkg/client/listers/transwarp/v1beta1
 - name: transwarp/release-config
   version: 66bbb68e2642a46baf2d4e1a00eb5e04ec5fc6d0
   repo: ssh://git@172.16.1.41:10022/k8s/release-config.git

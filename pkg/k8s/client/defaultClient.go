@@ -6,7 +6,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	clientsetex "transwarp/application-instance/pkg/client/clientset/versioned"
 	"k8s.io/helm/pkg/kube"
 	"github.com/sirupsen/logrus"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
@@ -15,7 +14,6 @@ import (
 
 var defaultApiserverClient *kubernetes.Clientset
 var defaultRestConfig *restclient.Config
-var defaultApiserverClientEx *clientsetex.Clientset
 var defaultKubeClient *lru.Cache
 var defaultReleaseConfigClient *releaseconfigclientset.Clientset
 
@@ -28,18 +26,6 @@ func GetDefaultClient() *kubernetes.Clientset {
 		logrus.Fatalf("create apiserver client failed:%v", err)
 	}
 	return defaultApiserverClient
-}
-
-func GetDefaultClientEx() *clientsetex.Clientset {
-	if defaultApiserverClientEx == nil {
-		var err error
-		defaultApiserverClientEx, err = createApiserverClientEx("", setting.Config.KubeConfig.Config)
-		if err != nil {
-			logrus.Fatalf("create apiserver client failed:%v", err)
-		}
-	}
-
-	return defaultApiserverClientEx
 }
 
 func GetDefaultReleaseConfigClient() *releaseconfigclientset.Clientset {
