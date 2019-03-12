@@ -91,13 +91,18 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
 		return
 	}
+	releaseName := request.Request.FormValue("release")
 	body := request.Request.FormValue("body")
 	releaseRequest := &release.ReleaseRequestV2{}
-	err = json.Unmarshal([]byte(body), releaseRequest)
-	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
-		return
+	if body != "" {
+		err = json.Unmarshal([]byte(body), releaseRequest)
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
+			return
+		}
 	}
+
+	releaseRequest.Name = releaseName
 
 	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartFiles, false, 0)
 	if err != nil {
@@ -132,7 +137,7 @@ func UpgradeRelease(request *restful.Request, response *restful.Response) {
 
 func UpgradeReleaseWithChart(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
-	releaseName := request.PathParameter("release")
+	releaseName := request.Request.FormValue("release")
 	chartArchive, _, err := request.Request.FormFile("chart")
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
@@ -147,11 +152,15 @@ func UpgradeReleaseWithChart(request *restful.Request, response *restful.Respons
 
 	body := request.Request.FormValue("body")
 	releaseRequest := &release.ReleaseRequestV2{}
-	err = json.Unmarshal([]byte(body), releaseRequest)
-	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
-		return
+
+	if body != "" {
+		err = json.Unmarshal([]byte(body), releaseRequest)
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
+			return
+		}
 	}
+
 	releaseRequest.Name = releaseName
 
 	err = helm.GetDefaultHelmClient().InstallUpgradeRelease(namespace, releaseRequest, false, chartFiles, false, 0)
