@@ -232,14 +232,17 @@ func (s *ReleaseServer) renderResources(ch *chart.Chart, values chartutil.Values
 }
 
 // recordRelease with an update operation in case reuse has been set.
-func (s *ReleaseServer) recordRelease(r *release.Release, reuse bool) {
+func (s *ReleaseServer) recordRelease(r *release.Release, reuse bool) error{
 	if reuse {
 		if err := s.Releases.Update(r); err != nil {
 			s.Log("warning: Failed to update release %s: %s", r.Name, err)
+			return err
 		}
 	} else if err := s.Releases.Create(r); err != nil {
 		s.Log("warning: Failed to record release %s: %s", r.Name, err)
+		return err
 	}
+	return nil
 }
 
 func (s *ReleaseServer) execHook(hs []*release.Hook, name, namespace, hook string, timeout int64) error {

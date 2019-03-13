@@ -178,7 +178,10 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 	oldRelease.Info.Status = release.StatusUninstalling
 	oldRelease.Info.Deleted = time.Now()
 	oldRelease.Info.Description = "Deletion in progress (or silently failed)"
-	s.recordRelease(oldRelease, true)
+	err = s.recordRelease(oldRelease, true)
+	if err != nil {
+		return newRelease, err
+	}
 
 	// pre-delete hooks
 	if !req.DisableHooks {
@@ -194,7 +197,10 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 
 	oldRelease.Info.Status = release.StatusUninstalled
 	oldRelease.Info.Description = "Uninstallation complete"
-	s.recordRelease(oldRelease, true)
+	err = s.recordRelease(oldRelease, true)
+	if err != nil {
+		return newRelease, err
+	}
 
 	if len(errs) > 0 {
 		return newRelease, errors.Errorf("upgrade --force successfully uninstalled the previous release, but encountered %d error(s) and cannot continue: %s", len(errs), joinErrors(errs))
@@ -216,7 +222,10 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 
 	// update new release with next revision number so as to append to the old release's history
 	newRelease.Version = oldRelease.Version + 1
-	s.recordRelease(newRelease, false)
+	err = s.recordRelease(newRelease, false)
+	if err != nil {
+		return newRelease, err
+	}
 	if err := s.updateRelease(oldRelease, newRelease, req); err != nil {
 		msg := fmt.Sprintf("Upgrade %q failed: %s", newRelease.Name, err)
 		s.Log("warning: %s", msg)
@@ -240,7 +249,10 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 
 	newRelease.Info.Status = release.StatusDeployed
 	newRelease.Info.Description = "Upgrade complete"
-	s.recordRelease(newRelease, true)
+	err = s.recordRelease(newRelease, true)
+	if err != nil {
+		return newRelease, err
+	}
 
 	return newRelease, nil
 }
@@ -291,7 +303,10 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 	}
 
 	originalRelease.Info.Status = release.StatusSuperseded
-	s.recordRelease(originalRelease, true)
+	err = s.recordRelease(originalRelease, true)
+	if err != nil {
+		return updatedRelease, err
+	}
 
 	updatedRelease.Info.Status = release.StatusDeployed
 	updatedRelease.Info.Description = "Upgrade complete"

@@ -172,7 +172,10 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 
 		// update old release status
 		old.Info.Status = release.StatusSuperseded
-		s.recordRelease(old, true)
+		err = s.recordRelease(old, true)
+		if err != nil {
+			return r, err
+		}
 
 		// update new release with next revision number
 		// so as to append to the old release's history
@@ -182,7 +185,10 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 			Recreate: false,
 			Timeout:  req.Timeout,
 		}
-		s.recordRelease(r, false)
+		err = s.recordRelease(r, false)
+		if err != nil {
+			return r, err
+		}
 		if err := s.updateRelease(old, r, updateReq); err != nil {
 			msg := fmt.Sprintf("Release replace %q failed: %s", r.Name, err)
 			s.Log("warning: %s", msg)
@@ -197,7 +203,10 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 	default:
 		// nothing to replace, create as normal
 		// regular manifests
-		s.recordRelease(r, false)
+		err = s.recordRelease(r, false)
+		if err != nil {
+			return r, err
+		}
 		b := bytes.NewBufferString(r.Manifest)
 		if err := s.KubeClient.Create(r.Namespace, b, req.Timeout, req.Wait); err != nil {
 			msg := fmt.Sprintf("Release %q failed: %s", r.Name, err)
@@ -235,7 +244,10 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 	//
 	// One possible strategy would be to do a timed retry to see if we can get
 	// this stored in the future.
-	s.recordRelease(r, true)
+	err = s.recordRelease(r, true)
+	if err != nil {
+		return r, err
+	}
 
 	return r, nil
 }
