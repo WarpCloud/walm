@@ -31,9 +31,10 @@ func CreateNewClient(hostURL string) *WalmctlClient {
 	return walmctlClient
 }
 
-func (c *WalmctlClient) CreateRelease(namespace string, releaseName string, file string) (resp *resty.Response, err error) {
+func (c *WalmctlClient) CreateRelease(namespace string, releaseName string, async bool, timeoutSec int64, file string) (resp *resty.Response, err error) {
 
-	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "?async=false&timeoutSec=0"
+	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "?async=" + strconv.FormatBool(async) +
+		"&timeoutSec="+ strconv.FormatInt(timeoutSec, 10)
 	fileByte, err := ioutil.ReadFile(file)
 	if err != nil {
 		fmt.Println("ReadFile Error: ", err.Error())
@@ -58,7 +59,8 @@ func (c *WalmctlClient) CreateRelease(namespace string, releaseName string, file
 }
 
 func (c *WalmctlClient) UpdateRelease(namespace string, newConfigStr string, async bool, timeoutSec int64) (resp *resty.Response, err error) {
-	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "?async=false&timeoutSec=0"
+	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "?async=" + strconv.FormatBool(async) +
+		"timeoutSec=" + strconv.FormatInt(timeoutSec, 10)
 
 	resp, err = resty.R().SetHeader("Content-Type", "application/json").
 		SetBody(newConfigStr).
@@ -93,10 +95,11 @@ func (c *WalmctlClient) DeleteRelease(namespace string, releaseName string, asyn
 
 }
 
-func (c *WalmctlClient) ListRelease(namespace string) (resp *resty.Response, err error) {
+func (c *WalmctlClient) ListRelease(namespace string, labelSelector string) (resp *resty.Response, err error) {
 
 	fullUrl := walmctlClient.baseURL + "/release/" + namespace
 
+	//suffixStr := ""
 	resp, err = resty.R().
 		SetHeader("Accept", "application/json").
 		Get(fullUrl)

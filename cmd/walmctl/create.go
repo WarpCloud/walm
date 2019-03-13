@@ -14,27 +14,29 @@ const createDesc = `This command creates a walm release or project along with ex
 `
 
 type createCmd struct {
-	file 		string
-	sourceType	string
-	name 	 	string
-	timeoutSec  int64
-	async       bool
-	out      	io.Writer
+	file       string
+	sourceType string
+	sourceName string
+	timeoutSec int64
+	async      bool
+	out        io.Writer
 }
 
-
 func newCreateCmd(out io.Writer) *cobra.Command {
-	cc := &createCmd{out:out}
+	cc := &createCmd{out: out}
 
 	cmd := &cobra.Command{
-		Use: "create release/project",
+		Use:   "create release/project",
 		Short: "create a release/project based on json/yaml",
-		Long: createDesc,
+		Long:  createDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// Todo:// Judge file type suites[json/yaml]
-
-			//
+			if namespace == "" {
+				return errors.New("flag --namespace/-n required")
+			}
+			if walmserver == "" {
+				return errors.New("flag --server/-s required")
+			}
 			if len(args) != 1 {
 				return errors.New("arguments release/project required after command create")
 			}
@@ -49,7 +51,7 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
-	cmd.Flags().StringVar(&cc.name, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
+	cmd.Flags().StringVar(&cc.sourceName, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
 	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout, (default 0)")
 	cmd.Flags().BoolVar(&cc.async, "async", true, "whether asynchronous")
 
@@ -58,7 +60,6 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 
 	return cmd
 }
-
 
 func (c *createCmd) run() error {
 
@@ -73,16 +74,16 @@ func (c *createCmd) run() error {
 	client := walmctlclient.CreateNewClient(walmserver)
 
 	if c.sourceType == "release" {
-		_, err = client.CreateRelease(namespace, c.name, filePath)
+		_, err = client.CreateRelease(namespace, c.sourceName, c.async, c.timeoutSec, filePath)
 
 	} else {
-		_, err = client.CreateProject(namespace, c.name, c.async, c.timeoutSec, filePath)
+		_, err = client.CreateProject(namespace, c.sourceName, c.async, c.timeoutSec, filePath)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s %s created", c.sourceType, c.name)
+	fmt.Printf("%s %s created", c.sourceType, c.sourceName)
 	return nil
 }
