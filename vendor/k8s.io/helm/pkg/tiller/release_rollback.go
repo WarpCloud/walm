@@ -153,7 +153,10 @@ func (s *ReleaseServer) performRollback(currentRelease, targetRelease *release.R
 	for _, r := range deployed {
 		s.Log("superseding previous deployment %d", r.Version)
 		r.Info.Status = release.StatusSuperseded
-		s.recordRelease(r, true)
+		err = s.recordRelease(r, true)
+		if err != nil {
+			return targetRelease, nil
+		}
 	}
 
 	targetRelease.Info.Status = release.StatusDeployed

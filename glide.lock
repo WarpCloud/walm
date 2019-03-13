@@ -1,5 +1,5 @@
 hash: 16e564017f94ab029c8c8c983157890d9cd90009275c392a8893ae07a64be03d
-updated: 2019-03-12T16:33:34.066445438+08:00
+updated: 2019-03-13T18:23:14.862413079+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -139,7 +139,7 @@ imports:
 - name: github.com/exponent-io/jsonpath
   version: d6023ce2651d8eafb5c75bb0c7167536102ec9f5
 - name: github.com/fsnotify/fsnotify
-  version: 11844c0959f6fff69ba325d097fce35bd85a8e93
+  version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 - name: github.com/go-ini/ini
@@ -340,7 +340,7 @@ imports:
   - ext
   - log
 - name: github.com/pelletier/go-toml
-  version: bef2d19cb02636f36436cf436ec0bfb28c30195b
+  version: 690ec00a4b7e125266cf1c4725ae24af22564f8f
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
@@ -406,9 +406,9 @@ imports:
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
-  version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
+  version: 9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9
 - name: github.com/streadway/amqp
-  version: 61ee40d2027bce731de63888bdbf60a72ea173d2
+  version: 14f78b41ce6da3d698c2ef2cc8c0ea7ce9e26688
 - name: github.com/swaggo/swag
   version: c5b05a6644e8f3569d7a340058b284c2abee9aa9
 - name: github.com/thoas/stats
@@ -863,7 +863,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 3bf122f6b38547a7515b32d3d6ae389997fa2d31
+  version: e373382f8130342100cd8cb78443f2dde7169d92
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
