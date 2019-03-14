@@ -193,17 +193,16 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 	}
 
 	// delete manifests from the old release
-	_, errs := s.deleteRelease(oldRelease)
+	_, err = s.deleteRelease(oldRelease)
+	if err != nil {
+		return newRelease, errors.Errorf("upgrade --force successfully uninstalled the previous release, but encountered error and cannot continue: %s", err.Error())
+	}
 
 	oldRelease.Info.Status = release.StatusUninstalled
 	oldRelease.Info.Description = "Uninstallation complete"
 	err = s.recordRelease(oldRelease, true)
 	if err != nil {
 		return newRelease, err
-	}
-
-	if len(errs) > 0 {
-		return newRelease, errors.Errorf("upgrade --force successfully uninstalled the previous release, but encountered %d error(s) and cannot continue: %s", len(errs), joinErrors(errs))
 	}
 
 	// post-delete hooks

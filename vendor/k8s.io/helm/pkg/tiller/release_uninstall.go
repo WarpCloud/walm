@@ -77,14 +77,21 @@ func (s *ReleaseServer) UninstallRelease(req *hapi.UninstallReleaseRequest) (*ha
 	// state.
 	if err := s.Releases.Update(rel); err != nil {
 		s.Log("uninstall: Failed to store updated release: %s", err)
+		return res, err
 	}
 
-	kept, errs := s.deleteRelease(rel)
+	kept, err := s.deleteRelease(rel)
+	if err != nil {
+		s.Log("Failed to delete release: %s", err.Error())
+		return res, err
+	}
+
 	res.Info = kept
 
 	if !req.DisableHooks {
 		if err := s.execHook(rel.Hooks, rel.Name, rel.Namespace, hooks.PostDelete, req.Timeout); err != nil {
-			errs = append(errs, err)
+			s.Log("Failed to exec hook: %s", err.Error())
+			return res, err
 		}
 	}
 
@@ -99,11 +106,9 @@ func (s *ReleaseServer) UninstallRelease(req *hapi.UninstallReleaseRequest) (*ha
 
 	if err := s.Releases.Update(rel); err != nil {
 		s.Log("uninstall: Failed to store updated release: %s", err)
+		return res, err
 	}
 
-	if len(errs) > 0 {
-		return res, errors.Errorf("uninstallation completed with %d error(s): %s", len(errs), joinErrors(errs))
-	}
 	return res, nil
 }
 
@@ -125,10 +130,10 @@ func (s *ReleaseServer) purgeReleases(rels ...*release.Release) error {
 }
 
 // deleteRelease deletes the release and returns manifests that were kept in the deletion process
-func (s *ReleaseServer) deleteRelease(rel *release.Release) (kept string, errs []error) {
+func (s *ReleaseServer) deleteRelease(rel *release.Release) (kept string, err error) {
 	caps, err := newCapabilities(s.discovery)
 	if err != nil {
-		return rel.Manifest, []error{errors.Wrap(err, "could not get apiVersions from Kubernetes")}
+		return rel.Manifest, errors.Wrap(err, "could not get apiVersions from Kubernetes")
 	}
 
 	manifests := relutil.SplitManifests(rel.Manifest)
@@ -138,7 +143,7 @@ func (s *ReleaseServer) deleteRelease(rel *release.Release) (kept string, errs [
 		// FIXME: One way to delete at this point would be to try a label-based
 		// deletion. The problem with this is that we could get a false positive
 		// and delete something that was not legitimately part of this release.
-		return rel.Manifest, []error{errors.Wrap(err, "corrupted release record. You must manually delete the resources")}
+		return rel.Manifest, errors.Wrap(err, "corrupted release record. You must manually delete the resources")
 	}
 
 	filesToKeep, filesToDelete := filterManifestsToKeep(files)
@@ -154,11 +159,10 @@ func (s *ReleaseServer) deleteRelease(rel *release.Release) (kept string, errs [
 		if err := s.KubeClient.Delete(rel.Namespace, b); err != nil {
 			s.Log("uninstall: Failed deletion of %q: %s", rel.Name, err)
 			if err == kube.ErrNoObjectsVisited {
-				// Rewrite the message from "no objects visited"
-				err = errors.New("object not found, skipping delete")
+				continue
 			}
-			errs = append(errs, err)
+			return kept, err
 		}
 	}
-	return kept, errs
+	return kept, nil
 }
