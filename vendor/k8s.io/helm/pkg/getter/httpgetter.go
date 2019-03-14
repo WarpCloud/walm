@@ -34,6 +34,10 @@ type HTTPGetter struct {
 	userAgent string
 }
 
+func (g *HTTPGetter) GetClient() *http.Client {
+	return g.client
+}
+
 // SetCredentials sets the credentials for the getter
 func (g *HTTPGetter) SetCredentials(username, password string) {
 	g.username = username
