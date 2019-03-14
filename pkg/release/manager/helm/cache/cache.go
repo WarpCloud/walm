@@ -35,7 +35,8 @@ func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapirelease.Rele
 		logrus.Warn("failed to create or update cache as helm release is nil")
 		return nil
 	}
-	releaseCache, err := cache.buildReleaseCaches([]*hapirelease.Release{helmRelease})
+	releaseCache, err := cache.buildReleaseCaches(map[string]*hapirelease.Release{
+		buildWalmReleaseFieldName(helmRelease.Namespace, helmRelease.Name): helmRelease})
 	if err != nil {
 		logrus.Errorf("failed to build release cache of %s : %s", helmRelease.Name, err.Error())
 		return err
@@ -186,7 +187,20 @@ func (cache *HelmCache) Resync() {
 				return err
 			}
 
-			releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleases)
+			helmReleasesMap := map[string]*hapirelease.Release{}
+			for _, helmRelease := range helmReleases {
+				filedName := buildWalmReleaseFieldName(helmRelease.Namespace, helmRelease.Name)
+				if existedHelmRelease, ok := helmReleasesMap[filedName] ; ok {
+					if existedHelmRelease.Version < helmRelease.Version {
+						helmReleasesMap[filedName] = helmRelease
+					}
+				} else {
+					helmReleasesMap[filedName] = helmRelease
+				}
+
+			}
+
+			releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleasesMap)
 			if err != nil {
 				logrus.Errorf("failed to build release caches: %s", err.Error())
 				return err
@@ -544,9 +558,9 @@ func (cache *HelmCache) GetReleaseTasksByNames(names []ReleaseFieldName) (releas
 	return
 }
 
-func (cache *HelmCache) buildReleaseCaches(releases []*hapirelease.Release) (releaseCaches map[string]interface{}, err error) {
+func (cache *HelmCache) buildReleaseCaches(releases map[string]*hapirelease.Release) (releaseCaches map[string]interface{}, err error) {
 	releaseCaches = map[string]interface{}{}
-	for _, helmRelease := range releases {
+	for fieldName, helmRelease := range releases {
 		releaseCache, err := cache.buildReleaseCache(helmRelease)
 		if err != nil {
 			logrus.Errorf("failed to build release cache of %s: %s", helmRelease.Name, err.Error())
@@ -559,7 +573,6 @@ func (cache *HelmCache) buildReleaseCaches(releases []*hapirelease.Release) (rel
 			return nil, err
 		}
 
-		fieldName := buildWalmReleaseFieldName(releaseCache.Namespace, releaseCache.Name)
 		releaseCaches[fieldName] = releaseCacheStr
 	}
 	return
