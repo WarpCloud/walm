@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"k8s.io/helm/pkg/chart"
 	"github.com/tidwall/gjson"
+	"time"
 )
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
@@ -67,6 +68,7 @@ func FindChartInChartMuseumRepoURL(repoURL, username, password, chartName, chart
 	indexURL := parsedURL.String()
 	httpGetter, err := getter.NewHTTPGetter(repoURL, "", "", "")
 	httpGetter.SetCredentials(username, password)
+	httpGetter.GetClient().Timeout = time.Second * 10
 	resp, err := httpGetter.Get(indexURL)
 	if err != nil {
 		return "", nil, err
