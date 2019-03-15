@@ -34,6 +34,7 @@ If the linter encounters things that will cause the chart to fail installation,
 it will emit [ERROR] messages. If it encounters issues that break with convention
 or recommendation, it will emit [WARNING] messages.
 `
+// Todo: check and raise warning signal when unrecognized fields in metainfo.yaml
 
 type lintOptions struct {
 	chartPath  string
@@ -45,6 +46,7 @@ type lintTypeCheck struct {
 	mapKey   string
 	Type     string
 	required bool
+	path     string
 }
 
 type lintTestCase struct {
@@ -79,7 +81,6 @@ func (lint *lintOptions) run() error {
 		lint.ciPath = path.Join(lint.chartPath, "ci")
 	}
 
-	// 1. check map keys between metainfo.yaml and values.yaml
 	metainfoPath := path.Join(lint.chartPath, "transwarp-meta/metainfo.yaml")
 	valuesPath := path.Join(lint.chartPath, "values.yaml")
 	err := checkMapKeys(metainfoPath, valuesPath)
@@ -192,11 +193,26 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 
 func checkMapKeys(metainfoPath string, valuesPath string) error {
 
+	// check if metainfo and valuesInfo exists
 	metainfoData, err := ioutil.ReadFile(metainfoPath)
 	if err != nil {
 		return err
 	}
+
+	// check suit yaml format
 	newMetainfoData, err := yaml.YAMLToJSON(metainfoData)
+
+	if  err != nil {
+		return errors.Errorf("%s in metainfo.yaml", err.Error())
+
+	}
+
+	formatMetainfoData, err := yaml.JSONToYAML(newMetainfoData)
+	if err != nil {
+		return errors.Errorf("format %s to yaml style error", metainfoPath)
+	}
+	ioutil.WriteFile(metainfoPath, formatMetainfoData, 0666)
+
 	if err != nil {
 		return err
 	}
@@ -214,7 +230,7 @@ func checkMapKeys(metainfoPath string, valuesPath string) error {
 	}
 	newValuesData, err := yaml.YAMLToJSON(valuesData)
 	if err != nil {
-		return err
+		return errors.Errorf("%s in values.yaml", err.Error())
 	}
 	valuesStr := string(newValuesData)
 
@@ -230,7 +246,7 @@ func checkMapKeys(metainfoPath string, valuesPath string) error {
 		// check map key exist
 		result := gjson.Get(valuesStr, typeCheck.mapKey)
 
-		if !result.Exists() && typeCheck.required {
+		if !result.Exists() {
 			return errors.Errorf("%s not exist in values.yaml", typeCheck.mapKey)
 		}
 
@@ -241,7 +257,6 @@ func checkMapKeys(metainfoPath string, valuesPath string) error {
 				return errors.Errorf("%s value type error, number type required", typeCheck.mapKey)
 			}
 		}
-
 
 		if typeCheck.Type == "envType" || typeCheck.Type == "" {
 			continue
@@ -263,25 +278,41 @@ func checkMapKeys(metainfoPath string, valuesPath string) error {
 
 func getTypeCheck(metainfoStr string) ([]lintTypeCheck, error) {
 
-	roleSize := int(gjson.Get(metainfoStr, "roles.#").Num)
 	var typeChecks []lintTypeCheck
 	var err error
+
+	roleSize := int(gjson.Get(metainfoStr, "roles.#").Int())
 	for i := 0; i < roleSize; i++ {
 		prePath := "roles." + strconv.Itoa(i)
 
+		// required fields, name, mapKey, type
+		baseConfigSize := int(gjson.Get(metainfoStr, prePath+".baseConfig.#").Int())
+		rolesName := gjson.Get(metainfoStr, prePath+".baseConfig.#.name").Array()
 		rolesMapkey := gjson.Get(metainfoStr, prePath+".baseConfig.#.mapKey").Array()
-		rolesRequire := gjson.Get(metainfoStr, prePath+".baseConfig.#.required").Array()
 		rolesType := gjson.Get(metainfoStr, prePath+".baseConfig.#.type").Array()
 
-		if len(rolesMapkey) != len(rolesRequire) || len(rolesRequire) != len(rolesType) {
-			err = errors.Errorf("check keys mapKey, required, type consistent in %s", prePath + ".baseConfig")
+		if baseConfigSize != len(rolesName) || len(rolesName) != len(rolesMapkey) || len(rolesMapkey) != len(rolesType){
+			err = errors.Errorf("name, mapKey, type are required inner each element of %s", prePath+".baseConfig")
 			return nil, err
 		}
+
+
+		var rolesRequire []gjson.Result
+		for configIndex := 0; configIndex < baseConfigSize; configIndex++ {
+
+			require := gjson.Get(metainfoStr, prePath+".baseConfig." + strconv.Itoa(configIndex) + ".required")
+			rolesRequire = append(rolesRequire, require)
+		}
+
 		for j := 0; j < len(rolesMapkey); j++ {
 
 			var typeCheck lintTypeCheck
 			if !rolesMapkey[j].Exists() {
 				err = errors.New(prePath + ".baseConfig." + strconv.Itoa(j) + ".mapKey" + "not exist.")
+			}
+
+			if rolesMapkey[j].String() == "" {
+				err = errors.New(prePath + ".baseConfig." + strconv.Itoa(j) + ".mapKey can't be empty")
 			}
 
 			if !rolesType[j].Exists() {
@@ -299,29 +330,38 @@ func getTypeCheck(metainfoStr string) ([]lintTypeCheck, error) {
 		}
 
 		resources := gjson.GetMany(metainfoStr,
-			prePath + ".resources.limitsMemoryKey.mapKey",
-			prePath + ".resources.limitsCpuKey.mapKey",
-			prePath + ".resources.limitsGpuKey.mapKey",
-			prePath + ".resources.requestsMemoryKey.mapKey",
-			prePath + ".resources.requestsCpuKey.mapKey",
-			prePath + ".resources.requestsGpuKey.mapKey", )
+			prePath+".resources.limitsMemoryKey.mapKey",
+			prePath+".resources.limitsCpuKey.mapKey",
+			prePath+".resources.limitsGpuKey.mapKey",
+			prePath+".resources.requestsMemoryKey.mapKey",
+			prePath+".resources.requestsCpuKey.mapKey",
+			prePath+".resources.requestsGpuKey.mapKey", )
 
-		for _, resource := range resources {
-			var typeCheck lintTypeCheck
+		if gjson.Get(metainfoStr, prePath+".resources").Exists() {
+			for _, resource := range resources {
 
-			// if not exist, using default
-			if !resource.Exists() {
-				continue
+				var typeCheck lintTypeCheck
+
+				if !resource.Exists() {
+					err = errors.Errorf("not enough fields in %s", prePath + ".resources")
+					return nil, err
+				} else if resource.String() == "" {
+					err = errors.Errorf("mapKey can not be null in %s.resources", prePath + "。resources")
+					return nil, err
+				}
+
+				typeCheck.mapKey = resource.String()
+				typeCheck.required = true
+				typeChecks = append(typeChecks, typeCheck)
 			}
-			typeCheck.mapKey = resource.String()
-			typeChecks = append(typeChecks, typeCheck)
 		}
 
+		paramsSize := int(gjson.Get(metainfoStr, "params.#").Int())
 		paramsMapKey := gjson.Get(metainfoStr, "params.#.mapKey").Array()
 		paramsType := gjson.Get(metainfoStr, "params.#.type").Array()
 		paramsRequire := gjson.Get(metainfoStr, "params.#.required").Array()
 
-		for k := 0; k < len(paramsMapKey); k++ {
+		for k := 0; k < paramsSize; k++ {
 			var typeCheck lintTypeCheck
 			if !paramsMapKey[k].Exists() {
 				err = errors.New("params." + strconv.Itoa(k) + ".mapKey" + "not exist.")
