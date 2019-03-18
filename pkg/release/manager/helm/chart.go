@@ -166,6 +166,18 @@ func GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion string) (*releas
 	return BuildChartInfo(rawChart)
 }
 
+func GetDetailChartInfoByImage(chartImage string) (*release.ChartDetailInfo, error) {
+	rawChart, err := GetDefaultChartImageClient().GetChart(chartImage)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			err = walmerr.NotFoundError{}
+		}
+		return nil, err
+	}
+
+	return BuildChartInfo(rawChart)
+}
+
 func BuildChartInfo(rawChart *chart.Chart) (*release.ChartDetailInfo, error) {
 	chartDetailInfo := new(release.ChartDetailInfo)
 
@@ -201,61 +213,54 @@ func BuildChartInfo(rawChart *chart.Chart) (*release.ChartDetailInfo, error) {
 		logrus.Errorf("failed to get chart meta info : %s", err.Error())
 		return nil, err
 	}
+	chartDetailInfo.MetaInfo = chartMetaInfo
 
-	if chartMetaInfo != nil {
-		chartDetailInfo.MetaInfo = chartMetaInfo
-		if chartDetailInfo.DefaultValue != "" {
-			for _, chartParam := range chartDetailInfo.MetaInfo.ChartParams {
-				chartParam.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, chartParam.MapKey).Value()
-			}
-			for _, chartRole := range chartDetailInfo.MetaInfo.ChartRoles {
-				for _, roleBaseConfig := range chartRole.RoleBaseConfig {
-					roleBaseConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, roleBaseConfig.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig != nil {
-					if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
-						chartRole.RoleResourceConfig.LimitsMemoryKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey).Value()
-					}
-					if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
-						chartRole.RoleResourceConfig.LimitsGpuKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsGpuKey.MapKey).Value()
-					}
-					if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
-						chartRole.RoleResourceConfig.LimitsCpuKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsCpuKey.MapKey).Value()
-					}
-					if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
-						chartRole.RoleResourceConfig.RequestsMemoryKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey).Value()
-					}
-					if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
-						chartRole.RoleResourceConfig.RequestsGpuKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsGpuKey.MapKey).Value()
-					}
-					if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
-						chartRole.RoleResourceConfig.RequestsCpuKey.DefaultValue =
-							gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsCpuKey.MapKey).Value()
-					}
-
-					for _, storageConfig := range chartRole.RoleResourceConfig.StorageResources {
-						storageConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, storageConfig.MapKey).Value()
-					}
-				}
-			}
-		}
+	if chartDetailInfo.MetaInfo != nil {
+		buildChartMetaInfoDefaultValues(chartDetailInfo)
 	}
 
 	return chartDetailInfo, nil
 }
 
-func GetChartInfo(TenantRepoName, ChartName, ChartVersion string) (*release.ChartInfo, error) {
-	chartInfo := new(release.ChartInfo)
+func buildChartMetaInfoDefaultValues(chartDetailInfo *release.ChartDetailInfo) {
+	if chartDetailInfo.DefaultValue != "" {
+		for _, chartParam := range chartDetailInfo.MetaInfo.ChartParams {
+			chartParam.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, chartParam.MapKey).Value()
+		}
+		for _, chartRole := range chartDetailInfo.MetaInfo.ChartRoles {
+			for _, roleBaseConfig := range chartRole.RoleBaseConfig {
+				roleBaseConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, roleBaseConfig.MapKey).Value()
+			}
+			if chartRole.RoleResourceConfig != nil {
+				if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
+					chartRole.RoleResourceConfig.LimitsMemoryKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey).Value()
+				}
+				if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
+					chartRole.RoleResourceConfig.LimitsGpuKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsGpuKey.MapKey).Value()
+				}
+				if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
+					chartRole.RoleResourceConfig.LimitsCpuKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.LimitsCpuKey.MapKey).Value()
+				}
+				if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
+					chartRole.RoleResourceConfig.RequestsMemoryKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey).Value()
+				}
+				if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
+					chartRole.RoleResourceConfig.RequestsGpuKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsGpuKey.MapKey).Value()
+				}
+				if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
+					chartRole.RoleResourceConfig.RequestsCpuKey.DefaultValue =
+						gjson.Get(chartDetailInfo.DefaultValue, chartRole.RoleResourceConfig.RequestsCpuKey.MapKey).Value()
+				}
 
-	chartDetailInfo, err := GetDetailChartInfo(TenantRepoName, ChartName, ChartVersion)
-	if chartDetailInfo != nil {
-		chartInfo = &chartDetailInfo.ChartInfo
+				for _, storageConfig := range chartRole.RoleResourceConfig.StorageResources {
+					storageConfig.DefaultValue = gjson.Get(chartDetailInfo.DefaultValue, storageConfig.MapKey).Value()
+				}
+			}
+		}
 	}
-
-	return chartInfo, err
 }

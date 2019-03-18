@@ -120,8 +120,8 @@ type ReleaseConfigDeltaEvent struct {
 
 type ReleaseConfig struct {
 	v1beta1.ReleaseConfigSpec `json:"config" description:"release config spec"`
-	Namespace                 string `json:"namespace" description:"release namespace"`
-	Name                      string `json:"name" description:"release name"`
+	Namespace string          `json:"namespace" description:"release namespace"`
+	Name      string          `json:"name" description:"release name"`
 }
 
 type ReleaseInfoV2 struct {
@@ -154,6 +154,7 @@ type ReleaseRequestV2 struct {
 	ReleaseLabels  map[string]string  `json:"releaseLabels" description:"release labels"`
 	Plugins        []*walm.WalmPlugin `json:"plugins" description:"plugins"`
 	MetaInfoParams *MetaInfoParams    `json:"metaInfoParams" description:"meta info parameters"`
+	ChartImage     string             `json:"chartImage" description:"chart image url"`
 }
 
 type ReleaseInfoV2List struct {

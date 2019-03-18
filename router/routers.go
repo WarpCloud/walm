@@ -526,12 +526,10 @@ func InitChartRouter() *restful.WebService {
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/{repo-name}/chart/{chart-name}").To(v1.GetChartInfo).
-		Doc("获取chart详细信息").
+	ws.Route(ws.GET("/image/").To(v1.GetChartInfoByImage).
+		Doc("获取chart image的详细信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Param(ws.PathParameter("repo-name", "Repo名字").DataType("string")).
-		Param(ws.PathParameter("chart-name", "Chart名字").DataType("string")).
-		Param(ws.QueryParameter("chart-version", "chart版本").DataType("string").DefaultValue("")).
+		Param(ws.QueryParameter("chart-image", "chart image url").DataType("string").Required(true)).
 		Writes(releasetypes.ChartInfo{}).
 		Returns(200, "OK", releasetypes.ChartInfo{}).
 		Returns(404, "Not Found", walmtypes.ErrorMessageResponse{}).

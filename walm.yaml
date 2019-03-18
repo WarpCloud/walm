@@ -37,3 +37,5 @@ jsonnetConfig:
   commonTemplateFilesPath: "test/ksonnet-lib"
 logConfig:
   level: "debug"
+chartImageConfig:
+  cacheRootDir: "/chart-cache"

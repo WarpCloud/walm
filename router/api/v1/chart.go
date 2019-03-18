@@ -40,6 +40,20 @@ func GetChartInfo(request *restful.Request, response *restful.Response) {
 	}
 	response.WriteEntity(chartDetailInfo.ChartInfo)
 }
+func GetChartInfoByImage(request *restful.Request, response *restful.Response) {
+	chartImage := request.QueryParameter("chart-image")
+	chartDetailInfo, err := helm.GetDetailChartInfoByImage(chartImage)
+	if err != nil {
+		if walmerr.IsNotFoundError(err) {
+			api.WriteNotFoundResponse(response, -1, fmt.Sprintf("Chart %s is not found", chartImage))
+			return
+		}
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get chart: %s", err.Error()))
+		return
+	}
+	response.WriteEntity(chartDetailInfo.ChartInfo)
+}
+
 
 func GetChartIcon(request *restful.Request, response *restful.Response) {
 	repoName := request.PathParameter("repo-name")
