@@ -99,8 +99,8 @@ func validateParams(releaseRequest *release.ReleaseRequestV2, chartFiles []*load
 		return fmt.Errorf("release name can not be empty")
 	}
 
-	if releaseRequest.ChartName == "" && len(chartFiles) == 0 {
-		return fmt.Errorf("chart name or chart should be supported")
+	if releaseRequest.ChartName == "" && releaseRequest.ChartImage == "" && len(chartFiles) == 0 {
+		return fmt.Errorf("at lease one of chart name or chart image or chart files should be supported")
 	}
 
 	return nil
@@ -122,8 +122,11 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 
 	var rawChart *chart.Chart
 	var chartErr error
+	// priority: chartFiles > chartImage > chartName
 	if chartFiles != nil {
 		rawChart, chartErr = loader.LoadFiles(chartFiles)
+	} else if releaseRequest.ChartImage != "" {
+		rawChart, chartErr = GetDefaultChartImageClient().GetChart(releaseRequest.ChartImage)
 	} else {
 		rawChart, chartErr = hc.LoadChart(releaseRequest.RepoName, releaseRequest.ChartName, releaseRequest.ChartVersion)
 	}

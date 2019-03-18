@@ -60,6 +60,11 @@ type WalmConfig struct {
 	KafkaConfig   *KafkaConfig   `json:"kafkaConfig"`
 	TaskConfig    *TaskConfig    `json:"taskConfig"`
 	JsonnetConfig *JsonnetConfig `json:"jsonnetConfig"`
+	ChartImageConfig *ChartImageConfig `json:"chartImageConfig"`
+}
+
+type ChartImageConfig struct {
+	CacheRootDir string  `json:"cacheRootDir"`
 }
 
 type LogConfig struct {

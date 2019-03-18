@@ -190,7 +190,7 @@ func (hc *HelmClient) ReloadRelease(namespace, name string, isSystem bool) error
 		return err
 	}
 
-	chartInfo, err := GetChartInfo(releaseInfo.RepoName, releaseInfo.ChartName, releaseInfo.ChartVersion)
+	chartInfo, err := GetDetailChartInfo(releaseInfo.RepoName, releaseInfo.ChartName, releaseInfo.ChartVersion)
 	if err != nil {
 		logrus.Errorf("failed to get chart info : %s", err.Error())
 		return err
