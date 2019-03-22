@@ -17,7 +17,9 @@ install:
   - if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
   
 script:
+  - make fmt-check
   - make lint
+  - make vet
   - make build
   - make test
 

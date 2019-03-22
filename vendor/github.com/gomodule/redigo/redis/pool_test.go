@@ -15,6 +15,7 @@
 package redis_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"reflect"
@@ -23,6 +24,10 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+)
+
+const (
+	testGoRoutines = 10
 )
 
 type poolTestConn struct {
@@ -83,8 +88,18 @@ func (d *poolDialer) dial() (redis.Conn, error) {
 	return &poolTestConn{d: d, Conn: c}, nil
 }
 
+func (d *poolDialer) dialContext(ctx context.Context) (redis.Conn, error) {
+	return d.dial()
+}
+
 func (d *poolDialer) check(message string, p *redis.Pool, dialed, open, inuse int) {
+	d.checkAll(message, p, dialed, open, inuse, 0, 0)
+}
+
+func (d *poolDialer) checkAll(message string, p *redis.Pool, dialed, open, inuse int, waitCountMax int64, waitDurationMax time.Duration) {
 	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if d.dialed != dialed {
 		d.t.Errorf("%s: dialed=%d, want %d", message, d.dialed, dialed)
 	}
@@ -101,7 +116,20 @@ func (d *poolDialer) check(message string, p *redis.Pool, dialed, open, inuse in
 		d.t.Errorf("%s: idle=%d, want %d", message, stats.IdleCount, open-inuse)
 	}
 
-	d.mu.Unlock()
+	if stats.WaitCount > waitCountMax {
+		d.t.Errorf("%s: unexpected wait=%d want at most %d", message, stats.WaitCount, waitCountMax)
+	}
+
+	if waitCountMax == 0 {
+		if stats.WaitDuration != 0 {
+			d.t.Errorf("%s: unexpected waitDuration=%v want %v", message, stats.WaitDuration, 0)
+		}
+		return
+	}
+
+	if stats.WaitDuration > waitDurationMax {
+		d.t.Errorf("%s: unexpected waitDuration=%v want < %v", message, stats.WaitDuration, waitDurationMax)
+	}
 }
 
 func TestPoolReuse(t *testing.T) {
@@ -375,6 +403,37 @@ func TestPoolMaxActive(t *testing.T) {
 	d.check("4", p, 2, 2, 1)
 }
 
+func TestPoolWaitStats(t *testing.T) {
+	d := poolDialer{t: t}
+	p := &redis.Pool{
+		Wait:      true,
+		MaxIdle:   2,
+		MaxActive: 2,
+		Dial:      d.dial,
+	}
+	defer p.Close()
+
+	c1 := p.Get()
+	c1.Do("PING")
+	c2 := p.Get()
+	c2.Do("PING")
+
+	d.checkAll("1", p, 2, 2, 2, 0, 0)
+
+	start := time.Now()
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		c1.Close()
+	}()
+
+	c3 := p.Get()
+	d.checkAll("2", p, 2, 2, 2, 1, time.Since(start))
+
+	if _, err := c3.Do("PING"); err != nil {
+		t.Errorf("expected good channel, err=%v", err)
+	}
+}
+
 func TestPoolMonitorCleanup(t *testing.T) {
 	d := poolDialer{t: t}
 	p := &redis.Pool{
@@ -493,7 +552,7 @@ func TestPoolTransactionCleanup(t *testing.T) {
 }
 
 func startGoroutines(p *redis.Pool, cmd string, args ...interface{}) chan error {
-	errs := make(chan error, 10)
+	errs := make(chan error, testGoRoutines)
 	for i := 0; i < cap(errs); i++ {
 		go func() {
 			c := p.Get()
@@ -517,6 +576,7 @@ func TestWaitPool(t *testing.T) {
 	defer p.Close()
 
 	c := p.Get()
+	start := time.Now()
 	errs := startGoroutines(p, "PING")
 	d.check("before close", p, 1, 1, 1)
 	c.Close()
@@ -531,7 +591,7 @@ func TestWaitPool(t *testing.T) {
 			t.Fatalf("timeout waiting for blocked goroutine %d", i)
 		}
 	}
-	d.check("done", p, 1, 1, 0)
+	d.checkAll("done", p, 1, 1, 0, testGoRoutines, time.Since(start)*testGoRoutines)
 }
 
 func TestWaitPoolClose(t *testing.T) {
@@ -548,6 +608,7 @@ func TestWaitPoolClose(t *testing.T) {
 	if _, err := c.Do("PING"); err != nil {
 		t.Fatal(err)
 	}
+	start := time.Now()
 	errs := startGoroutines(p, "PING")
 	d.check("before close", p, 1, 1, 1)
 	p.Close()
@@ -566,7 +627,7 @@ func TestWaitPoolClose(t *testing.T) {
 		}
 	}
 	c.Close()
-	d.check("done", p, 1, 0, 0)
+	d.checkAll("done", p, 1, 0, 0, testGoRoutines, time.Since(start)*testGoRoutines)
 }
 
 func TestWaitPoolCommandError(t *testing.T) {
@@ -581,6 +642,7 @@ func TestWaitPoolCommandError(t *testing.T) {
 	defer p.Close()
 
 	c := p.Get()
+	start := time.Now()
 	errs := startGoroutines(p, "ERR", testErr)
 	d.check("before close", p, 1, 1, 1)
 	c.Close()
@@ -595,7 +657,7 @@ func TestWaitPoolCommandError(t *testing.T) {
 			t.Fatalf("timeout waiting for blocked goroutine %d", i)
 		}
 	}
-	d.check("done", p, cap(errs), 0, 0)
+	d.checkAll("done", p, cap(errs), 0, 0, testGoRoutines, time.Since(start)*testGoRoutines)
 }
 
 func TestWaitPoolDialError(t *testing.T) {
@@ -610,6 +672,7 @@ func TestWaitPoolDialError(t *testing.T) {
 	defer p.Close()
 
 	c := p.Get()
+	start := time.Now()
 	errs := startGoroutines(p, "ERR", testErr)
 	d.check("before close", p, 1, 1, 1)
 
@@ -640,7 +703,7 @@ func TestWaitPoolDialError(t *testing.T) {
 	if errCount != cap(errs)-1 {
 		t.Errorf("expected %d dial errors, got %d", cap(errs)-1, errCount)
 	}
-	d.check("done", p, cap(errs), 0, 0)
+	d.checkAll("done", p, cap(errs), 0, 0, testGoRoutines, time.Since(start)*testGoRoutines)
 }
 
 // Borrowing requires us to iterate over the idle connections, unlock the pool,
@@ -742,5 +805,71 @@ func BenchmarkPoolGetPing(b *testing.B) {
 			b.Fatal(err)
 		}
 		c.Close()
+	}
+}
+
+func TestWaitPoolGetContext(t *testing.T) {
+	d := poolDialer{t: t}
+	p := &redis.Pool{
+		MaxIdle:   1,
+		MaxActive: 1,
+		Dial:      d.dial,
+		Wait:      true,
+	}
+	defer p.Close()
+	c, err := p.GetContext(context.Background())
+	if err != nil {
+		t.Fatalf("GetContext returned %v", err)
+	}
+	defer c.Close()
+}
+
+func TestWaitPoolGetContextWithDialContext(t *testing.T) {
+	d := poolDialer{t: t}
+	p := &redis.Pool{
+		MaxIdle:     1,
+		MaxActive:   1,
+		DialContext: d.dialContext,
+		Wait:        true,
+	}
+	defer p.Close()
+	c, err := p.GetContext(context.Background())
+	if err != nil {
+		t.Fatalf("GetContext returned %v", err)
+	}
+	defer c.Close()
+}
+
+func TestWaitPoolGetAfterClose(t *testing.T) {
+	d := poolDialer{t: t}
+	p := &redis.Pool{
+		MaxIdle:   1,
+		MaxActive: 1,
+		Dial:      d.dial,
+		Wait:      true,
+	}
+	p.Close()
+	_, err := p.GetContext(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWaitPoolGetCanceledContext(t *testing.T) {
+	d := poolDialer{t: t}
+	p := &redis.Pool{
+		MaxIdle:   1,
+		MaxActive: 1,
+		Dial:      d.dial,
+		Wait:      true,
+	}
+	defer p.Close()
+	ctx, f := context.WithCancel(context.Background())
+	f()
+	c := p.Get()
+	defer c.Close()
+	_, err := p.GetContext(ctx)
+	if err != context.Canceled {
+		t.Fatalf("got error %v, want %v", err, context.Canceled)
 	}
 }
