@@ -28,6 +28,7 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 	"github.com/x-cray/logrus-prefixed-formatter"
+	_ "net/http/pprof"
 )
 
 const servDesc = `
@@ -77,6 +78,13 @@ func (sc *ServCmd) run() error {
 	task.GetDefaultTaskManager().StartWorker()
 	startElect(stopChan, sig)
 	initRestApi()
+
+	if setting.Config.Debug {
+		go func() {
+			logrus.Info("supporting pprof on port 6060...")
+			logrus.Error(http.ListenAndServe(":6060", nil))
+		}()
+	}
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", setting.Config.HttpConfig.HTTPPort), Handler: restful.DefaultContainer}
 	go func() {

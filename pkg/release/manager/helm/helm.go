@@ -122,7 +122,7 @@ func (hc *HelmClient) getCurrentHelmClient(namespace string) (*helm.Client, erro
 	}
 }
 
-func (hc *HelmClient) downloadChart(repoName, charName, version string) (string, error) {
+func (hc *HelmClient) downloadChart(repoName, chartName, version string) (string, error) {
 	if repoName == "" {
 		repoName = "stable"
 	}
@@ -130,16 +130,11 @@ func (hc *HelmClient) downloadChart(repoName, charName, version string) (string,
 	if !ok {
 		return "", fmt.Errorf("can not find repo name: %s", repoName)
 	}
-	chartURL, httpGetter, err := FindChartInChartMuseumRepoURL(repo.URL, "", "", charName, version)
-	if err != nil {
-		return "", err
-	}
-
 	tmpDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return "", err
 	}
-	filename, err := ChartMuseumDownloadTo(chartURL, tmpDir, httpGetter)
+	filename, err := LoadChartFromRepo(repo.URL, repo.Username, repo.Password, chartName, version, tmpDir)
 	if err != nil {
 		logrus.Printf("DownloadTo err %v", err)
 		return "", err
