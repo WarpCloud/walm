@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"github.com/tidwall/gjson"
 	"github.com/ghodss/yaml"
+	"encoding/json"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 var longLintHelp = `
@@ -90,7 +92,6 @@ func (lint *lintOptions) run() error {
 
 	logrus.Println("map keys check correct")
 
-	// 2. generate cases and dry run
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
 		return err
@@ -112,6 +113,9 @@ func (lint *lintOptions) run() error {
 	}
 
 	testCases, err := lint.loadCICases()
+	if err != nil {
+		return err
+	}
 	for _, testCase := range testCases {
 		valueOverride := map[string]interface{}{}
 		util.MergeValues(valueOverride, testCase.userConfigs)
@@ -128,28 +132,75 @@ func (lint *lintOptions) run() error {
 		inst.Namespace = testCase.caseNamespace
 		inst.ReleaseName = testCase.caseName
 		rel, err := inst.Run(rawChart, valueOverride)
+
 		if err != nil {
 			return err
 		}
 
+		expectCasePath := path.Join(lint.ciPath, "_expect-cases", testCase.caseName)
+		fileByte, err := ioutil.ReadFile(expectCasePath)
+		if err != nil {
+			return err
+		}
+
+		expectChart := string(fileByte)
+		err = checkGenReleaseConfig(expectChart, rel.Manifest)
+		if err != nil {
+			return err
+		}
 		lint.writeAsFiles(rel)
 	}
 
 	return nil
 }
+func checkGenReleaseConfig(expectChart string, outputChart string) error {
+
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(expectChart, outputChart, true)
+	if len(diffs) > 2 {
+		return errors.Errorf("rendered template result is not expected. There are %d diff places.\n%s" , len(diffs) - 1, dmp.DiffPrettyText(diffs[1:]))
+	}
+	logrus.Infof("rendered template result is expected.")
+	return nil
+}
 
 func (lint *lintOptions) loadCICases() ([]lintTestCase, error) {
+
 	testCases := make([]lintTestCase, 0)
-	dummyCase := lintTestCase{
-		caseName:          "dummycase",
-		caseNamespace:     "ci-test",
-		userConfigs:       map[string]interface{}{},
-		dependencyConfigs: map[string]interface{}{},
-		dependencies:      map[string]string{},
-		releaseLabels:     map[string]string{},
+	cifiles, err := ioutil.ReadDir(lint.ciPath)
+	if err != nil {
+		return nil, err
 	}
 
-	testCases = append(testCases, dummyCase)
+	for _, cifile := range cifiles {
+
+		if !cifile.IsDir() {
+
+			userConfigByte, err := ioutil.ReadFile(path.Join(lint.ciPath, cifile.Name()))
+			if err != nil {
+				return nil, err
+			}
+			userConfig := map[string]interface{}{}
+			err = json.Unmarshal(userConfigByte, &userConfig)
+
+			if err != nil {
+				err = errors.Errorf("%s in\n %s", err.Error(), path.Join(lint.ciPath, cifile.Name()))
+				return nil, err
+			}
+
+			dummyCase := lintTestCase{
+				caseName:          cifile.Name(),
+				caseNamespace:     "ci-test",
+				userConfigs:       userConfig,
+				dependencyConfigs: map[string]interface{}{},
+				dependencies:      map[string]string{},
+				releaseLabels:     map[string]string{},
+			}
+
+			testCases = append(testCases, dummyCase)
+		}
+	}
+
 	return testCases, nil
 }
 
@@ -160,7 +211,7 @@ func (lint *lintOptions) writeAsFiles(rel *release.Release) error {
 	}
 	// At one point we parsed out the returned manifest and created multiple files.
 	// I'm not totally sure what the use case was for that.
-	filename := filepath.Join(outputDir, rel.Name+".yaml")
+	filename := filepath.Join(outputDir, rel.Name)
 	return ioutil.WriteFile(filename, []byte(rel.Manifest), 0644)
 }
 
@@ -193,13 +244,11 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 
 func checkMapKeys(metainfoPath string, valuesPath string) error {
 
-	// check if metainfo and valuesInfo exists
 	metainfoData, err := ioutil.ReadFile(metainfoPath)
 	if err != nil {
 		return err
 	}
 
-	// check suit yaml format
 	newMetainfoData, err := yaml.YAMLToJSON(metainfoData)
 
 	if  err != nil {
