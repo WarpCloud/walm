@@ -5,10 +5,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/repo"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,17 +16,11 @@ import (
 	"encoding/json"
 	"k8s.io/helm/pkg/chart"
 	"github.com/tidwall/gjson"
-	"time"
+	"github.com/go-resty/resty"
 )
 
 func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, error) {
 	repoIndex := &repo.IndexFile{}
-	tempIndexFile, err := ioutil.TempFile("", "tmp-repo-file")
-	if err != nil {
-		return nil, fmt.Errorf("cannot write index file for repository requested")
-	}
-	defer os.Remove(tempIndexFile.Name())
-
 	parsedURL, err := url.Parse(repoURL)
 	if err != nil {
 		return nil, err
@@ -36,84 +28,50 @@ func GetChartIndexFile(repoURL, username, password string) (*repo.IndexFile, err
 	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
 
 	indexURL := parsedURL.String()
-	httpGetter, err := getter.NewHTTPGetter(repoURL, "", "", "")
-	httpGetter.SetCredentials(username, password)
-	resp, err := httpGetter.Get(indexURL)
+
+	resp, err := resty.R().Get(indexURL)
 	if err != nil {
+		logrus.Errorf("failed to get index : %s", err.Error())
 		return nil, err
 	}
-	index, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return nil, err
-	}
-	if err := yaml.Unmarshal(index, repoIndex); err != nil {
+
+	if err := yaml.Unmarshal(resp.Body(), repoIndex); err != nil {
 		return nil, err
 	}
 	return repoIndex, nil
 }
 
-func FindChartInChartMuseumRepoURL(repoURL, username, password, chartName, chartVersion string) (string, getter.Getter, error) {
-	tempIndexFile, err := ioutil.TempFile("", "tmp-repo-file")
+func LoadChartFromRepo(repoUrl, username, password, chartName, chartVersion, dest string) (string, error) {
+	indexFile, err := GetChartIndexFile(repoUrl, username, password)
 	if err != nil {
-		return "", nil, fmt.Errorf("cannot write index file for repository requested")
-	}
-	defer os.Remove(tempIndexFile.Name())
-
-	parsedURL, err := url.Parse(repoURL)
-	if err != nil {
-		return "", nil, err
-	}
-	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
-
-	indexURL := parsedURL.String()
-	httpGetter, err := getter.NewHTTPGetter(repoURL, "", "", "")
-	httpGetter.SetCredentials(username, password)
-	httpGetter.GetClient().Timeout = time.Second * 10
-	resp, err := httpGetter.Get(indexURL)
-	if err != nil {
-		return "", nil, err
-	}
-	index, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return "", nil, err
-	}
-	repoIndex := &repo.IndexFile{}
-	if err := yaml.Unmarshal(index, repoIndex); err != nil {
-		return "", nil, err
-	}
-	errMsg := fmt.Sprintf("chart %q", chartName)
-	if chartVersion != "" {
-		errMsg = fmt.Sprintf("%s version %q", errMsg, chartVersion)
-	}
-	cv, err := repoIndex.Get(chartName, chartVersion)
-	if err != nil {
-		return "", nil, fmt.Errorf("%s not found in %s repository", errMsg, repoURL)
-	}
-	if len(cv.URLs) == 0 {
-		return "", nil, fmt.Errorf("%s has no downloadable URLs", errMsg)
-	}
-	chartURL := cv.URLs[0]
-
-	absoluteChartURL, err := repo.ResolveReferenceURL(repoURL, chartURL)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to make chart URL absolute: %v", err)
-	}
-
-	return absoluteChartURL, httpGetter, nil
-}
-
-func ChartMuseumDownloadTo(ref, dest string, getter getter.Getter) (string, error) {
-	data, err := getter.Get(ref)
-	if err != nil {
+		logrus.Errorf("failed to get chart index file : %s", err.Error())
 		return "", err
 	}
 
-	name := filepath.Base(ref)
-	destfile := filepath.Join(dest, name)
-	if err := ioutil.WriteFile(destfile, data.Bytes(), 0644); err != nil {
-		return destfile, err
+	cv, err := indexFile.Get(chartName, chartVersion)
+	if err != nil {
+		return "", fmt.Errorf("chart %s-%s is not found: %s", chartName, chartVersion, err.Error())
+	}
+	if len(cv.URLs) == 0 {
+		return "", fmt.Errorf("chart %s has no downloadable URLs", chartName)
+	}
+	chartUrl := cv.URLs[0]
+	absoluteChartURL, err := repo.ResolveReferenceURL(repoUrl, chartUrl)
+	if err != nil {
+		return "", fmt.Errorf("failed to make absolute chart url: %v", err)
+	}
+	resp, err := resty.R().Get(absoluteChartURL)
+	if err != nil {
+		logrus.Errorf("failed to get chart : %s", err.Error())
+		return "", err
 	}
 
+	name := filepath.Base(absoluteChartURL)
+	destfile := filepath.Join(dest, name)
+	if err := ioutil.WriteFile(destfile, resp.Body(), 0644); err != nil {
+		logrus.Errorf("failed to write file : %s", err.Error())
+		return "", err
+	}
 	return destfile, nil
 }
 

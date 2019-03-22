@@ -11,13 +11,14 @@ import (
 )
 
 func Test_downloadChart(t *testing.T) {
-	chartURL, httpGetter, _ := FindChartInChartMuseumRepoURL("http://172.16.1.41:8882/stable/",
-		"", "", "hdfs", "")
-	fmt.Printf("chartURL %s\n", chartURL)
+	//chartURL, httpGetter, _ := FindChartInChartMuseumRepoURL("http://172.16.1.41:8882/stable/",
+	//	"", "", "hdfs", "")
+	//fmt.Printf("chartURL %s\n", chartURL)
 
 	tmpDir, _ := ioutil.TempDir("", "")
 
-	filename, _ := ChartMuseumDownloadTo(chartURL, tmpDir, httpGetter)
+	filename, _ := LoadChartFromRepo("http://172.16.1.41:8882/stable/",
+			"", "", "hdfs", "", tmpDir)
 	fmt.Printf("filename %s\n", filename)
 }
 
