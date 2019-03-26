@@ -50,6 +50,8 @@ type Parser struct {
 
 	PropNamingStrategy string
 
+	ParseVendor bool
+
 	// structStack stores full names of the structures that were already parsed or are being parsed now
 	structStack []string
 }
@@ -153,7 +155,7 @@ func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 				case "@basepath":
 					parser.swagger.BasePath = strings.TrimSpace(commentLine[len(attribute):])
 				case "@schemes":
-					parser.swagger.Schemes = GetSchemes(commentLine)
+					parser.swagger.Schemes = getSchemes(commentLine)
 				case "@tag.name":
 					commentInfo := strings.TrimSpace(commentLine[len(attribute):])
 					parser.swagger.Tags = append(parser.swagger.Tags, spec.Tag{
@@ -329,8 +331,8 @@ func isExistsScope(scope string) bool {
 	return strings.Index(scope, "@scope.") != -1
 }
 
-// GetSchemes parses swagger schemes for given commentLine
-func GetSchemes(commentLine string) []string {
+// getSchemes parses swagger schemes for given commentLine
+func getSchemes(commentLine string) []string {
 	attribute := strings.ToLower(strings.Split(commentLine, " ")[0])
 	return strings.Split(strings.TrimSpace(commentLine[len(attribute):]), " ")
 }
@@ -1044,7 +1046,7 @@ func (parser *Parser) getAllGoFileInfo(searchDir string) error {
 }
 
 func (parser *Parser) visit(path string, f os.FileInfo, err error) error {
-	if err := Skip(f); err != nil {
+	if err := parser.Skip(path, f); err != nil {
 		return err
 	}
 
@@ -1061,10 +1063,12 @@ func (parser *Parser) visit(path string, f os.FileInfo, err error) error {
 }
 
 // Skip returns filepath.SkipDir error if match vendor and hidden folder
-func Skip(f os.FileInfo) error {
-	// exclude vendor folder
-	if f.IsDir() && f.Name() == "vendor" {
-		return filepath.SkipDir
+func (parser *Parser) Skip(path string, f os.FileInfo) error {
+
+	if !parser.ParseVendor { // ignore vendor
+		if f.IsDir() && f.Name() == "vendor" {
+			return filepath.SkipDir
+		}
 	}
 
 	// exclude all hidden folder

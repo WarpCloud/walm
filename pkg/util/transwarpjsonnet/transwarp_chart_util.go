@@ -120,7 +120,7 @@ func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, r
 	userConfigs, dependencyConfigs map[string]interface{}, dependencies, releaseLabels map[string]string,
 ) error {
 	jsonnetTemplateFiles := make(map[string]string, 0)
-	rawChartFiles := []*chart.File{}
+	var rawChartFiles []*chart.File
 	for _, f := range rawChart.Files {
 		if strings.HasPrefix(f.Name, TranswarpJsonnetTemplateDir) {
 			cname := strings.TrimPrefix(f.Name, TranswarpJsonnetTemplateDir)
@@ -232,7 +232,7 @@ func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
 	}
 	defer unzipped.Close()
 
-	files := []*loader.BufferedFile{}
+	var files []*loader.BufferedFile
 	tr := tar.NewReader(unzipped)
 	for {
 		b := bytes.NewBuffer(nil)

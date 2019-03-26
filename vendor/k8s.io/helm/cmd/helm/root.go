@@ -17,7 +17,9 @@ limitations under the License.
 package main // import "k8s.io/helm/cmd/helm"
 
 import (
+	"crypto/tls"
 	"io"
+	"net/http"
 
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/spf13/cobra"
@@ -70,10 +72,16 @@ func newRootCmd(c helm.Interface, out io.Writer, args []string) *cobra.Command {
 	actionConfig := newActionConfig(false)
 	// Add the registry client based on settings
 	// TODO: Move this elsewhere (first, settings.Init() must move)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 	actionConfig.RegistryClient = registry.NewClient(&registry.ClientOptions{
 		Out: out,
 		Resolver: registry.Resolver{
-			Resolver: docker.NewResolver(docker.ResolverOptions{}),
+			Resolver: docker.NewResolver(docker.ResolverOptions{
+				Client: client,
+			}),
 		},
 		CacheRootDir: settings.Home.Registry(),
 	})
