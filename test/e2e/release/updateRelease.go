@@ -24,13 +24,14 @@ var _ = Describe("Release", func() {
 		gopath         string
 		releaseName    string
 		releaseRequest release.ReleaseRequestV2
+		err            error
 	)
 
 	BeforeEach(func() {
 
 		By("create namespace")
 
-		randomId := uuid.Must(uuid.NewV4()).String()
+		randomId := uuid.Must(uuid.NewV4(), err).String()
 		namespace = "test-" + randomId[:8]
 
 		ns := corev1.Namespace{
@@ -48,7 +49,7 @@ var _ = Describe("Release", func() {
 		if gopath == "" {
 			gopath = build.Default.GOPATH
 		}
-		releaseChartByte, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/TXSQL/release.yaml")
+		releaseChartByte, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/releases/smartbi.yaml")
 		Expect(err).NotTo(HaveOccurred())
 
 		err = json.Unmarshal(releaseChartByte, &releaseRequest)
@@ -88,8 +89,8 @@ var _ = Describe("Release", func() {
 			jsonConfigValue, err := simplejson.NewJson(ConfigValue)
 			Expect(err).NotTo(HaveOccurred())
 
-			jsonConfigValue.Get("App").Get("txsql").Set("replicas", 2)
-			jsonConfigValue.Get("App").Get("txsql").Get("resources").Set("memory_request", 2)
+			jsonConfigValue.Get("appConfig").Get("mysql").Set("replicas", 2)
+			jsonConfigValue.Get("appConfig").Get("mysql").Get("resources").Set("memory_request", 2)
 
 			ConfigValue, err = jsonConfigValue.MarshalJSON()
 			Expect(err).NotTo(HaveOccurred())
@@ -107,9 +108,9 @@ var _ = Describe("Release", func() {
 			newJsonConfigValue, err := simplejson.NewJson(newConfigValue)
 			Expect(err).NotTo(HaveOccurred())
 
-			replicasValue, err := newJsonConfigValue.Get("App").Get("txsql").Get("replicas").Int()
+			replicasValue, err := newJsonConfigValue.Get("appConfig").Get("mysql").Get("replicas").Int()
 			Expect(err).NotTo(HaveOccurred())
-			memoryValue, err := newJsonConfigValue.Get("App").Get("txsql").Get("resources").Get("memory_request").Int()
+			memoryValue, err := newJsonConfigValue.Get("appConfig").Get("mysql").Get("resources").Get("memory_request").Int()
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(replicasValue).To(Equal(2))

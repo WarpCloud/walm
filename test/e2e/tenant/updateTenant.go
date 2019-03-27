@@ -10,7 +10,8 @@ import (
 var _ = Describe("Tenant", func() {
 
 	var (
-		tenantName string
+		tenantName   string
+		err          error
 		tenantParams tenant.TenantParams
 	)
 
@@ -18,14 +19,13 @@ var _ = Describe("Tenant", func() {
 
 		By("create tenant")
 
-		randomId := uuid.Must(uuid.NewV4()).String()
+		randomId := uuid.Must(uuid.NewV4(), err).String()
 		tenantName = "test-" + randomId[:8]
 		tenantParams = tenant.TenantParams{}
 		err := tenant.CreateTenant(tenantName, &tenantParams)
 		Expect(err).NotTo(HaveOccurred())
 
 	})
-
 
 	AfterEach(func() {
 		err := tenant.DeleteTenant(tenantName)
@@ -36,12 +36,12 @@ var _ = Describe("Tenant", func() {
 		It("update tenant success", func() {
 
 			tenantQuotaInfo := tenant.TenantQuotaInfo{
-				LimitCpu: "1k",
-				LimitMemory: "100Gi",
-				RequestsCPU: "1k",
-				RequestsMemory: "100Gi",
+				LimitCpu:        "1k",
+				LimitMemory:     "100Gi",
+				RequestsCPU:     "1k",
+				RequestsMemory:  "100Gi",
 				RequestsStorage: "100Gi",
-				Pods: "1k",
+				Pods:            "1k",
 			}
 			tenantQuotaParam := tenant.TenantQuotaParams{QuotaName: tenantName, Hard: &tenantQuotaInfo}
 			var tenantQuotaParams []*tenant.TenantQuotaParams

@@ -32,7 +32,7 @@ var _ = Describe("Release", func() {
 	BeforeEach(func() {
 
 		By("create namespace")
-		randomId := uuid.Must(uuid.NewV4()).String()
+		randomId := uuid.Must(uuid.NewV4(), err).String()
 		namespace = "test-" + randomId[:8]
 
 		ns := corev1.Namespace{
@@ -51,7 +51,7 @@ var _ = Describe("Release", func() {
 			gopath = build.Default.GOPATH
 		}
 
-		releaseChartByte, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/simpleTest/ZOOKEEPER/release.yaml")
+		releaseChartByte, err := ioutil.ReadFile(gopath + "/src/walm/test/resources/releases/smartbi.yaml")
 		Expect(err).NotTo(HaveOccurred())
 
 		err = json.Unmarshal(releaseChartByte, &releaseRequest)
@@ -67,9 +67,6 @@ var _ = Describe("Release", func() {
 		By("delete release")
 		err := helm.GetDefaultHelmClient().DeleteRelease(namespace, releaseName, false, true, false, 0)
 		Expect(err).NotTo(HaveOccurred())
-
-		_, err = helm.GetDefaultHelmClient().GetRelease(namespace, releaseName)
-		Expect(err).To(HaveOccurred())
 
 		By("delete namespace")
 		err = handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(namespace)
