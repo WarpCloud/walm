@@ -16,11 +16,11 @@ import (
 var _ = Describe("Secret", func() {
 
 	var (
-		gopath    string
-		namespace string
-		randomId  string
+		gopath     string
+		namespace  string
+		randomId   string
 		secretName string
-
+		err        error
 	)
 
 	BeforeEach(func() {
@@ -32,7 +32,7 @@ var _ = Describe("Secret", func() {
 			gopath = build.Default.GOPATH
 		}
 
-		randomId = uuid.Must(uuid.NewV4()).String()
+		randomId = uuid.Must(uuid.NewV4(), err).String()
 		namespace = "test-" + randomId[:8]
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -60,7 +60,7 @@ var _ = Describe("Secret", func() {
 				Type: "Opaque",
 				WalmMeta: adaptor.WalmMeta{
 					Namespace: namespace,
-					Name: secretName,
+					Name:      secretName,
 				},
 			}
 
@@ -76,7 +76,7 @@ var _ = Describe("Secret", func() {
 				Data: data,
 				WalmMeta: adaptor.WalmMeta{
 					Namespace: namespace,
-					Name: secretName,
+					Name:      secretName,
 				},
 			}
 

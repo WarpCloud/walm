@@ -19,7 +19,7 @@ var _ = Describe("Node", func() {
 	BeforeEach(func() {
 
 		// check node
-		nodeName = "172.16.1.177"
+		nodeName = "tdc-tester03"
 		_, err = adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor).GetResource("", nodeName)
 		Expect(err).NotTo(HaveOccurred())
 

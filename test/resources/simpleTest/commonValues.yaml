@@ -1,5 +1,0 @@
-Transwarp_License_Address: "172.16.1.41:2181"
-Transwarp_Cni_Network: overlay
-Transwarp_Config: 
- security: 
-  auth_type: none
