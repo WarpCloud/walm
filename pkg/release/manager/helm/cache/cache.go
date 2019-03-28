@@ -18,6 +18,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"k8s.io/helm/pkg/chart"
 	"walm/pkg/util/transwarpjsonnet"
+	"walm/pkg/release/manager/metainfo"
 )
 
 const (
@@ -607,7 +608,7 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 	return
 }
 
-func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface{}) (*release.MetaInfoParams, error) {
+func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface{}) (*metainfo.MetaInfoParams, error) {
 	chartMetaInfo, err := transwarpjsonnet.GetChartMetaInfo(chart)
 	if err != nil {
 		logrus.Errorf("failed to get chart meta info : %s", err.Error())

@@ -4,6 +4,7 @@ import (
 	"k8s.io/helm/pkg/walm"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 	"walm/pkg/k8s/adaptor"
+	"walm/pkg/release/manager/metainfo"
 )
 
 type ReleaseInfoList struct {
@@ -36,7 +37,7 @@ type ReleaseCache struct {
 	ReleaseSpec
 	ReleaseResourceMetas []ReleaseResourceMeta  `json:"releaseResourceMetas" description:"release resource metas"`
 	ComputedValues       map[string]interface{} `json:"computedValues" description:"release computed values"`
-	MetaInfoValues       *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
+	MetaInfoValues       *metainfo.MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -91,7 +92,7 @@ type ChartInfo struct {
 	DependencyCharts []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
 	//Deprecated
 	ChartPrettyParams PrettyChartParams `json:"chartPrettyParams" description:"pretty chart params for market"`
-	MetaInfo          *ChartMetaInfo    `json:"metaInfo" description:"transwarp chart meta info"`
+	MetaInfo          *metainfo.ChartMetaInfo    `json:"metaInfo" description:"transwarp chart meta info"`
 }
 
 type ChartDetailInfo struct {
@@ -131,7 +132,7 @@ type ReleaseInfoV2 struct {
 	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
 	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
 	Plugins                  []*walm.WalmPlugin     `json:"plugins" description:"plugins"`
-	MetaInfoValues           *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
+	MetaInfoValues           *metainfo.MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
 }
 
 func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
@@ -153,7 +154,7 @@ type ReleaseRequestV2 struct {
 	ReleaseRequest
 	ReleaseLabels  map[string]string  `json:"releaseLabels" description:"release labels"`
 	Plugins        []*walm.WalmPlugin `json:"plugins" description:"plugins"`
-	MetaInfoParams *MetaInfoParams    `json:"metaInfoParams" description:"meta info parameters"`
+	MetaInfoParams *metainfo.MetaInfoParams    `json:"metaInfoParams" description:"meta info parameters"`
 	ChartImage     string             `json:"chartImage" description:"chart image url"`
 }
 
