@@ -143,7 +143,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	// support meta pretty parameters
 	configValues := releaseRequest.ConfigValues
 	if releaseRequest.MetaInfoParams != nil {
-		metaInfoConfigs, err := releaseRequest.MetaInfoParams.ToConfigValues(chartInfo.MetaInfo)
+		metaInfoConfigs, err := releaseRequest.MetaInfoParams.BuildConfigValues(chartInfo.MetaInfo)
 		if err != nil {
 			logrus.Errorf("failed to get meta info parameters : %s", err.Error())
 			return err
