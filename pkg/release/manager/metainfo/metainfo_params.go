@@ -4,14 +4,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-)
-
-const (
-	// k8s resource memory unit
-	k8sResourceMemoryUnit = "Mi"
-
-	// k8s resource storage unit
-	k8sResourceStorageUnit = "Gi"
+	"walm/pkg/util"
 )
 
 type MetaInfoParams struct {
@@ -164,7 +157,7 @@ func (resourceConfigValue *MetaResourceConfigValue) BuildConfigValue(mapping map
 	}
 
 	if resourceConfigValue.LimitsMemory != nil && resourceConfig.LimitsMemory != nil {
-		mapping[resourceConfig.LimitsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.LimitsMemory, k8sResourceMemoryUnit)
+		mapping[resourceConfig.LimitsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.LimitsMemory, util.K8sResourceMemoryUnit)
 	}
 	if resourceConfigValue.LimitsGpu != nil && resourceConfig.LimitsGpu != nil {
 		mapping[resourceConfig.LimitsGpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.LimitsGpu)
@@ -173,7 +166,7 @@ func (resourceConfigValue *MetaResourceConfigValue) BuildConfigValue(mapping map
 		mapping[resourceConfig.LimitsCpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.LimitsCpu)
 	}
 	if resourceConfigValue.RequestsMemory != nil && resourceConfig.RequestsMemory != nil {
-		mapping[resourceConfig.RequestsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.RequestsMemory, k8sResourceMemoryUnit)
+		mapping[resourceConfig.RequestsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.RequestsMemory, util.K8sResourceMemoryUnit)
 	}
 	if resourceConfigValue.RequestsGpu != nil && resourceConfig.RequestsGpu != nil {
 		mapping[resourceConfig.RequestsGpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.RequestsGpu)
@@ -205,7 +198,7 @@ func buildResourceStorageArrayValues(mapping map[string]interface{}, resourceSto
 		if resourceStorageConfig, ok := resourceStorageConfigMap[resourceStorageConfigValue.Name]; ok {
 			resourceStorageWithStringSize := MetaResourceStorageWithStringSize{
 				ResourceStorage: resourceStorageConfigValue.Value.ResourceStorage,
-				Size: convertResourceBinaryIntByUnit(&resourceStorageConfigValue.Value.Size, k8sResourceStorageUnit),
+				Size: convertResourceBinaryIntByUnit(&resourceStorageConfigValue.Value.Size, util.K8sResourceStorageUnit),
 			}
 			mapping[resourceStorageConfig.MapKey] = resourceStorageWithStringSize
 		}

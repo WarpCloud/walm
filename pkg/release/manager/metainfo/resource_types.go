@@ -7,12 +7,7 @@ import (
 	"strconv"
 	"fmt"
 	"encoding/json"
-)
-
-const (
-	k8sResourceMemoryScale  int64   = 1024 * 1024
-	k8sResourceStorageScale int64   = 1024 * 1024 * 1024
-	k8sResourceCpuScale     float64 = 1000
+	"walm/pkg/util"
 )
 
 type MetaResourceIntConfig struct {
@@ -26,7 +21,7 @@ func (config *MetaResourceIntConfig) BuildDefaultValue(jsonStr string) {
 func (config *MetaResourceIntConfig) BuildIntConfigValue(jsonStr string) int64 {
 	quantity := parseK8sResourceQuantity(jsonStr, config.MapKey)
 	if quantity != nil {
-		return quantity.Value() / k8sResourceMemoryScale
+		return quantity.Value() / util.K8sResourceMemoryScale
 	}
 	return 0
 }
@@ -58,7 +53,7 @@ func (config *MetaResourceFloatConfig) BuildDefaultValue(jsonStr string) {
 func (config *MetaResourceFloatConfig) BuildFloatConfigValue(jsonStr string) float64 {
 	quantity := parseK8sResourceQuantity(jsonStr, config.MapKey)
 	if quantity != nil {
-		return float64(quantity.MilliValue()) / k8sResourceCpuScale
+		return float64(quantity.MilliValue()) / util.K8sResourceCpuScale
 	}
 	return 0
 }
@@ -107,7 +102,7 @@ func (config *MetaResourceStorageConfig) BuildStorageConfigValue(jsonStr string)
 				logrus.Warnf("failed to parse quantity %s : %s", resourceStorageWithStringSize.Size, err.Error())
 				return nil
 			}
-			resourceStorageConfigValue.Value.Size = quantity.Value() / k8sResourceStorageScale
+			resourceStorageConfigValue.Value.Size = quantity.Value() / util.K8sResourceStorageScale
 		}
 	}
 	return resourceStorageConfigValue
