@@ -8,12 +8,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-const deleteDesc = `This command delete a walm release, project or a release of project.
-
-support cmds format:
+const deleteDesc = `Delete walm resources by source name.
+delete release, project or release in project.
+support format:
 walmctl delete release releaseName
 walmctl delete project projectName
 walmctl delete release releaseName -p projectName
+
+Note that the delete command does NOT do resource version checks, so if someone submits an update to
+a resource right when you submit a delete, their update will be lost along with the rest of the
+resource.
 `
 
 type deleteCmd struct {
@@ -31,29 +35,33 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "delete release/project releaseName/projectName",
+		DisableFlagsInUseLine: true,
 		Short: "delete a release, project or a release of project",
 		Long:  deleteDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if namespace == "" {
-				return errors.New("flag --namespace/-n required")
-			}
 			if walmserver == "" {
-				return errors.New("flag --server/-s required")
-
+				return errServerRequired
 			}
+			if namespace == "" {
+				return errNamespaceRequired
+			}
+
 			if len(args) != 2 {
-				return errors.New("arguments error, delete release [releaseName] or delete project [projectName]")
+				return errors.New("arguments error, delete release/project releaseName/projectName")
+			}
+
+			err := checkResourceType(args[0])
+			if err != nil {
+				return err
 			}
 			dc.sourceType = args[0]
+
 			if dc.sourceType == "release" {
 				dc.releaseName = args[1]
-			} else if dc.sourceType == "project" {
-				dc.projectName = args[1]
 			} else {
-				return errors.New("delete [args]: first arg must be release or project")
+				dc.projectName = args[1]
 			}
-
 			return dc.run()
 		},
 	}
@@ -61,25 +69,23 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 	cmd.Flags().BoolVar(&dc.deletePvcs, "deletePvcs", true, "whether to delete pvcs related release")
 	cmd.Flags().Int64Var(&dc.timeoutSec, "timeoutSec", 0, "timeout (default 0)")
 	cmd.Flags().BoolVar(&dc.async, "async", true, "whether asynchronous")
-	cmd.Flags().StringVarP(&dc.projectName, "project", "p", "", "operate resources of the project")
+	cmd.Flags().StringVarP(&dc.projectName, "project", "p", "", "operate resource of project")
+
 	return cmd
 }
 
 func (dc *deleteCmd) run() error {
 
-	// Todo: [Bug] delete release which not exists, also return OK
 	var err error
-
 	client := walmctlclient.CreateNewClient(walmserver)
 
 	if dc.sourceType == "project" {
 		_, err = client.DeleteProject(namespace, dc.projectName, dc.async, dc.timeoutSec, dc.deletePvcs)
-
 		if err != nil {
 			return err
 		}
-
 		fmt.Printf("project %s deleted", dc.projectName)
+
 	} else {
 		if dc.projectName == "" {
 			_, err = client.DeleteRelease(namespace, dc.releaseName, dc.async, dc.timeoutSec, dc.deletePvcs)

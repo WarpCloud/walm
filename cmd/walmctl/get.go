@@ -7,10 +7,12 @@ import (
 	"walm/cmd/walmctl/walmctlclient"
 	"fmt"
 	"github.com/ghodss/yaml"
+	"github.com/go-resty/resty"
 )
 
 const getDesc = `
-This command get a walm release or project info under specific namespace
+Get a walm release or project detail info.
+Options:
 use --output/-o to print with json/yaml format.
 `
 
@@ -27,56 +29,62 @@ func newGetCmd(out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use: "get release/project releaseName/projectName",
+		DisableFlagsInUseLine: true,
 		Short: "get a release/project info",
 		Long: getDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if namespace == "" {
-				return errors.New("flag --namespace/-n required")
-			}
+
 			if walmserver == "" {
-				return errors.New("flag --server/-s required")
+				return errServerRequired
 			}
-			if len(args) != 2 {
-				return errors.New("arguments error, get release [releaseName] or get project [projectName]")
-			}
-			gc.sourceType = args[0]
-			if gc.sourceType != "release" && gc.sourceType != "project" {
-				return errors.New("get [args]: first arg must one of: release|project")
+			if namespace == "" {
+				return errNamespaceRequired
 			}
 
-			if gc.output != "yaml" && gc.output != "json" && gc.output != "" {
-				return errors.New("flag --output/-o needs an argument, yaml/json")
+			if len(args) != 2 {
+				return errors.New("arguments error, get release/project releaseName/projectName")
 			}
+
+			gc.sourceType = args[0]
 			gc.sourceName = args[1]
 			return gc.run()
 		},
 	}
 
-	cmd.Flags().StringVarP(&gc.output, "output", "o", "", "-o, --output='': Output format for detail description. One of: json|yaml")
-	cmd.MarkFlagRequired("output")
+	cmd.Flags().StringVarP(&gc.output, "output", "o", "json", "-o, --output='': Output format for detail description. Support: json, yaml")
 	return cmd
 }
 
+func (gc *getCmd) run() error {
 
-func (c *getCmd) run() error {
+	var resp *resty.Response
+	var err error
 
-	resp, err := walmctlclient.CreateNewClient(walmserver).GetSource(namespace, c.sourceName, c.sourceType)
+	err = checkResourceType(gc.sourceType)
+	if err != nil {
+		return err
+	}
+	if gc.sourceType == "release" {
+		resp, err = walmctlclient.CreateNewClient(walmserver).GetRelease(namespace, gc.sourceName)
+	} else {
+		resp, err = walmctlclient.CreateNewClient(walmserver).GetProject(namespace, gc.sourceName)
+	}
 
 	if err != nil {
 		return err
 	}
 
-	if c.output == "yaml" {
+	if gc.output == "yaml" {
 		respByte, err := yaml.JSONToYAML(resp.Body())
 		if err != nil {
 			return errors.New(err.Error())
 		}
 		fmt.Printf(string(respByte))
 
-	} else if c.output == "json" {
+	} else if gc.output == "json" {
 		fmt.Println(resp)
 	} else {
-		// Todo: optimization in processing without flag --output|-o, consider add in the future
+		return errors.Errorf("output format %s not recognized, only support yaml, json", gc.output)
 	}
 
 	return nil

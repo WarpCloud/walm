@@ -36,18 +36,17 @@ func newUpdateCmd(out io.Writer) *cobra.Command {
 		Long: updateDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if namespace == "" {
-				return errors.New("flag --namespace/-n required")
+				return errNamespaceRequired
 			}
 			if walmserver == "" {
-				return errors.New("flag --server/-s required")
-
+				return errServerRequired
 			}
 			if len(args) != 2 {
 				return errors.New("releaseName/projectName required, use update release [releaseName] or use project [projectName]")
 			}
 
 			if args[0] != "release" {
-				return errors.New("release/project required, the walm source type you want to update")
+				return errors.New("now support release only")
 			}
 
 			uc.sourceType = args[0]
@@ -67,19 +66,14 @@ func newUpdateCmd(out io.Writer) *cobra.Command {
 func (uc *updateCmd) run() error {
 
 	client := walmctlclient.CreateNewClient(walmserver)
-	resp, err := client.GetSource(namespace, uc.sourceName, uc.sourceType)
+	resp, err := client.GetRelease(namespace, uc.sourceName)
 	if err != nil {
 		return err
 	}
 
-	// 1.check release/project is found
-
 	if resp.StatusCode() == 404 {
 		return errors.Errorf("%s %s is not found.", uc.sourceType, uc.sourceName)
 	}
-
-
-	// 2.update config
 
 	baseConfig := map[string]interface{}{}
 

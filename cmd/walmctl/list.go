@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"github.com/spf13/cobra"
-	"errors"
 	"github.com/go-resty/resty"
 	"walm/cmd/walmctl/walmctlclient"
 	"fmt"
@@ -13,10 +12,18 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gosuri/uitable"
 	"github.com/bitly/go-simplejson"
+	"github.com/pkg/errors"
 )
 
 const listDesc = `
 This command shows walm releases,projects or releases in a project under namespace.
+Examples:
+  # List all releases in ps output format.
+  walmctl list release
+  # List all projects in ps output format.
+  walmctl list project
+  # List all releases of a specific project in ps output format
+  walmctl list release -p projectName
 `
 
 type listCmd struct {
@@ -51,21 +58,14 @@ func newListCmd(out io.Writer) *cobra.Command {
 		Short: "show release/project under specific namespace",
 		Long:  listDesc,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if namespace == "" {
-				return errors.New("flag --namespace/-n required")
-			}
-			if walmserver == "" {
-				return errors.New("flag --server/-s required")
 
+			if walmserver == "" {
+				return errServerRequired
 			}
-			if len(args) != 1 {
-				return errors.New("arguments release/project required after command list")
+			if namespace == "" {
+				return errNamespaceRequired
 			}
 			lc.sourceType = args[0]
-			if lc.sourceType != "release" && lc.sourceType != "project" {
-				return errors.New("arguments error, release/project accept only")
-			}
-
 			return lc.run()
 		},
 	}
@@ -76,19 +76,23 @@ func newListCmd(out io.Writer) *cobra.Command {
 	return cmd
 }
 
-func (c *listCmd) run() error {
+func (lc *listCmd) run() error {
 
-	var resp *resty.Response
 	var err error
 	var output string
-
-	client := walmctlclient.CreateNewClient(walmserver)
-
-	projectInfo := project.ProjectInfo{}
+	var resp *resty.Response
+	var projectInfo project.ProjectInfo
 	var releases []*release.ReleaseInfoV2
 	var projects []*project.ProjectInfo
 
-	if c.sourceType == "project" {
+	err = checkResourceType(lc.sourceType)
+	if err != nil {
+		return nil
+	}
+
+	client := walmctlclient.CreateNewClient(walmserver)
+
+	if lc.sourceType == "project" {
 		resp, err = client.ListProject(namespace)
 		respJson, _ := simplejson.NewJson(resp.Body())
 		respByte, _ := respJson.Get("items").MarshalJSON()
@@ -97,21 +101,21 @@ func (c *listCmd) run() error {
 			return err
 		}
 
-		result := c.getProjectResult(projects)
-		output, err = formatProjectResult(c.output, result)
+		result := lc.getProjectResult(projects)
+		output, err = formatProjectResult(lc.output, result)
 		if err != nil {
 			return err
 		}
 
 	} else {
-		if c.projectName == "" {
-			resp, err = client.ListRelease(namespace, c.labelSelector)
+		if lc.projectName == "" {
+			resp, err = client.ListRelease(namespace, lc.labelSelector)
 			respJson, _ := simplejson.NewJson(resp.Body())
 			respByte, _ := respJson.Get("items").MarshalJSON()
 			err = json.Unmarshal(respByte, &releases)
 
 		} else {
-			resp, err = client.GetSource(namespace, c.projectName, "project")
+			resp, err = client.GetProject(namespace, lc.projectName)
 			if err != nil {
 				return err
 			}
@@ -122,18 +126,18 @@ func (c *listCmd) run() error {
 
 			releases = projectInfo.Releases
 		}
-		result := c.getListResult(releases)
-		output, err = formatReleaseResult(c.output, result)
+		result := lc.getListResult(releases)
+		output, err = formatReleaseResult(lc.output, result)
 		if err != nil {
 			return err
 		}
 	}
 
-	fmt.Fprintln(c.out, output)
+	fmt.Fprintln(lc.out, output)
 	return nil
 }
 
-func (c *listCmd) getListResult(releases []*release.ReleaseInfoV2) []listRelease {
+func (lc *listCmd) getListResult(releases []*release.ReleaseInfoV2) []listRelease {
 
 	var listReleases []listRelease
 
@@ -153,7 +157,7 @@ func (c *listCmd) getListResult(releases []*release.ReleaseInfoV2) []listRelease
 
 }
 
-func (c *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProject {
+func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProject {
 	var listProjects []listProject
 
 	for _, project := range projects {
@@ -171,8 +175,8 @@ func (c *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProjec
 
 func formatReleaseResult(format string, result []listRelease) (string, error) {
 
-	var output string
 	var err error
+	var output string
 	var finalResult interface{}
 
 	finalResult = result
@@ -184,19 +188,19 @@ func formatReleaseResult(format string, result []listRelease) (string, error) {
 	case "json":
 		o, e := json.Marshal(finalResult)
 		if e != nil {
-			err = fmt.Errorf("Failed to Marshal JSON output: %s", e)
+			err = errors.Errorf("Failed to Marshal JSON. output:\n%s", e)
 		} else {
 			output = string(o)
 		}
 	case "yaml":
 		o, e := yaml.Marshal(finalResult)
 		if e != nil {
-			err = fmt.Errorf("Failed to Marshal YAML output: %s", e)
+			err = errors.Errorf("Failed to Marshal YAML. output:\n%s", e)
 		} else {
 			output = string(o)
 		}
 	default:
-		err = fmt.Errorf("Unknown output format \"%s\"", format)
+		err = errors.Errorf("Unknown output format.\n%s", format)
 	}
 
 	return output, err
@@ -217,19 +221,19 @@ func formatProjectResult(format string, result []listProject) (string, error) {
 	case "json":
 		o, e := json.Marshal(finalResult)
 		if e != nil {
-			err = fmt.Errorf("Failed to Marshal JSON output: %s", e)
+			err = errors.Errorf("Failed to Marshal JSON. output:\n%s", e)
 		} else {
 			output = string(o)
 		}
 	case "yaml":
 		o, e := yaml.Marshal(finalResult)
 		if e != nil {
-			err = fmt.Errorf("Failed to Marshal YAML output: %s", e)
+			err = errors.Errorf("Failed to Marshal YAML. output:\n%s", e)
 		} else {
 			output = string(o)
 		}
 	default:
-		err = fmt.Errorf("Unknown output format \"%s\"", format)
+		err = errors.Errorf("Unknown output format.\n%s", format)
 	}
 
 	return output, err
