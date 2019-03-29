@@ -116,11 +116,11 @@ func (roleConfigValue *MetaRoleConfigValue) BuildConfigValue(mapping map[string]
 }
 
 type MetaRoleBaseConfigValue struct {
-	Image          string                   `json:"image" description:"role image"`
-	Priority       int64                    `json:"priority" description:"role priority"`
-	Replicas       int64                    `json:"replicas" description:"role replicas"`
+	Image          *string                   `json:"image" description:"role image"`
+	Priority       *int64                    `json:"priority" description:"role priority"`
+	Replicas       *int64                    `json:"replicas" description:"role replicas"`
 	Env            []MetaEnv                `json:"env" description:"role env list"`
-	UseHostNetwork bool                     `json:"useHostNetwork" description:"whether role use host network"`
+	UseHostNetwork *bool                     `json:"useHostNetwork" description:"whether role use host network"`
 	Others         []*MetaCommonConfigValue `json:"others" description:"role other configs"`
 }
 
@@ -129,33 +129,32 @@ func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map
 		return
 	}
 
-	if roleBaseConfig.Image != nil && roleBaseConfigValue.Image != "" {
-		mapping[roleBaseConfig.Image.MapKey] = roleBaseConfigValue.Image
+	if roleBaseConfig.Image != nil && roleBaseConfigValue.Image != nil {
+		mapping[roleBaseConfig.Image.MapKey] = *roleBaseConfigValue.Image
 	}
-	// TODO bool use pointer?
-	if roleBaseConfig.UseHostNetwork != nil {
-		mapping[roleBaseConfig.UseHostNetwork.MapKey] = roleBaseConfigValue.UseHostNetwork
+	if roleBaseConfig.UseHostNetwork != nil && roleBaseConfigValue.UseHostNetwork != nil{
+		mapping[roleBaseConfig.UseHostNetwork.MapKey] = *roleBaseConfigValue.UseHostNetwork
 	}
-	if roleBaseConfig.Priority != nil && roleBaseConfigValue.Priority != 0 {
-		mapping[roleBaseConfig.Priority.MapKey] = roleBaseConfigValue.Priority
+	if roleBaseConfig.Priority != nil && roleBaseConfigValue.Priority != nil {
+		mapping[roleBaseConfig.Priority.MapKey] = *roleBaseConfigValue.Priority
 	}
 	if roleBaseConfig.Env != nil && len(roleBaseConfigValue.Env) > 0 {
 		mapping[roleBaseConfig.Env.MapKey] = roleBaseConfigValue.Env
 	}
-	if roleBaseConfig.Replicas != nil && roleBaseConfigValue.Replicas != 0 {
-		mapping[roleBaseConfig.Replicas.MapKey] = roleBaseConfigValue.Replicas
+	if roleBaseConfig.Replicas != nil && roleBaseConfigValue.Replicas != nil {
+		mapping[roleBaseConfig.Replicas.MapKey] = *roleBaseConfigValue.Replicas
 	}
 
 	buildCommonConfigArrayValues(mapping, roleBaseConfigValue.Others, roleBaseConfig.Others)
 }
 
 type MetaResourceConfigValue struct {
-	LimitsMemory     int64                             `json:"limitsMemory" description:"resource memory limit"`
-	LimitsCpu        float64                           `json:"limitsCpu" description:"resource cpu limit"`
-	LimitsGpu        float64                           `json:"limitsGpu" description:"resource gpu limit"`
-	RequestsMemory   int64                             `json:"requestsMemory" description:"resource memory request"`
-	RequestsCpu      float64                           `json:"requestsCpu" description:"resource cpu request"`
-	RequestsGpu      float64                           `json:"requestsGpu" description:"resource gpu request"`
+	LimitsMemory     *int64                             `json:"limitsMemory" description:"resource memory limit"`
+	LimitsCpu        *float64                           `json:"limitsCpu" description:"resource cpu limit"`
+	LimitsGpu        *float64                           `json:"limitsGpu" description:"resource gpu limit"`
+	RequestsMemory   *int64                             `json:"requestsMemory" description:"resource memory request"`
+	RequestsCpu      *float64                           `json:"requestsCpu" description:"resource cpu request"`
+	RequestsGpu      *float64                           `json:"requestsGpu" description:"resource gpu request"`
 	StorageResources []*MetaResourceStorageConfigValue `json:"storageResources" description:"resource storage request"`
 }
 
@@ -164,22 +163,22 @@ func (resourceConfigValue *MetaResourceConfigValue) BuildConfigValue(mapping map
 		return
 	}
 
-	if resourceConfigValue.LimitsMemory != 0 && resourceConfig.LimitsMemory != nil {
+	if resourceConfigValue.LimitsMemory != nil && resourceConfig.LimitsMemory != nil {
 		mapping[resourceConfig.LimitsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.LimitsMemory, k8sResourceMemoryUnit)
 	}
-	if resourceConfigValue.LimitsGpu != 0 && resourceConfig.LimitsGpu != nil {
+	if resourceConfigValue.LimitsGpu != nil && resourceConfig.LimitsGpu != nil {
 		mapping[resourceConfig.LimitsGpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.LimitsGpu)
 	}
-	if resourceConfigValue.LimitsCpu != 0 && resourceConfig.LimitsCpu != nil {
+	if resourceConfigValue.LimitsCpu != nil && resourceConfig.LimitsCpu != nil {
 		mapping[resourceConfig.LimitsCpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.LimitsCpu)
 	}
-	if resourceConfigValue.RequestsMemory != 0 && resourceConfig.RequestsMemory != nil {
+	if resourceConfigValue.RequestsMemory != nil && resourceConfig.RequestsMemory != nil {
 		mapping[resourceConfig.RequestsMemory.MapKey] = convertResourceBinaryIntByUnit(resourceConfigValue.RequestsMemory, k8sResourceMemoryUnit)
 	}
-	if resourceConfigValue.RequestsGpu != 0 && resourceConfig.RequestsGpu != nil {
+	if resourceConfigValue.RequestsGpu != nil && resourceConfig.RequestsGpu != nil {
 		mapping[resourceConfig.RequestsGpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.RequestsGpu)
 	}
-	if resourceConfigValue.RequestsCpu != 0 && resourceConfig.RequestsCpu != nil {
+	if resourceConfigValue.RequestsCpu != nil && resourceConfig.RequestsCpu != nil {
 		mapping[resourceConfig.RequestsCpu.MapKey] = convertResourceDecimalFloat(resourceConfigValue.RequestsCpu)
 	}
 
@@ -206,7 +205,7 @@ func buildResourceStorageArrayValues(mapping map[string]interface{}, resourceSto
 		if resourceStorageConfig, ok := resourceStorageConfigMap[resourceStorageConfigValue.Name]; ok {
 			resourceStorageWithStringSize := MetaResourceStorageWithStringSize{
 				ResourceStorage: resourceStorageConfigValue.Value.ResourceStorage,
-				Size: convertResourceBinaryIntByUnit(resourceStorageConfigValue.Value.Size, k8sResourceStorageUnit),
+				Size: convertResourceBinaryIntByUnit(&resourceStorageConfigValue.Value.Size, k8sResourceStorageUnit),
 			}
 			mapping[resourceStorageConfig.MapKey] = resourceStorageWithStringSize
 		}

@@ -127,10 +127,10 @@ func parseResourceStorageWithStringSize(jsonStr, mapKey string) *MetaResourceSto
 	return resourceStorage
 }
 
-func convertResourceBinaryIntByUnit(i int64, unit string) string {
-	return strconv.FormatInt(i, 10) + unit
+func convertResourceBinaryIntByUnit(i *int64, unit string) string {
+	return strconv.FormatInt(*i, 10) + unit
 }
 
-func convertResourceDecimalFloat(f float64) string {
-	return fmt.Sprintf("%g", f)
+func convertResourceDecimalFloat(f *float64) string {
+	return fmt.Sprintf("%g", *f)
 }

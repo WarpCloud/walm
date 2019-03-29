@@ -287,7 +287,8 @@ func GetChartMetaInfo(rawChart *chart.Chart) (chartMetaInfo *metainfo.ChartMetaI
 			chartMetaInfo = &metainfo.ChartMetaInfo{}
 			err = yaml.Unmarshal(f.Data, chartMetaInfo)
 			if err != nil {
-				logrus.Error(errors.Wrapf(err, "chartMetaInfo Unmarshal metainfo.yaml error"))
+				logrus.Error(errors.Wrapf(err, "chart %s-%s MetaInfo Unmarshal metainfo.yaml error",
+					rawChart.Metadata.Name, rawChart.Metadata.Version))
 				return
 			}
 			return

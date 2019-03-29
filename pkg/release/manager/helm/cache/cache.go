@@ -599,26 +599,24 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 	}
 
 	releaseCache.ReleaseResourceMetas, err = cache.getReleaseResourceMetas(helmRelease)
-	metaInfoValues, err := buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
-	if err != nil {
-		logrus.Errorf("failed to build meta info values : %s", err.Error())
-		return nil, err
-	}
-	releaseCache.MetaInfoValues = metaInfoValues
+	releaseCache.MetaInfoValues = buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
 	return
 }
 
-func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface{}) (*metainfo.MetaInfoParams, error) {
+func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface{}) (*metainfo.MetaInfoParams) {
 	chartMetaInfo, err := transwarpjsonnet.GetChartMetaInfo(chart)
 	if err != nil {
-		logrus.Errorf("failed to get chart meta info : %s", err.Error())
-		return nil, err
+		return nil
 	}
 	if chartMetaInfo != nil {
-		return chartMetaInfo.BuildMetaInfoParams(computedValues)
+		metaInfoParams, err := chartMetaInfo.BuildMetaInfoParams(computedValues)
+		if err != nil {
+			return nil
+		}
+		return metaInfoParams
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {

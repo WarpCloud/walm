@@ -83,6 +83,7 @@ func (chartDependencyMetaInfo *ChartDependencyMetaInfo) AutoDependency() bool {
 type MetaRoleConfig struct {
 	Name                  string                 `json:"name"`
 	Description           string                 `json:"description"`
+	Type                  string                 `json:"type"`
 	RoleBaseConfig        *MetaRoleBaseConfig    `json:"baseConfig"`
 	RoleResourceConfig    *MetaResourceConfig    `json:"resources"`
 	RoleHealthCheckConfig *MetaHealthCheckConfig `json:"healthChecks"`
@@ -143,19 +144,23 @@ func (roleBaseConfig *MetaRoleBaseConfig) BuildDefaultValue(jsonStr string) {
 func (roleBaseConfig *MetaRoleBaseConfig) BuildRoleBaseConfigValue(jsonStr string) *MetaRoleBaseConfigValue {
 	roleBaseConfigValue := &MetaRoleBaseConfigValue{}
 	if roleBaseConfig.Image != nil {
-		roleBaseConfigValue.Image = roleBaseConfig.Image.BuildStringConfigValue(jsonStr)
+		image := roleBaseConfig.Image.BuildStringConfigValue(jsonStr)
+		roleBaseConfigValue.Image = &image
 	}
 	if roleBaseConfig.Replicas != nil {
-		roleBaseConfigValue.Replicas = roleBaseConfig.Replicas.BuildIntConfigValue(jsonStr)
+		replicas := roleBaseConfig.Replicas.BuildIntConfigValue(jsonStr)
+		roleBaseConfigValue.Replicas = &replicas
 	}
 	if roleBaseConfig.Env != nil {
 		roleBaseConfigValue.Env = roleBaseConfig.Env.BuildEnvConfigValue(jsonStr)
 	}
 	if roleBaseConfig.UseHostNetwork != nil {
-		roleBaseConfigValue.UseHostNetwork = roleBaseConfig.UseHostNetwork.BuildBoolConfigValue(jsonStr)
+		useHostNetwork := roleBaseConfig.UseHostNetwork.BuildBoolConfigValue(jsonStr)
+		roleBaseConfigValue.UseHostNetwork = &useHostNetwork
 	}
 	if roleBaseConfig.Priority != nil {
-		roleBaseConfigValue.Priority = roleBaseConfig.Priority.BuildIntConfigValue(jsonStr)
+		priority := roleBaseConfig.Priority.BuildIntConfigValue(jsonStr)
+		roleBaseConfigValue.Priority = &priority
 	}
 	for _, config := range roleBaseConfig.Others {
 		if config != nil {
@@ -205,22 +210,28 @@ func (config *MetaResourceConfig) BuildDefaultValue(jsonStr string) {
 func (config *MetaResourceConfig) BuildResourceConfigValue(jsonStr string) *MetaResourceConfigValue {
 	resourceConfigValue := &MetaResourceConfigValue{}
 	if config.LimitsMemory != nil {
-		resourceConfigValue.LimitsMemory = config.LimitsMemory.BuildIntConfigValue(jsonStr)
+		limitsMemory := config.LimitsMemory.BuildIntConfigValue(jsonStr)
+		resourceConfigValue.LimitsMemory = &limitsMemory
 	}
 	if config.LimitsGpu != nil {
-		resourceConfigValue.LimitsGpu = config.LimitsGpu.BuildFloatConfigValue(jsonStr)
+		limitsGpu := config.LimitsGpu.BuildFloatConfigValue(jsonStr)
+		resourceConfigValue.LimitsGpu = &limitsGpu
 	}
 	if config.LimitsCpu != nil {
-		resourceConfigValue.LimitsCpu = config.LimitsCpu.BuildFloatConfigValue(jsonStr)
+		limitsCpu := config.LimitsCpu.BuildFloatConfigValue(jsonStr)
+		resourceConfigValue.LimitsCpu = &limitsCpu
 	}
 	if config.RequestsMemory != nil {
-		resourceConfigValue.RequestsMemory = config.RequestsMemory.BuildIntConfigValue(jsonStr)
+		requestsMemory := config.RequestsMemory.BuildIntConfigValue(jsonStr)
+		resourceConfigValue.RequestsMemory = &requestsMemory
 	}
 	if config.RequestsGpu != nil {
-		resourceConfigValue.RequestsGpu = config.RequestsGpu.BuildFloatConfigValue(jsonStr)
+		requestsGpu := config.RequestsGpu.BuildFloatConfigValue(jsonStr)
+		resourceConfigValue.RequestsGpu = &requestsGpu
 	}
 	if config.RequestsCpu != nil {
-		resourceConfigValue.RequestsCpu = config.RequestsCpu.BuildFloatConfigValue(jsonStr)
+		requestsCpu := config.RequestsCpu.BuildFloatConfigValue(jsonStr)
+		resourceConfigValue.RequestsCpu = &requestsCpu
 	}
 
 	for _, storageConfig := range config.StorageResources {
