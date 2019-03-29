@@ -325,8 +325,9 @@ type WalmNode struct {
 }
 
 type WarpDriveStorage struct {
-	PoolName    string `json:"poolName" description:"pool name"`
-	StorageLeft int64  `json:"storageLeft" description:"storage left, unit: kb"`
+	PoolName     string `json:"poolName" description:"pool name"`
+	StorageLeft  int64  `json:"storageLeft" description:"storage left, unit: kb"`
+	StorageTotal int64  `json:"storageTotal" description:"storage total, unit: kb"`
 }
 
 type PoolResource struct {

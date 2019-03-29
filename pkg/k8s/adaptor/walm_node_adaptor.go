@@ -94,6 +94,7 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 					}
 					for _, subPool := range poolResource.SubPools {
 						warpDriveStorage.StorageLeft += subPool.Size - subPool.UsedSize
+						warpDriveStorage.StorageTotal += subPool.Size
 					}
 					walmNode.WarpDriveStorageList = append(walmNode.WarpDriveStorageList, warpDriveStorage)
 				}
