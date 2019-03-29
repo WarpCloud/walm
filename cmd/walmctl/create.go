@@ -2,15 +2,24 @@ package main
 
 import (
 	"io"
-	"github.com/pkg/errors"
 	"path/filepath"
 	"walm/cmd/walmctl/walmctlclient"
 	"github.com/spf13/cobra"
 	"fmt"
 )
 
-const createDesc = `This command creates a walm release or project along with existing yaml/json files.
-'walmctl create' takes a parameter which decide the source type, release or project.
+const createDesc = `This command creates a walm release or project(collection of releases) 
+along with the common yaml or json formatted file.
+For example, 'helm create release -f txsql.yaml' will deploy a txsql
+release in specific namespace.
+
+'helm create' takes an argument values release or project to specify
+the source type to create. Also, filepath and release/project name required.
+
+Advanced:
+There are options you can define, while usually not need.
+--async(bool):     asynchronous or synchronous(default asynchronous, false)
+--timeoutSec(int): timeout for work(default 0)
 `
 
 type createCmd struct {
@@ -28,62 +37,59 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create release/project",
 		Short: "create a release/project based on json/yaml",
+		DisableFlagsInUseLine: true,
 		Long:  createDesc,
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if namespace == "" {
-				return errors.New("flag --namespace/-n required")
-			}
 			if walmserver == "" {
-				return errors.New("flag --server/-s required")
+				return errServerRequired
 			}
-			if len(args) != 1 {
-				return errors.New("arguments release/project required after command create")
+			if namespace == "" {
+				return errNamespaceRequired
 			}
-
 			cc.sourceType = args[0]
-
-			if cc.sourceType != "release" && cc.sourceType != "project" {
-				return errors.New("arguments error, release/project accept only")
-			}
 			return cc.run()
 		},
 	}
 
 	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
 	cmd.Flags().StringVar(&cc.sourceName, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
-	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout, (default 0)")
-	cmd.Flags().BoolVar(&cc.async, "async", true, "whether asynchronous")
-
+	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout")
+	cmd.Flags().BoolVar(&cc.async, "async", false, "whether asynchronous")
+	cmd.MarkFlagRequired("namespace")
 	cmd.MarkFlagRequired("file")
-	cmd.MarkFlagRequired("name")
-
 	return cmd
 }
 
-func (c *createCmd) run() error {
+func (cc *createCmd) run() error {
 
-	// Todo:// read url files
-	var err error
+	err := checkResourceType(cc.sourceType)
+	if err != nil {
+		return err
+	}
 
-	filePath, err := filepath.Abs(c.file)
+	filePath, err := filepath.Abs(cc.file)
 	if err != nil {
 		return err
 	}
 
 	client := walmctlclient.CreateNewClient(walmserver)
 
-	if c.sourceType == "release" {
-		_, err = client.CreateRelease(namespace, c.sourceName, c.async, c.timeoutSec, filePath)
+	if cc.sourceType == "release" {
+		_, err = client.CreateRelease(namespace, cc.sourceName, cc.async, cc.timeoutSec, filePath)
 
 	} else {
-		_, err = client.CreateProject(namespace, c.sourceName, c.async, c.timeoutSec, filePath)
+		if cc.sourceName == "" {
+			return errProjectNameRequired
+		}
+		_, err = client.CreateProject(namespace, cc.sourceName, cc.async, cc.timeoutSec, filePath)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s %s created", c.sourceType, c.sourceName)
+	fmt.Printf("%s %s created", cc.sourceType, cc.sourceName)
 	return nil
 }

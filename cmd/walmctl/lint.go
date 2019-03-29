@@ -36,7 +36,7 @@ If the linter encounters things that will cause the chart to fail installation,
 it will emit [ERROR] messages. If it encounters issues that break with convention
 or recommendation, it will emit [WARNING] messages.
 `
-// Todo: check and raise warning signal when unrecognized fields in metainfo.yaml
+// Todo: marshall metainfo.yaml to defined structure and add validate method in class
 
 type lintOptions struct {
 	chartPath  string
