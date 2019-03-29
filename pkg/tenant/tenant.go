@@ -9,6 +9,9 @@ import (
 	"walm/pkg/k8s/adaptor"
 	walmerr "walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"walm/pkg/util"
+	"walm/pkg/release/manager/helm"
+	"sync"
 )
 
 func ListTenants() (TenantInfoList, error) {
@@ -46,6 +49,7 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 		TenantAnnotitions:  namespace.Annotations,
 		TenantStatus:       namespace.Status.String(),
 		TenantQuotas:       []*TenantQuota{},
+		UnifyUnitTenantQuotas: []*UnifyUnitTenantQuota{},
 	}
 
 	if tenantInfo.TenantLabels == nil {
@@ -89,10 +93,70 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 			RequestsMemory:  walmResourceQuota.ResourceUsed[corev1.ResourceRequestsMemory],
 			RequestsCPU:     walmResourceQuota.ResourceUsed[corev1.ResourceRequestsCPU],
 		}
-		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &TenantQuota{walmResourceQuota.Name,&hard, &used})
+		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &TenantQuota{walmResourceQuota.Name, &hard, &used})
+		tenantInfo.UnifyUnitTenantQuotas = append(tenantInfo.UnifyUnitTenantQuotas, buildUnifyUnitTenantQuota(walmResourceQuota.Name, hard, used))
 	}
 
 	return &tenantInfo, nil
+}
+
+func buildUnifyUnitTenantQuota(name string, hard TenantQuotaInfo, used TenantQuotaInfo) *UnifyUnitTenantQuota {
+	return &UnifyUnitTenantQuota{
+		QuotaName: name,
+		Hard: buildUnifyUnitTenantInfo(hard),
+		Used: buildUnifyUnitTenantInfo(used),
+	}
+}
+
+func buildUnifyUnitTenantInfo(info TenantQuotaInfo) *UnifyUnitTenantQuotaInfo {
+	return &UnifyUnitTenantQuotaInfo{
+		RequestsCPU:     parseCpuValue(info.RequestsCPU),
+		RequestsMemory:  parseMemoryValue(info.RequestsMemory),
+		RequestsStorage: parseStorageValue(info.RequestsStorage),
+		LimitMemory:     parseMemoryValue(info.LimitMemory),
+		LimitCpu:        parseCpuValue(info.LimitCpu),
+		Pods:            parsePodValue(info.Pods),
+	}
+}
+
+func parseCpuValue(s string) float64 {
+	quantity, err := resource.ParseQuantity(s)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", s, err.Error())
+	} else {
+		return float64(quantity.MilliValue()) / util.K8sResourceCpuScale
+	}
+	return 0
+}
+
+func parseMemoryValue(s string) int64 {
+	quantity, err := resource.ParseQuantity(s)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", s, err.Error())
+	} else {
+		return quantity.Value() / util.K8sResourceMemoryScale
+	}
+	return 0
+}
+
+func parseStorageValue(s string) int64 {
+	quantity, err := resource.ParseQuantity(s)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", s, err.Error())
+	} else {
+		return quantity.Value() / util.K8sResourceStorageScale
+	}
+	return 0
+}
+
+func parsePodValue(s string) int64 {
+	quantity, err := resource.ParseQuantity(s)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", s, err.Error())
+	} else {
+		return quantity.Value()
+	}
+	return 0
 }
 
 // CreateTenant initialize the namespace for the tenant
@@ -150,7 +214,7 @@ func doCreateTenant(tenantName string, tenantParams *TenantParams) error {
 	return nil
 }
 
-func createResourceQuota(tenantName string, tenantQuota *TenantQuotaParams) error{
+func createResourceQuota(tenantName string, tenantQuota *TenantQuotaParams) error {
 	walmResourceQuota := adaptor.WalmResourceQuota{
 		WalmMeta: adaptor.WalmMeta{
 			Namespace: tenantName,
@@ -188,6 +252,30 @@ func DeleteTenant(tenantName string) error {
 		} else {
 			return err
 		}
+	}
+
+	releases, err := helm.GetDefaultHelmClient().ListReleases(tenantName, "")
+	if err != nil {
+		logrus.Errorf("failed to get releases in tenant %s : %s", tenantName, err.Error())
+		return err
+	}
+
+	var wg sync.WaitGroup
+	for _, release := range releases {
+		wg.Add(1)
+		go func(releaseName string) {
+			defer wg.Done()
+			err1 := helm.GetDefaultHelmClient().DeleteReleaseWithRetry(tenantName, releaseName, false, false, false, 0)
+			if err1 != nil {
+				err = fmt.Errorf("failed to delete release %s under tenant %s : %s", releaseName, tenantName, err1.Error())
+				logrus.Error(err.Error())
+			}
+		}(release.Name)
+	}
+	wg.Wait()
+
+	if err!= nil {
+		return err
 	}
 
 	err = handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(tenantName)
@@ -243,7 +331,7 @@ func UpdateTenant(tenantName string, tenantParams *TenantParams) error {
 		}
 
 		for _, tenantQuota := range tenantParams.TenantQuotas {
-			if resourceQuota, ok := resourceQuotaMap[tenantQuota.QuotaName] ; ok {
+			if resourceQuota, ok := resourceQuotaMap[tenantQuota.QuotaName]; ok {
 				hard := map[corev1.ResourceName]string{
 					corev1.ResourcePods:            tenantQuota.Hard.Pods,
 					corev1.ResourceLimitsCPU:       tenantQuota.Hard.LimitCpu,
