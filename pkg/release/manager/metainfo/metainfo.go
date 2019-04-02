@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
+	"github.com/pkg/errors"
+	"github.com/ghodss/yaml"
 )
 
 // chart metainfo
@@ -15,6 +17,111 @@ type ChartMetaInfo struct {
 	ChartRoles            []*MetaRoleConfig          `json:"roles"`
 	ChartParams           []*MetaCommonConfig        `json:"params"`
 	Plugins               []*walm.WalmPlugin         `json:"plugins"`
+}
+
+func (chartMetaInfo *ChartMetaInfo) CheckMetainfoParams(metainfoByte []byte, valuesByte []byte) error {
+
+	var err error
+	valuesStr := string(valuesByte)
+
+	metainfoByte, err = yaml.YAMLToJSON(metainfoByte)
+	if err != nil {
+		return errors.Errorf("metainfo.yaml \n%s", err.Error())
+	}
+
+	//Todo: reject recognized fields in metainfo
+	//decode := json.NewDecoder(bytes.NewReader(metainfoByte))
+	//fmt.Printf("%v", decode)
+	//decode.DisallowUnknownFields()
+	//
+	//if err = decode.Decode(&chartMetaInfo); err != nil {
+	//	return err
+	//}
+
+	err = json.Unmarshal(metainfoByte, &chartMetaInfo)
+	if err != nil {
+		return err
+	}
+
+	for _, roleConfig := range chartMetaInfo.ChartRoles {
+
+		// baseConfig
+		roleBsConfig := roleConfig.RoleBaseConfig
+		if err = CheckMetainfoConfig(valuesStr, roleBsConfig.Image.MapKey, roleBsConfig.Image.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleBsConfig.Priority.MapKey, roleBsConfig.Priority.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleBsConfig.Replicas.MapKey, roleBsConfig.Replicas.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleBsConfig.UseHostNetwork.MapKey, roleBsConfig.UseHostNetwork.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleBsConfig.Env.MapKey, roleBsConfig.Env.Required); err != nil {
+			return err
+		}
+		for _, otherConfig := range roleBsConfig.Others {
+			if err = CheckMetainfoConfig(valuesStr, otherConfig.MapKey, otherConfig.Required); err != nil {
+				return err
+			}
+		}
+
+		// resourceConfig
+		roleRsConfig := roleConfig.RoleResourceConfig
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.LimitsCpu.MapKey, roleRsConfig.LimitsCpu.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.RequestsCpu.MapKey, roleRsConfig.RequestsCpu.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.LimitsGpu.MapKey, roleRsConfig.LimitsGpu.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.RequestsGpu.MapKey, roleRsConfig.RequestsGpu.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.LimitsMemory.MapKey, roleRsConfig.LimitsMemory.Required); err != nil {
+			return err
+		}
+		if err = CheckMetainfoConfig(valuesStr, roleRsConfig.RequestsMemory.MapKey, roleRsConfig.RequestsMemory.Required); err != nil {
+			return err
+		}
+
+		for _, storageRs := range roleRsConfig.StorageResources {
+			if err = CheckMetainfoConfig(valuesStr, storageRs.MapKey, storageRs.Required); err != nil {
+				return err
+			}
+		}
+	}
+
+	// commonConfig
+	params := chartMetaInfo.ChartParams
+	if len(params) > 0 {
+		for _, param := range params {
+			if err = CheckMetainfoConfig(valuesStr, param.MapKey, param.Required); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func CheckMetainfoConfig(valuesStr string, mapKey string, isRequired bool) error {
+
+	err := errors.Errorf("%s not exist in values.yaml", mapKey)
+	if !gjson.Get(valuesStr, mapKey).Exists() {
+		if isRequired {
+			return err
+		} else {
+			logrus.Warnf("%s not required in values.yaml", mapKey)
+		}
+	} else {
+		logrus.Infof("%s correct in values.yaml", mapKey)
+	}
+
+	return nil
 }
 
 func (chartMetaInfo *ChartMetaInfo) BuildDefaultValue(jsonStr string) {
