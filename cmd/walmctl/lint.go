@@ -21,11 +21,9 @@ import (
 	"strings"
 	"walm/pkg/util"
 	"walm/pkg/util/transwarpjsonnet"
-	"strconv"
-	"github.com/tidwall/gjson"
-	"github.com/ghodss/yaml"
 	"encoding/json"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"walm/pkg/release/manager/metainfo"
 )
 
 var longLintHelp = `
@@ -85,12 +83,24 @@ func (lint *lintOptions) run() error {
 
 	metainfoPath := path.Join(lint.chartPath, "transwarp-meta/metainfo.yaml")
 	valuesPath := path.Join(lint.chartPath, "values.yaml")
-	err := checkMapKeys(metainfoPath, valuesPath)
+
+	metainfoByte, err := ioutil.ReadFile(metainfoPath)
 	if err != nil {
 		return err
 	}
 
-	logrus.Println("map keys check correct")
+	valuesByte, err := ioutil.ReadFile(valuesPath)
+	if err != nil {
+		return err
+	}
+
+	chartMetaInfo := metainfo.ChartMetaInfo{}
+
+	err = chartMetaInfo.CheckMetainfoParams(metainfoByte, valuesByte)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("map keys check correct")
 
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
@@ -136,17 +146,17 @@ func (lint *lintOptions) run() error {
 		if err != nil {
 			return err
 		}
-
+		logrus.Infof("dry run release %s %s success", inst.Namespace, inst.ReleaseName)
 		expectCasePath := path.Join(lint.ciPath, "_expect-cases", testCase.caseName)
 		fileByte, err := ioutil.ReadFile(expectCasePath)
 		if err != nil {
-			return err
+			//return err
 		}
 
 		expectChart := string(fileByte)
 		err = checkGenReleaseConfig(expectChart, rel.Manifest)
 		if err != nil {
-			return err
+			//return err
 		}
 		lint.writeAsFiles(rel)
 	}
@@ -212,6 +222,7 @@ func (lint *lintOptions) writeAsFiles(rel *release.Release) error {
 	// At one point we parsed out the returned manifest and created multiple files.
 	// I'm not totally sure what the use case was for that.
 	filename := filepath.Join(outputDir, rel.Name)
+	logrus.Infof("start write result to %s", filename)
 	return ioutil.WriteFile(filename, []byte(rel.Manifest), 0644)
 }
 
@@ -240,197 +251,6 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 	})
 
 	return err
-}
-
-func checkMapKeys(metainfoPath string, valuesPath string) error {
-
-	metainfoData, err := ioutil.ReadFile(metainfoPath)
-	if err != nil {
-		return err
-	}
-
-	newMetainfoData, err := yaml.YAMLToJSON(metainfoData)
-
-	if  err != nil {
-		return errors.Errorf("%s in metainfo.yaml", err.Error())
-
-	}
-
-	formatMetainfoData, err := yaml.JSONToYAML(newMetainfoData)
-	if err != nil {
-		return errors.Errorf("format %s to yaml style error", metainfoPath)
-	}
-	ioutil.WriteFile(metainfoPath, formatMetainfoData, 0666)
-
-	if err != nil {
-		return err
-	}
-
-	// get all map keys
-	metainfoStr := string(newMetainfoData)
-	typeChecks, err := getTypeCheck(metainfoStr)
-	if err != nil {
-		return err
-	}
-	// check all map keys
-	valuesData, err := ioutil.ReadFile(valuesPath)
-	if err != nil {
-		return err
-	}
-	newValuesData, err := yaml.YAMLToJSON(valuesData)
-	if err != nil {
-		return errors.Errorf("%s in values.yaml", err.Error())
-	}
-	valuesStr := string(newValuesData)
-
-	typeMap := make(map[string]string)
-	typeMap["String"] = "string"
-	typeMap["True"] = "boolean"
-	typeMap["False"] = "boolean"
-	typeMap["Number"] = "number"
-	// Null, JSON -->  no type, env_list
-
-	for _, typeCheck := range typeChecks {
-
-		// check map key exist
-		result := gjson.Get(valuesStr, typeCheck.mapKey)
-
-		if !result.Exists() {
-			return errors.Errorf("%s not exist in values.yaml", typeCheck.mapKey)
-		}
-
-		if strings.Contains(typeCheck.mapKey, "priority") {
-			if result.Type.String() == "Number" {
-				continue
-			} else {
-				return errors.Errorf("%s value type error, number type required", typeCheck.mapKey)
-			}
-		}
-
-		if typeCheck.Type == "envType" || typeCheck.Type == "" {
-			continue
-		}
-
-		// check map key type
-		metainfoType := typeCheck.Type
-		valuesType := typeMap[result.Type.String()]
-		if valuesType == "" && typeCheck.required == false {
-			continue
-		}
-		if metainfoType != valuesType {
-			return errors.Errorf("%s value type error, %s in metainfo.yaml while %s in values.yaml",
-				typeCheck.mapKey, metainfoType, valuesType)
-		}
-	}
-	return nil
-}
-
-func getTypeCheck(metainfoStr string) ([]lintTypeCheck, error) {
-
-	var typeChecks []lintTypeCheck
-	var err error
-
-	roleSize := int(gjson.Get(metainfoStr, "roles.#").Int())
-	for i := 0; i < roleSize; i++ {
-		prePath := "roles." + strconv.Itoa(i)
-
-		// required fields, name, mapKey, type
-		baseConfigSize := int(gjson.Get(metainfoStr, prePath+".baseConfig.#").Int())
-		rolesName := gjson.Get(metainfoStr, prePath+".baseConfig.#.name").Array()
-		rolesMapkey := gjson.Get(metainfoStr, prePath+".baseConfig.#.mapKey").Array()
-		rolesType := gjson.Get(metainfoStr, prePath+".baseConfig.#.type").Array()
-
-		if baseConfigSize != len(rolesName) || len(rolesName) != len(rolesMapkey) || len(rolesMapkey) != len(rolesType){
-			err = errors.Errorf("name, mapKey, type are required inner each element of %s", prePath+".baseConfig")
-			return nil, err
-		}
-
-
-		var rolesRequire []gjson.Result
-		for configIndex := 0; configIndex < baseConfigSize; configIndex++ {
-
-			require := gjson.Get(metainfoStr, prePath+".baseConfig." + strconv.Itoa(configIndex) + ".required")
-			rolesRequire = append(rolesRequire, require)
-		}
-
-		for j := 0; j < len(rolesMapkey); j++ {
-
-			var typeCheck lintTypeCheck
-			if !rolesMapkey[j].Exists() {
-				err = errors.New(prePath + ".baseConfig." + strconv.Itoa(j) + ".mapKey" + "not exist.")
-			}
-
-			if rolesMapkey[j].String() == "" {
-				err = errors.New(prePath + ".baseConfig." + strconv.Itoa(j) + ".mapKey can't be empty")
-			}
-
-			if !rolesType[j].Exists() {
-				err = errors.New(prePath + ".baseConfig." + strconv.Itoa(j) + ".type" + "not exist.")
-			}
-
-			if err != nil {
-				return nil, err
-			}
-
-			typeCheck.mapKey = rolesMapkey[j].String()
-			typeCheck.required = rolesRequire[j].Bool()
-			typeCheck.Type = rolesType[j].String()
-			typeChecks = append(typeChecks, typeCheck)
-		}
-
-		resources := gjson.GetMany(metainfoStr,
-			prePath+".resources.limitsMemoryKey.mapKey",
-			prePath+".resources.limitsCpuKey.mapKey",
-			prePath+".resources.limitsGpuKey.mapKey",
-			prePath+".resources.requestsMemoryKey.mapKey",
-			prePath+".resources.requestsCpuKey.mapKey",
-			prePath+".resources.requestsGpuKey.mapKey", )
-
-		if gjson.Get(metainfoStr, prePath+".resources").Exists() {
-			for _, resource := range resources {
-
-				var typeCheck lintTypeCheck
-
-				if !resource.Exists() {
-					err = errors.Errorf("not enough fields in %s", prePath + ".resources")
-					return nil, err
-				} else if resource.String() == "" {
-					err = errors.Errorf("mapKey can not be null in %s.resources", prePath + "。resources")
-					return nil, err
-				}
-
-				typeCheck.mapKey = resource.String()
-				typeCheck.required = true
-				typeChecks = append(typeChecks, typeCheck)
-			}
-		}
-
-		paramsSize := int(gjson.Get(metainfoStr, "params.#").Int())
-		paramsMapKey := gjson.Get(metainfoStr, "params.#.mapKey").Array()
-		paramsType := gjson.Get(metainfoStr, "params.#.type").Array()
-		paramsRequire := gjson.Get(metainfoStr, "params.#.required").Array()
-
-		for k := 0; k < paramsSize; k++ {
-			var typeCheck lintTypeCheck
-			if !paramsMapKey[k].Exists() {
-				err = errors.New("params." + strconv.Itoa(k) + ".mapKey" + "not exist.")
-			}
-
-			if !paramsType[k].Exists() {
-				err = errors.New("params." + strconv.Itoa(k) + ".type" + "not exist.")
-			}
-
-			if err != nil {
-				return nil, err
-			}
-			typeCheck.mapKey = paramsMapKey[k].String()
-			typeCheck.required = paramsRequire[k].Bool()
-			typeCheck.Type = paramsType[k].String()
-			typeChecks = append(typeChecks, typeCheck)
-		}
-
-	}
-	return typeChecks, err
 }
 
 func mockInst() *action.Install {

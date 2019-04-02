@@ -18,7 +18,7 @@ import (
 	"walm/pkg/k8s/handler"
 	"k8s.io/helm/pkg/chart"
 	"walm/pkg/util/transwarpjsonnet"
-	"github.com/tidwall/gjson"
+	"walm/pkg/release/manager/metainfo"
 )
 
 const (
@@ -599,82 +599,24 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 	}
 
 	releaseCache.ReleaseResourceMetas, err = cache.getReleaseResourceMetas(helmRelease)
-	metaInfoValues, err := buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
-	if err != nil {
-		logrus.Errorf("failed to build meta info values : %s", err.Error())
-		return nil, err
-	}
-	releaseCache.MetaInfoValues = metaInfoValues
+	releaseCache.MetaInfoValues = buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
 	return
 }
 
-func buildMetaInfoValues(chart *chart.Chart, ComputedValues map[string]interface{}) (*release.MetaInfoParams, error) {
+func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface{}) (*metainfo.MetaInfoParams) {
 	chartMetaInfo, err := transwarpjsonnet.GetChartMetaInfo(chart)
 	if err != nil {
-		logrus.Errorf("failed to get chart meta info : %s", err.Error())
-		return nil, err
+		return nil
 	}
 	if chartMetaInfo != nil {
-		jsonBytes, err := json.Marshal(ComputedValues)
+		metaInfoParams, err := chartMetaInfo.BuildMetaInfoParams(computedValues)
 		if err != nil {
-			logrus.Errorf("failed to marshal computed values : %s", err.Error())
-			return nil, err
+			return nil
 		}
-		jsonStr := string(jsonBytes)
-		metaInfoValues := &release.MetaInfoParams{}
-
-		for _, chartParam := range chartMetaInfo.ChartParams {
-			metaInfoValues.Params = append(metaInfoValues.Params, &release.MetaCommonConfigValue{
-				Name:  chartParam.Name,
-				Value: gjson.Get(jsonStr, chartParam.MapKey).Value(),
-			})
-		}
-
-		for _, chartRole := range chartMetaInfo.ChartRoles {
-			role := &release.MetaRoleConfigValue{
-				Name: chartRole.Name,
-			}
-			for _, roleBaseConfig := range chartRole.RoleBaseConfig {
-				role.RoleBaseConfig = append(role.RoleBaseConfig, &release.MetaCommonConfigValue{
-					Name:  roleBaseConfig.Name,
-					Value: gjson.Get(jsonStr, roleBaseConfig.MapKey).Value(),
-				})
-			}
-			if chartRole.RoleResourceConfig != nil {
-				role.RoleResourceConfig = &release.MetaResourceConfigValue{}
-
-				if chartRole.RoleResourceConfig.RequestsCpuKey != nil {
-					role.RoleResourceConfig.RequestsCpuKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.RequestsCpuKey.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig.RequestsGpuKey != nil {
-					role.RoleResourceConfig.RequestsGpuKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.RequestsGpuKey.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig.RequestsMemoryKey != nil {
-					role.RoleResourceConfig.RequestsMemoryKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.RequestsMemoryKey.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig.LimitsCpuKey != nil {
-					role.RoleResourceConfig.LimitsCpuKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.LimitsCpuKey.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig.LimitsGpuKey != nil {
-					role.RoleResourceConfig.LimitsGpuKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.LimitsGpuKey.MapKey).Value()
-				}
-				if chartRole.RoleResourceConfig.LimitsMemoryKey != nil {
-					role.RoleResourceConfig.LimitsMemoryKey = gjson.Get(jsonStr, chartRole.RoleResourceConfig.LimitsMemoryKey.MapKey).Value()
-				}
-				for _, storageConfig := range chartRole.RoleResourceConfig.StorageResources {
-					role.RoleResourceConfig.StorageResources = append(role.RoleResourceConfig.StorageResources, &release.MetaCommonConfigValue{
-						Name:  storageConfig.Name,
-						Value: gjson.Get(jsonStr, storageConfig.MapKey).Value(),
-					})
-				}
-			}
-			metaInfoValues.Roles = append(metaInfoValues.Roles, role)
-		}
-		return metaInfoValues, nil
+		return metaInfoParams
 	}
 
-	return nil, nil
-
+	return nil
 }
 
 func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {

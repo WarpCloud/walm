@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"encoding/json"
+	"walm/pkg/util"
 )
 
 type WalmNodeAdaptor struct {
@@ -60,12 +61,12 @@ func convertResourceListToMap(resourceList corev1.ResourceList) map[string]strin
 
 func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmNode, err error) {
 	walmNode = &WalmNode{
-		WalmMeta:    buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
-		NodeIp:      BuildNodeIp(node),
-		Labels:      node.Labels,
-		Annotations: node.Annotations,
-		Capacity:    convertResourceListToMap(node.Status.Capacity),
-		Allocatable: convertResourceListToMap(node.Status.Allocatable),
+		WalmMeta:             buildWalmMeta("Node", node.Namespace, node.Name, BuildWalmNodeState(node)),
+		NodeIp:               BuildNodeIp(node),
+		Labels:               node.Labels,
+		Annotations:          node.Annotations,
+		Capacity:             convertResourceListToMap(node.Status.Capacity),
+		Allocatable:          convertResourceListToMap(node.Status.Allocatable),
 		WarpDriveStorageList: []WarpDriveStorage{},
 	}
 	requestsAllocated, limitsAllocated, err := adaptor.buildAllocated(node)
@@ -73,8 +74,12 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 		logrus.Errorf("failed to build node allocated resource : %s", err.Error())
 		return
 	}
+
 	walmNode.RequestsAllocated = convertResourceListToMap(requestsAllocated)
 	walmNode.LimitsAllocated = convertResourceListToMap(limitsAllocated)
+
+	walmNode.UnifyUnitResourceInfo = buildUnifyUnitResourceInfo(walmNode)
+
 	if len(node.Annotations) > 0 {
 		poolResourceListStr := node.Annotations["ResourceVolumePoolList"]
 		if poolResourceListStr != "" {
@@ -89,6 +94,7 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 					}
 					for _, subPool := range poolResource.SubPools {
 						warpDriveStorage.StorageLeft += subPool.Size - subPool.UsedSize
+						warpDriveStorage.StorageTotal += subPool.Size
 					}
 					walmNode.WarpDriveStorageList = append(walmNode.WarpDriveStorageList, warpDriveStorage)
 				}
@@ -107,6 +113,38 @@ func (adaptor *WalmNodeAdaptor) buildAllocated(node corev1.Node) (requestsAlloca
 	}
 	requestsAllocated, limitsAllocated = getPodsTotalRequestsAndLimits(nonTerminatedPods)
 	return
+}
+
+func buildUnifyUnitResourceInfo(node *WalmNode) UnifyUnitNodeResourceInfo {
+	return UnifyUnitNodeResourceInfo{
+		Capacity:          buildNodeResourceInfo(node.Capacity),
+		Allocatable:       buildNodeResourceInfo(node.Allocatable),
+		LimitsAllocated:   buildNodeResourceInfo(node.LimitsAllocated),
+		RequestsAllocated: buildNodeResourceInfo(node.RequestsAllocated),
+	}
+}
+
+func buildNodeResourceInfo(resourceList map[string]string) NodeResourceInfo {
+	nodeResourceInfo := NodeResourceInfo{}
+	for resourceName, resourceValue := range resourceList {
+		if resourceName == corev1.ResourceCPU.String() {
+			quantity, err := resource.ParseQuantity(resourceValue)
+			if err != nil {
+				logrus.Warnf("failed to parse quantity %s : %s", resourceValue, err.Error())
+				continue
+			}
+			nodeResourceInfo.Cpu = float64(quantity.MilliValue()) / util.K8sResourceCpuScale
+		}
+		if resourceName == corev1.ResourceMemory.String() {
+			quantity, err := resource.ParseQuantity(resourceValue)
+			if err != nil {
+				logrus.Warnf("failed to parse quantity %s : %s", resourceValue, err.Error())
+				continue
+			}
+			nodeResourceInfo.Memory = quantity.Value() / util.K8sResourceMemoryScale
+		}
+	}
+	return nodeResourceInfo
 }
 
 func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.ResourceList, limits corev1.ResourceList) {

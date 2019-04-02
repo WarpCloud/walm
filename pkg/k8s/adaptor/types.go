@@ -299,21 +299,35 @@ type WalmSecretList struct {
 	Items []*WalmSecret `json:"items" description:"secrets"`
 }
 
+type NodeResourceInfo struct {
+	Cpu    float64 `json:"cpu" description:"cpu with unit 1"`
+	Memory int64   `json:"memory" description:"memory with unit Mi"`
+}
+
+type UnifyUnitNodeResourceInfo struct {
+	Capacity          NodeResourceInfo `json:"capacity" description:"node capacity info"`
+	Allocatable       NodeResourceInfo `json:"allocatable" description:"node allocatable info"`
+	RequestsAllocated NodeResourceInfo `json:"requestsAllocated" description:"node requests allocated info"`
+	LimitsAllocated   NodeResourceInfo `json:"limitsAllocated" description:"node limits allocated info"`
+}
+
 type WalmNode struct {
 	WalmMeta
-	Labels               map[string]string `json:"labels" description:"node labels"`
-	Annotations          map[string]string `json:"annotations" description:"node annotations"`
-	NodeIp               string            `json:"nodeIp" description:"ip of node"`
-	Capacity             map[string]string `json:"capacity" description:"resource capacity"`
-	Allocatable          map[string]string `json:"allocatable" description:"resource allocatable"`
-	RequestsAllocated    map[string]string `json:"requestsAllocated" description:"requests resource allocated"`
-	LimitsAllocated      map[string]string `json:"limitsAllocated" description:"limits resource allocated"`
-	WarpDriveStorageList []WarpDriveStorage `json:"warpDriveStorageList" description:"warp drive storage list"`
+	Labels                map[string]string         `json:"labels" description:"node labels"`
+	Annotations           map[string]string         `json:"annotations" description:"node annotations"`
+	NodeIp                string                    `json:"nodeIp" description:"ip of node"`
+	Capacity              map[string]string         `json:"capacity" description:"resource capacity"`
+	Allocatable           map[string]string         `json:"allocatable" description:"resource allocatable"`
+	RequestsAllocated     map[string]string         `json:"requestsAllocated" description:"requests resource allocated"`
+	LimitsAllocated       map[string]string         `json:"limitsAllocated" description:"limits resource allocated"`
+	WarpDriveStorageList  []WarpDriveStorage        `json:"warpDriveStorageList" description:"warp drive storage list"`
+	UnifyUnitResourceInfo UnifyUnitNodeResourceInfo `json:"unifyUnitResourceInfo" description:"resource info with unified unit"`
 }
 
 type WarpDriveStorage struct {
-	PoolName    string `json:"poolName" description:"pool name"`
-	StorageLeft int64 `json:"storageLeft" description:"storage left, unit: kb"`
+	PoolName     string `json:"poolName" description:"pool name"`
+	StorageLeft  int64  `json:"storageLeft" description:"storage left, unit: kb"`
+	StorageTotal int64  `json:"storageTotal" description:"storage total, unit: kb"`
 }
 
 type PoolResource struct {
@@ -353,11 +367,11 @@ func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResource
 
 type WalmPersistentVolumeClaim struct {
 	WalmMeta
-	StorageClass string `json:"storageClass" description:"storage class"`
-	VolumeName   string `json:"volumeName" description:"volume name"`
-	Capacity     string `json:"capacity" description:"capacity"`
+	StorageClass string                              `json:"storageClass" description:"storage class"`
+	VolumeName   string                              `json:"volumeName" description:"volume name"`
+	Capacity     string                              `json:"capacity" description:"capacity"`
 	AccessModes  []corev1.PersistentVolumeAccessMode `json:"accessModes" description:"access modes"`
-	VolumeMode   string `json:"volumeMode" description:"volume mode"`
+	VolumeMode   string                              `json:"volumeMode" description:"volume mode"`
 }
 
 func (resource WalmPersistentVolumeClaim) AddToWalmResourceSet(resourceSet *WalmResourceSet) {

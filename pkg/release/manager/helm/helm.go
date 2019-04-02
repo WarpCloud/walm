@@ -16,11 +16,11 @@ import (
 	"walm/pkg/k8s/client"
 	"walm/pkg/k8s/handler"
 	"walm/pkg/redis"
-	"walm/pkg/release"
 	"walm/pkg/release/manager/helm/cache"
 	"walm/pkg/setting"
 	walmerr "walm/pkg/util/error"
 
+	"walm/pkg/release/manager/metainfo"
 )
 
 const (
@@ -234,7 +234,7 @@ func (hc *HelmClient) validateReleaseTask(namespace, name string, allowReleaseTa
 	return
 }
 
-func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
+func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *metainfo.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
 	dependencyConfigs = map[string]interface{}{}
 	if chartMetaInfo == nil {
 		return
