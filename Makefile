@@ -10,6 +10,8 @@ LDFLAGS += -X walm/pkg/version.Version=${GIT_TAG}
 LDFLAGS += -X walm/pkg/version.GitSha1Version=${GIT_SHA}
 LDFLAGS += -X walm/pkg/version.BuildDate=${BUILD_DATE}
 
+PKG = walm
+
 .PHONY: build
 build:
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm
@@ -24,3 +26,12 @@ build_windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-windows-amd64.exe walm/cmd/walmctl
 
 all: build build_darwin build_windows
+
+.PHONY: test
+test:
+	go test -v -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e')
+
+.PHONY: e2e-test
+e2e-test:
+	@ginkgo version || go get -u github.com/onsi/ginkgo/ginkgo
+	ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace ./test/e2e/

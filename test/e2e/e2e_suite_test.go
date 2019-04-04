@@ -14,9 +14,9 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 	// tests to run
-	_ "walm/test/e2e/pvc"
-	_ "walm/test/e2e/release"
-	//_ "walm/test/e2e/node"
+	//_ "walm/test/e2e/pvc"
+	//_ "walm/test/e2e/release"
+	_ "walm/test/e2e/node"
 	//_ "walm/test/e2e/secret"
 	//_ "walm/test/e2e/tenant"
 	//_ "walm/test/e2e/project"
