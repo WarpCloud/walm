@@ -2,23 +2,20 @@ package handler
 
 import (
 	"testing"
-	k8sclient "walm/pkg/k8s/client"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"fmt"
 )
 
 func Test(t *testing.T) {
-	client, err := k8sclient.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
-	if err != nil {
-		println(err.Error())
-		return
-	}
-
-	node, err := client.CoreV1().Nodes().Get("172.26.0.5", metav1.GetOptions{})
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	fmt.Println(node.Name)
+	//client, err := k8sclient.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
+	//if err != nil {
+	//	println(err.Error())
+	//	return
+	//}
+	//
+	//node, err := client.CoreV1().Nodes().Get("172.26.0.5", metav1.GetOptions{})
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//}
+	//fmt.Println(node.Name)
 
 	//clientEx, err := k8sclient.CreateFakeApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
 	//if err != nil {
