@@ -29,9 +29,9 @@ all: build build_darwin build_windows
 
 .PHONY: test
 test:
-	go test -v -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e')
+	@go test -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e')
 
 .PHONY: e2e-test
 e2e-test:
 	@ginkgo version || go get -u github.com/onsi/ginkgo/ginkgo
-	ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace ./test/e2e/
+	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace ./test/e2e/
