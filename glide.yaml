@@ -87,3 +87,5 @@ import:
 - package: github.com/sergi/go-diff/...
 testImport:
 - package: gopkg.in/check.v1
+- package: github.com/stretchr/testify
+  version: v1.3.0

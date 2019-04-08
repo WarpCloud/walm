@@ -19,17 +19,17 @@ Swag converts Go annotations to Swagger Documentation 2.0. We've created a varie
  - [How to use it with Gin](#how-to-use-it-with-gin)
  - [Implementation Status](#implementation-status)
  - [Declarative Comments Format](#declarative-comments-format)
-	- [General API Info](##general-api-info)
+	- [General API Info](#general-api-info)
 	- [API Operation](#api-operation)
 	- [Security](#security)
- - [Examples](#tips)
+ - [Examples](#examples)
 	- [Descriptions over multiple lines](#descriptions-over-multiple-lines)
 	- [User defined structure with an array type](#user-defined-structure-with-an-array-type)
 	- [Add a headers in response](#add-a-headers-in-response) 
 	- [Use multiple path params](#use-multiple-path-params)
 	- [Example value of struct](#example-value-of-struct)
 	- [Description of struct](#description-of-struct)
-	- [Override swagger type of a struct field](#Override-swagger-type-of-a-struct-field)
+	- [Use swaggertype tag to supported custom type](#use-swaggertype-tag-to-supported-custom-type)
 	- [Add extension info to struct field](#add-extension-info-to-struct-field)
 	- [How to using security annotations](#how-to-using-security-annotations)
 - [About the Project](#about-the-project)
@@ -42,6 +42,8 @@ Swag converts Go annotations to Swagger Documentation 2.0. We've created a varie
 ```sh
 $ go get -u github.com/swaggo/swag/cmd/swag
 ```
+To build from source you need [Go](https://golang.org/dl/) (1.9 or newer).
+
 Or download the pre-compiled binaries binray form [release page](https://github.com/swaggo/swag/releases).
 
 3. Run `swag init` in the project's root folder which contains the `main.go` file. This will parse your comments and generate the required files (`docs` folder and `docs/docs.go`).
@@ -69,7 +71,7 @@ OPTIONS:
    --dir value, -d value               Directory you want to parse (default: "./")
    --propertyStrategy value, -p value  Property Naming Strategy like snakecase,camelcase,pascalcase (default: "camelcase")
    --output value, -o value            Output directory for al the generated files(swagger.json, swagger.yaml and doc.go) (default: "./docs")
-   --parseVendor                       Parse go files in 'vendor' folder, disabled by default  --output value, -o value            Output directory for al the generated files(swagger.json, swagger.yaml and doc.go) (default: "./docs")
+   --parseVendor                       Parse go files in 'vendor' folder, disabled by default
 ```
 
 ## Supported Web Frameworks
@@ -502,12 +504,14 @@ type Account struct {
 
 ```go
 type Account struct {
-    // ID this is userid
-    ID   int    `json:"id"
+	// ID this is userid
+	ID   int    `json:"id"`
+	Name string `json:"name"` // This is Name
 }
 ```
 
-### Override swagger type of a struct field
+### Use swaggertype tag to supported custom type
+[#201](https://github.com/swaggo/swag/issues/201#issuecomment-475479409)
 
 ```go
 type TimestampTime struct {

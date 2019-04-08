@@ -27,9 +27,8 @@ import (
 	"encoding/json"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -51,6 +50,8 @@ const (
 	pvDeletionTimeout       = 3 * time.Minute
 	statefulSetReadyTimeout = 3 * time.Minute
 	taintKeyPrefix          = "zoneTaint_"
+	repdMinSize             = "200Gi"
+	pvcName                 = "regional-pd-vol"
 )
 
 var _ = utils.SIGDescribe("Regional PD", func() {
@@ -108,8 +109,8 @@ func testVolumeProvisioning(c clientset.Interface, ns string) {
 				"zones":            strings.Join(cloudZones, ","),
 				"replication-type": "regional-pd",
 			},
-			ClaimSize:    "1.5Gi",
-			ExpectedSize: "2Gi",
+			ClaimSize:    repdMinSize,
+			ExpectedSize: repdMinSize,
 			PvCheck: func(volume *v1.PersistentVolume) error {
 				err := checkGCEPD(volume, "pd-standard")
 				if err != nil {
@@ -126,8 +127,8 @@ func testVolumeProvisioning(c clientset.Interface, ns string) {
 				"type":             "pd-standard",
 				"replication-type": "regional-pd",
 			},
-			ClaimSize:    "1.5Gi",
-			ExpectedSize: "2Gi",
+			ClaimSize:    repdMinSize,
+			ExpectedSize: repdMinSize,
 			PvCheck: func(volume *v1.PersistentVolume) error {
 				err := checkGCEPD(volume, "pd-standard")
 				if err != nil {
@@ -152,8 +153,21 @@ func testVolumeProvisioning(c clientset.Interface, ns string) {
 
 func testZonalFailover(c clientset.Interface, ns string) {
 	cloudZones := getTwoRandomZones(c)
-	class := newRegionalStorageClass(ns, cloudZones)
-	claimTemplate := newClaimTemplate(ns)
+	testSpec := testsuites.StorageClassTest{
+		Name:           "Regional PD Failover on GCE/GKE",
+		CloudProviders: []string{"gce", "gke"},
+		Provisioner:    "kubernetes.io/gce-pd",
+		Parameters: map[string]string{
+			"type":             "pd-standard",
+			"zones":            strings.Join(cloudZones, ","),
+			"replication-type": "regional-pd",
+		},
+		ClaimSize:    repdMinSize,
+		ExpectedSize: repdMinSize,
+	}
+	class := newStorageClass(testSpec, ns, "" /* suffix */)
+	claimTemplate := newClaim(testSpec, ns, "" /* suffix */)
+	claimTemplate.Name = pvcName
 	claimTemplate.Spec.StorageClassName = &class.Name
 	statefulSet, service, regionalPDLabels := newStatefulSet(claimTemplate, ns)
 
@@ -307,7 +321,7 @@ func testRegionalDelayedBinding(c clientset.Interface, ns string, pvcCount int) 
 			"type":             "pd-standard",
 			"replication-type": "regional-pd",
 		},
-		ClaimSize:    "2Gi",
+		ClaimSize:    repdMinSize,
 		DelayBinding: true,
 	}
 
@@ -340,8 +354,8 @@ func testRegionalAllowedTopologies(c clientset.Interface, ns string) {
 			"type":             "pd-standard",
 			"replication-type": "regional-pd",
 		},
-		ClaimSize:    "2Gi",
-		ExpectedSize: "2Gi",
+		ClaimSize:    repdMinSize,
+		ExpectedSize: repdMinSize,
 	}
 
 	suffix := "topo-regional"
@@ -362,7 +376,7 @@ func testRegionalAllowedTopologiesWithDelayedBinding(c clientset.Interface, ns s
 			"type":             "pd-standard",
 			"replication-type": "regional-pd",
 		},
-		ClaimSize:    "2Gi",
+		ClaimSize:    repdMinSize,
 		DelayBinding: true,
 	}
 
@@ -502,47 +516,11 @@ func newPodTemplate(labels map[string]string) *v1.PodTemplateSpec {
 						Name:          "web",
 					}},
 					VolumeMounts: []v1.VolumeMount{{
-						Name:      "regional-pd-vol",
+						Name:      pvcName,
 						MountPath: "/mnt/data/regional-pd",
 					}},
 				},
 			},
-		},
-	}
-}
-
-func newClaimTemplate(ns string) *v1.PersistentVolumeClaim {
-	return &v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "regional-pd-vol",
-			Namespace: ns,
-		},
-		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: []v1.PersistentVolumeAccessMode{
-				v1.ReadWriteOnce,
-			},
-			Resources: v1.ResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceName(v1.ResourceStorage): resource.MustParse("1Gi"),
-				},
-			},
-		},
-	}
-}
-
-func newRegionalStorageClass(namespace string, zones []string) *storage.StorageClass {
-	return &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "StorageClass",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace + "-sc",
-		},
-		Provisioner: "kubernetes.io/gce-pd",
-		Parameters: map[string]string{
-			"type":             "pd-standard",
-			"zones":            strings.Join(zones, ","),
-			"replication-type": "regional-pd",
 		},
 	}
 }

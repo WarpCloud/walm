@@ -27,9 +27,6 @@ type Operation struct {
 	parser *Parser
 }
 
-// Regular expression for comment with response
-const responseCommentPattern = `([\d]+)[\s]+([\w\{\}]+)[\s]+([\w\-\.\/]+)[^"]*(.*)?`
-
 var mimeTypeAliases = map[string]string{
 	"json":                  "application/json",
 	"xml":                   "text/xml",
@@ -105,24 +102,25 @@ func (operation *Operation) ParseComment(comment string, astFile *ast.File) erro
 			return err
 		}
 	case "@router":
-		if err := operation.ParseRouterComment(strings.TrimSpace(commentLine[len(attribute):])); err != nil {
+		if err := operation.ParseRouterComment(lineRemainder); err != nil {
 			return err
 		}
 	case "@security":
-		if err := operation.ParseSecurityComment(strings.TrimSpace(commentLine[len(attribute):])); err != nil {
+		if err := operation.ParseSecurityComment(lineRemainder); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+var paramPattern = regexp.MustCompile(`(\S+)[\s]+([\w]+)[\s]+([\S.]+)[\s]+([\w]+)[\s]+"([^"]+)"`)
+
 // ParseParamComment parses params return []string of param properties
 // E.g. @Param	queryText		form	      string	  true		        "The email for login"
 //              [param name]    [paramType] [data type]  [is mandatory?]   [Comment]
 // E.g. @Param   some_id     path    int     true        "Some ID"
 func (operation *Operation) ParseParamComment(commentLine string, astFile *ast.File) error {
-	re := regexp.MustCompile(`(\S+)[\s]+([\w]+)[\s]+([\S.]+)[\s]+([\w]+)[\s]+"([^"]+)"`)
-	matches := re.FindStringSubmatch(commentLine)
+	matches := paramPattern.FindStringSubmatch(commentLine)
 	if len(matches) != 6 {
 		return fmt.Errorf("missing required param comment parameters \"%s\"", commentLine)
 	}
@@ -227,94 +225,99 @@ func (operation *Operation) parseAndExtractionParamAttribute(commentLine, schema
 	for attrKey, re := range regexAttributes {
 		switch attrKey {
 		case "enums":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				enums := strings.Split(attr[l+1:r], ",")
-				for _, e := range enums {
-					e = strings.TrimSpace(e)
-					param.Enum = append(param.Enum, defineType(schemaType, e))
-				}
+			enums, err := findAttrList(re, commentLine)
+			if err != nil {
+				break
+			}
+			for _, e := range enums {
+				e = strings.TrimSpace(e)
+				param.Enum = append(param.Enum, defineType(schemaType, e))
 			}
 		case "maxinum":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				if schemaType != "integer" && schemaType != "number" {
-					return fmt.Errorf("maxinum is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
-				}
-				attr = strings.TrimSpace(attr[l+1 : r])
-				n, err := strconv.ParseFloat(attr, 64)
-				if err != nil {
-					return fmt.Errorf("maximum is allow only a number. comment=%s got=%s", commentLine, attr)
-				}
-				param.Maximum = &n
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			if schemaType != "integer" && schemaType != "number" {
+				return fmt.Errorf("maxinum is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
+			}
+			n, err := strconv.ParseFloat(attr, 64)
+			if err != nil {
+				return fmt.Errorf("maximum is allow only a number. comment=%s got=%s", commentLine, attr)
+			}
+			param.Maximum = &n
 		case "mininum":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				if schemaType != "integer" && schemaType != "number" {
-					return fmt.Errorf("mininum is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
-				}
-				attr = strings.TrimSpace(attr[l+1 : r])
-				n, err := strconv.ParseFloat(attr, 64)
-				if err != nil {
-					return fmt.Errorf("mininum is allow only a number got=%s", attr)
-				}
-				param.Minimum = &n
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			if schemaType != "integer" && schemaType != "number" {
+				return fmt.Errorf("mininum is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
+			}
+			n, err := strconv.ParseFloat(attr, 64)
+			if err != nil {
+				return fmt.Errorf("mininum is allow only a number got=%s", attr)
+			}
+			param.Minimum = &n
 		case "default":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				attr = strings.TrimSpace(attr[l+1 : r])
-				param.Default = defineType(schemaType, attr)
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			param.Default = defineType(schemaType, attr)
 		case "maxlength":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				if schemaType != "string" {
-					return fmt.Errorf("maxlength is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
-				}
-				attr = strings.TrimSpace(attr[l+1 : r])
-				n, err := strconv.ParseInt(attr, 10, 64)
-				if err != nil {
-					return fmt.Errorf("maxlength is allow only a number got=%s", attr)
-				}
-				param.MaxLength = &n
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			if schemaType != "string" {
+				return fmt.Errorf("maxlength is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
+			}
+			n, err := strconv.ParseInt(attr, 10, 64)
+			if err != nil {
+				return fmt.Errorf("maxlength is allow only a number got=%s", attr)
+			}
+			param.MaxLength = &n
 		case "minlength":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				if schemaType != "string" {
-					return fmt.Errorf("maxlength is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
-				}
-				attr = strings.TrimSpace(attr[l+1 : r])
-				n, err := strconv.ParseInt(attr, 10, 64)
-				if err != nil {
-					return fmt.Errorf("minlength is allow only a number got=%s", attr)
-				}
-				param.MinLength = &n
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			if schemaType != "string" {
+				return fmt.Errorf("maxlength is attribute to set to a number. comment=%s got=%s", commentLine, schemaType)
+			}
+			n, err := strconv.ParseInt(attr, 10, 64)
+			if err != nil {
+				return fmt.Errorf("minlength is allow only a number got=%s", attr)
+			}
+			param.MinLength = &n
 		case "format":
-			attr := re.FindString(commentLine)
-			l := strings.Index(attr, "(")
-			r := strings.Index(attr, ")")
-			if !(l == -1 && r == -1) {
-				param.Format = strings.TrimSpace(attr[l+1 : r])
+			attr, err := findAttr(re, commentLine)
+			if err != nil {
+				break
 			}
+			param.Format = attr
 		}
 	}
 	return nil
+}
+
+func findAttr(re *regexp.Regexp, commentLine string) (string, error) {
+	attr := re.FindString(commentLine)
+	l := strings.Index(attr, "(")
+	r := strings.Index(attr, ")")
+	if l == -1 || r == -1 {
+		return "", fmt.Errorf("can not find regex=%s, comment=%s", re.String(), commentLine)
+	}
+	return strings.TrimSpace(attr[l+1 : r]), nil
+}
+
+func findAttrList(re *regexp.Regexp, commentLine string) ([]string, error) {
+	attr, err := findAttr(re, commentLine)
+	if err != nil {
+		return []string{""}, err
+	}
+	return strings.Split(attr, ","), nil
 }
 
 // defineType enum value define the type (object and array unsupported)
@@ -372,21 +375,24 @@ func parseMimeTypeList(mimeTypeList string, typeList *[]string, format string) e
 	for _, typeName := range mimeTypes {
 		if mimeTypePattern.MatchString(typeName) {
 			*typeList = append(*typeList, typeName)
-		} else if aliasMimeType, ok := mimeTypeAliases[typeName]; ok {
-			*typeList = append(*typeList, aliasMimeType)
-		} else {
-			return fmt.Errorf(format, typeName)
+			continue
 		}
+		if aliasMimeType, ok := mimeTypeAliases[typeName]; ok {
+			*typeList = append(*typeList, aliasMimeType)
+			continue
+		}
+		return fmt.Errorf(format, typeName)
 	}
 	return nil
 }
 
+var routerPattern = regexp.MustCompile(`([\w\.\/\-{}\+]+)[^\[]+\[([^\]]+)`)
+
 // ParseRouterComment parses comment for gived `router` comment string.
 func (operation *Operation) ParseRouterComment(commentLine string) error {
-	re := regexp.MustCompile(`([\w\.\/\-{}\+]+)[^\[]+\[([^\]]+)`)
 	var matches []string
 
-	if matches = re.FindStringSubmatch(commentLine); len(matches) != 3 {
+	if matches = routerPattern.FindStringSubmatch(commentLine); len(matches) != 3 {
 		return fmt.Errorf("can not parse router comment \"%s\"", commentLine)
 	}
 	path := matches[1]
@@ -479,12 +485,13 @@ func findTypeDef(importPath, typeName string) (*ast.TypeSpec, error) {
 	return nil, errors.New("type spec not found")
 }
 
+var responsePattern = regexp.MustCompile(`([\d]+)[\s]+([\w\{\}]+)[\s]+([\w\-\.\/]+)[^"]*(.*)?`)
+
 // ParseResponseComment parses comment for gived `response` comment string.
 func (operation *Operation) ParseResponseComment(commentLine string, astFile *ast.File) error {
-	re := regexp.MustCompile(responseCommentPattern)
 	var matches []string
 
-	if matches = re.FindStringSubmatch(commentLine); len(matches) != 5 {
+	if matches = responsePattern.FindStringSubmatch(commentLine); len(matches) != 5 {
 		return fmt.Errorf("can not parse response comment \"%s\"", commentLine)
 	}
 
@@ -553,10 +560,9 @@ func (operation *Operation) ParseResponseComment(commentLine string, astFile *as
 
 // ParseResponseHeaderComment parses comment for gived `response header` comment string.
 func (operation *Operation) ParseResponseHeaderComment(commentLine string, astFile *ast.File) error {
-	re := regexp.MustCompile(responseCommentPattern)
 	var matches []string
 
-	if matches = re.FindStringSubmatch(commentLine); len(matches) != 5 {
+	if matches = responsePattern.FindStringSubmatch(commentLine); len(matches) != 5 {
 		return fmt.Errorf("can not parse response comment \"%s\"", commentLine)
 	}
 
@@ -598,12 +604,13 @@ func (operation *Operation) ParseResponseHeaderComment(commentLine string, astFi
 	return nil
 }
 
+var emptyResponsePattern = regexp.MustCompile(`([\d]+)[\s]+"(.*)"`)
+
 // ParseEmptyResponseComment parse only comment out status code and description,eg: @Success 200 "it's ok"
 func (operation *Operation) ParseEmptyResponseComment(commentLine string) error {
-	re := regexp.MustCompile(`([\d]+)[\s]+"(.*)"`)
 	var matches []string
 
-	if matches = re.FindStringSubmatch(commentLine); len(matches) != 3 {
+	if matches = emptyResponsePattern.FindStringSubmatch(commentLine); len(matches) != 3 {
 		return fmt.Errorf("can not parse response comment \"%s\"", commentLine)
 	}
 
