@@ -23,9 +23,9 @@ import (
 	"walm/pkg/util/transwarpjsonnet"
 	"encoding/json"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"github.com/ghodss/yaml"
 	"walm/pkg/release/manager/metainfo"
 	"bytes"
-	"github.com/ghodss/yaml"
 )
 
 var longLintHelp = `
@@ -72,6 +72,25 @@ func newLintCmd() *cobra.Command {
 }
 
 func (lint *lintOptions) run() error {
+
+	isOpenSource := false
+	/* whether chart is openSource */
+	var metaData map[string]interface{}
+	metaDataByte, err := ioutil.ReadFile(path.Join(lint.chartPath, "Chart.yaml"))
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal(metaDataByte, &metaData)
+	if err != nil {
+		return err
+	}
+
+	if fmt.Sprint(metaData["engine"]) != "jsonnet" {
+		isOpenSource = true
+	}
+	fmt.Println(isOpenSource)
+
+	/* check charts */
 	if lint.ciPath == "" {
 		lint.ciPath = path.Join(lint.chartPath, "ci")
 	}
@@ -92,7 +111,7 @@ func (lint *lintOptions) run() error {
 	/* validate yaml format */
 	valuesByte, err = yaml.YAMLToJSON(valuesByte)
 	if err != nil {
-		return errors.Errorf("metainfo.yaml \n%s", err.Error())
+		return errors.Errorf("values.yaml \n%s", err.Error())
 	}
 
 	metainfoByte, err = yaml.YAMLToJSON(metainfoByte)
@@ -129,7 +148,7 @@ func (lint *lintOptions) run() error {
 		return err
 	}
 
-	logrus.Info("values.yaml is valid, start load raw charts...")
+	logrus.Info("values.yaml is valid...")
 
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
@@ -140,9 +159,12 @@ func (lint *lintOptions) run() error {
 	if err != nil {
 		return err
 	}
-	err = lint.loadJsonnetAppLib(rawChart)
-	if err != nil {
-		return err
+
+	if !isOpenSource {
+		err = lint.loadJsonnetAppLib(rawChart)
+		if err != nil {
+			return err
+		}
 	}
 
 	if req := rawChart.Metadata.Dependencies; req != nil {
@@ -208,7 +230,7 @@ func (lint *lintOptions) loadCICases() ([]lintTestCase, error) {
 	testCases := make([]lintTestCase, 0)
 	cifiles, err := ioutil.ReadDir(lint.ciPath)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	for _, cifile := range cifiles {
@@ -216,6 +238,10 @@ func (lint *lintOptions) loadCICases() ([]lintTestCase, error) {
 		if !cifile.IsDir() {
 
 			userConfigByte, err := ioutil.ReadFile(path.Join(lint.ciPath, cifile.Name()))
+			if err != nil {
+				return nil, err
+			}
+			userConfigByte, err = yaml.YAMLToJSON(userConfigByte)
 			if err != nil {
 				return nil, err
 			}
