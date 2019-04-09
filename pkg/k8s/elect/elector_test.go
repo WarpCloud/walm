@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+//TODO move to e2e test
 func Test(t *testing.T) {
 	//client, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
 	//if err != nil {
