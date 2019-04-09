@@ -33,7 +33,7 @@ func GetDefaultTaskManager() *TaskManager {
 		}
 		server, err := machinery.NewServer(taskConfig)
 		if err != nil {
-			logrus.Fatalf("Failed to init work queue server:", err.Error())
+			logrus.Fatalf("Failed to init work queue server: %s", err.Error())
 		}
 		log.Set(logrus.StandardLogger())
 		taskManager = &TaskManager{

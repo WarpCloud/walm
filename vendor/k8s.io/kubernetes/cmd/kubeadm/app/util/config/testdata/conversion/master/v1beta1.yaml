@@ -81,6 +81,7 @@ ipvs:
   excludeCIDRs: null
   minSyncPeriod: 0s
   scheduler: ""
+  strictARP: false
   syncPeriod: 30s
 kind: KubeProxyConfiguration
 metricsBindAddress: 127.0.0.1:10249
@@ -111,7 +112,7 @@ cgroupsPerQOS: true
 clusterDNS:
 - 10.96.0.10
 clusterDomain: cluster.local
-configMapAndSecretChangeDetectionStrategy: Watch
+configMapAndSecretChangeDetectionStrategy: Cache
 containerLogMaxFiles: 5
 containerLogMaxSize: 10Mi
 contentType: application/vnd.kubernetes.protobuf

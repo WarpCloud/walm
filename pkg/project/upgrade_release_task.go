@@ -68,7 +68,7 @@ func (upgradeReleaseTaskArgs *UpgradeReleaseTaskArgs) upgradeRelease() (err erro
 
 	err = GetDefaultProjectManager().helmClient.InstallUpgradeReleaseWithRetry(upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ReleaseParams, false, nil, false, 0)
 	if err != nil {
-		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName)
+		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", upgradeReleaseTaskArgs.ReleaseParams.Name, upgradeReleaseTaskArgs.Namespace, upgradeReleaseTaskArgs.ProjectName, err.Error())
 		return
 	}
 	return

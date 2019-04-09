@@ -24,8 +24,8 @@ set -o nounset
 set -o pipefail
 
 ### Hardcoded constants
-DEFAULT_CNI_VERSION="v0.6.0"
-DEFAULT_CNI_SHA1="d595d3ded6499a64e8dac02466e2f5f2ce257c9f"
+DEFAULT_CNI_VERSION="v0.7.5"
+DEFAULT_CNI_SHA1="52e9d2de8a5f927307d9397308735658ee44ab8d"
 DEFAULT_NPD_VERSION="v0.6.0"
 DEFAULT_NPD_SHA1="a28e960a21bb74bc0ae09c267b6a340f30e5b3a6"
 DEFAULT_CRICTL_VERSION="v1.12.0"
@@ -202,12 +202,12 @@ function install-node-problem-detector {
   local -r npd_tar="node-problem-detector-${npd_version}.tar.gz"
 
   if is-preloaded "${npd_tar}" "${npd_sha1}"; then
-    echo "node-problem-detector is preloaded."
+    echo "${npd_tar} is preloaded."
     return
   fi
 
-  echo "Downloading node problem detector."
-  local -r npd_release_path="https://storage.googleapis.com/kubernetes-release"
+  echo "Downloading ${npd_tar}."
+  local -r npd_release_path="${NODE_PROBLEM_DETECTOR_RELEASE_PATH:-https://storage.googleapis.com/kubernetes-release}"
   download-or-bust "${npd_sha1}" "${npd_release_path}/node-problem-detector/${npd_tar}"
   local -r npd_dir="${KUBE_HOME}/node-problem-detector"
   mkdir -p "${npd_dir}"
