@@ -55,7 +55,7 @@ func (config *MetaEnvConfig) BuildDefaultValue(jsonStr string) {
 }
 
 func (config *MetaEnvConfig) BuildEnvConfigValue(jsonStr string) []MetaEnv {
-	metaEnv := []MetaEnv{}
+	var metaEnv []MetaEnv
 	rawMsg := gjson.Get(jsonStr, config.MapKey).Raw
 	if rawMsg == "" {
 		return metaEnv
