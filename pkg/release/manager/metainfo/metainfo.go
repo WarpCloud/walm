@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // chart metainfo
@@ -23,8 +24,6 @@ type ChartMetaInfo struct {
 func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*MetaConfigTestSet, error) {
 
 	var err error
-	// Todo:// unrecongized fields in metainfo
-
 	// friendlyName
 	if !(len(chartMetaInfo.FriendlyName) > 0) {
 		err = errors.Errorf("field friendlyName required")
@@ -70,7 +69,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey: baseConfig.Image.MapKey,
 						Required: baseConfig.Image.Required,
-						Type: baseConfig.Image.Type,
+						Type: "string",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -83,7 +82,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey: baseConfig.Priority.MapKey,
 						Required: baseConfig.Priority.Required,
-						Type: baseConfig.Priority.Type,
+						Type: "int",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -96,7 +95,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey: baseConfig.Replicas.MapKey,
 						Required: baseConfig.Replicas.Required,
-						Type: baseConfig.Replicas.Type,
+						Type: "int",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -109,7 +108,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey: baseConfig.Env.MapKey,
 						Required: baseConfig.Env.Required,
-						Type: baseConfig.Env.Type,
+						Type: "env",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -122,7 +121,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey: baseConfig.UseHostNetwork.MapKey,
 						Required: baseConfig.UseHostNetwork.Required,
-						Type: baseConfig.UseHostNetwork.Type,
+						Type: "boolean",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -138,7 +137,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 							return nil, err
 						}
 						switch otherConfig.Type {
-						case "bool", "int", "float", "string", "yaml", "json":
+						case "boolean", "int", "float", "string", "yaml", "json":
 						default:
 							err = errors.Errorf("type value not support in field roles[%d].baseConfig.others[%d]", index, otherIndex)
 							return nil, err
@@ -164,7 +163,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.LimitsCpu.MapKey,
 						Required: resourceConfig.LimitsCpu.Required,
-						Type:     resourceConfig.LimitsCpu.Type,
+						Type:     "float",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -174,10 +173,11 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						err = errors.Errorf("mapKey required in field roles[%d].resources.LimitsMemory", index)
 						return nil, err
 					}
+
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.LimitsMemory.MapKey,
 						Required: resourceConfig.LimitsMemory.Required,
-						Type:     resourceConfig.LimitsMemory.Type,
+						Type:     "string",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -189,7 +189,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.LimitsGpu.MapKey,
 						Required: resourceConfig.LimitsGpu.Required,
-						Type:     resourceConfig.LimitsGpu.Type,
+						Type:     "float",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -201,7 +201,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.RequestsMemory.MapKey,
 						Required: resourceConfig.RequestsMemory.Required,
-						Type:     resourceConfig.RequestsMemory.Type,
+						Type:     "string",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -213,7 +213,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.RequestsCpu.MapKey,
 						Required: resourceConfig.RequestsCpu.Required,
-						Type:     resourceConfig.RequestsCpu.Type,
+						Type:     "float",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -225,7 +225,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					configSet := &MetaConfigTestSet{
 						MapKey:   resourceConfig.RequestsGpu.MapKey,
 						Required: resourceConfig.RequestsGpu.Required,
-						Type:     resourceConfig.RequestsGpu.Type,
+						Type:     "float",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -265,7 +265,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 				return nil, err
 			}
 			switch param.Type {
-			case "bool", "int", "float", "string", "yaml", "json":
+			case "boolean", "int", "float", "string", "yaml", "json":
 			default:
 				err = errors.Errorf("type value not support in field params[%d]", paramIndex)
 				return nil, err
@@ -309,7 +309,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 		boolean --> True, False
 		string --> String
 		int, float --> Number
-		interface, {}, [] --> Json
+		interface, {}, [], Null --> JSON, Null
 		*/
 		result := gjson.Get(valuesStr, configSet.MapKey)
 		if result.Exists() {
@@ -323,6 +323,14 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 				if result.Type.String() != "String" {
 					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
 				}
+				if strings.HasSuffix(configSet.MapKey, ".memory") || strings.HasSuffix(configSet.MapKey, ".memory_request") ||
+					strings.HasSuffix(configSet.MapKey, ".memory_limit") {
+
+					if !(strings.HasSuffix(result.Str, "Mi") || strings.HasSuffix(result.Str, "Gi")) {
+						return errors.Errorf("%s Format error in values.yaml, eg: 4Gi, 400Mi expected", configSet.MapKey)
+					}
+				}
+
 			case "int":
 				_, err = strconv.Atoi(result.Raw)
 				if err != nil {
@@ -333,8 +341,10 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
 				}
 			case "":
-				logrus.Warnf("%s type not defined in metainfo.yaml", configSet.MapKey)
 			default:
+				if result.Type.String() == "Null" {
+					break
+				}
 				if result.Type.String() != "JSON" {
 					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
 				}
