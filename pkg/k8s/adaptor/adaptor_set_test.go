@@ -2,38 +2,37 @@ package adaptor
 
 import (
 	"testing"
+	"walm/pkg/k8s/handler"
+	"github.com/stretchr/testify/assert"
+	"walm/pkg/k8s/informer"
 )
 
 func Test(t *testing.T) {
-	//clientEx, err := client.CreateFakeApiserverClientEx("", "C:/kubernetes/0.5/kubeconfig")
-	//if err != nil {
-	//	println(err.Error())
-	//	return
-	//}
-	//
-	//client, err := client.CreateFakeApiserverClient("", "C:/kubernetes/0.5/kubeconfig")
-	//if err != nil {
-	//	println(err.Error())
-	//	return
-	//}
-	//
-	//factory := informer.NewFakeInformerFactory(client, clientEx, 0)
-	//factory.Start(wait.NeverStop)
-	//factory.WaitForCacheSync(wait.NeverStop)
-	//
-	//handlerSet := handler.NewFakeHandlerSet(client, clientEx, factory)
-	//
-	//adaptorSet := AdaptorSet{handlerSet: handlerSet}
-	//
-	//instanceAdaptor := adaptorSet.GetAdaptor("ApplicationInstance")
-	//
-	//inst, err := instanceAdaptor.GetResource("nosecurity", "zookeeper-nosecurity")
-	//
-	//e, err := json.Marshal(inst)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	//fmt.Println(string(e))
+	tests := []struct{
+		kind string
+		adaptor ResourceAdaptor
+	} {
+		{kind: "Deployment", adaptor: &WalmDeploymentAdaptor{}},
+		{kind: "Service", adaptor: &WalmServiceAdaptor{}},
+		{kind: "StatefulSet", adaptor: &WalmStatefulSetAdaptor{}},
+		{kind: "DaemonSet", adaptor: &WalmDaemonSetAdaptor{}},
+		{kind: "Job", adaptor: &WalmJobAdaptor{}},
+		{kind: "ConfigMap", adaptor: &WalmConfigMapAdaptor{}},
+		{kind: "Ingress", adaptor: &WalmIngressAdaptor{}},
+		{kind: "Secret", adaptor: &WalmSecretAdaptor{}},
+		{kind: "Pod", adaptor: &WalmPodAdaptor{}},
+		{kind: "Node", adaptor: &WalmNodeAdaptor{}},
+		{kind: "ResourceQuota", adaptor: &WalmResourceQuotaAdaptor{}},
+		{kind: "PersistentVolumeClaim", adaptor: &WalmPersistentVolumeClaimAdaptor{}},
+		{kind: "StorageClass", adaptor: &WalmStorageClassAdaptor{}},
+		{kind: "Namespace", adaptor: &WalmNamespaceAdaptor{}},
+		{kind: "UnKnown", adaptor: &WalmDefaultAdaptor{}},
+	}
 
+	adaptorSet := AdaptorSet{handlerSet: handler.NewFakeHandlerSet(nil, nil, informer.NewFakeInformerFactory(nil, nil, 0))}
+
+	for _, test := range tests {
+		adaptor := adaptorSet.GetAdaptor(test.kind)
+		assert.IsType(t, test.adaptor, adaptor)
+	}
 }

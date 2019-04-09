@@ -1,5 +1,6 @@
 package client
 
+//TODO move to e2e test
 //func Test(t *testing.T) {
 //	client, err := createApiserverClient("http://172.16.1.70:8080", "")
 //	//client, err := createApiserverClient("", "C:/kubernetes/kubeconfig")

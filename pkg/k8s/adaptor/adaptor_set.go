@@ -16,7 +16,7 @@ func GetDefaultAdaptorSet() *AdaptorSet {
 type AdaptorSet struct {
 	handlerSet *handler.HandlerSet
 	walmConfigMapAdaptor *WalmConfigMapAdaptor
-	walmDaemonSetAdaptor * WalmDaemonSetAdaptor
+	walmDaemonSetAdaptor *WalmDaemonSetAdaptor
 	walmDeploymentAdaptor *WalmDeploymentAdaptor
 	walmIngressAdaptor *WalmIngressAdaptor
 	walmJobAdaptor *WalmJobAdaptor
