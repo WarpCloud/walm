@@ -82,6 +82,12 @@ type MetaResourceStorageConfig struct {
 	Required     bool                 `json:"required" description:"required"`
 }
 
+type MetaConfigTestSet struct {
+	MapKey       string               `json:"mapKey" description:"config map values.yaml key"`
+	Type         string               `json:"type" description:"config type"`
+	Required     bool                 `json:"required" description:"required"`
+}
+
 func (config *MetaResourceStorageConfig) BuildDefaultValue(jsonStr string) {
 	config.DefaultValue = config.BuildStorageConfigValue(jsonStr).Value
 }

@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"walm/pkg/release/manager/metainfo"
+	"bytes"
+	"github.com/ghodss/yaml"
 )
 
 var longLintHelp = `
@@ -40,13 +42,6 @@ type lintOptions struct {
 	chartPath  string
 	ciPath     string
 	kubeconfig string
-}
-
-type lintTypeCheck struct {
-	mapKey   string
-	Type     string
-	required bool
-	path     string
 }
 
 type lintTestCase struct {
@@ -81,26 +76,60 @@ func (lint *lintOptions) run() error {
 		lint.ciPath = path.Join(lint.chartPath, "ci")
 	}
 
-	metainfoPath := path.Join(lint.chartPath, "transwarp-meta/metainfo.yaml")
 	valuesPath := path.Join(lint.chartPath, "values.yaml")
-
-	metainfoByte, err := ioutil.ReadFile(metainfoPath)
-	if err != nil {
-		return err
-	}
+	metainfoPath := path.Join(lint.chartPath, "transwarp-meta/metainfo.yaml")
 
 	valuesByte, err := ioutil.ReadFile(valuesPath)
 	if err != nil {
 		return err
 	}
 
-	chartMetaInfo := metainfo.ChartMetaInfo{}
-
-	err = chartMetaInfo.CheckMetainfoParams(metainfoByte, valuesByte)
+	metainfoByte, err := ioutil.ReadFile(metainfoPath)
 	if err != nil {
 		return err
 	}
-	logrus.Infof("map keys check correct")
+
+	/* validate yaml format */
+	valuesByte, err = yaml.YAMLToJSON(valuesByte)
+	if err != nil {
+		return errors.Errorf("metainfo.yaml \n%s", err.Error())
+	}
+
+	metainfoByte, err = yaml.YAMLToJSON(metainfoByte)
+	if err != nil {
+		return errors.Errorf("metainfo.yaml \n%s", err.Error())
+	}
+
+
+	/* reject unknown fields */
+	var chartMetaInfo metainfo.ChartMetaInfo
+	dec := json.NewDecoder(bytes.NewReader(metainfoByte))
+	dec.DisallowUnknownFields()
+
+	if err = dec.Decode(&chartMetaInfo); err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(metainfoByte, &chartMetaInfo)
+	if err != nil {
+		return err
+	}
+
+	/* check metainfo valid */
+	configMaps, err := chartMetaInfo.CheckMetainfoValidate(string(valuesByte))
+	if err != nil {
+		return errors.Errorf("metainfo error: %s", err.Error())
+	}
+	logrus.Infof("metainfo.yaml is valid, start check params in values.yaml...")
+
+	/* check params in values */
+	err = chartMetaInfo.CheckParamsInValues(string(valuesByte), configMaps)
+
+	if err != nil {
+		return err
+	}
+
+	logrus.Info("values.yaml is valid, start load raw charts...")
 
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
