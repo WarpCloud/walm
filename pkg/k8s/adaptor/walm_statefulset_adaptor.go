@@ -2,7 +2,6 @@ package adaptor
 
 import (
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
-	"fmt"
 	"k8s.io/api/apps/v1"
 	"walm/pkg/k8s/handler"
 )
@@ -52,25 +51,7 @@ func buildWalmStatefulSetState(statefulSet *appsv1beta1.StatefulSet, pods []*Wal
 	if isStatefulSetReady(statefulSet) {
 		walmState = buildWalmState("Ready", "", "")
 	} else {
-		if len(pods) == 0 {
-			walmState = buildWalmState("Pending", "PodNotCreated", "There is no pod created")
-		} else {
-			allPodsTerminating, unknownPod, pendingPod, runningPod := parsePods(pods)
-
-			if allPodsTerminating {
-				walmState = buildWalmState("Terminating", "", "")
-			} else {
-				if unknownPod != nil {
-					walmState = buildWalmState("Pending", "PodUnknown", fmt.Sprintf("Pod %s/%s is in state Unknown", unknownPod.Namespace, unknownPod.Name))
-				} else if pendingPod != nil {
-					walmState = buildWalmState("Pending", "PodPending", fmt.Sprintf("Pod %s/%s is in state Pending", pendingPod.Namespace, pendingPod.Name))
-				} else if runningPod != nil {
-					walmState = buildWalmState("Pending", "PodRunning", fmt.Sprintf("Pod %s/%s is in state Running", runningPod.Namespace, runningPod.Name))
-				} else {
-					walmState = buildWalmState("Pending", "StatefulSetUpdating", "StatefulSet is updating")
-				}
-			}
-		}
+		walmState = buildWalmStateByPods(pods, "StatefulSet")
 	}
 	return walmState
 }
