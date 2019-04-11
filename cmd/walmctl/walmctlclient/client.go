@@ -91,15 +91,16 @@ func (c *WalmctlClient) UpdateRelease(namespace string, newConfigStr string, asy
 	return resp, err
 }
 
-func (c *WalmctlClient) UpdateReleaseWithChart(namespace string, releaseName string, newConfigStr string, file string) (resp *resty.Response, err error) {
+func (c *WalmctlClient) UpdateReleaseWithChart(namespace string, releaseName string, file string) (resp *resty.Response, err error) {
 
-	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "/name/" + releaseName + "/withchart"
+	fullUrl := walmctlClient.baseURL + "/release/" + namespace + "/withchart"
 
-	resp, err = resty.R().SetHeader("Content-Type", "multipart/form-data").
-		SetFile("chart", file).
-		SetFormData(map[string]string{
-		"body": newConfigStr,
-	}).Put(fullUrl)
+	resp, err = resty.R().SetHeader("Content-Type", "multipart/form-data", ).
+	   SetFile("chart", file).
+	   SetFormData(map[string]string{
+	   	"release": releaseName,
+	}).
+	Put(fullUrl)
 
 	if resp.StatusCode() != 200 {
 		return nil, errors.New(resp.String())

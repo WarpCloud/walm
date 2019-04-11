@@ -6,8 +6,12 @@ import (
 	"github.com/pkg/errors"
 	"walm/cmd/walmctl/walmctlclient"
 	"strings"
-	"k8s.io/helm/pkg/strvals"
+	"fmt"
 	"encoding/json"
+	"walm/pkg/release"
+	"github.com/tidwall/gjson"
+	"strconv"
+	"github.com/tidwall/sjson"
 )
 
 const updateDesc = `This command update an existing release,
@@ -20,7 +24,7 @@ type updateCmd struct {
 	sourceType string
 	sourceName string
 	withchart string
-	properties string
+	setproperties string
 	timeoutSec  int64
 	async       bool
 }
@@ -58,7 +62,7 @@ func newUpdateCmd(out io.Writer) *cobra.Command {
 	cmd.Flags().StringVar(&uc.withchart, "withchart", "", "update release with local chart")
 	cmd.Flags().Int64Var(&uc.timeoutSec, "timeoutSec", 0, "timeout, (default 0), available only when update release without local chart.")
 	cmd.Flags().BoolVar(&uc.async, "async", true, "whether asynchronous, available only when update release without local chart.")
-	cmd.Flags().StringVar(&uc.properties, "set", "", "set values on the command line (can specify multiple or separate values with commas: key1=val1,dependencies.guardian=...")
+	cmd.Flags().StringVar(&uc.setproperties, "set-string", "", "set values on the command line (can specify multiple or separate values with commas: pathA=valA,pathB.1=valB,...")
 	return cmd
 }
 
@@ -75,29 +79,76 @@ func (uc *updateCmd) run() error {
 		return errors.Errorf("%s %s is not found.", uc.sourceType, uc.sourceName)
 	}
 
-	baseConfig := map[string]interface{}{}
+	var releaseInfo release.ReleaseInfoV2
+	var releaseInfoByte []byte
+	var releaseInfoStr string
 
-	err = json.Unmarshal(resp.Body(), &baseConfig)
+	err = json.Unmarshal(resp.Body(), &releaseInfo)
 	if err != nil {
-		return errors.Errorf("")
+		return err
 	}
 
-
-	propertyArray := strings.Split(uc.properties, ",")
-	for _, property := range propertyArray {
-		property = strings.TrimSpace(property)
-		strvals.ParseInto(property, baseConfig)
+	releaseInfoByte, err = json.Marshal(releaseInfo)
+	if err != nil {
+		return err
 	}
 
-	newConfig, err := json.Marshal(baseConfig)
+	releaseInfoStr = string(releaseInfoByte)
 
+	if uc.sourceType == "release" {
+
+		propertySetArray := strings.Split(uc.setproperties, ",")
+
+		for _, propertySet := range propertySetArray {
+			propertySet = strings.TrimSpace(propertySet)
+			propertyMap := strings.Split(propertySet, "=")
+			if len(propertyMap) != 2 {
+				return errors.Errorf("set values error, params should like --set pathA=valueA, pathB=valueB...")
+			}
+			propertyKey := propertyMap[0]
+			propertyVal := propertyMap[1]
+
+			result := gjson.Get(releaseInfoStr, propertyKey)
+			if !result.Exists() {
+				return errors.Errorf("path error: %s not exist in releaseInfo")
+			}
+
+			var destVal interface{}
+
+			switch result.Type.String() {
+
+			case "True", "False":
+				destVal, err = strconv.ParseBool(propertyVal)
+			case "String":
+				destVal = propertyVal
+			case "Number":
+				destVal, err = strconv.Atoi(propertyVal)
+				if err != nil {
+					destVal, err = strconv.ParseFloat(propertyVal, 64)
+				}
+			case "JSON":
+				err = json.Unmarshal([]byte(propertyVal), &destVal)
+			default:
+
+			}
+
+			if err != nil {
+				return err
+			}
+
+			releaseInfoStr, err = sjson.Set(releaseInfoStr, propertyKey, destVal)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	if uc.sourceType == "release" {
 
 		if uc.withchart == "" {
-			resp, err = client.UpdateRelease(namespace, string(newConfig), uc.async, uc.timeoutSec)
+			resp, err = client.UpdateRelease(namespace, string(releaseInfoByte), uc.async, uc.timeoutSec)
 		} else {
-			resp, err = client.UpdateReleaseWithChart(namespace, uc.sourceName, string(newConfig), uc.withchart)
+			resp, err = client.UpdateReleaseWithChart(namespace, uc.sourceName, uc.withchart)
 		}
 
 	}
@@ -105,5 +156,8 @@ func (uc *updateCmd) run() error {
 	if err != nil {
 		return errors.Errorf("update release with local chart failed")
 	}
+
+	fmt.Printf("Update %s %s succeed\n", uc.sourceType, uc.sourceName)
+
 	return nil
 }

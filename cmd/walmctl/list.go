@@ -66,6 +66,7 @@ func newListCmd(out io.Writer) *cobra.Command {
 				return errNamespaceRequired
 			}
 			lc.sourceType = args[0]
+
 			return lc.run()
 		},
 	}
@@ -87,7 +88,7 @@ func (lc *listCmd) run() error {
 
 	err = checkResourceType(lc.sourceType)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	client := walmctlclient.CreateNewClient(walmserver)
