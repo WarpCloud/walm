@@ -2,36 +2,78 @@ package adaptor
 
 import (
 	"testing"
-	"fmt"
-	"encoding/json"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestResourceQuotaAdaptor(t *testing.T) {
-	walmResourceQuota := &WalmResourceQuota{
-		WalmMeta: buildWalmMetaWithoutState("ResourceQuota", "default", "test"),
-		ResourceLimits: map[v1.ResourceName]string{v1.ResourceCPU: "10", v1.ResourceMemory: "5Gi"},
+func TestBuildWalmResourceQuota(t *testing.T) {
+	tests := []struct {
+		resourceQuota *v1.ResourceQuota
+		result        *WalmResourceQuota
+	}{
+		{
+			resourceQuota: &v1.ResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "test_ns",
+					Name:      "test_name",
+				},
+				Spec: v1.ResourceQuotaSpec{
+					Hard: v1.ResourceList{v1.ResourceMemory: resource.MustParse("10Gi")},
+				},
+				Status: v1.ResourceQuotaStatus{
+					Used: v1.ResourceList{v1.ResourceMemory: resource.MustParse("5Gi")},
+				},
+			},
+			result: &WalmResourceQuota{
+				WalmMeta: WalmMeta{
+					Namespace: "test_ns",
+					Name:      "test_name",
+					Kind:      "ResourceQuota",
+					State:     buildWalmState("Ready", "", ""),
+				},
+				ResourceUsed:   map[v1.ResourceName]string{v1.ResourceMemory: "5Gi"},
+				ResourceLimits: map[v1.ResourceName]string{v1.ResourceMemory: "10Gi"},
+			},
+		},
 	}
 
-	quota, err := BuildResourceQuota(walmResourceQuota)
-	if err != nil {
-		fmt.Println(err)
-		t.Fail()
+	for _, test := range tests {
+		result := BuildWalmResourceQuota(test.resourceQuota)
+		assert.Equal(t, test.result, result)
 	}
-
-	e, err := json.Marshal(quota)
-	if err != nil {
-		fmt.Println(err)
-		t.Fail()
-	}
-	fmt.Println(string(e))
-
-	walmQuota := BuildWalmResourceQuota(quota)
-	e, err = json.Marshal(walmQuota)
-	if err != nil {
-		fmt.Println(err)
-		t.Fail()
-	}
-	fmt.Println(string(e))
 }
 
+func TestBuildResourceQuota(t *testing.T) {
+	tests := []struct {
+		resourceQuota *WalmResourceQuota
+		err           error
+		result        *v1.ResourceQuota
+	}{
+		{
+			resourceQuota: &WalmResourceQuota{
+				WalmMeta: WalmMeta{
+					Namespace: "test_ns",
+					Name:      "test_name",
+				},
+				ResourceLimits: map[v1.ResourceName]string{v1.ResourceMemory: "10Gi"},
+			},
+			result: &v1.ResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "test_ns",
+					Name:      "test_name",
+				},
+				Spec: v1.ResourceQuotaSpec{
+					Hard: v1.ResourceList{v1.ResourceMemory: resource.MustParse("10Gi")},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		result, err := BuildResourceQuota(test.resourceQuota)
+		assert.IsType(t, test.err, err)
+		assert.Equal(t, test.result, result)
+	}
+}
