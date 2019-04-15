@@ -32,7 +32,7 @@ var _ = Describe("Secret", func() {
 			gopath = build.Default.GOPATH
 		}
 
-		randomId = uuid.Must(uuid.NewV4(), err).String()
+		randomId = uuid.Must(uuid.NewV4()).String()
 		namespace = "test-" + randomId[:8]
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

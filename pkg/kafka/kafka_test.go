@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+//TODO move to e2e test
 func TestKafkaClient(t *testing.T) {
 
 	//InitKafkaClient(&setting.KafkaConfig{

@@ -4,6 +4,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"k8s.io/api/core/v1"
+	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func buildWalmState(state string, reason string, message string) WalmState {
@@ -14,28 +16,40 @@ func buildWalmState(state string, reason string, message string) WalmState {
 	}
 }
 
-func parsePods(pods []*WalmPod) (bool, *WalmPod, *WalmPod, *WalmPod) {
+func buildWalmStateByPods(pods []*WalmPod, controllerKind string) (walmState WalmState) {
+	if len(pods) == 0 {
+		walmState = buildWalmState("Pending", "PodNotCreated", "There is no pod created")
+		return
+	}
+
 	allPodsTerminating := true
-	var unknownPod, pendingPod, runningPod *WalmPod
 	for _, pod := range pods {
 		if pod.State.Status != "Terminating" {
 			allPodsTerminating = false
 			if pod.State.Status == "Unknown" {
-				unknownPod = pod
-				break
+				walmState = buildWalmState("Pending", "PodUnknown", fmt.Sprintf("Pod %s/%s is in state Unknown", pod.Namespace, pod.Name))
+				return
 			} else if pod.State.Status == "Pending" {
-				pendingPod = pod
+				walmState = buildWalmState("Pending", "PodPending", fmt.Sprintf("Pod %s/%s is in state Pending", pod.Namespace, pod.Name))
+				return
 			} else if pod.State.Status == "Running" {
-				runningPod = pod
+				walmState = buildWalmState("Pending", "PodRunning", fmt.Sprintf("Pod %s/%s is in state Running", pod.Namespace, pod.Name))
+				return
 			}
 		}
 	}
-	return allPodsTerminating, unknownPod, pendingPod, runningPod
+
+	if allPodsTerminating {
+		walmState = buildWalmState("Terminating", "", "")
+	} else {
+		walmState = buildWalmState("Pending", controllerKind + "Updating", controllerKind + " is updating")
+	}
+	return
 }
 
 func IsNotFoundErr(err error) bool {
 	if e, ok := err.(*errors.StatusError); ok {
-		if e.Status().Reason == "NotFound" {
+		if e.Status().Reason == metav1.StatusReasonNotFound {
 			return true
 		}
 	}

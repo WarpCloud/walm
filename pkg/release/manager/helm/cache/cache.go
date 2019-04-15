@@ -19,6 +19,7 @@ import (
 	"k8s.io/helm/pkg/chart"
 	"walm/pkg/util/transwarpjsonnet"
 	"walm/pkg/release/manager/metainfo"
+	"walm/pkg/util"
 )
 
 const (
@@ -26,8 +27,9 @@ const (
 )
 
 type HelmCache struct {
-	redisClient *redis.RedisClient
-	list        *action.List
+	redisClient             *redis.RedisClient
+	list                    *action.List
+	getReleaseResourceMetas func(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error)
 }
 
 func (cache *HelmCache) CreateOrUpdateReleaseCache(helmRelease *hapirelease.Release) error {
@@ -187,18 +189,7 @@ func (cache *HelmCache) Resync() {
 				return err
 			}
 
-			helmReleasesMap := map[string]*hapirelease.Release{}
-			for _, helmRelease := range helmReleases {
-				filedName := buildWalmReleaseFieldName(helmRelease.Namespace, helmRelease.Name)
-				if existedHelmRelease, ok := helmReleasesMap[filedName] ; ok {
-					if existedHelmRelease.Version < helmRelease.Version {
-						helmReleasesMap[filedName] = helmRelease
-					}
-				} else {
-					helmReleasesMap[filedName] = helmRelease
-				}
-
-			}
+			helmReleasesMap := buildHelmReleasesMap(helmReleases)
 
 			releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleasesMap)
 			if err != nil {
@@ -352,6 +343,22 @@ func (cache *HelmCache) Resync() {
 			return
 		}
 	}
+}
+
+func buildHelmReleasesMap(helmReleases []*hapirelease.Release) map[string]*hapirelease.Release {
+	helmReleasesMap := map[string]*hapirelease.Release{}
+	for _, helmRelease := range helmReleases {
+		filedName := buildWalmReleaseFieldName(helmRelease.Namespace, helmRelease.Name)
+		if existedHelmRelease, ok := helmReleasesMap[filedName]; ok {
+			if existedHelmRelease.Version < helmRelease.Version {
+				helmReleasesMap[filedName] = helmRelease
+			}
+		} else {
+			helmReleasesMap[filedName] = helmRelease
+		}
+
+	}
+	return helmReleasesMap
 }
 
 func (cache *HelmCache) CreateOrUpdateProjectCache(projectCache *ProjectCache) (err error) {
@@ -587,7 +594,8 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 	releaseSpec.ChartVersion = helmRelease.Chart.Metadata.Version
 	releaseSpec.ChartName = helmRelease.Chart.Metadata.Name
 	releaseSpec.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
-	releaseSpec.ConfigValues = helmRelease.Config
+	releaseSpec.ConfigValues = map[string]interface{}{}
+	util.MergeValues(releaseSpec.ConfigValues, helmRelease.Config)
 	releaseCache = &release.ReleaseCache{
 		ReleaseSpec: releaseSpec,
 	}
@@ -598,8 +606,8 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 		return nil, err
 	}
 
-	releaseCache.ReleaseResourceMetas, err = cache.getReleaseResourceMetas(helmRelease)
 	releaseCache.MetaInfoValues = buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
+	releaseCache.ReleaseResourceMetas, err = cache.getReleaseResourceMetas(helmRelease)
 	return
 }
 
@@ -617,24 +625,6 @@ func buildMetaInfoValues(chart *chart.Chart, computedValues map[string]interface
 	}
 
 	return nil
-}
-
-func (cache *HelmCache) getReleaseResourceMetas(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {
-	resources = []release.ReleaseResourceMeta{}
-	results, err := client.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
-	if err != nil {
-		logrus.Errorf("failed to get release resource metas of %s", helmRelease.Name)
-		return resources, err
-	}
-	for _, result := range results {
-		resource := release.ReleaseResourceMeta{
-			Kind:      result.Object.GetObjectKind().GroupVersionKind().Kind,
-			Namespace: result.Namespace,
-			Name:      result.Name,
-		}
-		resources = append(resources, resource)
-	}
-	return
 }
 
 func buildWalmReleaseFieldName(namespace, name string) string {
@@ -663,6 +653,23 @@ func NewHelmCache(redisClient *redis.RedisClient) *HelmCache {
 	result := &HelmCache{
 		redisClient: redisClient,
 		list:        action.NewList(config),
+		getReleaseResourceMetas: func(helmRelease *hapirelease.Release) (resources []release.ReleaseResourceMeta, err error) {
+			resources = []release.ReleaseResourceMeta{}
+			results, err := client.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
+			if err != nil {
+				logrus.Errorf("failed to get release resource metas of %s", helmRelease.Name)
+				return resources, err
+			}
+			for _, result := range results {
+				resource := release.ReleaseResourceMeta{
+					Kind:      result.Object.GetObjectKind().GroupVersionKind().Kind,
+					Namespace: result.Namespace,
+					Name:      result.Name,
+				}
+				resources = append(resources, resource)
+			}
+			return
+		},
 	}
 
 	result.list.AllNamespaces = true
