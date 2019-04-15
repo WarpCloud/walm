@@ -30,7 +30,7 @@ var _ = Describe("Pvc", func() {
 
 	BeforeEach(func() {
 		By("create namespace")
-		randomId := uuid.Must(uuid.NewV4(), err).String()
+		randomId := uuid.Must(uuid.NewV4()).String()
 		namespace = "test-" + randomId[:8]
 
 		ns := corev1.Namespace{

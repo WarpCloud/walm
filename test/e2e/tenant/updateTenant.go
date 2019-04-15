@@ -19,7 +19,7 @@ var _ = Describe("Tenant", func() {
 
 		By("create tenant")
 
-		randomId := uuid.Must(uuid.NewV4(), err).String()
+		randomId := uuid.Must(uuid.NewV4()).String()
 		tenantName = "test-" + randomId[:8]
 		tenantParams = tenant.TenantParams{}
 		err := tenant.CreateTenant(tenantName, &tenantParams)
