@@ -2,8 +2,6 @@ package cache
 
 import (
 	"walm/pkg/task"
-	"time"
-	"github.com/sirupsen/logrus"
 	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
@@ -52,14 +50,6 @@ func (projectCache *ProjectCache) GetLatestTaskState() *tasks.TaskState {
 
 func (projectCache *ProjectCache) IsLatestTaskFinishedOrTimeout() bool {
 	taskState := projectCache.GetLatestTaskState()
-	// task state has ttl, maybe task state can not be got
-	if taskState == nil || taskState.TaskName == "" {
-		return true
-	} else if taskState.IsCompleted() {
-		return true
-	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(projectCache.LatestTaskTimeoutSec)*time.Second {
-		logrus.Warnf("task %s-%s time out", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID)
-		return true
-	}
-	return false
+	return task.IsTaskFinishedOrTimeout(taskState, projectCache.LatestTaskTimeoutSec)
 }
+
