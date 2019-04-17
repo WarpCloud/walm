@@ -11,6 +11,8 @@ import (
 	//"gopkg.in/yaml.v2"
 	"walm/pkg/util/transwarpjsonnet"
 	"github.com/ghodss/yaml"
+	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestBuildHScanFilter(t *testing.T) {
@@ -231,6 +233,304 @@ func convertBytesToReleaseCacheMap(rcs map[string]interface{}) map[string]*relea
 func convertMetaInfoToBytes(metaInfo *metainfo.ChartMetaInfo) []byte {
 	bytes, _ := yaml.Marshal(metaInfo)
 	return bytes
+}
+
+func Test_BuildReleaseCacheKeysToDel(t *testing.T) {
+	tests := []struct {
+		releaseCacheKeysFromRedis []string
+		releaseCachesFromHelm     map[string]interface{}
+		result                    []string
+	}{
+		{
+			releaseCacheKeysFromRedis: []string{
+				"test_name1",
+				"test_name2",
+			},
+			releaseCachesFromHelm: map[string]interface{}{
+				"test_name2": nil,
+			},
+			result: []string{
+				"test_name1",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		result := buildReleaseCacheKeysToDel(test.releaseCacheKeysFromRedis, test.releaseCachesFromHelm)
+		assert.ElementsMatch(t, test.result, result)
+	}
+}
+
+func Test_BuildProjectCachesFromReleaseConfigs(t *testing.T) {
+	tests := []struct {
+		releaseConfigs []*v1beta1.ReleaseConfig
+		result         map[string]string
+		err            error
+	}{
+		{
+			releaseConfigs: []*v1beta1.ReleaseConfig{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Labels: map[string]string{
+							ProjectNameLabelKey: "project1",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Labels: map[string]string{
+							ProjectNameLabelKey: "project2",
+						},
+					},
+				},
+			},
+			result: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+				"default/project2": "{\"name\":\"project2\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		result, err := buildProjectCachesFromReleaseConfigs(test.releaseConfigs)
+		if assert.IsType(t, test.err, err) {
+			assert.Equal(t, test.result, result)
+		}
+	}
+}
+
+func Test_BuildReleaseTasksFromHelm(t *testing.T) {
+	tests := []struct {
+		releaseCachesFromHelm map[string]interface{}
+		result                map[string]string
+		err                   error
+	}{
+		{
+			releaseCachesFromHelm: map[string]interface{}{
+				"default/rel1": convertReleaseCacheToBytes(release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "default",
+						Name:      "rel1",
+					},
+				}),
+				"default/rel2": convertReleaseCacheToBytes(release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "default",
+						Name:      "rel2",
+					},
+				}),
+			},
+			result: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+				"default/rel2": "{\"name\":\"rel2\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		result, err := buildReleaseTasksFromHelm(test.releaseCachesFromHelm)
+		if assert.IsType(t, test.err, err) {
+			assert.Equal(t, test.result, result)
+		}
+	}
+}
+
+func convertReleaseCacheToBytes(releaseCache release.ReleaseCache) []byte {
+	bytes, _ := json.Marshal(releaseCache)
+	return bytes
+}
+
+func TestHelmCache_BuildProjectCachesToDel(t *testing.T) {
+	tests := []struct {
+		helmCache                       *HelmCache
+		projectCachesFromReleaseConfigs map[string]string
+		projectCacheInRedis             map[string]string
+		result                          []string
+		err                             error
+	}{
+		{
+			helmCache: &HelmCache{},
+			projectCachesFromReleaseConfigs: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			projectCacheInRedis: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			result: []string{},
+			err:    nil,
+		},
+		{
+			helmCache: &HelmCache{
+				isProjectTaskFinishedOrTimeout: func(projectCache *ProjectCache) bool {
+					return true
+				},
+			},
+			projectCachesFromReleaseConfigs: map[string]string{
+			},
+			projectCacheInRedis: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			result: []string{"default/project1"},
+			err:    nil,
+		},
+		{
+			helmCache: &HelmCache{
+				isProjectTaskFinishedOrTimeout: func(projectCache *ProjectCache) bool {
+					return false
+				},
+			},
+			projectCachesFromReleaseConfigs: map[string]string{
+			},
+			projectCacheInRedis: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			result: []string{},
+			err:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		result, err := test.helmCache.buildProjectCachesToDel(test.projectCachesFromReleaseConfigs, test.projectCacheInRedis)
+		if assert.IsType(t, test.err, err) {
+			assert.Equal(t, test.result, result)
+		}
+	}
+}
+
+func Test_buildProjectCachesToSet(t *testing.T) {
+	tests := []struct {
+		projectCachesFromReleaseConfigs map[string]string
+		projectCacheInRedis             map[string]string
+		result                          map[string]interface{}
+	}{
+		{
+			projectCachesFromReleaseConfigs: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			projectCacheInRedis: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			result: map[string]interface{}{
+			},
+		},
+		{
+			projectCachesFromReleaseConfigs: map[string]string{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+			projectCacheInRedis: map[string]string{
+			},
+			result: map[string]interface{}{
+				"default/project1": "{\"name\":\"project1\",\"namespace\":\"default\",\"latestTaskSignature\":null,\"latestTaskTimeoutSec\":0}",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		result := buildProjectCachesToSet(test.projectCachesFromReleaseConfigs, test.projectCacheInRedis)
+		assert.Equal(t, test.result, result)
+	}
+}
+
+func TestHelmCache_BuildReleaseTasksToDel(t *testing.T) {
+	tests := []struct {
+		helmCache            *HelmCache
+		releaseTasksFromHelm map[string]string
+		releaseTaskInRedis   map[string]string
+		result               []string
+		err                  error
+	}{
+		{
+			helmCache: &HelmCache{},
+			releaseTasksFromHelm: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			releaseTaskInRedis: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			result: []string{},
+			err:    nil,
+		},
+		{
+			helmCache: &HelmCache{},
+			releaseTasksFromHelm: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			releaseTaskInRedis: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			result: []string{},
+			err:    nil,
+		},
+		{
+			helmCache: &HelmCache{isReleaseTaskFinishedOrTimeout: func(releaseTask *ReleaseTask) bool {
+				return true
+			}},
+			releaseTasksFromHelm: map[string]string{
+			},
+			releaseTaskInRedis: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			result: []string{"default/rel1"},
+			err:    nil,
+		},
+		{
+			helmCache: &HelmCache{isReleaseTaskFinishedOrTimeout: func(releaseTask *ReleaseTask) bool {
+				return false
+			}},
+			releaseTasksFromHelm: map[string]string{
+			},
+			releaseTaskInRedis: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			result: []string{},
+			err:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		result, err := test.helmCache.buildReleaseTasksToDel(test.releaseTasksFromHelm, test.releaseTaskInRedis)
+		if assert.IsType(t, test.err, err) {
+			assert.Equal(t, test.result, result)
+		}
+	}
+}
+
+func Test_BuildReleaseTasksToSet(t *testing.T) {
+	tests := []struct {
+		releaseTasksFromHelm map[string]string
+		releaseTaskInRedis   map[string]string
+		result               map[string]interface{}
+	}{
+		{
+			releaseTasksFromHelm: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			releaseTaskInRedis: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			result: map[string]interface{}{
+			},
+		},
+		{
+			releaseTasksFromHelm: map[string]string{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+			releaseTaskInRedis: map[string]string{
+			},
+			result: map[string]interface{}{
+				"default/rel1": "{\"name\":\"rel1\",\"namespace\":\"default\",\"latestReleaseTaskSignature\":null}",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		result := buildReleaseTasksToSet(test.releaseTasksFromHelm, test.releaseTaskInRedis)
+		assert.Equal(t, test.result, result)
+	}
 }
 
 //TODO move to e2e test
