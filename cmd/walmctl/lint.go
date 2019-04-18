@@ -145,7 +145,7 @@ func (lint *lintOptions) run() error {
 	err = chartMetaInfo.CheckParamsInValues(string(valuesByte), configMaps)
 
 	if err != nil {
-		return err
+		logrus.Warn(err)
 	}
 
 	logrus.Info("values.yaml is valid...")
