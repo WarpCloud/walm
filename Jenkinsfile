@@ -44,7 +44,7 @@ timestamps {
                     docker build --label CODE_REVISION=\${REV} \
                       --label BRANCH=$env.BRANCH_NAME \
                       --label COMPILE_DATE=\$(date +%Y%m%d-%H%M%S) \
-                      -t \$DOCKER_IMG_NAME -f Dockerfile.docker17.06.0-ce .
+                      -t \$DOCKER_IMG_NAME -f Dockerfile .
                     docker push \$DOCKER_IMG_NAME
                   """
               }
