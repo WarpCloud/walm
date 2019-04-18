@@ -340,6 +340,18 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 				if result.Type.String() != "Number" {
 					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
 				}
+			case "number":
+				if result.Type.String() != "Number" {
+					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
+				}
+			case "text":
+				if result.Type.String() != "String" {
+					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
+				}
+			case "kvPair":
+				if result.Type.String() != "JSON" {
+					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
+				}
 			case "":
 			default:
 				if result.Type.String() == "Null" {
