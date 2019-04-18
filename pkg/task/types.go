@@ -2,7 +2,6 @@ package task
 
 import (
 	"time"
-	"github.com/sirupsen/logrus"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/RichardKnop/machinery/v1/backends/result"
 )
@@ -63,14 +62,5 @@ func (walmTaskSig WalmTaskSig) GetTaskState() *tasks.TaskState {
 
 func (walmTaskSig WalmTaskSig) IsTaskFinishedOrTimeout() bool {
 	taskState := walmTaskSig.GetTaskState()
-	// task state has ttl, maybe task state can not be got
-	if taskState == nil || taskState.TaskName == "" {
-		return true
-	} else if taskState.IsCompleted() {
-		return true
-	} else if time.Now().Sub(taskState.CreatedAt) > time.Duration(walmTaskSig.TimeoutSec)*time.Second {
-		logrus.Warnf("task %s-%s time out", walmTaskSig.Name, walmTaskSig.UUID)
-		return true
-	}
-	return false
+	return IsTaskFinishedOrTimeout(taskState, walmTaskSig.TimeoutSec)
 }
