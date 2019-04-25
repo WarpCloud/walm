@@ -247,5 +247,47 @@ func RestartRelease(request *restful.Request, response *restful.Response) {
 	}
 }
 
+func PauseRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("release")
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
+	err = helm.GetDefaultHelmClient().PauseRelease(namespace, name, false, async, timeoutSec)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to pause release %s: %s", name, err.Error()))
+		return
+	}
+}
+
+func RecoverRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	name := request.PathParameter("release")
+	async, err := getAsyncQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param async value is not valid : %s", err.Error()))
+		return
+	}
+
+	timeoutSec, err := getTimeoutSecQueryParam(request)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("query param timeoutSec value is not valid : %s", err.Error()))
+		return
+	}
+	err = helm.GetDefaultHelmClient().RecoverRelease(namespace, name, false, async, timeoutSec)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to recover release %s: %s", name, err.Error()))
+		return
+	}
+}
+
 func RollBackRelease(request *restful.Request, response *restful.Response) {
 }

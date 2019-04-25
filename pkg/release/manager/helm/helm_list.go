@@ -12,6 +12,7 @@ import (
 	walmerr "walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"errors"
+	"encoding/json"
 )
 
 func (hc *HelmClient) GetRelease(namespace, name string) (releaseV2 *release.ReleaseInfoV2, err error) {
@@ -84,7 +85,6 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 	}
 	releaseV2 := &release.ReleaseInfoV2{ReleaseInfo: *releaseV1}
 	releaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(releaseCache.Namespace, releaseCache.Name)
-	releaseConfig.DeepCopy()
 	if err != nil {
 		if adaptor.IsNotFoundErr(err) {
 			releaseV2.DependenciesConfigValues = map[string]interface{}{}
@@ -124,7 +124,35 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 			}
 		}
 	}
+    releaseV2.Paused, releaseV2.PauseInfo, err = buildReleasePauseInfo(releaseConfig.Annotations)
+    if err != nil {
+    	return nil, err
+	}
+
+	if releaseV2.Paused {
+		releaseV2.Ready = false
+		releaseV2.Message = "Release is paused now"
+	}
+
 	return releaseV2, nil
+}
+
+func buildReleasePauseInfo(annotations map[string]string) (releasePaused bool, releasePauseInfo *release.ReleasePauseInfo, err error) {
+	if len(annotations) > 0 {
+		if annotations[release.ReleasePausedKey] == release.ReleasePausedValue {
+			releasePaused = true
+			releasePauseInfoStr := annotations[release.ReleasePauseInfoKey]
+			if releasePauseInfoStr != "" {
+				releasePauseInfo = &release.ReleasePauseInfo{}
+				err = json.Unmarshal([]byte(releasePauseInfoStr), releasePauseInfo)
+				if err != nil {
+					logrus.Errorf("failed to unmarshal release pause info : %s", err.Error())
+					return
+				}
+			}
+		}
+	}
+	return
 }
 
 func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfoV2, error) {

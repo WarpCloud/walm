@@ -117,7 +117,7 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			logrus.Warnf("release %s is not found in tiller", releaseName)
+			logrus.Warnf("release %s is not found from helm", releaseName)
 		} else {
 			logrus.Errorf("failed to delete release : %s", err.Error())
 			return err

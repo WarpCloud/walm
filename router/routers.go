@@ -385,6 +385,26 @@ func InitReleaseRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
+	ws.Route(ws.POST("/{namespace}/name/{release}/pause").To(v1.PauseRelease).
+		Doc("暂停Release服务").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/name/{release}/recover").To(v1.RecoverRelease).
+		Doc("恢复Release服务").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("release", "Release名字").DataType("string")).
+		Param(ws.QueryParameter("async", "异步与否").DataType("boolean").Required(false)).
+		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
+		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
 	return ws
 }
 

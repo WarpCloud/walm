@@ -1,5 +1,10 @@
 package adaptor
 
+import (
+	"github.com/sirupsen/logrus"
+	"walm/pkg/k8s/handler"
+)
+
 type WalmResourceSet struct {
 	Services     []WalmService     `json:"services" description:"release services"`
 	ConfigMaps   []WalmConfigMap   `json:"configmaps" description:"release configmaps"`
@@ -81,6 +86,25 @@ func (resourceSet *WalmResourceSet) IsReady() (bool, WalmResource) {
 	}
 
 	return true, nil
+}
+
+func (resourceSet *WalmResourceSet) Pause() (error) {
+	for _, deployment := range resourceSet.Deployments {
+		err := GetDefaultAdaptorSet().walmDeploymentAdaptor.Scale(deployment.Namespace, deployment.Name, 0)
+		if err != nil {
+			logrus.Errorf("failed to pause deployment %s/%s : %s", deployment.Namespace, deployment.Name, err.Error())
+			return err
+		}
+	}
+	for _, statefulSet := range resourceSet.StatefulSets {
+		err := handler.GetDefaultHandlerSet().GetStatefulSetHandler().Scale(statefulSet.Namespace, statefulSet.Name, 0)
+		if err != nil {
+			logrus.Errorf("failed to pause stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
+			return err
+		}
+	}
+
+	return nil
 }
 
 func NewWalmResourceSet() *WalmResourceSet {
