@@ -67,3 +67,8 @@ func BuildWalmDeploymentState(deployment *extv1beta1.Deployment, pods []*WalmPod
 	}
 	return walmState
 }
+
+func (adaptor *WalmDeploymentAdaptor)Scale(namespace, name string, replicas int32) (err error) {
+	_, err = adaptor.deploymentHandler.Scale(namespace, name, replicas)
+	return
+}

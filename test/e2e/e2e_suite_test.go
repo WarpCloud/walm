@@ -20,6 +20,7 @@ import (
 	//_ "walm/test/e2e/secret"
 	//_ "walm/test/e2e/tenant"
 	//_ "walm/test/e2e/project"
+	_ "walm/test/e2e/k8s/handler"
 )
 
 var stopChan = make(chan struct{})
