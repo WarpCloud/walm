@@ -1,31 +1,37 @@
+[1]: resource/Walm_Arch.jpg
+
 # Walm
-The Warp application lifecycle manager,It use Helm as backend to create,delete,update,select instance, and serv restful api server.
-# Usage
-## start server
-walm serv  [-a addr] [-p port]
+The Warp application lifecycle manager,using Helm as backend to create,delete,update,get application, is composed of Walm Server and Walmctl.
+Walm Server serves restful api server. Walmctl is cli for user.
+
+## Architecture
+![arch][1]
+
 ## Build
-### Builder
 ```
-cd build/builder-docker && make
-```
-### Build
-```
-make swag && make build
+make
 ```
 ## Test
-### All
+### Unit Test
 ```
 make test
 ```
-### Unit test  [on going]
-```
-make unit-test
-```
-### E2E test  [on going]
+### E2E Test
 ```
 make e2e-test
 ```
+
+# Walm Server
+## Usage
+### Start Server
+export Pod_Namespace=<walmns> && export Pod_Name=<walmname> && walm serv --config walm.yaml
+
+### Rest Api Swagger Ui
+http://localhost:9001/swagger
+
+
+# Walmcli
+## Usage
+
 # Road Map
-- [x] Helm RestFul Server
-- [ ] Application Server
-- [ ] Event Server
+- Authentication & Authorization
