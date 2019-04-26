@@ -1,8 +1,6 @@
 package setting
 
 import (
-	"time"
-
 	"io/ioutil"
 	"github.com/sirupsen/logrus"
 	"github.com/ghodss/yaml"
@@ -15,8 +13,6 @@ type HttpConfig struct {
 	TLS          bool          `json:"tls"`
 	TlsKey       string        `json:"tlsKey"`
 	TlsCert      string        `json:"tlsCert"`
-	ReadTimeout  time.Duration `json:"readTimeout"`
-	WriteTimeout time.Duration `json:"writeTimeout"`
 }
 
 type ChartRepo struct {

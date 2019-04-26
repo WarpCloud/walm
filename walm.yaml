@@ -1,13 +1,6 @@
 debug: true
 serverConfig:
   port: 9001
-  readTimeout: 0
-  writeTimeout: 0
-  tls: false
-  tlsKey: ""
-  tlsCert: ""
-  tlsCACert: ""
-  tlsVerify: false
 repoList:
   - name: "test"
     url: "http://172.16.1.40:8880/"
