@@ -35,7 +35,7 @@ var _ = Describe("ReleaseConfigHandler", func() {
 
 	AfterEach(func() {
 		By("delete namespace")
-		err = framework.DeleteNamespace(namespace)
+		err = framework.DeleteNamespace(namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 	})
 

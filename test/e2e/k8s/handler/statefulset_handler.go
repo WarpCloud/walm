@@ -59,7 +59,7 @@ var _ = Describe("StatefulSetHandler", func() {
 
 	AfterEach(func() {
 		By("delete namespace")
-		err = framework.DeleteNamespace(namespace)
+		err = framework.DeleteNamespace(namespace, false)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
