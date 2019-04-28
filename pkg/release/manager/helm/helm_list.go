@@ -103,7 +103,11 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.DependenciesConfigValues = releaseConfigCopy.Spec.DependenciesConfigValues
 		releaseV2.OutputConfigValues = releaseConfigCopy.Spec.OutputConfig
 		releaseV2.ReleaseLabels = releaseConfigCopy.Labels
-		releaseV2.RepoName = releaseConfig.Spec.Repo
+		releaseV2.RepoName = releaseConfigCopy.Spec.Repo
+		releaseV2.Paused, releaseV2.PauseInfo, err = buildReleasePauseInfo(releaseConfigCopy.Annotations)
+		if err != nil {
+			return nil, err
+		}
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
 	releaseV2.MetaInfoValues = releaseCache.MetaInfoValues
@@ -123,10 +127,6 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 				}
 			}
 		}
-	}
-    releaseV2.Paused, releaseV2.PauseInfo, err = buildReleasePauseInfo(releaseConfig.Annotations)
-    if err != nil {
-    	return nil, err
 	}
 
 	if releaseV2.Paused {
