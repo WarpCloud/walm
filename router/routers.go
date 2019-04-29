@@ -373,7 +373,7 @@ func InitReleaseRouter() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Reads(releasetypes.ReleaseRequestV2{}).
-		Returns(200, "OK", "").
+		Returns(200, "OK", []map[string]interface{}{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{namespace}/dryrun/withchart").Consumes().To(v1.DryRunReleaseWithChart).
@@ -384,7 +384,7 @@ func InitReleaseRouter() *restful.WebService {
 		Param(ws.FormParameter("release", "Release名字").DataType("string").Required(true)).
 		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
 		Param(ws.FormParameter("body", "request").DataType("string")).
-		Returns(200, "OK", "").
+		Returns(200, "OK", []map[string]interface{}{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackRelease).
