@@ -1,5 +1,5 @@
 hash: d596afd9a47895d862a933139d6ad3f6555ce0bf1013ecf6977cebb862f8a1fb
-updated: 2019-04-29T11:56:01.315956276+08:00
+updated: 2019-04-29T16:58:23.89091355+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -869,7 +869,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: 29f3917a91f484a19b9539842ea80f02a88a6e01
+  version: f34a6cffcd1c47a37c17f62a96a12812817b68b8
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action

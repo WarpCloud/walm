@@ -7,6 +7,7 @@ import (
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -52,7 +53,11 @@ func LabelPod(context *walm.WalmPluginManagerContext, args string) (err error) {
 				context.Log("failed to convert unstructured : %s", err.Error())
 				return err
 			}
-			deployment := converted.(*v1beta1.Deployment)
+			deployment, err := buildDeployment(converted)
+			if err != nil {
+				context.Log("failed to build deployment : %s", err.Error())
+				return err
+			}
 			labelDeploymentPod(deployment, labelPodArgs)
 			newResource = append(newResource, deployment)
 		case "DaemonSet":
@@ -61,7 +66,11 @@ func LabelPod(context *walm.WalmPluginManagerContext, args string) (err error) {
 				context.Log("failed to convert unstructured : %s", err.Error())
 				return err
 			}
-			daemonSet := converted.(*v1beta1.DaemonSet)
+			daemonSet, err := buildDaemonSet(converted)
+			if err != nil {
+				context.Log("failed to build daemonSet : %s", err.Error())
+				return err
+			}
 			labelDaemonSetPod(daemonSet, labelPodArgs)
 			newResource = append(newResource, daemonSet)
 		case "StatefulSet":
@@ -70,7 +79,11 @@ func LabelPod(context *walm.WalmPluginManagerContext, args string) (err error) {
 				context.Log("failed to convert unstructured : %s", err.Error())
 				return err
 			}
-			statefulSet := converted.(*appsv1beta1.StatefulSet)
+			statefulSet, err := buildStatefulSet(converted)
+			if err != nil {
+				context.Log("failed to build statefulSet : %s", err.Error())
+				return err
+			}
 			labelStatefulSetPod(statefulSet, labelPodArgs)
 			newResource = append(newResource, statefulSet)
 		default:
@@ -79,6 +92,28 @@ func LabelPod(context *walm.WalmPluginManagerContext, args string) (err error) {
 	}
 	context.Resources = newResource
 	return
+}
+
+func buildStatefulSet(obj runtime.Object) (*appsv1beta1.StatefulSet, error) {
+	if statefulSet, ok := obj.(*appsv1beta1.StatefulSet); ok {
+		return statefulSet, nil
+	} else {
+		objBytes, err := json.Marshal(obj)
+		if err != nil {
+			return nil, err
+		}
+		objStr := string(objBytes)
+		objStr, err = sjson.Set(objStr, "apiVersion", "apps/v1beta1")
+		if err != nil {
+			return nil, err
+		}
+		statefulSet = &appsv1beta1.StatefulSet{}
+		err = json.Unmarshal([]byte(objStr), statefulSet)
+		if err != nil {
+			return nil, err
+		}
+		return statefulSet, nil
+	}
 }
 
 func labelStatefulSetPod(statefulSet *appsv1beta1.StatefulSet, labelPodArgs *LabelPodArgs) {
@@ -98,6 +133,28 @@ func labelStatefulSetPod(statefulSet *appsv1beta1.StatefulSet, labelPodArgs *Lab
 	}
 }
 
+func buildDaemonSet(obj runtime.Object) (*v1beta1.DaemonSet, error) {
+	if daemonSet, ok := obj.(*v1beta1.DaemonSet); ok {
+		return daemonSet, nil
+	} else {
+		objBytes, err := json.Marshal(obj)
+		if err != nil {
+			return nil, err
+		}
+		objStr := string(objBytes)
+		objStr, err = sjson.Set(objStr, "apiVersion", "extensions/v1beta1")
+		if err != nil {
+			return nil, err
+		}
+		daemonSet = &v1beta1.DaemonSet{}
+		err = json.Unmarshal([]byte(objStr), daemonSet)
+		if err != nil {
+			return nil, err
+		}
+		return daemonSet, nil
+	}
+}
+
 func labelDaemonSetPod(daemonSet *v1beta1.DaemonSet, labelPodArgs *LabelPodArgs) {
 	if daemonSet.Spec.Template.Labels == nil {
 		daemonSet.Spec.Template.Labels = labelPodArgs.LabelsToAdd
@@ -112,6 +169,28 @@ func labelDaemonSetPod(daemonSet *v1beta1.DaemonSet, labelPodArgs *LabelPodArgs)
 		for k, v := range labelPodArgs.AnnotationsToAdd {
 			daemonSet.Spec.Template.Annotations[k] = v
 		}
+	}
+}
+
+func buildDeployment(obj runtime.Object) (*v1beta1.Deployment, error) {
+	if deployment, ok := obj.(*v1beta1.Deployment); ok {
+		return deployment, nil
+	} else {
+		objBytes, err := json.Marshal(obj)
+		if err != nil {
+			return nil, err
+		}
+		objStr := string(objBytes)
+		objStr, err = sjson.Set(objStr, "apiVersion", "extensions/v1beta1")
+		if err != nil {
+			return nil, err
+		}
+		deployment = &v1beta1.Deployment{}
+		err = json.Unmarshal([]byte(objStr), deployment)
+		if err != nil {
+			return nil, err
+		}
+		return deployment, nil
 	}
 }
 
