@@ -138,6 +138,11 @@ func (s *ReleaseServer) prepareRelease(req *hapi.InstallReleaseRequest) (*releas
 
 // performRelease runs a release.
 func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallReleaseRequest) (*release.Release, error) {
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, r, s.Log)
+	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
+	if err != nil{
+		return r, err
+	}
 
 	if req.DryRun {
 		s.Log("dry run for %s", r.Name)
@@ -152,12 +157,6 @@ func (s *ReleaseServer) performRelease(r *release.Release, req *hapi.InstallRele
 		}
 	} else {
 		s.Log("install hooks disabled for %s", req.Name)
-	}
-
-	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, r, s.Log)
-	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
-	if err != nil{
-		return r, err
 	}
 
 	switch h, err := s.Releases.History(req.Name); {

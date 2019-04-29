@@ -258,6 +258,12 @@ func (s *ReleaseServer) performUpdateForce(req *hapi.UpdateReleaseRequest) (*rel
 
 func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.Release, req *hapi.UpdateReleaseRequest) (*release.Release, error) {
 
+	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, updatedRelease, s.Log)
+	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
+	if err != nil {
+		return updatedRelease, err
+	}
+	
 	if req.DryRun {
 		s.Log("dry run for %s", updatedRelease.Name)
 		updatedRelease.Info.Description = "Dry run complete"
@@ -271,12 +277,6 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 		}
 	} else {
 		s.Log("update hooks disabled for %s", req.Name)
-	}
-
-	walmPluginManager := walm.NewWalmPluginManager(s.KubeClient, updatedRelease, s.Log)
-	err := walmPluginManager.ExecPlugins(walm.Pre_Install)
-	if err != nil {
-		return updatedRelease, err
 	}
 
 	if err := s.updateRelease(originalRelease, updatedRelease, req); err != nil {
