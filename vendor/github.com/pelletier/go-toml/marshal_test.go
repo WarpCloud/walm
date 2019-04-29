@@ -126,6 +126,12 @@ type testDoc struct {
 	Unexported2 int               `toml:"-"`
 }
 
+type testMapDoc struct {
+	Title    string            `toml:"title"`
+	BasicMap map[string]string `toml:"basic_map"`
+	LongMap  map[string]string `toml:"long_map"`
+}
+
 type testDocBasics struct {
 	Uint       uint      `toml:"uint"`
 	Bool       bool      `toml:"bool"`
@@ -200,6 +206,26 @@ var docData = testDoc{
 	SubDocPtrs: []*testSubDoc{&subdoc},
 }
 
+var mapTestDoc = testMapDoc{
+	Title: "TOML Marshal Testing",
+	BasicMap: map[string]string{
+		"one": "one",
+		"two": "two",
+	},
+	LongMap: map[string]string{
+		"h1":  "8",
+		"i2":  "9",
+		"b3":  "2",
+		"d4":  "4",
+		"f5":  "6",
+		"e6":  "5",
+		"a7":  "1",
+		"c8":  "3",
+		"j9":  "10",
+		"g10": "7",
+	},
+}
+
 func TestDocMarshal(t *testing.T) {
 	result, err := Marshal(docData)
 	if err != nil {
@@ -218,6 +244,29 @@ func TestDocMarshalOrdered(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected, _ := ioutil.ReadFile("marshal_OrderPreserve_test.toml")
+	if !bytes.Equal(result.Bytes(), expected) {
+		t.Errorf("Bad marshal: expected\n-----\n%s\n-----\ngot\n-----\n%s\n-----\n", expected, result.Bytes())
+	}
+}
+
+func TestDocMarshalMaps(t *testing.T) {
+	result, err := Marshal(mapTestDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, _ := ioutil.ReadFile("marshal_OrderPreserve_Map_test.toml")
+	if !bytes.Equal(result, expected) {
+		t.Errorf("Bad marshal: expected\n-----\n%s\n-----\ngot\n-----\n%s\n-----\n", expected, result)
+	}
+}
+
+func TestDocMarshalOrderedMaps(t *testing.T) {
+	var result bytes.Buffer
+	err := NewEncoder(&result).Order(OrderPreserve).Encode(mapTestDoc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, _ := ioutil.ReadFile("marshal_OrderPreserve_Map_test.toml")
 	if !bytes.Equal(result.Bytes(), expected) {
 		t.Errorf("Bad marshal: expected\n-----\n%s\n-----\ngot\n-----\n%s\n-----\n", expected, result.Bytes())
 	}
@@ -1054,12 +1103,42 @@ func TestUnmarshalCustomTag(t *testing.T) {
 }
 
 func TestUnmarshalMap(t *testing.T) {
-	m := make(map[string]int)
-	m["a"] = 1
+	testToml := []byte(`
+		a = 1
+		b = 2
+		c = 3
+		`)
+	var result map[string]int
+	err := Unmarshal(testToml, &result)
+	if err != nil {
+		t.Errorf("Received unexpected error: %s", err)
+		return
+	}
 
-	err := Unmarshal(basicTestToml, m)
-	if err.Error() != "Only a pointer to struct can be unmarshaled from TOML" {
-		t.Fail()
+	expected := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Bad unmarshal: expected %v, got %v", expected, result)
+	}
+}
+
+func TestUnmarshalNonPointer(t *testing.T) {
+	a := 1
+	err := Unmarshal([]byte{}, a)
+	if err == nil {
+		t.Fatal("unmarshal should err when given a non pointer")
+	}
+}
+
+func TestUnmarshalInvalidPointerKind(t *testing.T) {
+	a := 1
+	err := Unmarshal([]byte{}, &a)
+	if err == nil {
+		t.Fatal("unmarshal should err when given an invalid pointer type")
 	}
 }
 
