@@ -13,10 +13,8 @@ import (
 	"fmt"
 	"k8s.io/helm/pkg/helm"
 	hapirelease "k8s.io/helm/pkg/hapi/release"
-	"walm/pkg/task"
 	"time"
 	"strings"
-	"walm/pkg/release/manager/helm/cache"
 )
 
 func (hc *HelmClient) InstallUpgradeReleaseWithRetry(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, async bool, timeoutSec int64) error {
@@ -56,39 +54,11 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 		IsSystem:       isSystem,
 		ChartFiles:     chartFiles,
 	}
-	taskSig, err := SendReleaseTask(releaseTaskArgs)
+
+	err = SendReleaseTask(hc.helmCache, namespace, releaseRequest.Name, releaseTaskArgs, oldReleaseTask, timeoutSec, async)
 	if err != nil {
-		logrus.Errorf("failed to send %s : %s", releaseTaskArgs.GetTaskName(), err.Error())
+		logrus.Errorf("async=%t, failed to %s send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseRequest.Name, err.Error())
 		return err
-	}
-	taskSig.TimeoutSec = timeoutSec
-
-	releaseTask := &cache.ReleaseTask{
-		Namespace:            namespace,
-		Name:                 releaseRequest.Name,
-		LatestReleaseTaskSig: taskSig,
-	}
-
-	err = hc.helmCache.CreateOrUpdateReleaseTask(releaseTask)
-	if err != nil {
-		logrus.Errorf("failed to set release task of %s/%s to redis: %s", namespace, releaseRequest.Name, err.Error())
-		return err
-	}
-
-	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
-		if err != nil {
-			logrus.Warnf("failed to purge task state : %s", err.Error())
-		}
-	}
-
-	if !async {
-		asyncResult := taskSig.GetAsyncResult()
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
-		if err != nil {
-			logrus.Errorf("failed to create or update release  %s/%s: %s", namespace, releaseRequest.Name, err.Error())
-			return err
-		}
 	}
 	logrus.Infof("succeed to call create or update release %s/%s api", namespace, releaseRequest.Name)
 	return nil
