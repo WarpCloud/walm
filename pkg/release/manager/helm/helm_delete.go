@@ -7,9 +7,7 @@ import (
 	"walm/pkg/k8s/handler"
 	walmerr "walm/pkg/util/error"
 	"k8s.io/helm/pkg/helm"
-	"walm/pkg/task"
 	"time"
-	"walm/pkg/release/manager/helm/cache"
 )
 
 func (hc *HelmClient) DeleteReleaseWithRetry(namespace, releaseName string, isSystem bool, deletePvcs bool, async bool, timeoutSec int64) error {
@@ -49,39 +47,11 @@ func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool
 		IsSystem:    isSystem,
 		DeletePvcs:  deletePvcs,
 	}
-	taskSig, err := SendReleaseTask(releaseTaskArgs)
+
+	err = SendReleaseTask(hc.helmCache, namespace, releaseName, releaseTaskArgs, oldReleaseTask, timeoutSec, async)
 	if err != nil {
-		logrus.Errorf("failed to send %s : %s", releaseTaskArgs.GetTaskName(), err.Error())
+		logrus.Errorf("async=%t, failed to %s send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseName, err.Error())
 		return err
-	}
-	taskSig.TimeoutSec = timeoutSec
-
-	releaseTask := &cache.ReleaseTask{
-		Namespace:            namespace,
-		Name:                 releaseName,
-		LatestReleaseTaskSig: taskSig,
-	}
-
-	err = hc.helmCache.CreateOrUpdateReleaseTask(releaseTask)
-	if err != nil {
-		logrus.Errorf("failed to set release task of %s/%s to redis: %s", namespace, releaseName, err.Error())
-		return err
-	}
-
-	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
-		if err != nil {
-			logrus.Warnf("failed to purge task state : %s", err.Error())
-		}
-	}
-
-	if !async {
-		asyncResult := taskSig.GetAsyncResult()
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
-		if err != nil {
-			logrus.Errorf("failed to delete release  %s/%s: %s", namespace, releaseName, err.Error())
-			return err
-		}
 	}
 	logrus.Infof("succeed to call delete release %s/%s api", namespace, releaseName)
 	return nil

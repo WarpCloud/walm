@@ -2,9 +2,6 @@ package helm
 
 import (
 	"github.com/sirupsen/logrus"
-	"walm/pkg/release/manager/helm/cache"
-	"walm/pkg/task"
-	"time"
 	walmerr "walm/pkg/util/error"
 	"walm/pkg/release"
 )
@@ -28,39 +25,10 @@ func (hc *HelmClient) RecoverRelease(namespace, releaseName string, isSystem boo
 		Namespace:   namespace,
 		ReleaseName: releaseName,
 	}
-	taskSig, err := SendReleaseTask(releaseTaskArgs)
+	err = SendReleaseTask(hc.helmCache, namespace, releaseName, releaseTaskArgs, oldReleaseTask, timeoutSec, async)
 	if err != nil {
-		logrus.Errorf("failed to send %s : %s", releaseTaskArgs.GetTaskName(), err.Error())
+		logrus.Errorf("async=%t, failed to %s send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseName, err.Error())
 		return err
-	}
-	taskSig.TimeoutSec = timeoutSec
-
-	releaseTask := &cache.ReleaseTask{
-		Namespace:            namespace,
-		Name:                 releaseName,
-		LatestReleaseTaskSig: taskSig,
-	}
-
-	err = hc.helmCache.CreateOrUpdateReleaseTask(releaseTask)
-	if err != nil {
-		logrus.Errorf("failed to set release task of %s/%s to redis: %s", namespace, releaseName, err.Error())
-		return err
-	}
-
-	if oldReleaseTask != nil && oldReleaseTask.LatestReleaseTaskSig != nil {
-		err = task.GetDefaultTaskManager().PurgeTaskState(oldReleaseTask.LatestReleaseTaskSig.GetTaskSignature())
-		if err != nil {
-			logrus.Warnf("failed to purge task state : %s", err.Error())
-		}
-	}
-
-	if !async {
-		asyncResult := taskSig.GetAsyncResult()
-		_, err = asyncResult.GetWithTimeout(time.Duration(timeoutSec)*time.Second, defaultSleepTimeSecond)
-		if err != nil {
-			logrus.Errorf("failed to recover release  %s/%s: %s", namespace, releaseName, err.Error())
-			return err
-		}
 	}
 	logrus.Infof("succeed to call recover release %s/%s api", namespace, releaseName)
 	return nil
