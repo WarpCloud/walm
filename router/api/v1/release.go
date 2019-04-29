@@ -121,6 +121,7 @@ func DryRunRelease(request *restful.Request, response *restful.Response) {
 	manifest, err := helm.GetDefaultHelmClient().DryRunRelease(namespace, releaseRequest, false, nil)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to dry run release: %s", err.Error()))
+		return
 	}
 	response.WriteEntity(manifest)
 }
@@ -154,6 +155,7 @@ func DryRunReleaseWithChart(request *restful.Request, response *restful.Response
 	manifest, err := helm.GetDefaultHelmClient().DryRunRelease(namespace, releaseRequest, false, chartFiles)
 	if err != nil {
 		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to dry run install release: %s", err.Error()))
+		return
 	}
 	response.WriteEntity(manifest)
 }
