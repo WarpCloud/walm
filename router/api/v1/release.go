@@ -110,6 +110,54 @@ func InstallReleaseWithChart(request *restful.Request, response *restful.Respons
 	}
 }
 
+func DryRunRelease(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	releaseRequest := &release.ReleaseRequestV2{}
+	err := request.ReadEntity(releaseRequest)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body: %s", err.Error()))
+		return
+	}
+	manifest, err := helm.GetDefaultHelmClient().DryRunRelease(namespace, releaseRequest, false, nil)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to dry run release: %s", err.Error()))
+	}
+	response.WriteEntity(manifest)
+}
+
+func DryRunReleaseWithChart(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	chartArchive, _, err := request.Request.FormFile("chart")
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read chart archive: %s", err.Error()))
+		return
+	}
+	defer chartArchive.Close()
+	chartFiles, err := transwarpjsonnet.LoadArchive(chartArchive)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to load chart archive: %s", err.Error()))
+		return
+	}
+	releaseName := request.Request.FormValue("release")
+	body := request.Request.FormValue("body")
+	releaseRequest := &release.ReleaseRequestV2{}
+	if body != "" {
+		err = json.Unmarshal([]byte(body), releaseRequest)
+		if err != nil {
+			api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read release request: %s", err.Error()))
+			return
+		}
+	}
+
+	releaseRequest.Name = releaseName
+
+	manifest, err := helm.GetDefaultHelmClient().DryRunRelease(namespace, releaseRequest, false, chartFiles)
+	if err != nil {
+		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to dry run install release: %s", err.Error()))
+	}
+	response.WriteEntity(manifest)
+}
+
 func UpgradeRelease(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	async, err := getAsyncQueryParam(request)

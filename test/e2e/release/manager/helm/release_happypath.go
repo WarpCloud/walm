@@ -27,7 +27,6 @@ var _ = Describe("ReleaseHappyPath", func() {
 		currentFilePath, err := framework.GetCurrentFilePath()
 		Expect(err).NotTo(HaveOccurred())
 		chartPath = filepath.Join(filepath.Dir(currentFilePath), "../../../../resources/release/manager/helm/tomcat-0.2.0.tgz")
-		println(chartPath)
 	})
 
 	AfterEach(func() {

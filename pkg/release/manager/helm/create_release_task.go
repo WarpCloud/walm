@@ -33,8 +33,10 @@ type CreateReleaseTaskArgs struct {
 	ChartFiles     []*loader.BufferedFile
 }
 
-func (createReleaseTaskArgs *CreateReleaseTaskArgs) Run() error {
-	return GetDefaultHelmClient().doInstallUpgradeRelease(createReleaseTaskArgs.Namespace, createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartFiles)
+func (createReleaseTaskArgs *CreateReleaseTaskArgs) Run() (err error) {
+	_, err = GetDefaultHelmClient().doInstallUpgradeRelease(createReleaseTaskArgs.Namespace,
+		createReleaseTaskArgs.ReleaseRequest, createReleaseTaskArgs.IsSystem, createReleaseTaskArgs.ChartFiles, false)
+	return
 }
 
 func (createReleaseTaskArgs *CreateReleaseTaskArgs) GetTaskName() string {

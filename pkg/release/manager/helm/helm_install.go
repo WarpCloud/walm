@@ -106,7 +106,7 @@ func validateParams(releaseRequest *release.ReleaseRequestV2, chartFiles []*load
 	return nil
 }
 
-func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile) error {
+func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *release.ReleaseRequestV2, isSystem bool, chartFiles []*loader.BufferedFile, dryRun bool) (*hapirelease.Release, error) {
 	update := true
 	releaseCache, err := hc.helmCache.GetReleaseCache(namespace, releaseRequest.Name)
 	if err != nil {
@@ -114,7 +114,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 			update = false
 		} else {
 			logrus.Errorf("failed to get release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
-			return err
+			return nil, err
 		}
 	}
 
@@ -132,13 +132,13 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	}
 	if chartErr != nil {
 		logrus.Errorf("failed to load chart : %s", chartErr.Error())
-		return chartErr
+		return nil, chartErr
 	}
 
 	chartInfo, err := BuildChartInfo(rawChart)
 	if err != nil {
 		logrus.Errorf("failed to build chart info : %s", err.Error())
-		return err
+		return nil, err
 	}
 	// support meta pretty parameters
 	configValues := releaseRequest.ConfigValues
@@ -146,7 +146,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		metaInfoConfigs, err := releaseRequest.MetaInfoParams.BuildConfigValues(chartInfo.MetaInfo)
 		if err != nil {
 			logrus.Errorf("failed to get meta info parameters : %s", err.Error())
-			return err
+			return nil, err
 		}
 		util.MergeValues(configValues, metaInfoConfigs)
 	}
@@ -159,7 +159,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		configValues, dependencies, releaseLabels, walmPlugins, err = hc.reuseReleaseRequest(releaseCache, releaseRequest)
 		if err != nil {
 			logrus.Errorf("failed to reuse release request : %s", err.Error())
-			return err
+			return nil, err
 		}
 	}
 
@@ -167,7 +167,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 		walmPlugins, err = mergeWalmPlugins(walmPlugins, chartInfo.MetaInfo.Plugins)
 		if err != nil {
 			logrus.Errorf("failed to merge chart default plugins : %s", err.Error())
-			return err
+			return nil, err
 		}
 	}
 
@@ -175,14 +175,14 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	dependencyConfigs, err := hc.getDependencyOutputConfigs(namespace, dependencies, chartInfo.MetaInfo)
 	if err != nil {
 		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
-		return err
+		return nil, err
 	}
 
 	err = transwarpjsonnet.ProcessJsonnetChart(releaseRequest.RepoName, rawChart, namespace, releaseRequest.Name, configValues,
 		dependencyConfigs, dependencies, releaseLabels)
 	if err != nil {
 		logrus.Errorf("failed to ProcessJsonnetChart : %s", err.Error())
-		return err
+		return nil, err
 	}
 
 	// add default plugin
@@ -198,24 +198,27 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	currentHelmClient, err := hc.getCurrentHelmClient(namespace)
 	if err != nil {
 		logrus.Errorf("failed to get helm client : %s", err.Error())
-		return err
+		return nil, err
 	}
 
-	releaseInfo, err := hc.doInstallUpgradeReleaseFromChart(currentHelmClient, namespace, releaseRequest, rawChart, valueOverride, update)
+	releaseInfo, err := hc.doInstallUpgradeReleaseFromChart(currentHelmClient, namespace, releaseRequest, rawChart, valueOverride, update, dryRun)
 	if err != nil {
 		logrus.Errorf("failed to create or update release from chart : %s", err.Error())
-		return err
+		return nil, err
 	}
 
-	err = hc.helmCache.CreateOrUpdateReleaseCache(releaseInfo)
-	if err != nil {
-		logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
-		return err
+	if !dryRun {
+		err = hc.helmCache.CreateOrUpdateReleaseCache(releaseInfo)
+		if err != nil {
+			logrus.Errorf("failed to create of update release cache of %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+			return nil, err
+		}
+		logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
+	} else {
+		logrus.Infof("succeed to dry run create or update release %s/%s", namespace, releaseRequest.Name)
 	}
 
-	logrus.Infof("succeed to create or update release %s/%s", namespace, releaseRequest.Name)
-
-	return nil
+	return releaseInfo, nil
 }
 
 func preProcessRequest(releaseRequest *release.ReleaseRequestV2) {
@@ -296,13 +299,13 @@ func mergeWalmPlugins(plugins, defaultPlugins []*walm.WalmPlugin) (mergedPlugins
 
 func (hc *HelmClient) doInstallUpgradeReleaseFromChart(currentHelmClient *helm.Client, namespace string,
 	releaseRequest *release.ReleaseRequestV2, rawChart *chart.Chart, valueOverride map[string]interface{},
-	update bool) (releaseInfo *hapirelease.Release, err error) {
+	update bool, dryRun bool) (releaseInfo *hapirelease.Release, err error) {
 	if update {
 		releaseInfo, err = currentHelmClient.UpdateReleaseFromChart(
 			releaseRequest.Name,
 			rawChart,
 			helm.UpdateValueOverrides(valueOverride),
-			helm.UpgradeDryRun(hc.dryRun),
+			helm.UpgradeDryRun(dryRun),
 		)
 		if err != nil {
 			logrus.Errorf("failed to upgrade release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
@@ -314,18 +317,20 @@ func (hc *HelmClient) doInstallUpgradeReleaseFromChart(currentHelmClient *helm.C
 			namespace,
 			helm.ValueOverrides(valueOverride),
 			helm.ReleaseName(releaseRequest.Name),
-			helm.InstallDryRun(hc.dryRun),
+			helm.InstallDryRun(dryRun),
 		)
 		if err != nil {
 			logrus.Errorf("failed to install release %s/%s from chart : %s", namespace, releaseRequest.Name, err.Error())
-			opts := []helm.UninstallOption{
-				helm.UninstallPurge(true),
-			}
-			_, err1 := currentHelmClient.UninstallRelease(
-				releaseRequest.Name, opts...,
-			)
-			if err1 != nil {
-				logrus.Errorf("failed to rollback to delete release %s/%s : %s", namespace, releaseRequest.Name, err1.Error())
+			if !dryRun {
+				opts := []helm.UninstallOption{
+					helm.UninstallPurge(true),
+				}
+				_, err1 := currentHelmClient.UninstallRelease(
+					releaseRequest.Name, opts...,
+				)
+				if err1 != nil {
+					logrus.Errorf("failed to rollback to delete release %s/%s : %s", namespace, releaseRequest.Name, err1.Error())
+				}
 			}
 			return nil, err
 		}

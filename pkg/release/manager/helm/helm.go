@@ -38,7 +38,6 @@ type ChartRepository struct {
 
 type HelmClient struct {
 	chartRepoMap            map[string]*ChartRepository
-	dryRun                  bool
 	helmCache               *cache.HelmCache
 	helmCacheResyncInterval time.Duration
 	releaseConfigHandler    *handler.ReleaseConfigHandler
@@ -67,7 +66,6 @@ func GetDefaultHelmClient() *HelmClient {
 
 		helmClient = &HelmClient{
 			chartRepoMap:            chartRepoMap,
-			dryRun:                  false,
 			helmCache:               helmCache,
 			helmCacheResyncInterval: helmCacheDefaultResyncInterval,
 			releaseConfigHandler:    handler.GetDefaultHandlerSet().GetReleaseConfigHandler(),
