@@ -1,4 +1,5 @@
 [1]: resource/Walm_Arch.jpg
+[2]: resource/Walm_Server_Features.jpg
 
 # Walm
 The Warp application lifecycle manager,using Helm as backend to create,delete,update,get application, is composed of Walm Server and Walmctl.
@@ -6,6 +7,9 @@ Walm Server serves restful api server. Walmctl is cli for user.
 
 ## Architecture
 ![arch][1]
+
+## Features
+![feature][2]
 
 ## Build
 ```
