@@ -46,6 +46,7 @@ type InformerFactory struct {
 	PersistentVolumeClaimLister v1.PersistentVolumeClaimLister
 	StorageClassLister          storagev1.StorageClassLister
 	EndpointsLister             v1.EndpointsLister
+	LimitRangeLister            v1.LimitRangeLister
 
 	ReleaseConifgFactory releaseconfigexternalversions.SharedInformerFactory
 	ReleaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
@@ -79,6 +80,7 @@ func newInformerFactory(client *kubernetes.Clientset, releaseConfigClient *relea
 	factory.PersistentVolumeClaimLister = factory.Factory.Core().V1().PersistentVolumeClaims().Lister()
 	factory.StorageClassLister = factory.Factory.Storage().V1().StorageClasses().Lister()
 	factory.EndpointsLister = factory.Factory.Core().V1().Endpoints().Lister()
+	factory.LimitRangeLister = factory.Factory.Core().V1().LimitRanges().Lister()
 
 	factory.ReleaseConifgFactory = releaseconfigexternalversions.NewSharedInformerFactory(releaseConfigClient, resyncPeriod)
 	factory.ReleaseConfigLister = factory.ReleaseConifgFactory.Transwarp().V1beta1().ReleaseConfigs().Lister()

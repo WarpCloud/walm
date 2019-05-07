@@ -27,6 +27,7 @@ type HandlerSet struct {
 	storageClassHandler *StorageClassHandler
 	releaseConfigHandler *ReleaseConfigHandler
 	endpointsHandler *EndpointsHandler
+	limitRangeHandler *LimitRangeHandler
 }
 
 func (set *HandlerSet)GetConfigMapHandler() *ConfigMapHandler {
@@ -146,4 +147,11 @@ func (set *HandlerSet)GetEndpointsHandler() *EndpointsHandler {
 		set.endpointsHandler = &EndpointsHandler{client: set.client, lister: set.factory.EndpointsLister}
 	}
 	return set.endpointsHandler
+}
+
+func (set *HandlerSet)GetLimitRangeHandler() *LimitRangeHandler {
+	if set.limitRangeHandler == nil {
+		set.limitRangeHandler = &LimitRangeHandler{client: set.client, lister: set.factory.LimitRangeLister}
+	}
+	return set.limitRangeHandler
 }

@@ -14,6 +14,12 @@ import (
 	"sync"
 )
 
+const(
+	limitRangeDefaultMem = "128Mi"
+	limitRangeDefaultCpu = "0.1"
+	LimitRangeDefaultName = "walm-default-limitrange"
+)
+
 func ListTenants() (TenantInfoList, error) {
 	var tenantInfoList TenantInfoList
 
@@ -43,12 +49,12 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 	}
 
 	tenantInfo := TenantInfo{
-		TenantName:         namespace.Name,
-		TenantCreationTime: namespace.CreationTimestamp,
-		TenantLabels:       namespace.Labels,
-		TenantAnnotitions:  namespace.Annotations,
-		TenantStatus:       namespace.Status.String(),
-		TenantQuotas:       []*TenantQuota{},
+		TenantName:            namespace.Name,
+		TenantCreationTime:    namespace.CreationTimestamp,
+		TenantLabels:          namespace.Labels,
+		TenantAnnotitions:     namespace.Annotations,
+		TenantStatus:          namespace.Status.String(),
+		TenantQuotas:          []*TenantQuota{},
 		UnifyUnitTenantQuotas: []*UnifyUnitTenantQuota{},
 	}
 
@@ -103,8 +109,8 @@ func GetTenant(tenantName string) (*TenantInfo, error) {
 func buildUnifyUnitTenantQuota(name string, hard TenantQuotaInfo, used TenantQuotaInfo) *UnifyUnitTenantQuota {
 	return &UnifyUnitTenantQuota{
 		QuotaName: name,
-		Hard: buildUnifyUnitTenantInfo(hard),
-		Used: buildUnifyUnitTenantInfo(used),
+		Hard:      buildUnifyUnitTenantInfo(hard),
+		Used:      buildUnifyUnitTenantInfo(used),
 	}
 }
 
@@ -175,7 +181,7 @@ func CreateTenant(tenantName string, tenantParams *TenantParams) error {
 					Namespace:   tenantName,
 					Name:        tenantName,
 					Labels:      tenantLabel,
-					Annotations: tenantParams.TenantAnnotitions,
+					Annotations: tenantParams.TenantAnnotations,
 				},
 			}
 			_, err = handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&namespace)
@@ -211,7 +217,28 @@ func doCreateTenant(tenantName string, tenantParams *TenantParams) error {
 		}
 	}
 
+	handler.GetDefaultHandlerSet().GetLimitRangeHandler().CreateLimitRange(tenantName, getDefaultLimitRange())
+
 	return nil
+}
+
+func getDefaultLimitRange() *corev1.LimitRange {
+	return &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: LimitRangeDefaultName,
+		},
+		Spec: corev1.LimitRangeSpec{
+			Limits: []corev1.LimitRangeItem{
+				{
+					Type: corev1.LimitTypeContainer,
+					Default: corev1.ResourceList{
+						corev1.ResourceMemory: resource.MustParse(limitRangeDefaultMem),
+						corev1.ResourceCPU: resource.MustParse(limitRangeDefaultCpu),
+					},
+				},
+			},
+		},
+	}
 }
 
 func createResourceQuota(tenantName string, tenantQuota *TenantQuotaParams) error {
@@ -274,7 +301,7 @@ func DeleteTenant(tenantName string) error {
 	}
 	wg.Wait()
 
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 
@@ -294,11 +321,11 @@ func UpdateTenant(tenantName string, tenantParams *TenantParams) error {
 		logrus.Errorf("failed to get namespace : %s", err.Error())
 		return err
 	}
-	if len(tenantParams.TenantAnnotitions) > 0 {
+	if len(tenantParams.TenantAnnotations) > 0 {
 		if namespace.Annotations == nil {
 			namespace.Annotations = map[string]string{}
 		}
-		for key, value := range tenantParams.TenantAnnotitions {
+		for key, value := range tenantParams.TenantAnnotations {
 			namespace.Annotations[key] = value
 		}
 	}
