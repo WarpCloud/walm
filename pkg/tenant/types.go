@@ -29,7 +29,7 @@ type UnifyUnitTenantQuota struct {
 
 //Tenant Params Info
 type TenantParams struct {
-	TenantAnnotitions map[string]string    `json:"tenantAnnotations"  description:"annotations of the tenant"`
+	TenantAnnotations map[string]string    `json:"tenantAnnotations"  description:"annotations of the tenant"`
 	TenantLabels      map[string]string    `json:"tenantLabels"  description:"labels of the tenant"`
 	TenantQuotas      []*TenantQuotaParams `json:"tenantQuotas" description:"quotas of the tenant"`
 }

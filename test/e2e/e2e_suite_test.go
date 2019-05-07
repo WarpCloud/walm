@@ -18,7 +18,7 @@ import (
 	//_ "walm/test/e2e/release"
 	_ "walm/test/e2e/node"
 	//_ "walm/test/e2e/secret"
-	//_ "walm/test/e2e/tenant"
+	_ "walm/test/e2e/tenant"
 	//_ "walm/test/e2e/project"
 	_ "walm/test/e2e/k8s/handler"
 	_ "walm/test/e2e/release/manager/helm"
