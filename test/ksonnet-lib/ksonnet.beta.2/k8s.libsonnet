@@ -17072,6 +17072,8 @@
           apiGroup(apiGroup):: { apiGroup: apiGroup },
           // Name is the name of resource being referenced
           name(name):: { name: name },
+          // Kind is the name of resource being referenced
+          kind(kind):: { kind: kind },
           mixin:: {
           },
         },
@@ -17082,6 +17084,8 @@
           apiGroup(apiGroup):: { apiGroup: apiGroup },
           // Name of the object being referenced.
           name(name):: { name: name },
+          // Kind of the object being referenced.
+          kind(kind):: { kind: kind },
           // Namespace of the referenced object.  If the object kind is non-namespace, such as "User" or "Group", and this value is not empty the Authorizer should report an error.
           namespace(namespace):: { namespace: namespace },
           mixin:: {
