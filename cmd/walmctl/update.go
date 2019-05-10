@@ -110,7 +110,7 @@ func (uc *updateCmd) run() error {
 
 			result := gjson.Get(releaseInfoStr, propertyKey)
 			if !result.Exists() {
-				return errors.Errorf("path error: %s not exist in releaseInfo")
+				return errors.Errorf("path error: %s not exist in releaseInfo", propertyKey)
 			}
 
 			var destVal interface{}

@@ -57,7 +57,7 @@ func (hc *HelmClient) InstallUpgradeRelease(namespace string, releaseRequest *re
 
 	err = SendReleaseTask(hc.helmCache, namespace, releaseRequest.Name, releaseTaskArgs, oldReleaseTask, timeoutSec, async)
 	if err != nil {
-		logrus.Errorf("async=%t, failed to %s send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseRequest.Name, err.Error())
+		logrus.Errorf("async=%t, failed to send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseRequest.Name, err.Error())
 		return err
 	}
 	logrus.Infof("succeed to call create or update release %s/%s api", namespace, releaseRequest.Name)

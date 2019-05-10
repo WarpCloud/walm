@@ -29,9 +29,10 @@ all: build build_darwin build_windows
 
 .PHONY: test
 test:
-	@go test -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e')
+	@go test -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e') -coverprofile ut-coverage-report.out
 
 .PHONY: e2e-test
 e2e-test:
 	@ginkgo version || go get -u github.com/onsi/ginkgo/ginkgo
-	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace ./test/e2e/
+	@rm -f ./e2e-test-coverage-report.out
+	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace -outputdir=./ -coverprofile=e2e-test-coverage-report.out -coverpkg=walm/pkg/...,walm/cmd/...,walm/router/... ./test/e2e/

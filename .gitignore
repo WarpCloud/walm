@@ -20,3 +20,5 @@ tmp/
 *.iml
 .vimrc
 *.swp
+
+.scannerwork
