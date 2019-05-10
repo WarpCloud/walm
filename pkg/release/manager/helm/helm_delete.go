@@ -50,7 +50,7 @@ func (hc *HelmClient) DeleteRelease(namespace, releaseName string, isSystem bool
 
 	err = SendReleaseTask(hc.helmCache, namespace, releaseName, releaseTaskArgs, oldReleaseTask, timeoutSec, async)
 	if err != nil {
-		logrus.Errorf("async=%t, failed to %s send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseName, err.Error())
+		logrus.Errorf("async=%t, failed to send %s of %s/%s: %s", async, releaseTaskArgs.GetTaskName(), namespace, releaseName, err.Error())
 		return err
 	}
 	logrus.Infof("succeed to call delete release %s/%s api", namespace, releaseName)

@@ -1,4 +1,4 @@
-FROM 172.16.1.99/transwarp/gcr.io/google_containers/kube-cross:v1.10.3-1 AS build-env
+FROM 172.16.1.99/transwarp/gcr.io/google_containers/kube-cross:v1.12.4-1 AS build-env
 MAINTAINER TOS <tos@transwarp.io>
 
 ADD . /go/src/walm
