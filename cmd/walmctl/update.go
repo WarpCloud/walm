@@ -146,7 +146,7 @@ func (uc *updateCmd) run() error {
 	if uc.sourceType == "release" {
 
 		if uc.withchart == "" {
-			resp, err = client.UpdateRelease(namespace, string(releaseInfoByte), uc.async, uc.timeoutSec)
+			resp, err = client.UpdateRelease(namespace, releaseInfoStr, uc.async, uc.timeoutSec)
 		} else {
 			resp, err = client.UpdateReleaseWithChart(namespace, uc.sourceName, uc.withchart)
 		}
