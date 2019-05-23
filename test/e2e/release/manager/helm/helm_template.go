@@ -3,9 +3,9 @@ package helm
 import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/ginkgo"
-	"walm/test/e2e/framework"
-	"walm/pkg/release/manager/helm"
-	"walm/pkg/release"
+	"WarpCloud/walm/test/e2e/framework"
+	"WarpCloud/walm/pkg/release/manager/helm"
+	"WarpCloud/walm/pkg/release"
 	"path/filepath"
 	"fmt"
 	"k8s.io/helm/pkg/chart/loader"

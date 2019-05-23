@@ -1,15 +1,15 @@
 package helm
 
 import (
-	"walm/pkg/release"
-	"walm/pkg/release/manager/helm/cache"
+	"WarpCloud/walm/pkg/release"
+	"WarpCloud/walm/pkg/release/manager/helm/cache"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"k8s.io/helm/pkg/walm"
 	"k8s.io/helm/pkg/walm/plugins"
 	"sync"
-	walmerr "walm/pkg/util/error"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"errors"
 	"encoding/json"

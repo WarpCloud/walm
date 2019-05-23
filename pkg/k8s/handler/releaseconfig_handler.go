@@ -4,7 +4,7 @@ import (
 	clientsetex "transwarp/release-config/pkg/client/clientset/versioned"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sutils "walm/pkg/k8s/utils"
+	k8sutils "WarpCloud/walm/pkg/k8s/utils"
 	listv1beta1 "transwarp/release-config/pkg/client/listers/transwarp/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"github.com/sirupsen/logrus"

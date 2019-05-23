@@ -1,7 +1,7 @@
 package adaptor
 
 import (
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 var defaultAdaptorSet *AdaptorSet

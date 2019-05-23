@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/sirupsen/logrus"
 
-	"walm/cmd"
+	"WarpCloud/walm/cmd"
 )
 
 var globalUsage = `The Warp application lifecycle manager

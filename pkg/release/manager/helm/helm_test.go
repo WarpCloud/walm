@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"walm/pkg/k8s/informer"
-	"walm/pkg/setting"
+	"WarpCloud/walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/setting"
 )
 
 func Test_downloadChart(t *testing.T) {
@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		DB: 0,
 	}
 	setting.Config.KubeConfig = &setting.KubeConfig{
-		Config: path.Join(gopath, "src/walm/", "test/k8sconfig/kubeconfig"),
+		Config: path.Join(gopath, "src/WarpCloud/walm/", "test/k8sconfig/kubeconfig"),
 	}
 	stopChan := make(chan struct{})
 	informer.StartInformer(stopChan)

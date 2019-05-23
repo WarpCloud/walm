@@ -3,10 +3,10 @@ package handler
 import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/ginkgo"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
-	"walm/test/e2e/framework"
+	"WarpCloud/walm/test/e2e/framework"
 	"k8s.io/api/apps/v1beta1"
 )
 

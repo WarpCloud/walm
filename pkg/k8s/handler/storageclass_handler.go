@@ -4,7 +4,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sutils "walm/pkg/k8s/utils"
+	k8sutils "WarpCloud/walm/pkg/k8s/utils"
 	listv1 "k8s.io/client-go/listers/storage/v1"
 )
 

@@ -3,8 +3,8 @@ package helm
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-	"walm/pkg/task"
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/task"
+	"WarpCloud/walm/pkg/release"
 	"k8s.io/helm/pkg/chart/loader"
 )
 

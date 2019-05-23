@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	listv1 "k8s.io/client-go/listers/core/v1"
 	k8sresource "k8s.io/apimachinery/pkg/api/resource"
-	k8sutils "walm/pkg/k8s/utils"
+	k8sutils "WarpCloud/walm/pkg/k8s/utils"
 )
 
 type ResourceQuotaHandler struct {

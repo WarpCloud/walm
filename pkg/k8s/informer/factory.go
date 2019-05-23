@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/listers/core/v1"
 	batchv1 "k8s.io/client-go/listers/batch/v1"
 	"k8s.io/client-go/listers/apps/v1beta1"
-	"walm/pkg/k8s/client"
+	"WarpCloud/walm/pkg/k8s/client"
 	"github.com/sirupsen/logrus"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
 	releaseconfigexternalversions "transwarp/release-config/pkg/client/informers/externalversions"

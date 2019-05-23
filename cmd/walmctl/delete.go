@@ -3,7 +3,7 @@ package main
 import (
 	"io"
 	"github.com/spf13/cobra"
-	"walm/cmd/walmctl/walmctlclient"
+	"WarpCloud/walm/cmd/walmctl/walmctlclient"
 	"fmt"
 	"github.com/pkg/errors"
 )

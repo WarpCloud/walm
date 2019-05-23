@@ -8,20 +8,20 @@ import (
 
 	"os"
 	"go/build"
-	"walm/pkg/setting"
-	"walm/pkg/k8s/informer"
-	"walm/pkg/task"
+	"WarpCloud/walm/pkg/setting"
+	"WarpCloud/walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/task"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 	// tests to run
-	//_ "walm/test/e2e/pvc"
-	//_ "walm/test/e2e/release"
-	_ "walm/test/e2e/node"
-	_ "walm/test/e2e/secret"
-	_ "walm/test/e2e/tenant"
-	//_ "walm/test/e2e/project"
-	_ "walm/test/e2e/k8s/handler"
-	_ "walm/test/e2e/release/manager/helm"
+	//_ "WarpCloud/walm/test/e2e/pvc"
+	//_ "WarpCloud/walm/test/e2e/release"
+	_ "WarpCloud/walm/test/e2e/node"
+	_ "WarpCloud/walm/test/e2e/secret"
+	_ "WarpCloud/walm/test/e2e/tenant"
+	//_ "WarpCloud/walm/test/e2e/project"
+	_ "WarpCloud/walm/test/e2e/k8s/handler"
+	_ "WarpCloud/walm/test/e2e/release/manager/helm"
 )
 
 var stopChan = make(chan struct{})
@@ -36,12 +36,9 @@ var _ = BeforeSuite(func() {
 	if gopath == "" {
 		gopath = build.Default.GOPATH
 	}
-	setting.Config.KubeConfig = &setting.KubeConfig{
-		Config: gopath + "/src/walm/test/k8sconfig/kubeconfig",
-	}
 
-	setting.InitConfig(gopath + "/src/walm/walm.yaml")
-	setting.Config.KubeConfig.Config = gopath + "/src/walm/test/k8sconfig/kubeconfig"
+	setting.InitConfig(gopath + "/src/WarpCloud/walm/walm.yaml")
+	setting.Config.KubeConfig.Config = gopath + "/src/WarpCloud/walm/test/k8sconfig/kubeconfig"
 
 	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
 

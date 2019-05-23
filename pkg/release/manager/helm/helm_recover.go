@@ -2,8 +2,8 @@ package helm
 
 import (
 	"github.com/sirupsen/logrus"
-	walmerr "walm/pkg/util/error"
-	"walm/pkg/release"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/pkg/release"
 )
 
 func (hc *HelmClient) RecoverRelease(namespace, releaseName string, isSystem bool, async bool, timeoutSec int64) error {

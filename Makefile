@@ -6,24 +6,24 @@ GIT_SHA    = $(shell git rev-parse --short HEAD)
 GIT_TAG    = $(shell git describe --tags --abbrev=0 2>/dev/null)
 BUILD_DATE = $(shell date -u +%Y%m%d-%H:%M:%S)
 
-LDFLAGS += -X walm/pkg/version.Version=${GIT_TAG}
-LDFLAGS += -X walm/pkg/version.GitSha1Version=${GIT_SHA}
-LDFLAGS += -X walm/pkg/version.BuildDate=${BUILD_DATE}
+LDFLAGS += -X WarpCloud/walm/pkg/version.Version=${GIT_TAG}
+LDFLAGS += -X WarpCloud/walm/pkg/version.GitSha1Version=${GIT_SHA}
+LDFLAGS += -X WarpCloud/walm/pkg/version.BuildDate=${BUILD_DATE}
 
-PKG = walm
+PKG = WarpCloud/walm
 
 .PHONY: build
 build:
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl walm/cmd/walmctl
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl WarpCloud/walm/cmd/walmctl
 
 build_darwin:
 	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm-darwin-amd64
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-darwin-amd64 walm/cmd/walmctl
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-darwin-amd64 WarpCloud/walm/cmd/walmctl
 
 build_windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm-windows-amd64.exe
-	GOOS=windows GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-windows-amd64.exe walm/cmd/walmctl
+	GOOS=windows GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-windows-amd64.exe WarpCloud/walm/cmd/walmctl
 
 all: build build_darwin build_windows
 
@@ -35,4 +35,4 @@ test:
 e2e-test:
 	@ginkgo version || go get -u github.com/onsi/ginkgo/ginkgo
 	@rm -f ./e2e-test-coverage-report.out
-	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace -outputdir=./ -coverprofile=e2e-test-coverage-report.out -coverpkg=walm/pkg/...,walm/cmd/...,walm/router/... ./test/e2e/
+	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace -outputdir=./ -coverprofile=e2e-test-coverage-report.out -coverpkg=WarpCloud/walm/pkg/...,WarpCloud/walm/cmd/...,WarpCloud/walm/router/... ./test/e2e/

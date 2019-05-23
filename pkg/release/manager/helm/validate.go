@@ -5,8 +5,8 @@ package helm
 //	"strings"
 //	"bytes"
 //
-//	"walm/pkg/k8s/client"
-//	"walm/pkg/release"
+//	"WarpCloud/walm/pkg/k8s/client"
+//	"WarpCloud/walm/pkg/release"
 //
 //	"github.com/sirupsen/logrus"
 //	"github.com/ghodss/yaml"

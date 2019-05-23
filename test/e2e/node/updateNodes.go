@@ -1,11 +1,11 @@
 package node
 
 import (
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/ginkgo"
-	"walm/pkg/k8s/handler"
-	"walm/router/api"
+	"WarpCloud/walm/pkg/k8s/handler"
+	"WarpCloud/walm/router/api"
 )
 
 var _ = Describe("Node", func() {

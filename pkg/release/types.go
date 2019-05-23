@@ -3,9 +3,9 @@ package release
 import (
 	"k8s.io/helm/pkg/walm"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
-	"walm/pkg/k8s/adaptor"
-	"walm/pkg/release/manager/metainfo"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 )
 

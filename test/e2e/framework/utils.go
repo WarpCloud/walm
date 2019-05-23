@@ -2,15 +2,15 @@ package framework
 
 import (
 	"strings"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
-	"walm/pkg/release/manager/helm"
+	"WarpCloud/walm/pkg/release/manager/helm"
 	"os"
-	"walm/pkg/util/transwarpjsonnet"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"k8s.io/helm/pkg/chart/loader"
 	"errors"
 	"runtime"

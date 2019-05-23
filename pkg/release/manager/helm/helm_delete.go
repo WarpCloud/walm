@@ -3,9 +3,9 @@ package helm
 import (
 	"github.com/sirupsen/logrus"
 	"strings"
-	"walm/pkg/k8s/adaptor"
-	"walm/pkg/k8s/handler"
-	walmerr "walm/pkg/util/error"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/handler"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"k8s.io/helm/pkg/helm"
 	"time"
 )

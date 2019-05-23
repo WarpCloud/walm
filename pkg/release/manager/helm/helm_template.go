@@ -1,11 +1,11 @@
 package helm
 
 import (
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release"
 	"k8s.io/helm/pkg/chart/loader"
 	"github.com/sirupsen/logrus"
 	"bytes"
-	"walm/pkg/k8s/client"
+	"WarpCloud/walm/pkg/k8s/client"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

@@ -3,11 +3,11 @@ package secret
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"encoding/base64"
-	"walm/test/e2e/framework"
+	"WarpCloud/walm/test/e2e/framework"
 	"time"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 var _ = Describe("Secret", func() {

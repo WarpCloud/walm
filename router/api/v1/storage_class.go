@@ -3,8 +3,8 @@ package v1
 import (
 	"github.com/emicklei/go-restful"
 	"fmt"
-	"walm/pkg/k8s/adaptor"
-	"walm/router/api"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/router/api"
 )
 
 func GetStorageClasses(request *restful.Request, response *restful.Response) {

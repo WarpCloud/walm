@@ -2,7 +2,7 @@ package adaptor
 
 import (
 	"github.com/sirupsen/logrus"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 type WalmResourceSet struct {

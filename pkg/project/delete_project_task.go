@@ -3,9 +3,9 @@ package project
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-	"walm/pkg/task"
+	"WarpCloud/walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	"walm/pkg/release/manager/helm/cache"
+	"WarpCloud/walm/pkg/release/manager/helm/cache"
 )
 
 const (

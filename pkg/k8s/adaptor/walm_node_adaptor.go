@@ -3,11 +3,11 @@ package adaptor
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"encoding/json"
-	"walm/pkg/util"
+	"WarpCloud/walm/pkg/util"
 )
 
 type WalmNodeAdaptor struct {

@@ -2,7 +2,7 @@ package adaptor
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 	"net"
 	"strconv"

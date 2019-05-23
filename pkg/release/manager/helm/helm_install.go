@@ -1,13 +1,13 @@
 package helm
 
 import (
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/util"
-	"walm/pkg/util/transwarpjsonnet"
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"k8s.io/helm/pkg/walm"
 	"k8s.io/helm/pkg/walm/plugins"
-	walmerr "walm/pkg/util/error"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"k8s.io/helm/pkg/chart"
 	"k8s.io/helm/pkg/chart/loader"
 	"fmt"

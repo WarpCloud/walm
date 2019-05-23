@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/emicklei/go-restful"
-	"walm/pkg/tenant"
-	walmerr "walm/pkg/util/error"
-	"walm/router/api"
+	"WarpCloud/walm/pkg/tenant"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/router/api"
 )
 
 func ListTenants(request *restful.Request, response *restful.Response) {

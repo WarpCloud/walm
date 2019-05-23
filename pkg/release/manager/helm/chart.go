@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"walm/pkg/release"
-	walmerr "walm/pkg/util/error"
-	"walm/pkg/util/transwarpjsonnet"
+	"WarpCloud/walm/pkg/release"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"encoding/json"
 	"k8s.io/helm/pkg/chart"
 	"github.com/go-resty/resty"

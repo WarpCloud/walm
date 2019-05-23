@@ -3,7 +3,7 @@ package task
 import (
 	"github.com/RichardKnop/machinery/v1"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/setting"
+	"WarpCloud/walm/pkg/setting"
 	"os"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/RichardKnop/machinery/v1/config"

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"testing"
-	"walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/k8s/informer"
 	"github.com/stretchr/testify/assert"
 )
 

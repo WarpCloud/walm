@@ -2,11 +2,11 @@ package helm
 
 import (
 	"github.com/sirupsen/logrus"
-	walmerr "walm/pkg/util/error"
-	"walm/pkg/k8s/adaptor"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release"
 	"encoding/json"
 )
 

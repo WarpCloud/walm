@@ -3,7 +3,7 @@ package adaptor
 import (
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/apps/v1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 type WalmStatefulSetAdaptor struct {
