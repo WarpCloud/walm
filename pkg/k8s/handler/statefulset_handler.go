@@ -5,7 +5,7 @@ import (
 	"k8s.io/api/apps/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	listv1beta1 "k8s.io/client-go/listers/apps/v1beta1"
-	k8sutils "walm/pkg/k8s/utils"
+	k8sutils "WarpCloud/walm/pkg/k8s/utils"
 	"k8s.io/apimachinery/pkg/types"
 	"github.com/sirupsen/logrus"
 	"github.com/evanphx/json-patch"

@@ -3,10 +3,10 @@ package project
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-	"walm/pkg/task"
+	"WarpCloud/walm/pkg/task"
 	"github.com/RichardKnop/machinery/v1/tasks"
-	walmerr "walm/pkg/util/error"
-	"walm/pkg/release/manager/helm/cache"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/pkg/release/manager/helm/cache"
 )
 
 const (

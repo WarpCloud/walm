@@ -2,10 +2,10 @@ package v1
 
 import (
 	"github.com/emicklei/go-restful"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"fmt"
-	"walm/router/api"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/router/api"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 )
 

@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/emicklei/go-restful"
-	walmerr "walm/pkg/util/error"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"strconv"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/util/transwarpjsonnet"
-	"walm/router/api"
-	"walm/pkg/release/manager/helm"
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
+	"WarpCloud/walm/router/api"
+	"WarpCloud/walm/pkg/release/manager/helm"
+	"WarpCloud/walm/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

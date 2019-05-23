@@ -1,10 +1,10 @@
 package helm
 
 import (
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release"
 	"github.com/sirupsen/logrus"
 	"fmt"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"reflect"
 )
 

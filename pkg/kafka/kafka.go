@@ -1,7 +1,7 @@
 package kafka
 
 import (
-	"walm/pkg/setting"
+	"WarpCloud/walm/pkg/setting"
 	"github.com/Shopify/sarama"
 	"crypto/tls"
 	"io/ioutil"

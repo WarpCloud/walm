@@ -2,7 +2,7 @@ package adaptor
 
 import (
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 type WalmIngressAdaptor struct {

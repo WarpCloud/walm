@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"fmt"
 	"encoding/json"
-	"walm/pkg/util"
+	"WarpCloud/walm/pkg/util"
 )
 
 type MetaResourceIntConfig struct {

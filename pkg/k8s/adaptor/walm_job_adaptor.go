@@ -3,7 +3,7 @@ package adaptor
 import (
 	batchv1 "k8s.io/api/batch/v1"
 	"fmt"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 type WalmJobAdaptor struct {

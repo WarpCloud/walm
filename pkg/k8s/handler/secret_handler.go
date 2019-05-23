@@ -5,7 +5,7 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	listv1 "k8s.io/client-go/listers/core/v1"
-	k8sutils "walm/pkg/k8s/utils"
+	k8sutils "WarpCloud/walm/pkg/k8s/utils"
 	"github.com/sirupsen/logrus"
 )
 

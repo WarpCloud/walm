@@ -3,7 +3,7 @@ package adaptor
 import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 )
 

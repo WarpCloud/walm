@@ -1,9 +1,9 @@
 package project
 
 import (
-	"walm/pkg/release/manager/helm/cache"
-	"walm/pkg/task"
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release/manager/helm/cache"
+	"WarpCloud/walm/pkg/task"
+	"WarpCloud/walm/pkg/release"
 )
 
 type ProjectParams struct {

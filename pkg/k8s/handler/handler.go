@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"walm/pkg/k8s/client"
-	"walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/k8s/client"
+	"WarpCloud/walm/pkg/k8s/informer"
 	"k8s.io/client-go/kubernetes"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
 )

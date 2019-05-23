@@ -2,9 +2,9 @@ package adaptor
 
 import (
 	"testing"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/stretchr/testify/assert"
-	"walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/k8s/informer"
 )
 
 func Test(t *testing.T) {

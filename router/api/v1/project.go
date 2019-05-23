@@ -3,13 +3,13 @@ package v1
 import (
 	"github.com/emicklei/go-restful"
 
-	"walm/pkg/project"
+	"WarpCloud/walm/pkg/project"
 	"fmt"
-	walmerr "walm/pkg/util/error"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"github.com/sirupsen/logrus"
 	"strconv"
-	"walm/router/api"
-	"walm/pkg/release"
+	"WarpCloud/walm/router/api"
+	"WarpCloud/walm/pkg/release"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {

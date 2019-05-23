@@ -22,9 +22,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 
-	"walm/pkg/setting"
-	"walm/pkg/util"
-	"walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/setting"
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/release/manager/metainfo"
 )
 
 const (

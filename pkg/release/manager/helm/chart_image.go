@@ -8,7 +8,7 @@ import (
 	"crypto/tls"
 	"github.com/containerd/containerd/remotes/docker"
 	"os"
-	"walm/pkg/setting"
+	"WarpCloud/walm/pkg/setting"
 )
 
 type ChartImageClient struct {

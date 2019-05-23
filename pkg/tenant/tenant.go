@@ -1,16 +1,16 @@
 package tenant
 
 import (
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sirupsen/logrus"
 	"fmt"
-	"walm/pkg/k8s/adaptor"
-	walmerr "walm/pkg/util/error"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	walmerr "WarpCloud/walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"walm/pkg/util"
-	"walm/pkg/release/manager/helm"
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/release/manager/helm"
 	"sync"
 )
 

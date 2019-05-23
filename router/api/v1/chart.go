@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/emicklei/go-restful"
-	"walm/pkg/release/manager/helm"
-	walmerr "walm/pkg/util/error"
-	"walm/router/api"
+	"WarpCloud/walm/pkg/release/manager/helm"
+	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/router/api"
 )
 
 func GetRepoList(request *restful.Request, response *restful.Response) {

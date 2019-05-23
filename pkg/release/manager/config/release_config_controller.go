@@ -7,16 +7,16 @@ import (
 	"time"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"strings"
-	"walm/pkg/k8s/informer"
-	"walm/pkg/release/manager/helm"
+	"WarpCloud/walm/pkg/k8s/informer"
+	"WarpCloud/walm/pkg/release/manager/helm"
 	"reflect"
-	"walm/pkg/k8s/adaptor"
-	"walm/pkg/release"
-	"walm/pkg/kafka"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/release"
+	"WarpCloud/walm/pkg/kafka"
 	"encoding/json"
-	walmerr "walm/pkg/util/error"
+	walmerr "WarpCloud/walm/pkg/util/error"
 )
 
 // 动态依赖管理核心需求：

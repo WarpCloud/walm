@@ -4,9 +4,9 @@ import (
 	"github.com/emicklei/go-restful"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"fmt"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"github.com/sirupsen/logrus"
-	"walm/router/api"
+	"WarpCloud/walm/router/api"
 )
 
 func GetPvcs(request *restful.Request, response *restful.Response) {

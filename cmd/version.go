@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"walm/pkg/version"
+	"WarpCloud/walm/pkg/version"
 )
 
 const versionDesc = `

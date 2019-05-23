@@ -1,7 +1,7 @@
 package project
 
 import (
-	"walm/pkg/release"
+	"WarpCloud/walm/pkg/release"
 )
 
 func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {

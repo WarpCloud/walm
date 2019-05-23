@@ -4,13 +4,13 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 
-	"walm/router/api/v1"
-	"walm/router/middleware"
-	releasetypes "walm/pkg/release"
-	walmtypes "walm/router/api"
-	tenanttypes "walm/pkg/tenant"
-	k8stypes "walm/pkg/k8s/adaptor"
-	"walm/pkg/project"
+	"WarpCloud/walm/router/api/v1"
+	"WarpCloud/walm/router/middleware"
+	releasetypes "WarpCloud/walm/pkg/release"
+	walmtypes "WarpCloud/walm/router/api"
+	tenanttypes "WarpCloud/walm/pkg/tenant"
+	k8stypes "WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/project"
 )
 
 const (

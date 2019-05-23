@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	walmctlEnv "walm/cmd/walmctl/environment"
+	walmctlEnv "WarpCloud/walm/cmd/walmctl/environment"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

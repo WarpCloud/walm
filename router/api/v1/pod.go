@@ -3,11 +3,11 @@ package v1
 import (
 	"github.com/emicklei/go-restful"
 	"fmt"
-	"walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/adaptor"
 	"strconv"
 	"github.com/sirupsen/logrus"
-	"walm/pkg/k8s/handler"
-	"walm/router/api"
+	"WarpCloud/walm/pkg/k8s/handler"
+	"WarpCloud/walm/router/api"
 )
 
 func ExecShell(request *restful.Request, response *restful.Response) {

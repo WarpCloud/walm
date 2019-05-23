@@ -3,10 +3,10 @@ package node
 import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/ginkgo"
-	"walm/pkg/tenant"
-	"walm/test/e2e/framework"
+	"WarpCloud/walm/pkg/tenant"
+	"WarpCloud/walm/test/e2e/framework"
 	"time"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/handler"
 )
 
 var _ = Describe("Tenant", func() {

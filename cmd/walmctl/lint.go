@@ -19,12 +19,12 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"walm/pkg/util"
-	"walm/pkg/util/transwarpjsonnet"
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"encoding/json"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/ghodss/yaml"
-	"walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/release/manager/metainfo"
 	"bytes"
 )
 

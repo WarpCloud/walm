@@ -2,7 +2,7 @@ package client
 
 import (
 	"time"
-	. "walm/pkg/util/log"
+	. "WarpCloud/walm/pkg/util/log"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	discovery "k8s.io/apimachinery/pkg/version"
@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	restclient "k8s.io/client-go/rest"
 	"github.com/hashicorp/golang-lru"
-	"walm/pkg/setting"
+	"WarpCloud/walm/pkg/setting"
 )
 
 const (

@@ -1,8 +1,8 @@
 package helm
 
 import (
-	"walm/pkg/k8s/adaptor"
-	"walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/handler"
 	"github.com/sirupsen/logrus"
 	"fmt"
 	"sync"

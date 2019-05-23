@@ -12,15 +12,15 @@ import (
 	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/storage/driver"
-	"walm/pkg/k8s/adaptor"
-	"walm/pkg/k8s/client"
-	"walm/pkg/k8s/handler"
-	"walm/pkg/redis"
-	"walm/pkg/release/manager/helm/cache"
-	"walm/pkg/setting"
-	walmerr "walm/pkg/util/error"
+	"WarpCloud/walm/pkg/k8s/adaptor"
+	"WarpCloud/walm/pkg/k8s/client"
+	"WarpCloud/walm/pkg/k8s/handler"
+	"WarpCloud/walm/pkg/redis"
+	"WarpCloud/walm/pkg/release/manager/helm/cache"
+	"WarpCloud/walm/pkg/setting"
+	walmerr "WarpCloud/walm/pkg/util/error"
 
-	"walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/release/manager/metainfo"
 )
 
 const (
