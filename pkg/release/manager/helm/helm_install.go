@@ -118,7 +118,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 			logrus.Errorf("failed to get meta info parameters : %s", err.Error())
 			return nil, err
 		}
-		util.MergeValues(configValues, metaInfoConfigs)
+		util.MergeValues(configValues, metaInfoConfigs, false)
 	}
 
 	dependencies := releaseRequest.Dependencies
@@ -161,8 +161,8 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	})
 
 	valueOverride := map[string]interface{}{}
-	util.MergeValues(valueOverride, configValues)
-	util.MergeValues(valueOverride, dependencyConfigs)
+	util.MergeValues(valueOverride, configValues, false)
+	util.MergeValues(valueOverride, dependencyConfigs, false)
 	valueOverride[walm.WalmPluginConfigKey] = walmPlugins
 
 	currentHelmClient, err := hc.getCurrentHelmClient(namespace)
@@ -212,8 +212,8 @@ func (hc *HelmClient) reuseReleaseRequest(releaseCache *release.ReleaseCache, re
 	}
 
 	configValues = map[string]interface{}{}
-	util.MergeValues(configValues,	releaseInfo.ConfigValues)
-	util.MergeValues(configValues, releaseRequest.ConfigValues)
+	util.MergeValues(configValues,	releaseInfo.ConfigValues, false)
+	util.MergeValues(configValues, releaseRequest.ConfigValues, true)
 
 	dependencies = map[string]string{}
 	for key, value := range releaseInfo.Dependencies {

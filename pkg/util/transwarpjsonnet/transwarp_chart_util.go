@@ -89,10 +89,10 @@ func loadCommonJsonnetLib(templates map[string]string) (err error) {
 
 func buildConfigValuesToRender(rawChart *chart.Chart, namespace, name string, userConfigs, dependencyConfigs map[string]interface{}) (configValues map[string]interface{}, err error) {
 	configValues = map[string]interface{}{}
-	util.MergeValues(configValues, rawChart.Values)
+	util.MergeValues(configValues, rawChart.Values, false)
 	//TODO merge system values
 
-	util.MergeValues(configValues, dependencyConfigs)
+	util.MergeValues(configValues, dependencyConfigs, false)
 
 	configValues["helmReleaseName"] = name
 	configValues["helmReleaseNamespace"] = namespace
@@ -101,7 +101,7 @@ func buildConfigValuesToRender(rawChart *chart.Chart, namespace, name string, us
 	configValues["chartAppVersion"] = rawChart.Metadata.AppVersion
 	configValues["Transwarp_Install_Namespace"] = namespace
 
-	util.MergeValues(configValues, userConfigs)
+	util.MergeValues(configValues, userConfigs, false)
 
 	return configValues, nil
 }
