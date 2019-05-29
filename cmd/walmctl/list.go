@@ -65,8 +65,14 @@ func newListCmd(out io.Writer) *cobra.Command {
 			if namespace == "" {
 				return errNamespaceRequired
 			}
+			if len(args) != 1 {
+				return errors.New("arguments error, list release/project")
+			}
+			err := checkResourceType(args[0])
+			if err != nil {
+				return err
+			}
 			lc.sourceType = args[0]
-
 			return lc.run()
 		},
 	}
