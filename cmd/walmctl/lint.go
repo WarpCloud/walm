@@ -67,7 +67,7 @@ func newLintCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&lint.chartPath, "chartPath", ".", "test transwarp chart path")
 	cmd.PersistentFlags().StringVar(&lint.ciPath, "ciPath", "", "test chart ci path")
 	cmd.PersistentFlags().StringVar(&lint.kubeconfig, "kubeconfig", "kubeconfig", "kubeconfig path")
-
+	cmd.MarkPersistentFlagRequired("chartPath")
 	return cmd
 }
 
