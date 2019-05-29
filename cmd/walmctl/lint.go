@@ -179,8 +179,8 @@ func (lint *lintOptions) run() error {
 	}
 	for _, testCase := range testCases {
 		valueOverride := map[string]interface{}{}
-		util.MergeValues(valueOverride, testCase.userConfigs)
-		util.MergeValues(valueOverride, testCase.dependencyConfigs)
+		util.MergeValues(valueOverride, testCase.userConfigs, false)
+		util.MergeValues(valueOverride, testCase.dependencyConfigs, false)
 
 		if err := chartutil.ProcessDependencies(rawChart, valueOverride); err != nil {
 			return err

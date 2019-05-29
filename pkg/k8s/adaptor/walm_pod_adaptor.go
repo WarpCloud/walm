@@ -7,6 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"sort"
 	"WarpCloud/walm/pkg/k8s/utils"
+	"time"
+	"k8s.io/apimachinery/pkg/util/duration"
 )
 
 type WalmPodAdaptor struct {
@@ -117,6 +119,7 @@ func BuildWalmPod(pod corev1.Pod) *WalmPod {
 		PodIp:       pod.Status.PodIP,
 		HostIp:      pod.Status.HostIP,
 		Containers:  buildWalmPodContainers(pod),
+		Age:         duration.ShortHumanDuration(time.Since(pod.CreationTimestamp.Time)),
 	}
 	if len(pod.Labels) > 0 {
 		walmPod.Labels = pod.Labels

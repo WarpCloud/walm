@@ -639,7 +639,7 @@ func (cache *HelmCache) buildReleaseCache(helmRelease *hapirelease.Release) (rel
 	releaseSpec.ChartName = helmRelease.Chart.Metadata.Name
 	releaseSpec.ChartAppVersion = helmRelease.Chart.Metadata.AppVersion
 	releaseSpec.ConfigValues = map[string]interface{}{}
-	util.MergeValues(releaseSpec.ConfigValues, helmRelease.Config)
+	util.MergeValues(releaseSpec.ConfigValues, helmRelease.Config, false)
 	releaseCache = &release.ReleaseCache{
 		ReleaseSpec: releaseSpec,
 	}
