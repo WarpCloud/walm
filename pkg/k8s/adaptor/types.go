@@ -17,8 +17,6 @@ type WalmResource interface {
 	AddToWalmResourceSet(resourceSet *WalmResourceSet)
 }
 
-
-
 type WalmDefaultResource struct {
 	WalmMeta
 }
@@ -91,6 +89,7 @@ type WalmPod struct {
 	HostIp      string            `json:"hostIp" description:"host ip where pod is on"`
 	PodIp       string            `json:"podIp" description:"pod ip"`
 	Containers  []WalmContainer   `json:"containers" description:"pod containers"`
+	Age         string            `json:"age" description:"pod age"`
 }
 
 type WalmContainer struct {
