@@ -5,14 +5,6 @@ import (
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 	"WarpCloud/walm/pkg/k8s/adaptor"
 	"WarpCloud/walm/pkg/release/manager/metainfo"
-	"WarpCloud/walm/pkg/k8s/handler"
-	"github.com/sirupsen/logrus"
-)
-
-const (
-	ReleasePausedKey    = "WALM_RELEASE_PAUSED"
-	ReleasePausedValue = "true"
-	ReleasePauseInfoKey = "WALM_RELEASE_PAUSE_INFO"
 )
 
 type ReleaseInfoList struct {
@@ -142,36 +134,7 @@ type ReleaseInfoV2 struct {
 	Plugins                  []*walm.WalmPlugin       `json:"plugins" description:"plugins"`
 	MetaInfoValues           *metainfo.MetaInfoParams `json:"metaInfoValues" description:"meta info values"`
 	Paused                   bool                     `json:"paused" description:"whether release is paused"`
-	PauseInfo                *ReleasePauseInfo         `json:"pauseInfo" description:"release pauseInfo"`
-}
-
-type PauseInfo struct {
-	Namespace        string `json:"namespace" description:"resource namespace"`
-	Name             string `json:"name" description:"resource name"`
-	PreviousReplicas int32  `json:"previousReplicas" description:"resource replicas"`
-}
-
-type ReleasePauseInfo struct {
-	Deployments []PauseInfo `json:"deployments" description:"paused deployments"`
-	StatefulSets []PauseInfo `json:"statefulSets" description:"paused stateful sets"`
-}
-
-func (releasePauseInfo *ReleasePauseInfo)Recover() error{
-	for _, pauseInfo := range releasePauseInfo.Deployments {
-		_, err := handler.GetDefaultHandlerSet().GetDeploymentHandler().Scale(pauseInfo.Namespace, pauseInfo.Name, pauseInfo.PreviousReplicas)
-		if err != nil {
-			logrus.Errorf("failed to scale deployment %s/%s : %s", pauseInfo.Namespace, pauseInfo.Name, err.Error())
-			return err
-		}
-	}
-	for _, pauseInfo := range releasePauseInfo.StatefulSets {
-		err := handler.GetDefaultHandlerSet().GetStatefulSetHandler().Scale(pauseInfo.Namespace, pauseInfo.Name, pauseInfo.PreviousReplicas)
-		if err != nil {
-			logrus.Errorf("failed to scale stateful set %s/%s : %s", pauseInfo.Namespace, pauseInfo.Name, err.Error())
-			return err
-		}
-	}
-	return nil
+	ChartImage               string                   `json:"chartImage" description:"release chart image"`
 }
 
 func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
@@ -186,6 +149,7 @@ func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
 		},
 		ReleaseLabels: releaseInfo.ReleaseLabels,
 		Plugins:       releaseInfo.Plugins,
+		ChartImage:    releaseInfo.ChartImage,
 	}
 }
 
