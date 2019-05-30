@@ -12,7 +12,6 @@ import (
 	walmerr "WarpCloud/walm/pkg/util/error"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"errors"
-	"encoding/json"
 )
 
 func (hc *HelmClient) GetRelease(namespace, name string) (releaseV2 *release.ReleaseInfoV2, err error) {
@@ -44,6 +43,28 @@ func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.Release
 			},
 		},
 	}
+
+	if releaseCache == nil {
+		releaseCache, err = hc.helmCache.GetReleaseCache(releaseTask.Namespace, releaseTask.Name)
+		if err != nil {
+			if walmerr.IsNotFoundError(err) {
+				logrus.Warnf("release cache %s/%s is not found in redis", releaseTask.Namespace, releaseTask.Name)
+				err = nil
+			} else {
+				logrus.Errorf("failed to get release cache of %s/%s : %s", releaseTask.Namespace, releaseTask.Name, err.Error())
+				return
+			}
+		}
+	}
+
+	if releaseCache != nil {
+		releaseV2, err = hc.buildReleaseInfoV2(releaseCache)
+		if err != nil {
+			logrus.Errorf("failed to build v2 release info : %s", err.Error())
+			return nil, err
+		}
+	}
+
 	if releaseTask.LatestReleaseTaskSig != nil {
 		taskState := releaseTask.LatestReleaseTaskSig.GetTaskState()
 		if taskState != nil && taskState.TaskName != "" {
@@ -61,19 +82,6 @@ func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.Release
 		}
 	}
 
-	if releaseCache == nil {
-		releaseCache, err = hc.helmCache.GetReleaseCache(releaseTask.Namespace, releaseTask.Name)
-		if err != nil {
-			logrus.Errorf("failed to get release cache of %s/%s : %s", releaseTask.Namespace, releaseTask.Name, err.Error())
-			return
-		}
-	}
-
-	releaseV2, err = hc.buildReleaseInfoV2(releaseCache)
-	if err != nil {
-		logrus.Errorf("failed to build v2 release info : %s", err.Error())
-		return nil, err
-	}
 	return
 }
 
@@ -104,10 +112,6 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.OutputConfigValues = releaseConfigCopy.Spec.OutputConfig
 		releaseV2.ReleaseLabels = releaseConfigCopy.Labels
 		releaseV2.RepoName = releaseConfigCopy.Spec.Repo
-		releaseV2.Paused, releaseV2.PauseInfo, err = buildReleasePauseInfo(releaseConfigCopy.Annotations)
-		if err != nil {
-			return nil, err
-		}
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
 	releaseV2.MetaInfoValues = releaseCache.MetaInfoValues
@@ -117,7 +121,10 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 			delete(releaseV2.ComputedValues, walm.WalmPluginConfigKey)
 			for _, plugin := range walmPlugins.([]interface{}) {
 				walmPlugin := plugin.(map[string]interface{})
-				if walmPlugin["name"].(string) != plugins.ValidateReleaseConfigPluginName {
+				if walmPlugin["name"].(string) != plugins.ValidateReleaseConfigPluginName && !walmPlugin["disable"].(bool){
+					if walmPlugin["name"].(string) == plugins.PauseReleasePluginName {
+						releaseV2.Paused = true
+					}
 					releaseV2.Plugins = append(releaseV2.Plugins, &walm.WalmPlugin{
 						Name:    walmPlugin["name"].(string),
 						Args:    walmPlugin["args"].(string),
@@ -135,24 +142,6 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 	}
 
 	return releaseV2, nil
-}
-
-func buildReleasePauseInfo(annotations map[string]string) (releasePaused bool, releasePauseInfo *release.ReleasePauseInfo, err error) {
-	if len(annotations) > 0 {
-		if annotations[release.ReleasePausedKey] == release.ReleasePausedValue {
-			releasePaused = true
-			releasePauseInfoStr := annotations[release.ReleasePauseInfoKey]
-			if releasePauseInfoStr != "" {
-				releasePauseInfo = &release.ReleasePauseInfo{}
-				err = json.Unmarshal([]byte(releasePauseInfoStr), releasePauseInfo)
-				if err != nil {
-					logrus.Errorf("failed to unmarshal release pause info : %s", err.Error())
-					return
-				}
-			}
-		}
-	}
-	return
 }
 
 func (hc *HelmClient) ListReleases(namespace, filter string) ([]*release.ReleaseInfoV2, error) {

@@ -1,4 +1,4 @@
-package: walm
+package: WarpCloud/walm
 import:
 - package: k8s.io/helm
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git

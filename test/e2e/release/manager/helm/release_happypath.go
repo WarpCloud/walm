@@ -61,23 +61,23 @@ var _ = Describe("ReleaseHappyPath", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(release.ConfigValues["replicaCount"]).To(Equal(int64(2)))
 
-		By("pause release")
-		err = helmClient.PauseRelease(namespace, releaseRequest.Name, false, false, 0)
-		Expect(err).NotTo(HaveOccurred())
-
-		release, err = helmClient.GetRelease(namespace, releaseRequest.Name)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(release.Paused).To(BeTrue())
-		Expect(release.Status.Deployments[0].ExpectedReplicas).To(Equal(int32(0)))
-
-		By("recover release")
-		err = helmClient.RecoverRelease(namespace, releaseRequest.Name, false, false, 0)
-		Expect(err).NotTo(HaveOccurred())
-
-		release, err = helmClient.GetRelease(namespace, releaseRequest.Name)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(release.Paused).NotTo(BeTrue())
-		Expect(release.Status.Deployments[0].ExpectedReplicas).To(Equal(int32(2)))
+		//By("pause release")
+		//err = helmClient.PauseRelease(namespace, releaseRequest.Name, false, false, 0)
+		//Expect(err).NotTo(HaveOccurred())
+		//
+		//release, err = helmClient.GetRelease(namespace, releaseRequest.Name)
+		//Expect(err).NotTo(HaveOccurred())
+		//Expect(release.Paused).To(BeTrue())
+		//Expect(release.Status.Deployments[0].ExpectedReplicas).To(Equal(int32(0)))
+		//
+		//By("recover release")
+		//err = helmClient.RecoverRelease(namespace, releaseRequest.Name, false, false, 0)
+		//Expect(err).NotTo(HaveOccurred())
+		//
+		//release, err = helmClient.GetRelease(namespace, releaseRequest.Name)
+		//Expect(err).NotTo(HaveOccurred())
+		//Expect(release.Paused).NotTo(BeTrue())
+		//Expect(release.Status.Deployments[0].ExpectedReplicas).To(Equal(int32(2)))
 
 		By("restart release")
 		err = helmClient.RestartRelease(namespace, releaseRequest.Name)

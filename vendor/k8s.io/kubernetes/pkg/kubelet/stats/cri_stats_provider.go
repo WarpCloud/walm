@@ -22,6 +22,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	cadvisorfs "github.com/google/cadvisor/fs"
@@ -39,6 +40,17 @@ import (
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
+var (
+	// defaultCachePeriod is the default cache period for each cpuUsage.
+	defaultCachePeriod = 10 * time.Minute
+)
+
+// cpuUsageRecord holds the cpu usage stats and the calculated usageNanoCores.
+type cpuUsageRecord struct {
+	stats          *runtimeapi.CpuUsage
+	usageNanoCores *uint64
+}
+
 // criStatsProvider implements the containerStatsProvider interface by getting
 // the container stats from CRI.
 type criStatsProvider struct {
@@ -55,6 +67,10 @@ type criStatsProvider struct {
 	imageService internalapi.ImageManagerService
 	// logMetrics provides the metrics for container logs
 	logMetricsService LogMetricsService
+
+	// cpuUsageCache caches the cpu usage for containers.
+	cpuUsageCache map[string]*cpuUsageRecord
+	mutex         sync.RWMutex
 }
 
 // newCRIStatsProvider returns a containerStatsProvider implementation that
@@ -72,11 +88,32 @@ func newCRIStatsProvider(
 		runtimeService:    runtimeService,
 		imageService:      imageService,
 		logMetricsService: logMetricsService,
+		cpuUsageCache:     make(map[string]*cpuUsageRecord),
 	}
 }
 
 // ListPodStats returns the stats of all the pod-managed containers.
 func (p *criStatsProvider) ListPodStats() ([]statsapi.PodStats, error) {
+	// Don't update CPU nano core usage.
+	return p.listPodStats(false)
+}
+
+// ListPodStatsAndUpdateCPUNanoCoreUsage updates the cpu nano core usage for
+// the containers and returns the stats for all the pod-managed containers.
+// This is a workaround because CRI runtimes do not supply nano core usages,
+// so this function calculate the difference between the current and the last
+// (cached) cpu stats to calculate this metrics. The implementation assumes a
+// single caller to periodically invoke this function to update the metrics. If
+// there exist multiple callers, the period used to compute the cpu usage may
+// vary and the usage could be incoherent (e.g., spiky). If no caller calls
+// this function, the cpu usage will stay nil. Right now, eviction manager is
+// the only caller, and it calls this function every 10s.
+func (p *criStatsProvider) ListPodStatsAndUpdateCPUNanoCoreUsage() ([]statsapi.PodStats, error) {
+	// Update CPU nano core usage.
+	return p.listPodStats(true)
+}
+
+func (p *criStatsProvider) listPodStats(updateCPUNanoCoreUsage bool) ([]statsapi.PodStats, error) {
 	// Gets node root filesystem information, which will be used to populate
 	// the available and capacity bytes/inodes in container stats.
 	rootFsInfo, err := p.cadvisor.RootFsInfo()
@@ -95,6 +132,7 @@ func (p *criStatsProvider) ListPodStats() ([]statsapi.PodStats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all pod sandboxes: %v", err)
 	}
+	podSandboxes = removeTerminatedPods(podSandboxes)
 	for _, s := range podSandboxes {
 		podSandboxMap[s.Id] = s
 	}
@@ -111,7 +149,7 @@ func (p *criStatsProvider) ListPodStats() ([]statsapi.PodStats, error) {
 		return nil, fmt.Errorf("failed to list all container stats: %v", err)
 	}
 
-	containers = removeTerminatedContainer(containers)
+	containers = removeTerminatedContainers(containers)
 	// Creates container map.
 	containerMap := make(map[string]*runtimeapi.Container)
 	for _, c := range containers {
@@ -146,7 +184,7 @@ func (p *criStatsProvider) ListPodStats() ([]statsapi.PodStats, error) {
 		}
 
 		// Fill available stats for full set of required pod stats
-		cs := p.makeContainerStats(stats, container, &rootFsInfo, fsIDtoInfo, podSandbox.GetMetadata().GetUid())
+		cs := p.makeContainerStats(stats, container, &rootFsInfo, fsIDtoInfo, podSandbox.GetMetadata().GetUid(), updateCPUNanoCoreUsage)
 		p.addPodNetworkStats(ps, podSandboxID, caInfos, cs)
 		p.addPodCPUMemoryStats(ps, types.UID(podSandbox.Metadata.Uid), allInfos, cs)
 
@@ -160,6 +198,8 @@ func (p *criStatsProvider) ListPodStats() ([]statsapi.PodStats, error) {
 		}
 		ps.Containers = append(ps.Containers, *cs)
 	}
+	// cleanup outdated caches.
+	p.cleanupOutdatedCaches()
 
 	result := make([]statsapi.PodStats, 0, len(sandboxIDToPodStats))
 	for _, s := range sandboxIDToPodStats {
@@ -182,6 +222,7 @@ func (p *criStatsProvider) ListPodCPUAndMemoryStats() ([]statsapi.PodStats, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all pod sandboxes: %v", err)
 	}
+	podSandboxes = removeTerminatedPods(podSandboxes)
 	for _, s := range podSandboxes {
 		podSandboxMap[s.Id] = s
 	}
@@ -194,7 +235,7 @@ func (p *criStatsProvider) ListPodCPUAndMemoryStats() ([]statsapi.PodStats, erro
 		return nil, fmt.Errorf("failed to list all container stats: %v", err)
 	}
 
-	containers = removeTerminatedContainer(containers)
+	containers = removeTerminatedContainers(containers)
 	// Creates container map.
 	containerMap := make(map[string]*runtimeapi.Container)
 	for _, c := range containers {
@@ -242,6 +283,8 @@ func (p *criStatsProvider) ListPodCPUAndMemoryStats() ([]statsapi.PodStats, erro
 		}
 		ps.Containers = append(ps.Containers, *cs)
 	}
+	// cleanup outdated caches.
+	p.cleanupOutdatedCaches()
 
 	result := make([]statsapi.PodStats, 0, len(sandboxIDToPodStats))
 	for _, s := range sandboxIDToPodStats {
@@ -420,6 +463,7 @@ func (p *criStatsProvider) makeContainerStats(
 	rootFsInfo *cadvisorapiv2.FsInfo,
 	fsIDtoInfo map[runtimeapi.FilesystemIdentifier]*cadvisorapiv2.FsInfo,
 	uid string,
+	updateCPUNanoCoreUsage bool,
 ) *statsapi.ContainerStats {
 	result := &statsapi.ContainerStats{
 		Name: stats.Attributes.Metadata.Name,
@@ -435,9 +479,19 @@ func (p *criStatsProvider) makeContainerStats(
 		if stats.Cpu.UsageCoreNanoSeconds != nil {
 			result.CPU.UsageCoreNanoSeconds = &stats.Cpu.UsageCoreNanoSeconds.Value
 		}
+		var usageNanoCores *uint64
+		if updateCPUNanoCoreUsage {
+			usageNanoCores = p.getAndUpdateContainerUsageNanoCores(stats)
+		} else {
+			usageNanoCores = p.getContainerUsageNanoCores(stats)
+		}
+		if usageNanoCores != nil {
+			result.CPU.UsageNanoCores = usageNanoCores
+		}
 	} else {
 		result.CPU.Time = metav1.NewTime(time.Unix(0, time.Now().UnixNano()))
 		result.CPU.UsageCoreNanoSeconds = Uint64Ptr(0)
+		result.CPU.UsageNanoCores = Uint64Ptr(0)
 	}
 	if stats.Memory != nil {
 		result.Memory.Time = metav1.NewTime(time.Unix(0, stats.Memory.Timestamp))
@@ -497,9 +551,15 @@ func (p *criStatsProvider) makeContainerCPUAndMemoryStats(
 		if stats.Cpu.UsageCoreNanoSeconds != nil {
 			result.CPU.UsageCoreNanoSeconds = &stats.Cpu.UsageCoreNanoSeconds.Value
 		}
+
+		usageNanoCores := p.getContainerUsageNanoCores(stats)
+		if usageNanoCores != nil {
+			result.CPU.UsageNanoCores = usageNanoCores
+		}
 	} else {
 		result.CPU.Time = metav1.NewTime(time.Unix(0, time.Now().UnixNano()))
 		result.CPU.UsageCoreNanoSeconds = Uint64Ptr(0)
+		result.CPU.UsageNanoCores = Uint64Ptr(0)
 	}
 	if stats.Memory != nil {
 		result.Memory.Time = metav1.NewTime(time.Unix(0, stats.Memory.Timestamp))
@@ -514,9 +574,125 @@ func (p *criStatsProvider) makeContainerCPUAndMemoryStats(
 	return result
 }
 
-// removeTerminatedContainer returns the specified container but with
-// the stats of the terminated containers removed.
-func removeTerminatedContainer(containers []*runtimeapi.Container) []*runtimeapi.Container {
+// getContainerUsageNanoCores gets the cached usageNanoCores.
+func (p *criStatsProvider) getContainerUsageNanoCores(stats *runtimeapi.ContainerStats) *uint64 {
+	if stats == nil || stats.Attributes == nil {
+		return nil
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	cached, ok := p.cpuUsageCache[stats.Attributes.Id]
+	if !ok || cached.usageNanoCores == nil {
+		return nil
+	}
+	// return a copy of the usage
+	latestUsage := *cached.usageNanoCores
+	return &latestUsage
+}
+
+// getContainerUsageNanoCores computes usageNanoCores based on the given and
+// the cached usageCoreNanoSeconds, updates the cache with the computed
+// usageNanoCores, and returns the usageNanoCores.
+func (p *criStatsProvider) getAndUpdateContainerUsageNanoCores(stats *runtimeapi.ContainerStats) *uint64 {
+	if stats == nil || stats.Attributes == nil || stats.Cpu == nil || stats.Cpu.UsageCoreNanoSeconds == nil {
+		return nil
+	}
+	id := stats.Attributes.Id
+	usage, err := func() (*uint64, error) {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+
+		cached, ok := p.cpuUsageCache[id]
+		if !ok || cached.stats.UsageCoreNanoSeconds == nil {
+			// Cannot compute the usage now, but update the cached stats anyway
+			p.cpuUsageCache[id] = &cpuUsageRecord{stats: stats.Cpu, usageNanoCores: nil}
+			return nil, nil
+		}
+
+		newStats := stats.Cpu
+		cachedStats := cached.stats
+		nanoSeconds := newStats.Timestamp - cachedStats.Timestamp
+		if nanoSeconds <= 0 {
+			return nil, fmt.Errorf("zero or negative interval (%v - %v)", newStats.Timestamp, cachedStats.Timestamp)
+		}
+		usageNanoCores := (newStats.UsageCoreNanoSeconds.Value - cachedStats.UsageCoreNanoSeconds.Value) * uint64(time.Second/time.Nanosecond) / uint64(nanoSeconds)
+
+		// Update cache with new value.
+		usageToUpdate := usageNanoCores
+		p.cpuUsageCache[id] = &cpuUsageRecord{stats: newStats, usageNanoCores: &usageToUpdate}
+
+		return &usageNanoCores, nil
+	}()
+
+	if err != nil {
+		// This should not happen. Log now to raise visiblity
+		klog.Errorf("failed updating cpu usage nano core: %v", err)
+	}
+	return usage
+}
+
+func (p *criStatsProvider) cleanupOutdatedCaches() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	for k, v := range p.cpuUsageCache {
+		if v == nil {
+			delete(p.cpuUsageCache, k)
+		}
+
+		if time.Since(time.Unix(0, v.stats.Timestamp)) > defaultCachePeriod {
+			delete(p.cpuUsageCache, k)
+		}
+	}
+}
+
+// removeTerminatedPods returns pods with terminated ones removed.
+// It only removes a terminated pod when there is a running instance
+// of the pod with the same name and namespace.
+// This is needed because:
+// 1) PodSandbox may be recreated;
+// 2) Pod may be recreated with the same name and namespace.
+func removeTerminatedPods(pods []*runtimeapi.PodSandbox) []*runtimeapi.PodSandbox {
+	podMap := make(map[statsapi.PodReference][]*runtimeapi.PodSandbox)
+	// Sort order by create time
+	sort.Slice(pods, func(i, j int) bool {
+		return pods[i].CreatedAt < pods[j].CreatedAt
+	})
+	for _, pod := range pods {
+		refID := statsapi.PodReference{
+			Name:      pod.GetMetadata().GetName(),
+			Namespace: pod.GetMetadata().GetNamespace(),
+			// UID is intentionally left empty.
+		}
+		podMap[refID] = append(podMap[refID], pod)
+	}
+
+	result := make([]*runtimeapi.PodSandbox, 0)
+	for _, refs := range podMap {
+		if len(refs) == 1 {
+			result = append(result, refs[0])
+			continue
+		}
+		found := false
+		for i := 0; i < len(refs); i++ {
+			if refs[i].State == runtimeapi.PodSandboxState_SANDBOX_READY {
+				found = true
+				result = append(result, refs[i])
+			}
+		}
+		if !found {
+			result = append(result, refs[len(refs)-1])
+		}
+	}
+	return result
+}
+
+// removeTerminatedContainers returns containers with terminated ones.
+// It only removes a terminated container when there is a running instance
+// of the container.
+func removeTerminatedContainers(containers []*runtimeapi.Container) []*runtimeapi.Container {
 	containerMap := make(map[containerID][]*runtimeapi.Container)
 	// Sort order by create time
 	sort.Slice(containers, func(i, j int) bool {

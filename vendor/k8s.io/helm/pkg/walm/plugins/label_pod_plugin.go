@@ -14,10 +14,6 @@ const (
 	LabelPodPluginName = "LabelPod"
 )
 
-// ValidateReleaseConfig plugin is used to make sure:
-// 1. release have and only have one ReleaseConfig
-// 2. ReleaseConfig has the same namespace and name with the release
-
 func init() {
 	walm.Register(LabelPodPluginName, &walm.WalmPluginRunner{
 		Run:  LabelPod,

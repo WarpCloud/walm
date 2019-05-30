@@ -1,5 +1,5 @@
-hash: d596afd9a47895d862a933139d6ad3f6555ce0bf1013ecf6977cebb862f8a1fb
-updated: 2019-04-29T16:58:23.89091355+08:00
+hash: a3dc950a729e3f5e66da52269088cd166474ba67d3171b974a7695d1fb5f1a70
+updated: 2019-05-30T18:58:35.325391684+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -139,6 +139,8 @@ imports:
   version: 36442dbdb585210f8d5a1b45e67aa323c197d5c4
 - name: github.com/exponent-io/jsonpath
   version: d6023ce2651d8eafb5c75bb0c7167536102ec9f5
+- name: github.com/fatih/color
+  version: 3f9d52f7176a6927daacff70a3e8d1dc2025c53e
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/ghodss/yaml
@@ -150,7 +152,7 @@ imports:
 - name: github.com/go-openapi/jsonreference
   version: 8483a886a90412cd6858df4ea3483dce9c8e35a3
 - name: github.com/go-openapi/spec
-  version: 9d9763c0ce87242cb4611b52b8601987f01eb4ed
+  version: b2056d62a953adee01fed8ee65a046bd8f0419d5
 - name: github.com/go-openapi/swag
   version: b3e2804c8535ee0d1b89320afd98474d5b8e9e3b
 - name: github.com/go-redis/redis
@@ -218,7 +220,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gosuri/uitable
-  version: 36ee7e946282a3fb1cfecd476ddc9b35d8847e42
+  version: 2cf933346b8370a3a3d8867ef5cf54b2129d8ecf
   subpackages:
   - util/strutil
   - util/wordwrap
@@ -255,13 +257,13 @@ imports:
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/json-iterator/go
-  version: 0ff49de124c6f76f8494e194af75bde0f1a49a29
+  version: 08047c174c6c03e8ec963a411bde1b6d1ee67b26
 - name: github.com/kelseyhightower/envconfig
-  version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
+  version: 0b417c4ec4a8a82eecc22a1459a504aa55163d61
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/magiconair/properties
-  version: 7757cc9fdb852f7579b24170bcacda2c7471bb6a
+  version: de8848e004dd33dc07a2947b3d76f618a7fc7ef1
 - name: github.com/mailru/easyjson
   version: 2f5df55504ebc322e4d52d34df6a1f5b503bf26d
   subpackages:
@@ -273,7 +275,7 @@ imports:
 - name: github.com/Masterminds/goutils
   version: 41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0
 - name: github.com/Masterminds/semver
-  version: 353fa929e66ea3d8adcc58cd040e12d65c47264e
+  version: 059deebd1619b9ae33232c797f7ab0e8d6c6fd69
 - name: github.com/Masterminds/sprig
   version: 2625cd487a689ca112e1301a58b89b347ba2c994
 - name: github.com/mattn/go-colorable
@@ -341,11 +343,11 @@ imports:
   - ext
   - log
 - name: github.com/pelletier/go-toml
-  version: 1d8903f1d0f31eba3a391755acc0efb0a4698653
+  version: dba45d427ff48cfb9bcf633db3a8e43b7364e261
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: 9419d2361c8ae111073ffe3337ecc364fb590921
+  version: b8e3f78e075c180caacb7b648fa765c1828024ca
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
@@ -398,7 +400,7 @@ imports:
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
 - name: github.com/sirupsen/logrus
-  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
+  version: 839c75faf7f98a33d445d181f3018b5c3409a45e
 - name: github.com/spf13/afero
   version: 588a75ec4f32903aa5e39a2619ba6a4631e28424
   subpackages:
@@ -406,17 +408,17 @@ imports:
 - name: github.com/spf13/cast
   version: 8c9545af88b134710ab1cd196795e7f2388358d7
 - name: github.com/spf13/cobra
-  version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
+  version: 67fc4837d267bc9bfd6e47f77783fcc3dffc68de
 - name: github.com/spf13/jwalterweatherman
   version: 94f6ae3ed3bceceafa716478c5fbf8d29ca601a1
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
-  version: 9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9
+  version: b5bf975e5823809fb22c7644d008757f78a4259e
 - name: github.com/streadway/amqp
   version: 75d898a42a940fbc854dfd1a4199eabdc00cf024
 - name: github.com/swaggo/swag
-  version: e1d2304759ce5ebf4e49b8cbfef74a5f39618ec0
+  version: fa508ff4f6985634f42b9b941e376e003c40a763
 - name: github.com/thoas/stats
   version: 965cb2de1678b040aefd01c448e2f10de3aec2ae
 - name: github.com/tidwall/gjson
@@ -502,7 +504,7 @@ imports:
   - go/loader
   - imports
 - name: google.golang.org/appengine
-  version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
+  version: 311d3c5cf9373249645db030e53c37c209a8b378
   subpackages:
   - internal
   - internal/base
@@ -664,7 +666,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: a4358799e4fec459cf9babfca7c5acf3eed2cef8
+  version: 6720cc5583054dcb87f8623beaf109ac884b2c20
   subpackages:
   - pkg/authentication/authenticator
   - pkg/authentication/serviceaccount
@@ -869,7 +871,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: f34a6cffcd1c47a37c17f62a96a12812817b68b8
+  version: cb37f419a58136143b9cc599f267c96847055ee1
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -910,7 +912,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: a3d8a90f5e46a6d9b1941020538ee21060f19ebd
+  version: b3866462b5121643b5276c51f2cd42c718036bfe
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
@@ -1022,7 +1024,7 @@ imports:
 - name: sigs.k8s.io/yaml
   version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
 - name: transwarp/release-config
-  version: 66bbb68e2642a46baf2d4e1a00eb5e04ec5fc6d0
+  version: fb760c55f50987a35534c32f78fdc104cd10e937
   repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
   subpackages:
   - pkg/apis/transwarp

@@ -29,6 +29,7 @@ import (
 	"syscall"
 
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/util/keymutex"
 
 	utilfile "k8s.io/kubernetes/pkg/util/file"
 )
@@ -48,6 +49,9 @@ func New(mounterPath string) Interface {
 		mounterPath: mounterPath,
 	}
 }
+
+// acquire lock for smb mount
+var getSMBMountMutex = keymutex.NewHashed(0)
 
 // Mount : mounts source to target with given options.
 // currently only supports cifs(smb), bind mount(for disk)
@@ -83,6 +87,10 @@ func (mounter *Mounter) Mount(source string, target string, fstype string, optio
 		if strings.ToLower(fstype) != "cifs" {
 			return fmt.Errorf("only cifs mount is supported now, fstype: %q, mounting source (%q), target (%q), with options (%q)", fstype, source, target, options)
 		}
+
+		// lock smb mount for the same source
+		getSMBMountMutex.LockKey(source)
+		defer getSMBMountMutex.UnlockKey(source)
 
 		if output, err := newSMBMapping(options[0], options[1], source); err != nil {
 			if isSMBMappingExist(source) {
@@ -496,14 +504,15 @@ func getAllParentLinks(path string) ([]string, error) {
 
 // GetMountRefs : empty implementation here since there is no place to query all mount points on Windows
 func (mounter *Mounter) GetMountRefs(pathname string) ([]string, error) {
-	pathExists, pathErr := PathExists(normalizeWindowsPath(pathname))
-	// TODO(#75012): Need a Windows specific IsCorruptedMnt function that checks against whatever errno's
-	// Windows emits when we try to Stat a corrupted mount
-	// https://golang.org/pkg/syscall/?GOOS=windows&GOARCH=amd64#Errno
+	windowsPath := normalizeWindowsPath(pathname)
+	pathExists, pathErr := PathExists(windowsPath)
 	if !pathExists {
 		return []string{}, nil
+	} else if IsCorruptedMnt(pathErr) {
+		klog.Warningf("GetMountRefs found corrupted mount at %s, treating as unmounted path", windowsPath)
+		return []string{}, nil
 	} else if pathErr != nil {
-		return nil, fmt.Errorf("error checking path %s: %v", normalizeWindowsPath(pathname), pathErr)
+		return nil, fmt.Errorf("error checking path %s: %v", windowsPath, pathErr)
 	}
 	return []string{pathname}, nil
 }
