@@ -112,6 +112,7 @@ func (hc *HelmClient) buildReleaseInfoV2(releaseCache *release.ReleaseCache) (*r
 		releaseV2.OutputConfigValues = releaseConfigCopy.Spec.OutputConfig
 		releaseV2.ReleaseLabels = releaseConfigCopy.Labels
 		releaseV2.RepoName = releaseConfigCopy.Spec.Repo
+		releaseV2.ChartImage = releaseConfigCopy.Spec.ChartImage
 	}
 	releaseV2.ComputedValues = releaseCache.ComputedValues
 	releaseV2.MetaInfoValues = releaseCache.MetaInfoValues

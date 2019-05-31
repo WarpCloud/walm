@@ -187,7 +187,7 @@ func (lint *lintOptions) run() error {
 		}
 		repo := ""
 		err = transwarpjsonnet.ProcessJsonnetChart(repo, rawChart, testCase.caseNamespace, testCase.caseName,
-			testCase.userConfigs, testCase.dependencyConfigs, testCase.dependencies, testCase.releaseLabels)
+			testCase.userConfigs, testCase.dependencyConfigs, testCase.dependencies, testCase.releaseLabels, "")
 
 		inst := mockInst()
 		inst.Namespace = testCase.caseNamespace
