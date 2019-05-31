@@ -1,5 +1,5 @@
 hash: a3dc950a729e3f5e66da52269088cd166474ba67d3171b974a7695d1fb5f1a70
-updated: 2019-05-30T18:58:35.325391684+08:00
+updated: 2019-05-31T17:12:21.674586165+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -406,7 +406,7 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: 8c9545af88b134710ab1cd196795e7f2388358d7
+  version: a924560ecfcf6e1425b929653f42d6a148f4aab3
 - name: github.com/spf13/cobra
   version: 67fc4837d267bc9bfd6e47f77783fcc3dffc68de
 - name: github.com/spf13/jwalterweatherman
@@ -418,7 +418,7 @@ imports:
 - name: github.com/streadway/amqp
   version: 75d898a42a940fbc854dfd1a4199eabdc00cf024
 - name: github.com/swaggo/swag
-  version: fa508ff4f6985634f42b9b941e376e003c40a763
+  version: 7a85a26c8bb78118297b8ec358e29679b333f802
 - name: github.com/thoas/stats
   version: 965cb2de1678b040aefd01c448e2f10de3aec2ae
 - name: github.com/tidwall/gjson
@@ -912,7 +912,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: b3866462b5121643b5276c51f2cd42c718036bfe
+  version: 7d58a4985dc157952a4f38f544a80ce4bf019471
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
@@ -1024,7 +1024,7 @@ imports:
 - name: sigs.k8s.io/yaml
   version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
 - name: transwarp/release-config
-  version: fb760c55f50987a35534c32f78fdc104cd10e937
+  version: 02454f8c053d3a03cde18cd17329ee24f0f366e6
   repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
   subpackages:
   - pkg/apis/transwarp

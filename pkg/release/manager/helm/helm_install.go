@@ -149,7 +149,7 @@ func (hc *HelmClient) doInstallUpgradeRelease(namespace string, releaseRequest *
 	}
 
 	err = transwarpjsonnet.ProcessJsonnetChart(releaseRequest.RepoName, rawChart, namespace, releaseRequest.Name, configValues,
-		dependencyConfigs, dependencies, releaseLabels)
+		dependencyConfigs, dependencies, releaseLabels, releaseRequest.ChartImage)
 	if err != nil {
 		logrus.Errorf("failed to ProcessJsonnetChart : %s", err.Error())
 		return nil, err

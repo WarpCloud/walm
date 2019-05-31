@@ -118,7 +118,7 @@ func buildConfigValuesToRender(rawChart *chart.Chart, namespace, name string, us
 // 3. render jsonnet template files to generate native chart templates
 func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, releaseName string,
 	userConfigs, dependencyConfigs map[string]interface{}, dependencies, releaseLabels map[string]string,
-) error {
+	chartImage string) error {
 	jsonnetTemplateFiles := make(map[string]string, 0)
 	var rawChartFiles []*chart.File
 	for _, f := range rawChart.Files {
@@ -139,7 +139,7 @@ func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, r
 
 	autoGenReleaseConfig, err := buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo,
 		rawChart.Metadata.Name, rawChart.Metadata.Version, rawChart.Metadata.AppVersion,
-		releaseLabels, dependencies, dependencyConfigs, userConfigs)
+		releaseLabels, dependencies, dependencyConfigs, userConfigs, chartImage)
 	if err != nil {
 		logrus.Errorf("failed to auto gen release config : %s", err.Error())
 		return err
@@ -189,7 +189,7 @@ func ProcessJsonnetChart(repo string, rawChart *chart.Chart, releaseNamespace, r
 }
 
 func buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo, chartName, chartVersion, chartAppVersion string,
-	labels, dependencies map[string]string, dependencyConfigs, userConfigs map[string]interface{}) ([]byte, error) {
+	labels, dependencies map[string]string, dependencyConfigs, userConfigs map[string]interface{}, chartImage string) ([]byte, error) {
 	if labels == nil {
 		labels = map[string]string{}
 	}
@@ -214,6 +214,7 @@ func buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo, chartName, c
 			Dependencies:             dependencies,
 			OutputConfig:             map[string]interface{}{},
 			Repo:                     repo,
+			ChartImage:               chartImage,
 		},
 	}
 
