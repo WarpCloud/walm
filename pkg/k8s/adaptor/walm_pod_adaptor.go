@@ -39,6 +39,9 @@ func (adaptor *WalmPodAdaptor) GetWalmPods(namespace string, labelSelector *meta
 	walmPods := []*WalmPod{}
 	if podList != nil {
 		for _, pod := range podList {
+			if pod.Status.Reason == "Evicted" {
+				continue
+			}
 			walmPod := BuildWalmPod(*pod)
 			walmPods = append(walmPods, walmPod)
 		}
