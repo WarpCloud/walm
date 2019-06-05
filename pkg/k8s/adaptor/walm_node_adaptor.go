@@ -150,7 +150,7 @@ func buildNodeResourceInfo(resourceList map[string]string) NodeResourceInfo {
 func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.ResourceList, limits corev1.ResourceList) {
 	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
 	for _, pod := range podList.Items {
-		podReqs, podLimits := getPodRequestsAndLimits(&pod)
+		podReqs, podLimits := GetPodRequestsAndLimits(pod.Spec)
 		for podReqName, podReqValue := range podReqs {
 			if value, ok := reqs[podReqName]; !ok {
 				reqs[podReqName] = *podReqValue.Copy()
@@ -171,9 +171,9 @@ func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs corev1.Resourc
 	return
 }
 
-func getPodRequestsAndLimits(pod *corev1.Pod) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
+func GetPodRequestsAndLimits(podSpec corev1.PodSpec) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
 	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
-	for _, container := range pod.Spec.Containers {
+	for _, container := range podSpec.Containers {
 		for name, quantity := range container.Resources.Requests {
 			if value, ok := reqs[name]; !ok {
 				reqs[name] = *quantity.Copy()
@@ -192,7 +192,7 @@ func getPodRequestsAndLimits(pod *corev1.Pod) (reqs map[corev1.ResourceName]reso
 		}
 	}
 	// init containers define the minimum of any resource
-	for _, container := range pod.Spec.InitContainers {
+	for _, container := range podSpec.InitContainers {
 		for name, quantity := range container.Resources.Requests {
 			value, ok := reqs[name]
 			if !ok {

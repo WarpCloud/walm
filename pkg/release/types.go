@@ -165,3 +165,58 @@ type ReleaseInfoV2List struct {
 	Num   int              `json:"num" description:"release num"`
 	Items []*ReleaseInfoV2 `json:"items" description:"release infos"`
 }
+
+type ReleaseResources struct {
+	Deployments []*ReleaseResourceDeployment `json:"deployments" description:"release resource deployments"`
+	StatefulSets []*ReleaseResourceStatefulSet `json:"statefulSets" description:"release resource stateful sets"`
+	DaemonSets []*ReleaseResourceDaemonSet `json:"daemonSets" description:"release resource daemon sets"`
+	Jobs []*ReleaseResourceJob `json:"jobs" description:"release resource jobs"`
+	Pvcs []*ReleaseResourceStorage `json:"pvcs" description:"release resource pvcs"`
+}
+
+type ReleaseResourcePodStorageType string
+
+const (
+	TosDiskPodStorageType ReleaseResourcePodStorageType = "tosDisk"
+	PvcPodStorageType ReleaseResourcePodStorageType = "pvc"
+)
+
+type ReleaseResourceStorage struct {
+	Name        string             `json:"name" description:"storage name"`
+	Type         ReleaseResourcePodStorageType `json:"type" description:"storage type"`
+	StorageClass string `json:"storageClass" description:"storage class"`
+	Size         int64  `json:"size" description:"size, unit: Gi"`
+}
+
+type ReleaseResourcePod struct {
+	Cpu     float64                   `json:"cpu" description:"cpu, unit: 1"`
+	Memory  int64                     `json:"memory" description:"memory, unit: Mi"`
+	Storage []*ReleaseResourceStorage `json:"storage, omitempty" description:"storage"`
+}
+
+type ReleaseResourceBase struct {
+	Name        string             `json:"name" description:"release resource name"`
+	PodRequests *ReleaseResourcePod `json:"podRequests" description:"pod requests"`
+	PodLimits   *ReleaseResourcePod `json:"podLimits" description:"pod limits"`
+}
+
+type ReleaseResourceDeployment struct {
+	Replicas int32 `json:"replicas" description:"deployment expected replicas"`
+	ReleaseResourceBase
+}
+
+type ReleaseResourceStatefulSet struct {
+	Replicas int32 `json:"replicas" description:"stateful set expected replicas"`
+	ReleaseResourceBase
+}
+
+type ReleaseResourceDaemonSet struct {
+	NodeSelector map[string]string `json:"nodeSelector" description:"daemon set node selector"`
+	ReleaseResourceBase
+}
+
+type ReleaseResourceJob struct {
+	Parallelism int32 `json:"parallelism" description:"job parallelism"`
+	Completions int32 `json:"completions" description:"job completions"`
+	ReleaseResourceBase
+}
