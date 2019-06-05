@@ -17,6 +17,10 @@ build:
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl WarpCloud/walm/cmd/walmctl
 
+build_arm64:
+	GOOS=linux GOARCH=arm64 go build -ldflags '$(LDFLAGS)' -o _output/arm64/walm
+	GOOS=linux GOARCH=arm64 go build -ldflags '$(LDFLAGS)' -o _output/arm64/walmctl WarpCloud/walm/cmd/walmctl
+
 build_darwin:
 	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walm-darwin-amd64
 	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o _output/walmctl-darwin-amd64 WarpCloud/walm/cmd/walmctl

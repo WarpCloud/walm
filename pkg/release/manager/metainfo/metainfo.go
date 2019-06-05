@@ -137,9 +137,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 							return nil, err
 						}
 						switch otherConfig.Type {
-						case "boolean", "int", "float", "string", "yaml", "json":
+						case "boolean", "int", "float", "string", "yaml", "json", "kvPair", "text":
 						default:
-							err = errors.Errorf("type value not support in field roles[%d].baseConfig.others[%d]", index, otherIndex)
+							err = errors.Errorf("type <%s> not support in field roles[%d].baseConfig.others[%d]", otherConfig.Type, index, otherIndex)
 							return nil, err
 						}
 
@@ -265,9 +265,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 				return nil, err
 			}
 			switch param.Type {
-			case "boolean", "int", "float", "string", "yaml", "json":
+			case "boolean", "int", "float", "string", "yaml", "json", "kvPair", "text":
 			default:
-				err = errors.Errorf("type value not support in field params[%d]", paramIndex)
+				err = errors.Errorf("type <%s> not support in field params[%d]", param.Type, paramIndex)
 				return nil, err
 			}
 			configSet := &MetaConfigTestSet{

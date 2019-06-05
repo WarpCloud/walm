@@ -48,6 +48,19 @@ timestamps {
                     docker push \$DOCKER_IMG_NAME
                   """
               }
+              stage('arm release build') {
+                  sh """#!/bin/bash -ex
+                    docker login -u \$DOCKER_USER -p \$DOCKER_PASSWD \$DOCKER_REPO
+                    REV=\$(git rev-parse HEAD)
+                    export DOCKER_PROD_NS=arm64
+                    export DOCKER_IMG_NAME=\$DOCKER_REPO/\$DOCKER_PROD_NS/\$COMPONENT_NAME:${env.BRANCH_NAME}
+                    docker build --label CODE_REVISION=\${REV} \
+                      --label BRANCH=$env.BRANCH_NAME \
+                      --label COMPILE_DATE=\$(date +%Y%m%d-%H%M%S) \
+                      -t \$DOCKER_IMG_NAME -f Dockerfile-arm64 .
+                    docker push \$DOCKER_IMG_NAME
+                  """
+              }
           }
           updateGitlabCommitStatus(name: 'ci-build', state: 'success')
         } catch (e) {
