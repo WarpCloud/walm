@@ -378,13 +378,32 @@ func InitReleaseRouter() *restful.WebService {
 
 	ws.Route(ws.POST("/{namespace}/dryrun/withchart").Consumes().To(v1.DryRunReleaseWithChart).
 		Consumes("multipart/form-data").
-		Doc("用本地chart安装一个Release").
+		Doc("模拟用本地chart安装一个Release").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
 		Param(ws.FormParameter("release", "Release名字").DataType("string").Required(true)).
 		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
 		Param(ws.FormParameter("body", "request").DataType("string")).
 		Returns(200, "OK", []map[string]interface{}{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/dryrun/resources").To(v1.ComputeResourcesByDryRunRelease).
+		Doc("模拟计算安装一个Release需要多少资源").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Reads(releasetypes.ReleaseRequestV2{}).
+		Returns(200, "OK", releasetypes.ReleaseResources{}).
+		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/dryrun/withchart/resources").Consumes().To(v1.ComputeResourcesByDryRunReleaseWithChart).
+		Consumes("multipart/form-data").
+		Doc("模拟计算用本地chart安装一个Release需要多少资源").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.FormParameter("release", "Release名字").DataType("string").Required(true)).
+		Param(ws.FormParameter("chart", "chart").DataType("file").Required(true)).
+		Param(ws.FormParameter("body", "request").DataType("string")).
+		Returns(200, "OK", releasetypes.ReleaseResources{}).
 		Returns(500, "Internal Error", walmtypes.ErrorMessageResponse{}))
 
 	ws.Route(ws.POST("/{namespace}/name/{release}/version/{version}/rollback").To(v1.RollBackRelease).
