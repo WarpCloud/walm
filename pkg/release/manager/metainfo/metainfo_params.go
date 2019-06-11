@@ -19,7 +19,10 @@ func (metaInfoParams *MetaInfoParams) BuildConfigValues(metaInfo *ChartMetaInfo)
 	}
 
 	mapping := map[string]interface{}{}
-	buildCommonConfigArrayValues(mapping, metaInfoParams.Params, metaInfo.ChartParams)
+	err = buildCommonConfigArrayValues(mapping, metaInfoParams.Params, metaInfo.ChartParams)
+	if err != nil {
+		return
+	}
 	buildRoleConfigArrayValues(mapping, metaInfoParams.Roles, metaInfo.ChartRoles)
 
 	jsonStr := "{}"
@@ -40,19 +43,37 @@ func (metaInfoParams *MetaInfoParams) BuildConfigValues(metaInfo *ChartMetaInfo)
 	return
 }
 
-func buildCommonConfigArrayValues(mapping map[string]interface{}, commonConfigValues []*MetaCommonConfigValue, commonConfigs []*MetaCommonConfig) {
+func buildCommonConfigArrayValues(mapping map[string]interface{}, commonConfigValues []*MetaCommonConfigValue, commonConfigs []*MetaCommonConfig) (err error){
 	commonConfigsMap := convertCommonConfigArrayToMap(commonConfigs)
-
+	jsonStr := "{}"
 	for _, commonConfigValue := range commonConfigValues {
-		if commonConfigValue.Value == nil {
-			continue
-		}
 		if commonConfig, ok := commonConfigsMap[commonConfigValue.Name]; ok {
 			if commonConfig.MapKey != "" {
-				mapping[commonConfig.MapKey] = commonConfigValue.Value
+				if commonConfigValue.Value == "" {
+					jsonStr, err = sjson.Set(jsonStr, commonConfig.MapKey, nil)
+					if err != nil {
+						return err
+					}
+				} else {
+					jsonStr, err = sjson.SetRaw(jsonStr, commonConfig.MapKey, commonConfigValue.Value)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
+
+	if jsonStr != "{}" {
+		m := map[string]interface{}{}
+		err = json.Unmarshal([]byte(jsonStr), &m)
+		if err != nil {
+			return err
+		}
+		util.MergeValues(mapping, m, false)
+	}
+
+	return nil
 }
 
 func convertCommonConfigArrayToMap(configs []*MetaCommonConfig) map[string]*MetaCommonConfig {
@@ -84,9 +105,9 @@ func buildRoleConfigArrayValues(mapping map[string]interface{}, roleConfigValues
 }
 
 type MetaCommonConfigValue struct {
-	Name  string      `json:"name" description:"config name"`
-	Type  string      `json:"type" description:"config type"`
-	Value interface{} `json:"value" description:"config value"`
+	Name  string `json:"name" description:"config name"`
+	Type  string `json:"type" description:"config type"`
+	Value string `json:"value" description:"config value : json raw message"`
 }
 
 type MetaRoleConfigValue struct {
@@ -109,23 +130,23 @@ func (roleConfigValue *MetaRoleConfigValue) BuildConfigValue(mapping map[string]
 }
 
 type MetaRoleBaseConfigValue struct {
-	Image          *string                   `json:"image" description:"role image"`
-	Priority       *int64                    `json:"priority" description:"role priority"`
-	Replicas       *int64                    `json:"replicas" description:"role replicas"`
+	Image          *string                  `json:"image" description:"role image"`
+	Priority       *int64                   `json:"priority" description:"role priority"`
+	Replicas       *int64                   `json:"replicas" description:"role replicas"`
 	Env            []MetaEnv                `json:"env" description:"role env list"`
-	UseHostNetwork *bool                     `json:"useHostNetwork" description:"whether role use host network"`
+	UseHostNetwork *bool                    `json:"useHostNetwork" description:"whether role use host network"`
 	Others         []*MetaCommonConfigValue `json:"others" description:"role other configs"`
 }
 
-func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map[string]interface{}, roleBaseConfig *MetaRoleBaseConfig) {
+func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map[string]interface{}, roleBaseConfig *MetaRoleBaseConfig) error{
 	if roleBaseConfig == nil {
-		return
+		return nil
 	}
 
 	if roleBaseConfig.Image != nil && roleBaseConfigValue.Image != nil {
 		mapping[roleBaseConfig.Image.MapKey] = *roleBaseConfigValue.Image
 	}
-	if roleBaseConfig.UseHostNetwork != nil && roleBaseConfigValue.UseHostNetwork != nil{
+	if roleBaseConfig.UseHostNetwork != nil && roleBaseConfigValue.UseHostNetwork != nil {
 		mapping[roleBaseConfig.UseHostNetwork.MapKey] = *roleBaseConfigValue.UseHostNetwork
 	}
 	if roleBaseConfig.Priority != nil && roleBaseConfigValue.Priority != nil {
@@ -138,16 +159,16 @@ func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map
 		mapping[roleBaseConfig.Replicas.MapKey] = *roleBaseConfigValue.Replicas
 	}
 
-	buildCommonConfigArrayValues(mapping, roleBaseConfigValue.Others, roleBaseConfig.Others)
+	return buildCommonConfigArrayValues(mapping, roleBaseConfigValue.Others, roleBaseConfig.Others)
 }
 
 type MetaResourceConfigValue struct {
-	LimitsMemory     *int64                             `json:"limitsMemory" description:"resource memory limit"`
-	LimitsCpu        *float64                           `json:"limitsCpu" description:"resource cpu limit"`
-	LimitsGpu        *float64                           `json:"limitsGpu" description:"resource gpu limit"`
-	RequestsMemory   *int64                             `json:"requestsMemory" description:"resource memory request"`
-	RequestsCpu      *float64                           `json:"requestsCpu" description:"resource cpu request"`
-	RequestsGpu      *float64                           `json:"requestsGpu" description:"resource gpu request"`
+	LimitsMemory     *int64                            `json:"limitsMemory" description:"resource memory limit"`
+	LimitsCpu        *float64                          `json:"limitsCpu" description:"resource cpu limit"`
+	LimitsGpu        *float64                          `json:"limitsGpu" description:"resource gpu limit"`
+	RequestsMemory   *int64                            `json:"requestsMemory" description:"resource memory request"`
+	RequestsCpu      *float64                          `json:"requestsCpu" description:"resource cpu request"`
+	RequestsGpu      *float64                          `json:"requestsGpu" description:"resource gpu request"`
 	StorageResources []*MetaResourceStorageConfigValue `json:"storageResources" description:"resource storage request"`
 }
 
@@ -198,7 +219,7 @@ func buildResourceStorageArrayValues(mapping map[string]interface{}, resourceSto
 		if resourceStorageConfig, ok := resourceStorageConfigMap[resourceStorageConfigValue.Name]; ok {
 			resourceStorageWithStringSize := MetaResourceStorageWithStringSize{
 				ResourceStorage: resourceStorageConfigValue.Value.ResourceStorage,
-				Size: convertResourceBinaryIntByUnit(&resourceStorageConfigValue.Value.Size, util.K8sResourceStorageUnit),
+				Size:            convertResourceBinaryIntByUnit(&resourceStorageConfigValue.Value.Size, util.K8sResourceStorageUnit),
 			}
 			mapping[resourceStorageConfig.MapKey] = resourceStorageWithStringSize
 		}

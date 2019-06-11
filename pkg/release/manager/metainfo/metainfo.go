@@ -599,7 +599,7 @@ func (config *MetaResourceConfig) BuildResourceConfigValue(jsonStr string) *Meta
 type MetaCommonConfig struct {
 	Name         string      `json:"name" description:"config name"`
 	MapKey       string      `json:"mapKey" description:"config map values.yaml key"`
-	DefaultValue interface{} `json:"defaultValue" description:"default value of mapKey"`
+	DefaultValue string `json:"defaultValue" description:"default value of mapKey"`
 	Description  string      `json:"description" description:"config description"`
 	Type         string      `json:"type" description:"config type"`
 	Required     bool        `json:"required" description:"required"`
@@ -613,7 +613,7 @@ func (config *MetaCommonConfig) BuildCommonConfigValue(jsonStr string) *MetaComm
 	return &MetaCommonConfigValue{
 		Name:  config.Name,
 		Type:  config.Type,
-		Value: gjson.Get(jsonStr, config.MapKey).Value(),
+		Value: gjson.Get(jsonStr, config.MapKey).Raw,
 	}
 }
 
