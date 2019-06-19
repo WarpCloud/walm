@@ -94,7 +94,8 @@ func TestParser_ParseGeneralApiInfo(t *testing.T) {
 	gopath := os.Getenv("GOPATH")
 	assert.NotNil(t, gopath)
 	p := New()
-	p.ParseGeneralAPIInfo("testdata/main.go")
+	err := p.ParseGeneralAPIInfo("testdata/main.go")
+	assert.NoError(t, err)
 
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
@@ -172,7 +173,8 @@ func TestParser_ParseGeneralApiInfoTemplated(t *testing.T) {
 	gopath := os.Getenv("GOPATH")
 	assert.NotNil(t, gopath)
 	p := New()
-	p.ParseGeneralAPIInfo("testdata/templated.go")
+	err := p.ParseGeneralAPIInfo("testdata/templated.go")
+	assert.NoError(t, err)
 
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
@@ -197,7 +199,8 @@ func TestParser_ParseGeneralApiInfoWithOpsInSameFile(t *testing.T) {
 	gopath := os.Getenv("GOPATH")
 	assert.NotNil(t, gopath)
 	p := New()
-	p.ParseGeneralAPIInfo("testdata/single_file_api/main.go")
+	err := p.ParseGeneralAPIInfo("testdata/single_file_api/main.go")
+	assert.NoError(t, err)
 
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
@@ -214,8 +217,9 @@ func TestGetAllGoFileInfo(t *testing.T) {
 	searchDir := "testdata/pet"
 
 	p := New()
-	p.getAllGoFileInfo(searchDir)
+	err := p.getAllGoFileInfo(searchDir)
 
+	assert.NoError(t, err)
 	assert.NotEmpty(t, p.files["testdata/pet/main.go"])
 	assert.NotEmpty(t, p.files["testdata/pet/web/handler.go"])
 	assert.Equal(t, 2, len(p.files))
@@ -225,7 +229,8 @@ func TestParser_ParseType(t *testing.T) {
 	searchDir := "testdata/simple/"
 
 	p := New()
-	p.getAllGoFileInfo(searchDir)
+	err := p.getAllGoFileInfo(searchDir)
+	assert.NoError(t, err)
 
 	for _, file := range p.files {
 		p.ParseType(file)
@@ -877,7 +882,9 @@ func TestParseSimpleApi1(t *testing.T) {
 	mainAPIFile := "main.go"
 	p := New()
 	p.PropNamingStrategy = PascalCase
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
+
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
 }
@@ -1365,7 +1372,9 @@ func TestParseSimpleApi_ForSnakecase(t *testing.T) {
 	mainAPIFile := "main.go"
 	p := New()
 	p.PropNamingStrategy = SnakeCase
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
+
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
 }
@@ -1825,7 +1834,9 @@ func TestParseSimpleApi_ForLowerCamelcase(t *testing.T) {
 	searchDir := "testdata/simple3"
 	mainAPIFile := "main.go"
 	p := New()
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
+
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
 }
@@ -1935,7 +1946,8 @@ func TestParseStructComment(t *testing.T) {
 	searchDir := "testdata/struct_comment"
 	mainAPIFile := "main.go"
 	p := New()
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
 }
@@ -1967,8 +1979,8 @@ func TestParsePetApi(t *testing.T) {
 	searchDir := "testdata/pet"
 	mainAPIFile := "main.go"
 	p := New()
-	p.ParseAPI(searchDir, mainAPIFile)
-
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
 }
@@ -2121,7 +2133,78 @@ func TestParseModelNotUnderRoot(t *testing.T) {
 	searchDir := "testdata/model_not_under_root/cmd"
 	mainAPIFile := "main.go"
 	p := New()
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
+	b, _ := json.MarshalIndent(p.swagger, "", "    ")
+	assert.Equal(t, expected, string(b))
+}
+
+func TestParseModelAsTypeAlias(t *testing.T) {
+	expected := `{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a sample server Petstore server.",
+        "title": "Swagger Example API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "petstore.swagger.io",
+    "basePath": "/v2",
+    "paths": {
+        "/testapi/time-as-time-container": {
+            "get": {
+                "description": "test container with time and time alias",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get container with time and time alias",
+                "operationId": "time-as-time-container",
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/data.TimeContainer"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "data.TimeContainer": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}`
+	searchDir := "testdata/alias_type"
+	mainAPIFile := "main.go"
+	p := New()
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
 
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
@@ -2131,7 +2214,8 @@ func TestParseComposition(t *testing.T) {
 	searchDir := "testdata/composition"
 	mainAPIFile := "main.go"
 	p := New()
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
 
 	expected, err := ioutil.ReadFile(path.Join(searchDir, "expected.json"))
 	assert.NoError(t, err)
@@ -2352,7 +2436,8 @@ func Test3(){
 
 func TestSkip(t *testing.T) {
 	folder1 := "/tmp/vendor"
-	os.Mkdir(folder1, os.ModePerm)
+	err := os.Mkdir(folder1, os.ModePerm)
+	assert.NoError(t, err)
 	f1, _ := os.Stat(folder1)
 
 	parser := New()
@@ -2361,7 +2446,8 @@ func TestSkip(t *testing.T) {
 	assert.NoError(t, os.Remove(folder1))
 
 	folder2 := "/tmp/.git"
-	os.Mkdir(folder2, os.ModePerm)
+	err = os.Mkdir(folder2, os.ModePerm)
+	assert.NoError(t, err)
 	f2, _ := os.Stat(folder2)
 
 	assert.True(t, parser.Skip(folder2, f2) == filepath.SkipDir)
@@ -2374,7 +2460,9 @@ func TestSkip(t *testing.T) {
 
 func TestSkipMustParseVendor(t *testing.T) {
 	folder1 := "/tmp/vendor"
-	os.Mkdir(folder1, os.ModePerm)
+	err := os.Mkdir(folder1, os.ModePerm)
+	assert.NoError(t, err)
+
 	f1, _ := os.Stat(folder1)
 
 	parser := New()
@@ -2384,7 +2472,9 @@ func TestSkipMustParseVendor(t *testing.T) {
 	assert.NoError(t, os.Remove(folder1))
 
 	folder2 := "/tmp/.git"
-	os.Mkdir(folder2, os.ModePerm)
+	err = os.Mkdir(folder2, os.ModePerm)
+	assert.NoError(t, err)
+
 	f2, _ := os.Stat(folder2)
 
 	assert.True(t, parser.Skip(folder2, f2) == filepath.SkipDir)
@@ -2415,7 +2505,7 @@ func TestSkipMustParseVendor(t *testing.T) {
 // 			for i := 0; i < 100; i++ {
 // 				p := New()
 // 				p.PropNamingStrategy = PascalCase
-// 				p.ParseAPI(searchDir, mainAPIFile)
+// 				err := p.ParseAPI(searchDir, mainAPIFile)
 // 				b, _ := json.MarshalIndent(p.swagger, "", "    ")
 // 				assert.NotEqual(t, "", string(b))
 
@@ -2432,31 +2522,63 @@ func TestSkipMustParseVendor(t *testing.T) {
 func TestApiParseTag(t *testing.T) {
 	searchDir := "testdata/tags"
 	mainAPIFile := "main.go"
-	p := New()
+	p := New(SetMarkdownFileDirectory(searchDir))
 	p.PropNamingStrategy = PascalCase
-	p.ParseAPI(searchDir, mainAPIFile)
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	assert.NoError(t, err)
 
-	if len(p.swagger.Tags) != 2 {
-		t.Log("Number of tags did not match")
-		t.Fail()
+	if len(p.swagger.Tags) != 3 {
+		t.Error("Number of tags did not match")
 	}
 
 	dogs := p.swagger.Tags[0]
 	if dogs.TagProps.Name != "dogs" || dogs.TagProps.Description != "Dogs are cool" {
-		t.Log("Failed to parse dogs name or description")
-		t.Fail()
+		t.Error("Failed to parse dogs name or description")
 	}
 
 	cats := p.swagger.Tags[1]
 	if cats.TagProps.Name != "cats" || cats.TagProps.Description != "Cats are the devil" {
-		t.Log("Failed to parse cats name or description")
-		t.Fail()
+		t.Error("Failed to parse cats name or description")
 	}
 
 	if cats.TagProps.ExternalDocs.URL != "https://google.de" || cats.TagProps.ExternalDocs.Description != "google is super useful to find out that cats are evil!" {
-		t.Log("URL: ", cats.TagProps.ExternalDocs.URL)
-		t.Log("Description: ", cats.TagProps.ExternalDocs.Description)
-		t.Log("Failed to parse cats external documentation")
-		t.Fail()
+		t.Error("URL: ", cats.TagProps.ExternalDocs.URL)
+		t.Error("Description: ", cats.TagProps.ExternalDocs.Description)
+		t.Error("Failed to parse cats external documentation")
+	}
+}
+
+func TestParseTagMarkdownDescription(t *testing.T) {
+	searchDir := "testdata/tags"
+	mainAPIFile := "main.go"
+	p := New(SetMarkdownFileDirectory(searchDir))
+	p.PropNamingStrategy = PascalCase
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	if err != nil {
+		t.Error("Failed to parse api description: " + err.Error())
+	}
+
+	if len(p.swagger.Tags) != 3 {
+		t.Error("Number of tags did not match")
+	}
+
+	apes := p.swagger.Tags[2]
+	if apes.TagProps.Description == "" {
+		t.Error("Failed to parse tag description markdown file")
+	}
+}
+
+func TestParseApiMarkdownDescription(t *testing.T) {
+	searchDir := "testdata/tags"
+	mainAPIFile := "main.go"
+	p := New(SetMarkdownFileDirectory(searchDir))
+	p.PropNamingStrategy = PascalCase
+	err := p.ParseAPI(searchDir, mainAPIFile)
+	if err != nil {
+		t.Error("Failed to parse api description: " + err.Error())
+	}
+
+	if p.swagger.Info.Description == "" {
+		t.Error("Failed to parse api description: " + err.Error())
 	}
 }

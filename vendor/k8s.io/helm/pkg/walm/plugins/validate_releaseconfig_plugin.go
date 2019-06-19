@@ -61,26 +61,24 @@ func ValidateReleaseConfig(context *walm.WalmPluginManagerContext, args string) 
 			newResource = append(newResource, releaseConfig)
 		}
 	} else {
+		if len(autoGenReleaseConfig.Labels) > 0 {
+			delete(autoGenReleaseConfig.Labels, AutoGenLabelKey)
+		}
 		if releaseConfig == nil {
 			newResource = append(newResource, autoGenReleaseConfig)
 		}else {
-			releaseConfig.Spec.Dependencies = autoGenReleaseConfig.Spec.Dependencies
-			releaseConfig.Spec.DependenciesConfigValues = autoGenReleaseConfig.Spec.DependenciesConfigValues
-			releaseConfig.Spec.ConfigValues = autoGenReleaseConfig.Spec.ConfigValues
-			releaseConfig.Spec.ChartName = autoGenReleaseConfig.Spec.ChartName
-			releaseConfig.Spec.ChartVersion = autoGenReleaseConfig.Spec.ChartVersion
-			releaseConfig.Spec.ChartAppVersion = autoGenReleaseConfig.Spec.ChartAppVersion
-			releaseConfig.Spec.Repo = autoGenReleaseConfig.Spec.Repo
-			if releaseConfig.Labels == nil {
-				releaseConfig.Labels = map[string]string{}
+			autoGenReleaseConfig.Spec.OutputConfig = releaseConfig.Spec.OutputConfig
+			if autoGenReleaseConfig.Labels == nil {
+				autoGenReleaseConfig.Labels = map[string]string{}
 			}
-			for k, v := range autoGenReleaseConfig.Labels {
-				if k != AutoGenLabelKey {
-					releaseConfig.Labels[k] = v
+
+			for k, v := range releaseConfig.Labels {
+				if _, ok := autoGenReleaseConfig.Labels[k]; !ok {
+					autoGenReleaseConfig.Labels[k] = v
 				}
 			}
 
-			newResource = append(newResource, releaseConfig)
+			newResource = append(newResource, autoGenReleaseConfig)
 		}
 	}
 
