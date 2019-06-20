@@ -1,5 +1,5 @@
 hash: a3dc950a729e3f5e66da52269088cd166474ba67d3171b974a7695d1fb5f1a70
-updated: 2019-05-31T17:12:21.674586165+08:00
+updated: 2019-06-19T20:00:05.212420054+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -121,7 +121,7 @@ imports:
   subpackages:
   - spdy
 - name: github.com/eapache/go-resiliency
-  version: 842e16ec2c98ef0c59eebfe60d2d3500a793ba19
+  version: 5efd2ed019fd331ec2defc6f3bd98882f1e3e636
   subpackages:
   - breaker
 - name: github.com/eapache/go-xerial-snappy
@@ -148,13 +148,13 @@ imports:
 - name: github.com/go-ini/ini
   version: 300e940a926eb277d3901b20bdfcc54928ad3642
 - name: github.com/go-openapi/jsonpointer
-  version: ef5f0afec364d3b9396b7b77b43dbe26bf1f8004
+  version: a105a905c5e6ad147f08504784917f3e178e0ba5
 - name: github.com/go-openapi/jsonreference
-  version: 8483a886a90412cd6858df4ea3483dce9c8e35a3
+  version: 2903bfd4bfbaf188694f1edf731f2725a8fa344f
 - name: github.com/go-openapi/spec
-  version: b2056d62a953adee01fed8ee65a046bd8f0419d5
+  version: bdfd7e07daecc404d77868a88b2364d0aed0ee5a
 - name: github.com/go-openapi/swag
-  version: b3e2804c8535ee0d1b89320afd98474d5b8e9e3b
+  version: 7e8dd5ceab83c86d17bc967d09e195414fe2b47e
 - name: github.com/go-redis/redis
   version: 480db94d33e6088e08d628833b6c0705451d24bb
   subpackages:
@@ -257,7 +257,7 @@ imports:
 - name: github.com/jmespath/go-jmespath
   version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/json-iterator/go
-  version: 08047c174c6c03e8ec963a411bde1b6d1ee67b26
+  version: 0039f4ac3d5680243e7d0650c581e7ec0885ef5a
 - name: github.com/kelseyhightower/envconfig
   version: 0b417c4ec4a8a82eecc22a1459a504aa55163d61
 - name: github.com/konsorten/go-windows-terminal-sequences
@@ -277,7 +277,7 @@ imports:
 - name: github.com/Masterminds/semver
   version: 059deebd1619b9ae33232c797f7ab0e8d6c6fd69
 - name: github.com/Masterminds/sprig
-  version: 2625cd487a689ca112e1301a58b89b347ba2c994
+  version: 8e5f7788fea6472ca71d5ad92887798a54b4b0f9
 - name: github.com/mattn/go-colorable
   version: 3a70a971f94a22f2fa562ffcc7a0eb45f5daf045
 - name: github.com/mattn/go-isatty
@@ -347,7 +347,7 @@ imports:
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pierrec/lz4
-  version: b8e3f78e075c180caacb7b648fa765c1828024ca
+  version: 8c1c303835cbd98c646a9699404ff9417a797cf1
   subpackages:
   - internal/xxh32
 - name: github.com/pkg/errors
@@ -406,9 +406,9 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: a924560ecfcf6e1425b929653f42d6a148f4aab3
+  version: c01685bb8421cecb276fa517e91f757215f980b3
 - name: github.com/spf13/cobra
-  version: 67fc4837d267bc9bfd6e47f77783fcc3dffc68de
+  version: f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5
 - name: github.com/spf13/jwalterweatherman
   version: 94f6ae3ed3bceceafa716478c5fbf8d29ca601a1
 - name: github.com/spf13/pflag
@@ -418,7 +418,7 @@ imports:
 - name: github.com/streadway/amqp
   version: 75d898a42a940fbc854dfd1a4199eabdc00cf024
 - name: github.com/swaggo/swag
-  version: 7a85a26c8bb78118297b8ec358e29679b333f802
+  version: 6170d1bca704dd9286b20d4524446123b2bc43a4
 - name: github.com/thoas/stats
   version: 965cb2de1678b040aefd01c448e2f10de3aec2ae
 - name: github.com/tidwall/gjson
@@ -504,7 +504,7 @@ imports:
   - go/loader
   - imports
 - name: google.golang.org/appengine
-  version: 311d3c5cf9373249645db030e53c37c209a8b378
+  version: b2f4a3cf3c67576a2ee09e1fe62656a5086ce880
   subpackages:
   - internal
   - internal/base
@@ -548,7 +548,7 @@ imports:
   - tap
   - transport
 - name: gopkg.in/igm/sockjs-go.v2
-  version: d276e9ffe5cc5c271b81198cc77a2adf6c4482d2
+  version: 525bcf0a9bb840e56f5e3363c8a98419ccc1f938
   subpackages:
   - sockjs
 - name: gopkg.in/inf.v0
@@ -666,7 +666,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/apiserver
-  version: 6720cc5583054dcb87f8623beaf109ac884b2c20
+  version: 86e316accdba4452bf922bbe658c3ab64cf2b4d6
   subpackages:
   - pkg/authentication/authenticator
   - pkg/authentication/serviceaccount
@@ -871,7 +871,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: cb37f419a58136143b9cc599f267c96847055ee1
+  version: d10957839f26deef5d062568883da2162ab525d8
   repo: ssh://git@172.16.1.41:10022/k8s/helm.git
   subpackages:
   - pkg/action
@@ -912,7 +912,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: 7d58a4985dc157952a4f38f544a80ce4bf019471
+  version: bda90cd6042eeb5c74b338e967ba7dcfebb6a3e5
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
