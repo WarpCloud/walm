@@ -2920,6 +2920,7 @@ type PodSpec struct {
 	RuntimeClassName *string `json:"runtimeClassName,omitempty" protobuf:"bytes,29,opt,name=runtimeClassName"`
 	// EnableServiceLinks indicates whether information about services should be injected into pod's
 	// environment variables, matching the syntax of Docker links.
+	// Optional: Defaults to true.
 	// +optional
 	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty" protobuf:"varint,30,opt,name=enableServiceLinks"`
 }
@@ -4007,12 +4008,9 @@ type NodeStatus struct {
 	// List of volumes that are attached to the node.
 	// +optional
 	VolumesAttached []AttachedVolume `json:"volumesAttached,omitempty" protobuf:"bytes,10,rep,name=volumesAttached"`
-	// resource used
-	// +optional
-	Used ResourceList `protobuf:"bytes,11,rep,name=used,casttype=ResourceList,castkey=ResourceName"`
 	// Status of the config assigned to the node via the dynamic Kubelet config feature.
 	// +optional
-	Config *NodeConfigStatus `protobuf:"bytes,12,opt,name=config"`
+	Config *NodeConfigStatus `json:"config,omitempty" protobuf:"bytes,11,opt,name=config"`
 }
 
 type UniqueVolumeName string

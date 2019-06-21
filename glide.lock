@@ -1,5 +1,5 @@
-hash: a3dc950a729e3f5e66da52269088cd166474ba67d3171b974a7695d1fb5f1a70
-updated: 2019-06-19T20:00:05.212420054+08:00
+hash: a05652a286da5ae72e85b74bf34b501ccce5807cfdff590b2acb961b98c3a4d5
+updated: 2019-06-21T14:29:09.070206045+08:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: fde4ded7becdeae4d26bf1212916aabba79349b4
@@ -134,7 +134,7 @@ imports:
   - log
 - name: github.com/emicklei/go-restful-openapi
   version: f6154fc4effc2950a299faa5ac752ebf8b44a86e
-  repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
+  repo: https://github.com/WarpCloud/go-restful-openapi.git
 - name: github.com/evanphx/json-patch
   version: 36442dbdb585210f8d5a1b45e67aa323c197d5c4
 - name: github.com/exponent-io/jsonpath
@@ -569,8 +569,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 - name: k8s.io/api
-  version: 627133f49b642e66319dd117e40f1436e5c05a0b
-  repo: ssh://git@172.16.1.41:10022/k8s/api.git
+  version: 5cb15d34447165a97c76ed5a60e4e99c8a01ecfe
   subpackages:
   - admission/v1beta1
   - admissionregistration/v1alpha1
@@ -871,8 +870,8 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/helm
-  version: d10957839f26deef5d062568883da2162ab525d8
-  repo: ssh://git@172.16.1.41:10022/k8s/helm.git
+  version: eef33a99f758267c2a3584db803cb413f1845593
+  repo: https://github.com/WarpCloud/helm.git
   subpackages:
   - pkg/action
   - pkg/chart
@@ -912,7 +911,7 @@ imports:
   - pkg/util/proto
   - pkg/util/proto/validation
 - name: k8s.io/kubernetes
-  version: bda90cd6042eeb5c74b338e967ba7dcfebb6a3e5
+  version: 22e16e3f29672eb81a7de17c92020a9762b82cc4
   subpackages:
   - pkg/api/legacyscheme
   - pkg/api/service
@@ -1025,7 +1024,7 @@ imports:
   version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
 - name: transwarp/release-config
   version: 02454f8c053d3a03cde18cd17329ee24f0f366e6
-  repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
+  repo: https://github.com/WarpCloud/release-config.git
   subpackages:
   - pkg/apis/transwarp
   - pkg/apis/transwarp/v1beta1

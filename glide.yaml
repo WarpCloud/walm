@@ -1,13 +1,12 @@
 package: WarpCloud/walm
 import:
 - package: k8s.io/helm
-  repo: ssh://git@172.16.1.41:10022/k8s/helm.git
-  version: dev-v3
+  repo: https://github.com/WarpCloud/helm.git
 - package: github.com/emicklei/go-restful-openapi
-  repo: ssh://git@172.16.1.41:10022/app/go-restful-openapi.git
+  repo: https://github.com/WarpCloud/go-restful-openapi.git
   version: master
 - package: transwarp/release-config
-  repo: ssh://git@172.16.1.41:10022/k8s/release-config.git
+  repo: https://github.com/WarpCloud/release-config.git
 - package: github.com/dgrijalva/jwt-go
   version: ^3.2.0
 - package: github.com/ghodss/yaml
@@ -26,7 +25,6 @@ import:
 - package: k8s.io/client-go
   version: kubernetes-1.13.0
 - package: k8s.io/api
-  repo: ssh://git@172.16.1.41:10022/k8s/api.git
   version: release-1.13
 - package: k8s.io/apimachinery
   version: release-1.13
