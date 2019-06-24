@@ -8,8 +8,9 @@ import (
 )
 
 type MetaInfoParams struct {
-	Params []*MetaCommonConfigValue `json:"params"`
-	Roles  []*MetaRoleConfigValue   `json:"roles"`
+	Params            []*MetaCommonConfigValue `json:"params"`
+	Roles             []*MetaRoleConfigValue   `json:"roles"`
+	CustomChartParams map[string]string        `json:"customParams"`
 }
 
 func (metaInfoParams *MetaInfoParams) BuildConfigValues(metaInfo *ChartMetaInfo) (configValues map[string]interface{}, err error) {
@@ -43,7 +44,7 @@ func (metaInfoParams *MetaInfoParams) BuildConfigValues(metaInfo *ChartMetaInfo)
 	return
 }
 
-func buildCommonConfigArrayValues(mapping map[string]interface{}, commonConfigValues []*MetaCommonConfigValue, commonConfigs []*MetaCommonConfig) (err error){
+func buildCommonConfigArrayValues(mapping map[string]interface{}, commonConfigValues []*MetaCommonConfigValue, commonConfigs []*MetaCommonConfig) (err error) {
 	commonConfigsMap := convertCommonConfigArrayToMap(commonConfigs)
 	jsonStr := "{}"
 	for _, commonConfigValue := range commonConfigValues {
@@ -138,7 +139,7 @@ type MetaRoleBaseConfigValue struct {
 	Others         []*MetaCommonConfigValue `json:"others" description:"role other configs"`
 }
 
-func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map[string]interface{}, roleBaseConfig *MetaRoleBaseConfig) error{
+func (roleBaseConfigValue *MetaRoleBaseConfigValue) BuildConfigValue(mapping map[string]interface{}, roleBaseConfig *MetaRoleBaseConfig) error {
 	if roleBaseConfig == nil {
 		return nil
 	}
