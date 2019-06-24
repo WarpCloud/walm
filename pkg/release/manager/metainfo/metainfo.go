@@ -19,6 +19,7 @@ type ChartMetaInfo struct {
 	ChartRoles            []*MetaRoleConfig          `json:"roles"`
 	ChartParams           []*MetaCommonConfig        `json:"params"`
 	Plugins               []*walm.WalmPlugin         `json:"plugins"`
+	CustomChartParams     map[string]string          `json:"customParams"`
 }
 
 func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*MetaConfigTestSet, error) {
@@ -67,9 +68,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 					}
 
 					configSet := &MetaConfigTestSet{
-						MapKey: baseConfig.Image.MapKey,
+						MapKey:   baseConfig.Image.MapKey,
 						Required: baseConfig.Image.Required,
-						Type: "string",
+						Type:     "string",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -80,9 +81,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						return nil, err
 					}
 					configSet := &MetaConfigTestSet{
-						MapKey: baseConfig.Priority.MapKey,
+						MapKey:   baseConfig.Priority.MapKey,
 						Required: baseConfig.Priority.Required,
-						Type: "int",
+						Type:     "int",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -93,9 +94,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						return nil, err
 					}
 					configSet := &MetaConfigTestSet{
-						MapKey: baseConfig.Replicas.MapKey,
+						MapKey:   baseConfig.Replicas.MapKey,
 						Required: baseConfig.Replicas.Required,
-						Type: "int",
+						Type:     "int",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -106,9 +107,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						return nil, err
 					}
 					configSet := &MetaConfigTestSet{
-						MapKey: baseConfig.Env.MapKey,
+						MapKey:   baseConfig.Env.MapKey,
 						Required: baseConfig.Env.Required,
-						Type: "env",
+						Type:     "env",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -119,9 +120,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						return nil, err
 					}
 					configSet := &MetaConfigTestSet{
-						MapKey: baseConfig.UseHostNetwork.MapKey,
+						MapKey:   baseConfig.UseHostNetwork.MapKey,
 						Required: baseConfig.UseHostNetwork.Required,
-						Type: "boolean",
+						Type:     "boolean",
 					}
 					configSets = append(configSets, configSet)
 				}
@@ -144,9 +145,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 						}
 
 						configSet := &MetaConfigTestSet{
-							MapKey: otherConfig.MapKey,
+							MapKey:   otherConfig.MapKey,
 							Required: otherConfig.Required,
-							Type: otherConfig.Type,
+							Type:     otherConfig.Type,
 						}
 						configSets = append(configSets, configSet)
 					}
@@ -271,9 +272,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 				return nil, err
 			}
 			configSet := &MetaConfigTestSet{
-				MapKey: param.MapKey,
+				MapKey:   param.MapKey,
 				Required: param.Required,
-				Type: param.Type,
+				Type:     param.Type,
 			}
 			configSets = append(configSets, configSet)
 		}
@@ -405,6 +406,7 @@ func (chartMetaInfo *ChartMetaInfo) BuildMetaInfoParams(configValues map[string]
 				metaInfoValues.Roles = append(metaInfoValues.Roles, chartRole.BuildRoleConfigValue(jsonStr))
 			}
 		}
+		metaInfoValues.CustomChartParams = chartMetaInfo.CustomChartParams
 		return metaInfoValues, nil
 	}
 	return nil, nil
@@ -597,12 +599,12 @@ func (config *MetaResourceConfig) BuildResourceConfigValue(jsonStr string) *Meta
 }
 
 type MetaCommonConfig struct {
-	Name         string      `json:"name" description:"config name"`
-	MapKey       string      `json:"mapKey" description:"config map values.yaml key"`
+	Name         string `json:"name" description:"config name"`
+	MapKey       string `json:"mapKey" description:"config map values.yaml key"`
 	DefaultValue string `json:"defaultValue" description:"default value of mapKey"`
-	Description  string      `json:"description" description:"config description"`
-	Type         string      `json:"type" description:"config type"`
-	Required     bool        `json:"required" description:"required"`
+	Description  string `json:"description" description:"config description"`
+	Type         string `json:"type" description:"config type"`
+	Required     bool   `json:"required" description:"required"`
 }
 
 func (config *MetaCommonConfig) BuildDefaultValue(jsonStr string) {
