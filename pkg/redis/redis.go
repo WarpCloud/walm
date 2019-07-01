@@ -10,9 +10,9 @@ const (
 	KeyNotFoundErrMsg = "redis: nil"
 
 	WalmJobsKey       = "walm-jobs"
-	WalmReleasesKey   = "walm-releases"
-	WalmProjectsKey   = "walm-project-tasks"
-	WalmReleaseTasksKey   = "walm-release-tasks"
+	//WalmReleasesKey   = "walm-releases"
+	//WalmProjectsKey   = "walm-project-tasks"
+	//WalmReleaseTasksKey   = "walm-release-tasks"
 )
 
 type RedisClient struct {
