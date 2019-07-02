@@ -4,7 +4,7 @@ import (
 	"io"
 	"github.com/spf13/cobra"
 	"github.com/pkg/errors"
-	"WarpCloud/walm/cmd/walmctl/walmctlclient"
+	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
 	"fmt"
 	"encoding/json"
 	"WarpCloud/walm/pkg/release"

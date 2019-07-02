@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	walmctlEnv "WarpCloud/walm/cmd/walmctl/environment"
+	walmctlEnv "WarpCloud/walm/cmd/walmctl/util/environment"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -46,6 +46,7 @@ func newRootCmd(args []string) *cobra.Command {
 
 
 	settings.AddFlags(flags)
+
 	out := cmd.OutOrStdout()
 
 	cmd.AddCommand(
@@ -57,6 +58,7 @@ func newRootCmd(args []string) *cobra.Command {
 		newDeleteCmd(out),
 
 		newPackageCmd(out),
+		newEditCmd(out),
 		newLintCmd(),
 		NewVersionCmd(),
 	)
