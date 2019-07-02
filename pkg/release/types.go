@@ -29,8 +29,6 @@ type ReleaseSpec struct {
 	ChartName       string                 `json:"chartName" description:"chart name"`
 	ChartVersion    string                 `json:"chartVersion" description:"chart version"`
 	ChartAppVersion string                 `json:"chartAppVersion" description:"jsonnet app version"`
-	//Deprecated
-	HelmValues
 }
 
 type ReleaseCache struct {
@@ -53,16 +51,10 @@ type ReleaseRequest struct {
 	ChartVersion string                 `json:"chartVersion" description:"chart repo"`
 	ConfigValues map[string]interface{} `json:"configValues" description:"extra values added to the chart"`
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
-	//Deprecated
-	ReleasePrettyParams PrettyChartParams `json:"releasePrettyParams" description:"pretty chart params for market"`
 }
 
 type HelmExtraLabels struct {
 	HelmLabels map[string]interface{} `json:"helmlabels"`
-}
-
-type HelmValues struct {
-	HelmExtraLabels *HelmExtraLabels `json:"helmExtraLabels"`
 }
 
 type RepoInfo struct {
@@ -74,13 +66,6 @@ type RepoInfoList struct {
 	Items []*RepoInfo `json:"items" description:"chart repo list"`
 }
 
-type ChartDependencyInfo struct {
-	ChartName          string  `json:"chartName"`
-	MaxVersion         float32 `json:"maxVersion"`
-	MinVersion         float32 `json:"minVersion"`
-	DependencyOptional bool    `json:"dependencyOptional"`
-}
-
 type ChartInfo struct {
 	ChartName        string `json:"chartName"`
 	ChartVersion     string `json:"chartVersion"`
@@ -88,10 +73,6 @@ type ChartInfo struct {
 	ChartAppVersion  string `json:"chartAppVersion"`
 	ChartEngine      string `json:"chartEngine"`
 	DefaultValue     string `json:"defaultValue" description:"default values.yaml defined by the chart"`
-	//Deprecated
-	DependencyCharts []ChartDependencyInfo `json:"dependencyCharts" description:"dependency chart name"`
-	//Deprecated
-	ChartPrettyParams PrettyChartParams       `json:"chartPrettyParams" description:"pretty chart params for market"`
 	MetaInfo          *metainfo.ChartMetaInfo `json:"metaInfo" description:"transwarp chart meta info"`
 }
 
