@@ -23,6 +23,7 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 	"bytes"
 	errorModel "WarpCloud/walm/pkg/models/error"
+	"k8s.io/helm/pkg/action"
 )
 
 type ChartRepository struct {
@@ -37,6 +38,24 @@ type Helm struct {
 	registryClient *registry.Client
 	k8sCache       k8s.Cache
 	helmClients    *lru.Cache
+	list           *action.List
+}
+
+func (helmImpl *Helm) ListAllReleases() (releaseCaches []*release.ReleaseCache,err error) {
+	helmReleases, err := helmImpl.list.Run()
+	if err != nil {
+		logrus.Errorf("failed to list helm releases: %s\n", err.Error())
+		return nil, err
+	}
+	for _, helmRelease := range helmReleases {
+		releaseCache, err := convertHelmRelease(helmRelease)
+		if err != nil {
+			logrus.Errorf("failed to convert helm release %s/%s : %s", helmRelease.Namespace, helmRelease.Name, err.Error())
+			return nil, err
+		}
+		releaseCaches = append(releaseCaches, releaseCache)
+	}
+	return
 }
 
 func (helmImpl *Helm) DeleteRelease(namespace string, name string) error {
@@ -377,7 +396,7 @@ func (helmImpl *Helm) getDependencyOutputConfigs(namespace string, dependencies 
 			return nil, err
 		}
 
-		dependencyReleaseConfig := dependencyReleaseConfigResource.(k8sModel.ReleaseConfig)
+		dependencyReleaseConfig := dependencyReleaseConfigResource.(*k8sModel.ReleaseConfig)
 		if len(dependencyReleaseConfig.OutputConfig) > 0 {
 			dependencyConfigs[dependencyAliasConfigVar] = dependencyReleaseConfig.OutputConfig
 		}

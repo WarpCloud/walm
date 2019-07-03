@@ -34,3 +34,11 @@ type ProjectTask struct {
 	// compatible
 	LatestTaskTimeoutSec int64 `json:"latestTaskTimeoutSec" description:"latest task timeout sec"`
 }
+
+func (projectTask *ProjectTask) CompatiblePreviousProjectTask() {
+	if projectTask.LatestTaskSignature != nil {
+		if projectTask.LatestTaskSignature.TimeoutSec == 0 {
+			projectTask.LatestTaskSignature.TimeoutSec = projectTask.LatestTaskTimeoutSec
+		}
+	}
+}
