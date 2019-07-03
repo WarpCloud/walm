@@ -297,10 +297,24 @@ type NodeList struct {
 	Items []*Node `json:"items" description:"node list info"`
 }
 
+type ResourceName string
+
+const (
+	ResourcePods            ResourceName = "pods"
+	ResourceLimitsCPU       ResourceName = "limits.cpu"
+	ResourceLimitsMemory    ResourceName = "limits.memory"
+	ResourceRequestsCPU     ResourceName = "requests.cpu"
+	ResourceRequestsMemory  ResourceName = "requests.memory"
+	ResourceRequestsStorage ResourceName = "requests.storage"
+
+	ResourceCPU       ResourceName = "cpu"
+	ResourceMemory    ResourceName = "memory"
+)
+
 type ResourceQuota struct {
 	Meta
-	ResourceLimits map[string]string `json:"limits" description:"resource quota hard limits"`
-	ResourceUsed   map[string]string `json:"used" description:"resource quota used"`
+	ResourceLimits map[ResourceName]string `json:"limits" description:"resource quota hard limits"`
+	ResourceUsed   map[ResourceName]string `json:"used" description:"resource quota used"`
 }
 
 func (resource *ResourceQuota) AddToResourceSet(resourceSet *ResourceSet) {
@@ -354,4 +368,21 @@ type ReleaseConfig struct {
 }
 
 func (resource *ReleaseConfig) AddToResourceSet(resourceSet *ResourceSet) {
+}
+
+type Namespace struct {
+	Meta
+	Labels      map[string]string `json:"labels" description:"labels"`
+	Annotations map[string]string `json:"annotations" description:"annotations"`
+}
+
+func (resource *Namespace) AddToResourceSet(resourceSet *ResourceSet) {
+}
+
+type LimitRange struct {
+	Meta
+	DefaultLimit map[ResourceName]string
+}
+
+func (resource *LimitRange) AddToResourceSet(resourceSet *ResourceSet) {
 }

@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -37,7 +36,7 @@ func ConvertLabelSelectorToSelector(labelSelector *metav1.LabelSelector) (labels
 	return metav1.LabelSelectorAsSelector(labelSelector)
 }
 
-func MergeLabels(labels map[string]string, newLabels map[string]string, remove []string) map[string]string{
+func MergeLabels(labels map[string]string, newLabels map[string]string, remove []string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -127,32 +126,22 @@ func GetPodRequestsAndLimits(podSpec v1.PodSpec) (reqs map[v1.ResourceName]resou
 	return
 }
 
-func ParseK8sResourceMemory(strValue string) (int64, error) {
-	quantity, err := resource.ParseQuantity(strValue)
-	if err != nil {
-		logrus.Errorf("failed to parse quantity %s : %s", strValue, err.Error())
-		return 0, err
-	}
-
-	return quantity.Value() / K8sResourceMemoryScale, nil
+func ParseK8sResourceMemory(strValue string) (int64) {
+	quantity := resource.MustParse(strValue)
+	return quantity.Value() / K8sResourceMemoryScale
 }
 
-func ParseK8sResourceCpu(strValue string) (float64, error) {
-	quantity, err := resource.ParseQuantity(strValue)
-	if err != nil {
-		logrus.Errorf("failed to parse quantity %s : %s", strValue, err.Error())
-		return 0, err
-	}
-
-	return float64(quantity.MilliValue()) / K8sResourceCpuScale, nil
+func ParseK8sResourceCpu(strValue string) (float64) {
+	quantity := resource.MustParse(strValue)
+	return float64(quantity.MilliValue()) / K8sResourceCpuScale
 }
 
-func ParseK8sResourceStorage(strValue string) (int64, error) {
-	quantity, err := resource.ParseQuantity(strValue)
-	if err != nil {
-		logrus.Errorf("failed to parse quantity %s : %s", strValue, err.Error())
-		return 0, err
-	}
+func ParseK8sResourceStorage(strValue string) (int64) {
+	quantity := resource.MustParse(strValue)
+	return quantity.Value() / K8sResourceStorageScale
+}
 
-	return quantity.Value() / K8sResourceStorageScale, nil
+func ParseK8sResourcePod(strValue string) (int64) {
+	quantity := resource.MustParse(strValue)
+	return quantity.Value()
 }

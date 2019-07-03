@@ -23,4 +23,5 @@ type UseCase interface {
 	RestartRelease(namespace, releaseName string) error
 	RecoverRelease(namespace, releaseName string, async bool, timeoutSec int64) error
 	PauseRelease(namespace, releaseName string, async bool, timeoutSec int64) error
+
 }

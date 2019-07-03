@@ -20,6 +20,37 @@ import (
 	errorModel "WarpCloud/walm/pkg/models/error"
 )
 
+func (helmImpl *Helm) GetChartAutoDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error) {
+	logrus.Debugf("Enter GetAutoDependencies %s %s\n", chartName, chartVersion)
+
+	subChartNames = []string{}
+	detailChartInfo, err := helmImpl.GetChartDetailInfo(repoName, chartName, chartVersion)
+	if err != nil {
+		return nil, err
+	}
+	if detailChartInfo.MetaInfo != nil && detailChartInfo.MetaInfo.ChartDependenciesInfo != nil {
+		for _, dependency := range detailChartInfo.MetaInfo.ChartDependenciesInfo {
+			if dependency.AutoDependency() {
+				subChartNames = append(subChartNames, dependency.Name)
+			}
+		}
+	}
+
+	return subChartNames, nil
+}
+
+func (helmImpl *Helm)GetRepoList() *release.RepoInfoList {
+	repoInfoList := new(release.RepoInfoList)
+	repoInfoList.Items = make([]*release.RepoInfo, 0)
+	for _, v := range helmImpl.chartRepoMap {
+		repoInfo := release.RepoInfo{}
+		repoInfo.TenantRepoName = v.Name
+		repoInfo.TenantRepoURL = v.URL
+		repoInfoList.Items = append(repoInfoList.Items, &repoInfo)
+	}
+	return repoInfoList
+}
+
 func (helmImpl *Helm)GetChartDetailInfo(repoName, chartName, chartVersion string) (*release.ChartDetailInfo, error) {
 	rawChart, err := helmImpl.getRawChartFromRepo(repoName, chartName, chartVersion)
 	if err != nil {

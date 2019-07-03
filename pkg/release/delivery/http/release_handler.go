@@ -21,7 +21,7 @@ func RegisterReleaseHandler(usecase release.UseCase) *restful.WebService {
 	releaseHandler := &ReleaseHandler{usecase: usecase}
 	ws := new(restful.WebService)
 
-	ws.Path("/api/v1" + "/release").
+	ws.Path(http.ApiV1 + "/release").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 

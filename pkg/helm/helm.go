@@ -19,6 +19,8 @@ type Helm interface {
 	GetChartDetailInfo(repoName, chartName, chartVersion string) (*release.ChartDetailInfo, error)
 	GetChartList(repoName string) (*release.ChartInfoList, error)
 	GetDetailChartInfoByImage(chartImage string) (*release.ChartDetailInfo, error)
+	GetRepoList() *release.RepoInfoList
+	GetChartAutoDependencies(repoName, chartName, chartVersion string) (subChartNames []string, err error)
 }
 
 func BuildReleasePluginsByConfigValues(configValues map[string]interface{}) (releasePlugins []*release.ReleasePlugin, hasPauseReleasePlugin bool, err error){

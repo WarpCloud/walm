@@ -22,11 +22,7 @@ func (config *MetaResourceMemoryConfig) BuildMemoryConfigValue(jsonStr string) i
 	if strValue == "" {
 		return 0
 	}
-	value, err := utils.ParseK8sResourceMemory(strValue)
-	if err != nil {
-		return 0
-	}
-	return value
+	return utils.ParseK8sResourceMemory(strValue)
 }
 
 func getResourceStr(jsonStr, mapKey string) string {
@@ -49,11 +45,7 @@ func (config *MetaResourceCpuConfig) BuildCpuConfigValue(jsonStr string) float64
 	if strValue == "" {
 		return 0
 	}
-	value, err := utils.ParseK8sResourceCpu(strValue)
-	if err != nil {
-		return 0
-	}
-	return value
+	return utils.ParseK8sResourceCpu(strValue)
 }
 
 type ResourceStorage struct {
@@ -101,12 +93,7 @@ func (config *MetaResourceStorageConfig) BuildStorageConfigValue(jsonStr string)
 		}
 
 		if resourceStorageWithStringSize.Size != "" {
-			value, err := utils.ParseK8sResourceStorage(resourceStorageWithStringSize.Size)
-			if err != nil {
-				logrus.Warnf("failed to parse quantity %s : %s", resourceStorageWithStringSize.Size, err.Error())
-				return nil
-			}
-			resourceStorageConfigValue.Value.Size = value
+			resourceStorageConfigValue.Value.Size = utils.ParseK8sResourceStorage(resourceStorageWithStringSize.Size)
 		}
 	}
 	return resourceStorageConfigValue

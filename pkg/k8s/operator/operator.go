@@ -18,6 +18,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"WarpCloud/walm/pkg/k8s/converter"
 )
 
 type Operator struct {
@@ -343,15 +344,119 @@ func buildPvcStorage(pvc v1.PersistentVolumeClaim) *release.ReleaseResourceStora
 	return pvcStorage
 }
 
-func (operator *Operator) DeletePersistentVolumeClaim(namespace string, name string) error {
-	err := operator.client.CoreV1().PersistentVolumeClaims(namespace).Delete(name, &metav1.DeleteOptions{})
+func (op *Operator) DeletePersistentVolumeClaim(namespace string, name string) error {
+	err := op.client.CoreV1().PersistentVolumeClaims(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		if utils.IsK8sResourceNotFoundErr(err) {
 			logrus.Warnf("pvc %s/%s is not found ", namespace, name)
 			return nil
 		}
 		logrus.Errorf("failed to delete pvc %s/%s : %s", namespace, name, err.Error())
+		return err
 	}
 	return nil
 }
 
+func (op *Operator) CreateNamespace(namespace *k8sModel.Namespace) error {
+	k8sNamespace, err := converter.ConvertNamespaceToK8s(namespace)
+	if err != nil {
+		logrus.Errorf("failed to convert namespace : %s", err.Error())
+		return err
+	}
+	_, err = op.client.CoreV1().Namespaces().Create(k8sNamespace)
+	if err != nil {
+		logrus.Errorf("failed to create namespace %s : %s", k8sNamespace.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (op *Operator) UpdateNamespace(namespace *k8sModel.Namespace) (error) {
+	k8sNamespace, err := converter.ConvertNamespaceToK8s(namespace)
+	if err != nil {
+		logrus.Errorf("failed to convert namespace : %s", err.Error())
+		return err
+	}
+	_, err = op.client.CoreV1().Namespaces().Update(k8sNamespace)
+	if err != nil {
+		logrus.Errorf("failed to update namespace %s : %s", k8sNamespace.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (op *Operator) DeleteNamespace(name string) error {
+	err := op.client.CoreV1().Namespaces().Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		if utils.IsK8sResourceNotFoundErr(err) {
+			logrus.Warnf("namespace %s is not found ", name)
+			return nil
+		}
+		logrus.Errorf("failed to delete namespace %s : %s", name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (op *Operator) CreateResourceQuota(resourceQuota *k8sModel.ResourceQuota) error {
+	k8sQuota, err := converter.ConvertResourceQuotaToK8s(resourceQuota)
+	if err != nil {
+		logrus.Errorf("failed to convert resource quota : %s", err.Error())
+		return err
+	}
+	_, err = op.client.CoreV1().ResourceQuotas(k8sQuota.Namespace).Create(k8sQuota)
+	if err != nil {
+		logrus.Errorf("failed to create resource quota %s/%s : %s", k8sQuota.Namespace, k8sQuota.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (op *Operator) CreateOrUpdateResourceQuota(resourceQuota *k8sModel.ResourceQuota) error {
+	update := true
+	_, err := op.client.CoreV1().ResourceQuotas(resourceQuota.Namespace).Get(resourceQuota.Name, metav1.GetOptions{})
+	if err != nil {
+		if utils.IsK8sResourceNotFoundErr(err) {
+			update = false
+		} else {
+			logrus.Errorf("failed to get resource quota %s/%s : %s", resourceQuota.Namespace, resourceQuota.Name, err.Error())
+			return err
+		}
+	}
+
+	k8sQuota, err := converter.ConvertResourceQuotaToK8s(resourceQuota)
+	if err != nil {
+		logrus.Errorf("failed to convert resource quota : %s", err.Error())
+		return err
+	}
+
+	if update {
+		_, err = op.client.CoreV1().ResourceQuotas(k8sQuota.Namespace).Update(k8sQuota)
+		if err != nil {
+			logrus.Errorf("failed to update resource quota %s/%s : %s", k8sQuota.Namespace, k8sQuota.Name, err.Error())
+			return err
+		}
+	} else {
+		_, err = op.client.CoreV1().ResourceQuotas(k8sQuota.Namespace).Create(k8sQuota)
+		if err != nil {
+			logrus.Errorf("failed to create resource quota %s/%s : %s", k8sQuota.Namespace, k8sQuota.Name, err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+func (op *Operator) CreateLimitRange(limitRange *k8sModel.LimitRange) error {
+	k8sLimitRange, err := converter.ConvertLimitRangeToK8s(limitRange)
+	if err != nil {
+		logrus.Errorf("failed to convert limit range : %s", err.Error())
+		return err
+	}
+
+	_, err = op.client.CoreV1().LimitRanges(k8sLimitRange.Namespace).Create(k8sLimitRange)
+	if err != nil {
+		logrus.Errorf("failed to create limit range %s/%s : %s", k8sLimitRange.Namespace, k8sLimitRange.Name, err.Error())
+		return err
+	}
+	return nil
+}
