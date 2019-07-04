@@ -246,7 +246,9 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 	for dependencyKey, dependency := range dependencies {
 		dependencyAliasConfigVar, ok := dependencyAliasConfigVars[dependencyKey]
 		if !ok {
-			continue
+			err = fmt.Errorf("dependency key %s is not valid, you can see valid keys in chart metainfo", dependencyKey)
+			logrus.Errorf(err.Error())
+			return
 		}
 
 		dependencyNamespace, dependencyName, err := ParseDependedRelease(namespace, dependency)
