@@ -68,16 +68,12 @@ func (hc *HelmClient) buildReleaseInfoV2ByReleaseTask(releaseTask *cache.Release
 	if releaseTask.LatestReleaseTaskSig != nil {
 		taskState := releaseTask.LatestReleaseTaskSig.GetTaskState()
 		if taskState != nil && taskState.TaskName != "" {
-			if taskState.IsSuccess() {
-				if taskState.TaskName == deleteReleaseTaskName {
-					return nil, walmerr.NotFoundError{}
+			if taskState.IsCompleted(){
+				if taskState.IsFailure() {
+					releaseV2.Message = fmt.Sprintf("the release latest task %s-%s failed : %s", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID, taskState.Error)
 				}
-			} else if taskState.IsFailure() {
-				releaseV2.Message = fmt.Sprintf("the release latest task %s-%s failed : %s", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID, taskState.Error)
-				return
 			} else {
 				releaseV2.Message = fmt.Sprintf("please wait for the release latest task %s-%s finished", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
-				return
 			}
 		}
 	}
@@ -219,9 +215,6 @@ func (hc *HelmClient) doListReleases(releaseTasks []*cache.ReleaseTask, releaseC
 			defer wg.Done()
 			info, err1 := hc.buildReleaseInfoV2ByReleaseTask(releaseTask, releaseCache)
 			if err1 != nil {
-				if walmerr.IsNotFoundError(err1) {
-					return
-				}
 				err = errors.New(fmt.Sprintf("failed to build release info: %s", err1.Error()))
 				logrus.Error(err.Error())
 				return

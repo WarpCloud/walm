@@ -58,9 +58,6 @@ func (manager *ProjectManager) ListProjects(namespace string) (*ProjectInfoList,
 			defer wg.Done()
 			projectInfo, err1 := manager.buildProjectInfo(projectCache)
 			if err1 != nil {
-				if walmerr.IsNotFoundError(err1) {
-					return
-				}
 				logrus.Errorf("failed to build project info from project cache of %s/%s : %s", projectCache.Namespace, projectCache.Name, err1.Error())
 				err = errors.New(err1.Error())
 				return
@@ -116,10 +113,6 @@ func (manager *ProjectManager) buildProjectInfo(projectCache *cache.ProjectCache
 		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
 
 	} else if taskState.IsSuccess() {
-		if taskState.TaskName == deleteProjectTaskName {
-			return nil, walmerr.NotFoundError{}
-		}
-
 		projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
 	} else if taskState.IsFailure() {
 		projectInfo.Message = fmt.Sprintf("the project latest task %s-%s failed : %s", projectCache.LatestTaskSignature.Name, projectCache.LatestTaskSignature.UUID, taskState.Error)
