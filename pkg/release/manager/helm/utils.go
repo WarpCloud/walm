@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"WarpCloud/walm/pkg/k8s/adaptor"
 	"reflect"
+	"strings"
 )
 
 func buildReleaseInfo(releaseCache *release.ReleaseCache) (releaseInfo *release.ReleaseInfo, err error) {
@@ -50,4 +51,20 @@ func DeleteReleaseDependency(dependencies map[string]string, dependencyKey strin
 	if _, ok := dependencies[dependencyKey]; ok {
 		dependencies[dependencyKey] = ""
 	}
+}
+
+func ParseDependedRelease(dependingReleaseNamespace, dependedRelease string) (namespace, name string, err error) {
+	ss := strings.Split(dependedRelease, "/")
+	if len(ss) == 2 {
+		namespace = ss[0]
+		name = ss[1]
+	} else if len(ss) == 1 {
+		namespace = dependingReleaseNamespace
+		name = ss[0]
+	} else {
+		err = fmt.Errorf("depended release %s is not valid: only 1 or 0 \"/\" is allowed", dependedRelease)
+		logrus.Warn(err.Error())
+		return
+	}
+	return
 }

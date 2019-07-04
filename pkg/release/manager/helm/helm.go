@@ -3,7 +3,6 @@ package helm
 import (
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"time"
 	"github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
@@ -250,19 +249,11 @@ func (hc *HelmClient) getDependencyOutputConfigs(namespace string, dependencies 
 			continue
 		}
 
-		ss := strings.Split(dependency, "/")
-		if len(ss) > 2 {
-			err = fmt.Errorf("dependency value %s should not contains more than 1 \"/\"", dependency)
-			return
+		dependencyNamespace, dependencyName, err := ParseDependedRelease(namespace, dependency)
+		if err != nil {
+			return nil, err
 		}
-		dependencyNamespace, dependencyName := "", ""
-		if len(ss) == 2 {
-			dependencyNamespace = ss[0]
-			dependencyName = ss[1]
-		} else {
-			dependencyNamespace = namespace
-			dependencyName = ss[0]
-		}
+
 		dependencyReleaseConfig, err := hc.releaseConfigHandler.GetReleaseConfig(dependencyNamespace, dependencyName)
 		if err != nil {
 			if adaptor.IsNotFoundErr(err) {
