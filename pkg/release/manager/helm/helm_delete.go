@@ -133,6 +133,11 @@ func (hc *HelmClient) doDeleteRelease(namespace, releaseName string, isSystem bo
 		}
 	}
 
+	err = hc.helmCache.DeleteReleaseTask(namespace, releaseName)
+	if err != nil {
+		logrus.Warnf("failed to delete release task of %s : %s", releaseName, err.Error())
+	}
+
 	logrus.Infof("succeed to delete release %s/%s", namespace, releaseName)
 	return nil
 }

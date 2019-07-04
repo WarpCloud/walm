@@ -9,6 +9,7 @@ import (
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/RichardKnop/machinery/v1/log"
+	"time"
 )
 
 var taskManager *TaskManager
@@ -62,8 +63,17 @@ func (manager *TaskManager) StartWorker() {
 }
 
 func (manager *TaskManager) StopWorker() {
-	manager.worker.Quit()
-	logrus.Info("worker stopped consuming tasks")
+	quitChan := make(chan struct{})
+	go func() {
+		manager.worker.Quit()
+		close(quitChan)
+	}()
+	select {
+	case <-quitChan:
+		logrus.Info("worker stopped consuming tasks successfully")
+	case <-time.After(time.Second * 30):
+		logrus.Warn("worker stopped consuming tasks failed after 30 seconds")
+	}
 }
 
 func (manager *TaskManager) SendTask(signature *tasks.Signature) (err error) {

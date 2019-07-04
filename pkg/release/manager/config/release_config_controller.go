@@ -276,7 +276,6 @@ func (controller *ReleaseConfigController) reloadDependingRelease(releaseKey str
 		logrus.Errorf("failed to reload release %s/%s : %s", namespace, name, err.Error())
 		return err
 	}
-	logrus.Infof("succeed to reload release %s", releaseKey)
 	return nil
 }
 
@@ -295,7 +294,10 @@ func (controller *ReleaseConfigController) syncReleaseConfig(releaseConfigKey st
 	}
 	for _, releaseConfig := range releaseConfigs {
 		for _, dependedRelease := range releaseConfig.Spec.Dependencies {
-			dependedReleaseNamespace, dependedReleaseName := parseDependedRelease(releaseConfig.Namespace, dependedRelease)
+			dependedReleaseNamespace, dependedReleaseName, err := helm.ParseDependedRelease(releaseConfig.Namespace, dependedRelease)
+			if err != nil {
+				continue
+			}
 			if dependedReleaseNamespace == namespace && dependedReleaseName == name {
 				controller.enqueueDependingRelease(releaseConfig)
 				break
@@ -315,16 +317,3 @@ func (controller *ReleaseConfigController) enqueueDependingRelease(obj interface
 	controller.reloadDependingReleaseWorkingQueue.Add(key)
 }
 
-func parseDependedRelease(dependingReleaseNamespace, dependedRelease string) (namespace, name string) {
-	ss := strings.Split(dependedRelease, ".")
-	if len(ss) == 2 {
-		namespace = ss[0]
-		name = ss[1]
-	} else if len(ss) == 1 {
-		namespace = dependingReleaseNamespace
-		name = ss[0]
-	} else {
-		logrus.Errorf("depended release %s is not valid: only 1 or 0 \".\" is allowed", dependedRelease)
-	}
-	return
-}

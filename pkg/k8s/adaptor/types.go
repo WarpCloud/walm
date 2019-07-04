@@ -272,6 +272,7 @@ func (resource WalmResourceQuota) AddToWalmResourceSet(resourceSet *WalmResource
 
 type WalmPersistentVolumeClaim struct {
 	WalmMeta
+	Labels       map[string]string                   `json:"labels" description:"labels"`
 	StorageClass string                              `json:"storageClass" description:"storage class"`
 	VolumeName   string                              `json:"volumeName" description:"volume name"`
 	Capacity     string                              `json:"capacity" description:"capacity"`

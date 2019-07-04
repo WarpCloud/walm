@@ -9,7 +9,7 @@ import (
 )
 
 type WalmPersistentVolumeClaimAdaptor struct {
-	handler *handler.PersistentVolumeClaimHandler
+	handler            *handler.PersistentVolumeClaimHandler
 	statefulsetHandler *handler.StatefulSetHandler
 }
 
@@ -48,10 +48,11 @@ func (adaptor *WalmPersistentVolumeClaimAdaptor) BuildWalmPersistentVolumeClaim(
 	walmPersistentVolumeClaim = WalmPersistentVolumeClaim{
 		WalmMeta:    buildWalmMeta("PersistentVolumeClaim", persistentVolumeClaim.Namespace, persistentVolumeClaim.Name, buildWalmState(string(persistentVolumeClaim.Status.Phase), "", "")),
 		AccessModes: persistentVolumeClaim.Status.AccessModes,
-		VolumeName: persistentVolumeClaim.Spec.VolumeName,
+		VolumeName:  persistentVolumeClaim.Spec.VolumeName,
+		Labels:      persistentVolumeClaim.Labels,
 	}
 	if persistentVolumeClaim.Status.Capacity != nil {
-		for key, value :=range persistentVolumeClaim.Status.Capacity {
+		for key, value := range persistentVolumeClaim.Status.Capacity {
 			if key == corev1.ResourceStorage {
 				walmPersistentVolumeClaim.Capacity = value.String()
 				break
@@ -69,7 +70,7 @@ func (adaptor *WalmPersistentVolumeClaimAdaptor) BuildWalmPersistentVolumeClaim(
 }
 
 // if the pvc is related any existed stateful set, it can not be deleted
-func  (adaptor *WalmPersistentVolumeClaimAdaptor)DeletePvc(namespace, name string) error{
+func (adaptor *WalmPersistentVolumeClaimAdaptor) DeletePvc(namespace, name string) error {
 	pvc, err := adaptor.handler.GetPersistentVolumeClaim(namespace, name)
 	if err != nil {
 		logrus.Errorf("failed to get pvc %s/%s : %s", namespace, name, err.Error())
@@ -87,7 +88,7 @@ func  (adaptor *WalmPersistentVolumeClaimAdaptor)DeletePvc(namespace, name strin
 		if len(statefulSets) > 0 {
 			statefulSetNames := make([]string, len(statefulSets))
 			for _, statefulSet := range statefulSets {
-				statefulSetNames = append(statefulSetNames, statefulSet.Namespace + "/" + statefulSet.Name)
+				statefulSetNames = append(statefulSetNames, statefulSet.Namespace+"/"+statefulSet.Name)
 			}
 			err = fmt.Errorf("pvc %s/%s can not be deleted, it is still used by statefulsets %v", namespace, name, statefulSetNames)
 			return err
@@ -101,4 +102,3 @@ func  (adaptor *WalmPersistentVolumeClaimAdaptor)DeletePvc(namespace, name strin
 	logrus.Infof("succeed to delete pvc %s/%s", namespace, name)
 	return nil
 }
-

@@ -74,5 +74,11 @@ func (deleteProjectTaskArgs *DeleteProjectTaskArgs) deleteProject() error {
 			return err
 		}
 	}
+
+	err = GetDefaultProjectManager().helmClient.GetHelmCache().DeleteProjectCache(deleteProjectTaskArgs.Namespace, deleteProjectTaskArgs.Name)
+	if err != nil {
+		logrus.Warnf("failed to delete project task of %s : %s", deleteProjectTaskArgs.Name, err.Error())
+	}
+
 	return nil
 }

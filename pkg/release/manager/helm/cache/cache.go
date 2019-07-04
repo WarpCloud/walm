@@ -494,7 +494,7 @@ func (cache *HelmCache) CreateOrUpdateReleaseTask(releaseTask *ReleaseTask) (err
 }
 
 func (cache *HelmCache) DeleteReleaseTask(namespace, name string) (err error) {
-	_, err = cache.redisClient.GetClient().HDel(redis.WalmReleaseTasksKey, buildWalmProjectFieldName(namespace, name)).Result()
+	_, err = cache.redisClient.GetClient().HDel(redis.WalmReleaseTasksKey, buildWalmReleaseFieldName(namespace, name)).Result()
 	if err != nil {
 		logrus.Errorf("failed to delete release task of %s/%s from redis : %s", namespace, name, err.Error())
 		return
