@@ -1,8 +1,15 @@
 package main
 
 import (
+	"WarpCloud/walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"io/ioutil"
@@ -19,13 +26,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"WarpCloud/walm/pkg/util"
-	"WarpCloud/walm/pkg/util/transwarpjsonnet"
-	"encoding/json"
-	"github.com/sergi/go-diff/diffmatchpatch"
-	"github.com/ghodss/yaml"
-	"WarpCloud/walm/pkg/release/manager/metainfo"
-	"bytes"
 )
 
 var longLintHelp = `

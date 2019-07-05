@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/kubectl/util/term"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
 )
 
 const (

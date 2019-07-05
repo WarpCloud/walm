@@ -1,11 +1,13 @@
 package walmctlclient
 
 import (
-	"io/ioutil"
-	"strconv"
-	"github.com/go-resty/resty"
 	"github.com/bitly/go-simplejson"
+	"github.com/go-resty/resty"
 	"github.com/pkg/errors"
+	"io/ioutil"
+	"net"
+	"strconv"
+	"time"
 )
 
 type WalmctlClient struct {
@@ -29,6 +31,15 @@ func CreateNewClient(hostURL string) *WalmctlClient {
 		walmctlClient.baseURL = walmctlClient.protocol + walmctlClient.hostURL + walmctlClient.apiVersion
 	}
 	return walmctlClient
+}
+
+func(c *WalmctlClient) ValidateHostConnect() error {
+	timeout := time.Duration(1 * time.Second)
+	_, err := net.DialTimeout("tcp",walmctlClient.hostURL, timeout)
+	if err != nil {
+		return errors.Errorf("WalmServer unreachable, error: %s", err.Error())
+	}
+	return nil
 }
 
 // release

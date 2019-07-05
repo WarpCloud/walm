@@ -1,11 +1,11 @@
 package main
 
 import (
+	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
+	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"path/filepath"
-	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"github.com/spf13/cobra"
-	"fmt"
 )
 
 const createDesc = `This command creates a walm release or project(collection of releases) 
@@ -75,7 +75,9 @@ func (cc *createCmd) run() error {
 	}
 
 	client := walmctlclient.CreateNewClient(walmserver)
-
+	if err = client.ValidateHostConnect(); err != nil {
+		return err
+	}
 	if cc.sourceType == "release" {
 		_, err = client.CreateRelease(namespace, cc.sourceName, cc.async, cc.timeoutSec, filePath)
 
