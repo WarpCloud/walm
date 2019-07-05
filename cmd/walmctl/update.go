@@ -1,19 +1,20 @@
 package main
 
 import (
-	"io"
-	"github.com/spf13/cobra"
-	"github.com/pkg/errors"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"fmt"
-	"encoding/json"
 	"WarpCloud/walm/pkg/release"
-	"path/filepath"
-	"io/ioutil"
-	"strings"
+	"encoding/json"
+	"fmt"
+	"github.com/go-resty/resty"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
-	"strconv"
 	"github.com/tidwall/sjson"
+	"io"
+	"io/ioutil"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const updateDesc = `This command update an existing release,
@@ -71,21 +72,19 @@ func newUpdateCmd(out io.Writer) *cobra.Command {
 }
 
 func (uc *updateCmd) run() error {
-
+	var (
+		err            error
+		resp           *resty.Response
+		releaseInfo    release.ReleaseInfoV2
+		releaseRequest *release.ReleaseRequestV2
+	)
 	client := walmctlclient.CreateNewClient(walmserver)
-	resp, err := client.GetRelease(namespace, uc.sourceName)
-	if err != nil {
+	if err = client.ValidateHostConnect(); err != nil {
 		return err
 	}
 
-	if resp.StatusCode() == 404 {
-		return errors.Errorf("%s %s is not found.\n", uc.sourceType, uc.sourceName)
-	}
-
-	var releaseRequest release.ReleaseRequestV2
-	var configValuesByte []byte
-	var configValuesStr string
-	// update by file or command
+	// file exists => build releaseRequest from file => set values => sendRequest
+	// file not exist => fetch releaseInfo to parse releaseRequest => set values => sendRequest
 	if uc.file != "" {
 		fileName, err := filepath.Abs(uc.file)
 		if err != nil {
@@ -100,67 +99,74 @@ func (uc *updateCmd) run() error {
 			return err
 		}
 	} else {
-		err = json.Unmarshal(resp.Body(), &releaseRequest)
+		resp, err = client.GetRelease(namespace, uc.sourceName)
 		if err != nil {
 			return err
 		}
-
-		configValuesByte, err = json.Marshal(releaseRequest.ConfigValues)
+		if resp.StatusCode() == 404 {
+			return errors.Errorf("%s %s is not found.\n", uc.sourceType, uc.sourceName)
+		}
+		err = json.Unmarshal(resp.Body(), &releaseInfo)
+		releaseRequest = releaseInfo.BuildReleaseRequestV2()
 		if err != nil {
 			return err
 		}
-		configValuesStr = string(configValuesByte)
+	}
 
-		if uc.sourceType == "release" {
+	configValuesByte, err := json.Marshal(releaseRequest.ConfigValues)
+	if err != nil {
+		return err
+	}
+	configValuesStr := string(configValuesByte)
 
-			propertySetArray := strings.Split(uc.setproperties, ",")
+	if uc.sourceType == "release" {
 
-			for _, propertySet := range propertySetArray {
-				propertySet = strings.TrimSpace(propertySet)
-				propertyMap := strings.Split(propertySet, "=")
-				if len(propertyMap) != 2 {
-					return errors.Errorf("set values error, params should like --set pathA=valueA, pathB=valueB...")
-				}
-				propertyKey := propertyMap[0]
-				propertyVal := propertyMap[1]
+		propertySetArray := strings.Split(uc.setproperties, ",")
 
-				result := gjson.Get(configValuesStr, propertyKey)
-				if !result.Exists() {
-					return errors.Errorf("path error: %s not exist in releaseInfo", propertyKey)
-				}
-
-				var destVal interface{}
-
-				switch result.Type.String() {
-
-				case "True", "False":
-					destVal, err = strconv.ParseBool(propertyVal)
-				case "String":
-					destVal = propertyVal
-				case "Number":
-					destVal, err = strconv.Atoi(propertyVal)
-					if err != nil {
-						destVal, err = strconv.ParseFloat(propertyVal, 64)
-					}
-				case "JSON":
-					err = json.Unmarshal([]byte(propertyVal), &destVal)
-				default:
-
-				}
-
-				if err != nil {
-					return err
-				}
-
-				configValuesStr, err = sjson.Set(configValuesStr, propertyKey, destVal)
-				if err != nil {
-					return err
-				}
+		for _, propertySet := range propertySetArray {
+			propertySet = strings.TrimSpace(propertySet)
+			propertyMap := strings.Split(propertySet, "=")
+			if len(propertyMap) != 2 {
+				return errors.Errorf("set values error, params should like --set pathA=valueA, pathB=valueB...")
 			}
-			err = json.Unmarshal([]byte(configValuesStr), &releaseRequest.ConfigValues)
+			propertyKey := propertyMap[0]
+			propertyVal := propertyMap[1]
+
+			result := gjson.Get(configValuesStr, propertyKey)
+
+			var destVal interface{}
+
+			switch result.Type.String() {
+
+			case "True", "False":
+				destVal, err = strconv.ParseBool(propertyVal)
+			case "String":
+				destVal = propertyVal
+			case "Number":
+				destVal, err = strconv.Atoi(propertyVal)
+				if err != nil {
+					destVal, err = strconv.ParseFloat(propertyVal, 64)
+				}
+			case "JSON":
+				err = json.Unmarshal([]byte(propertyVal), &destVal)
+			case "Null":
+				destVal = propertyVal
+			default:
+
+			}
+
 			if err != nil {
 				return err
 			}
+			
+			configValuesStr, err = sjson.Set(configValuesStr, propertyKey, destVal)
+			if err != nil {
+				return err
+			}
+		}
+		err = json.Unmarshal([]byte(configValuesStr), &releaseRequest.ConfigValues)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -174,14 +180,11 @@ func (uc *updateCmd) run() error {
 		} else {
 			resp, err = client.UpdateReleaseWithChart(namespace, uc.sourceName, uc.withchart)
 		}
-
-	}
-
-	if err != nil {
-		return errors.Errorf("update release failed")
+		if err != nil {
+			return errors.Errorf("update release failed")
+		}
 	}
 
 	fmt.Printf("update %s %s succeed\n", uc.sourceType, uc.sourceName)
-
 	return nil
 }

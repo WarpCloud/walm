@@ -1,11 +1,11 @@
 package main
 
 import (
-	"io"
-	"github.com/spf13/cobra"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"io"
 )
 
 const deleteDesc = `Delete walm resources by source name.
@@ -78,7 +78,9 @@ func (dc *deleteCmd) run() error {
 
 	var err error
 	client := walmctlclient.CreateNewClient(walmserver)
-
+	if err = client.ValidateHostConnect(); err != nil {
+		return err
+	}
 	if dc.sourceType == "project" {
 		_, err = client.DeleteProject(namespace, dc.projectName, dc.async, dc.timeoutSec, dc.deletePvcs)
 		if err != nil {

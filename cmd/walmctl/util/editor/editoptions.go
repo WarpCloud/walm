@@ -5,23 +5,23 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
 	goruntime "runtime"
 
-	"os"
-	"fmt"
-	"strings"
-	"io"
-	"bufio"
-	"WarpCloud/walm/pkg/release"
-	"github.com/go-resty/resty"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"encoding/json"
-	"github.com/pkg/errors"
+	"WarpCloud/walm/pkg/release"
+	"bufio"
 	"bytes"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/util/editor/crlf"
-	"path/filepath"
-	"k8s.io/klog"
-	"k8s.io/apimachinery/pkg/util/yaml"
+	"encoding/json"
+	"fmt"
 	yaml2 "github.com/ghodss/yaml"
+	"github.com/go-resty/resty"
+	"github.com/pkg/errors"
 	"github.com/tidwall/sjson"
+	"io"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/kubectl/cmd/util/editor/crlf"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 // EditOptions contains all the options for running edit cli command.
@@ -91,8 +91,6 @@ func (e *editPrinterOptions) Complete(fromPrintFlags *genericclioptions.PrintFla
 	return nil
 }
 
-
-
 type EditMode string
 
 const (
@@ -113,14 +111,18 @@ func (o *EditOptions) Run() error {
 	var resp *resty.Response
 	var releaseInfo release.ReleaseInfoV2
 	var err error
+	client := walmctlclient.CreateNewClient(o.WalmServer)
+	if err = client.ValidateHostConnect(); err != nil {
+		return err
+	}
 	if o.SourceType == "release" {
-		resp, err = walmctlclient.CreateNewClient(o.WalmServer).GetRelease(o.Namespace, o.SourceName)
+		resp, err = client.GetRelease(o.Namespace, o.SourceName)
 	} else {
-		resp, err = walmctlclient.CreateNewClient(o.WalmServer).GetProject(o.Namespace, o.SourceName)
+		resp, err = client.GetProject(o.Namespace, o.SourceName)
 	}
 
 	if err != nil {
-		return errors.Errorf("%s %s not found in redis\n",o.SourceType, o.SourceName)
+		return errors.Errorf("%s %s not found in redis\n", o.SourceType, o.SourceName)
 	}
 	err = json.Unmarshal(resp.Body(), &releaseInfo)
 	if err != nil {
@@ -132,10 +134,10 @@ func (o *EditOptions) Run() error {
 	editFn := func(releaseRequest *release.ReleaseRequestV2) error {
 
 		var (
-			results  = editResults{}
+			results = editResults{}
 			//original []byte
-			edited   []byte
-			file     string
+			edited []byte
+			file   string
 		)
 		containsError := false
 
@@ -181,7 +183,6 @@ func (o *EditOptions) Run() error {
 		}
 		klog.V(4).Infof("User edited:\n%s", string(edited))
 
-
 		// Todo:// if not change, not send request
 		// Compare content without comments
 		//if bytes.Equal(StripComments(original), StripComments(edited)) {
@@ -207,7 +208,7 @@ func (o *EditOptions) Run() error {
 			return err
 		}
 
-		resp, err = walmctlclient.CreateNewClient(o.WalmServer).UpdateRelease(o.Namespace, string(StripComments(edited)), true, 0)
+		resp, err = client.UpdateRelease(o.Namespace, string(StripComments(edited)), true, 0)
 		if err != nil {
 			return err
 		}
@@ -217,8 +218,6 @@ func (o *EditOptions) Run() error {
 		fmt.Printf("edit resource succeed.\n")
 		return nil
 	}
-
-
 
 	switch o.EditMode {
 	// If doing normal edit we cannot use Visit because we need to edit a list for convenience. Ref: #20519
@@ -262,6 +261,7 @@ func (e *editPrinterOptions) PrintRequest(releaseRequest *release.ReleaseRequest
 	fmt.Fprint(out, string(releaseRequestByte))
 	return nil
 }
+
 // StripComments will transform a YAML file into JSON, thus dropping any comments
 // in it. Note that if the given file has a syntax error, the transformation will
 // fail and we will manually drop all comments from the file.
@@ -341,8 +341,6 @@ type editResults struct {
 	edit      *release.ReleaseRequestV2
 	file      string
 }
-
-
 
 // preservedFile writes out a message about the provided file if it exists to the
 // provided output stream when an error happens. Used to notify the user where

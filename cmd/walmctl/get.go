@@ -1,13 +1,13 @@
 package main
 
 import (
-	"io"
-	"github.com/spf13/cobra"
-	"github.com/pkg/errors"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/go-resty/resty"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"io"
 )
 
 const getDesc = `
@@ -64,10 +64,14 @@ func (gc *getCmd) run() error {
 	if err != nil {
 		return err
 	}
+	client := walmctlclient.CreateNewClient(walmserver)
+	if err = client.ValidateHostConnect(); err != nil {
+		return err
+	}
 	if gc.sourceType == "release" {
-		resp, err = walmctlclient.CreateNewClient(walmserver).GetRelease(namespace, gc.sourceName)
+		resp, err = client.GetRelease(namespace, gc.sourceName)
 	} else {
-		resp, err = walmctlclient.CreateNewClient(walmserver).GetProject(namespace, gc.sourceName)
+		resp, err =client.GetProject(namespace, gc.sourceName)
 	}
 
 	if err != nil {

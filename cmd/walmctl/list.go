@@ -1,18 +1,18 @@
 package main
 
 import (
-	"io"
-	"github.com/spf13/cobra"
-	"github.com/go-resty/resty"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"fmt"
-	"encoding/json"
 	"WarpCloud/walm/pkg/project"
 	"WarpCloud/walm/pkg/release"
-	"github.com/ghodss/yaml"
-	"github.com/gosuri/uitable"
+	"encoding/json"
+	"fmt"
 	"github.com/bitly/go-simplejson"
+	"github.com/ghodss/yaml"
+	"github.com/go-resty/resty"
+	"github.com/gosuri/uitable"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"io"
 )
 
 const listDesc = `
@@ -85,12 +85,14 @@ func newListCmd(out io.Writer) *cobra.Command {
 
 func (lc *listCmd) run() error {
 
-	var err error
-	var output string
-	var resp *resty.Response
-	var projectInfo project.ProjectInfo
-	var releases []*release.ReleaseInfoV2
-	var projects []*project.ProjectInfo
+	var (
+		resp        *resty.Response
+		output      string
+		err         error
+		projectInfo project.ProjectInfo
+		projects    []*project.ProjectInfo
+		releases    []*release.ReleaseInfoV2
+	)
 
 	err = checkResourceType(lc.sourceType)
 	if err != nil {
@@ -98,7 +100,9 @@ func (lc *listCmd) run() error {
 	}
 
 	client := walmctlclient.CreateNewClient(walmserver)
-
+	if err = client.ValidateHostConnect(); err != nil {
+		return err
+	}
 	if lc.sourceType == "project" {
 		resp, err = client.ListProject(namespace)
 		respJson, _ := simplejson.NewJson(resp.Body())
