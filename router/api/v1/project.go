@@ -2,14 +2,15 @@ package v1
 
 import (
 	"github.com/emicklei/go-restful"
+	"github.com/pkg/errors"
 
 	"WarpCloud/walm/pkg/project"
-	"fmt"
+	"WarpCloud/walm/pkg/release"
 	walmerr "WarpCloud/walm/pkg/util/error"
+	"WarpCloud/walm/router/api"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"strconv"
-	"WarpCloud/walm/router/api"
-	"WarpCloud/walm/pkg/release"
 )
 
 func ListProjectAllNamespaces(request *restful.Request, response *restful.Response) {
@@ -50,6 +51,9 @@ func getTimeoutSecQueryParam(request *restful.Request) (timeoutSec int64, err er
 		if err != nil {
 			logrus.Errorf("failed to parse query parameter timeoutSec %s : %s", timeoutStr, err.Error())
 			return
+		}
+		if timeoutSec < 0 {
+			return timeoutSec, errors.Errorf("invalid parameter timeoutSec %s, expect non-negative value", timeoutStr)
 		}
 	}
 	return
