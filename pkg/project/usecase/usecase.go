@@ -47,9 +47,6 @@ func (projectImpl *Project) ListProjects(namespace string) (*projectModel.Projec
 			defer wg.Done()
 			projectInfo, err1 := projectImpl.buildProjectInfo(projectTask)
 			if err1 != nil {
-				if errorModel.IsNotFoundError(err1) {
-					return
-				}
 				logrus.Errorf("failed to build project info from project cache of %s/%s : %s", projectTask.Namespace, projectTask.Name, err1.Error())
 				err = errors.New(err1.Error())
 				return
@@ -314,15 +311,6 @@ func (projectImpl *Project) buildProjectInfo(task *projectModel.ProjectTask) (pr
 		Name:      task.Name,
 		Releases:  []*releaseModel.ReleaseInfoV2{},
 	}
-	//if taskState != nil {
-	//	projectInfo.LatestTaskState = &task.WalmTaskState{
-	//		TaskUUID:  taskState.TaskUUID,
-	//		TaskName:  taskState.TaskName,
-	//		Error:     taskState.Error,
-	//		CreatedAt: taskState.CreatedAt,
-	//		State:     taskState.State,
-	//	}
-	//}
 
 	projectInfo.Releases, err = projectImpl.helmUsecase.ListReleasesByLabels(task.Namespace, projectModel.ProjectNameLabelKey+"="+task.Name)
 	if err != nil {
@@ -342,16 +330,12 @@ func (projectImpl *Project) buildProjectInfo(task *projectModel.ProjectTask) (pr
 
 	if taskState.IsFinished() {
 		if taskState.IsSuccess() {
-			if task.LatestTaskSignature.Name == deleteProjectTaskName {
-				return nil, errorModel.NotFoundError{}
-			}
+			projectInfo.Ready, projectInfo.Message = isProjectReadyByReleases(projectInfo.Releases)
 		} else {
 			projectInfo.Message = fmt.Sprintf("the project latest task %s-%s failed : %s", task.LatestTaskSignature.Name, task.LatestTaskSignature.UUID, taskState.GetErrorMsg())
-			return
 		}
 	} else {
 		projectInfo.Message = fmt.Sprintf("please wait for the project latest task %s-%s finished", task.LatestTaskSignature.Name, task.LatestTaskSignature.UUID)
-		return
 	}
 
 	return
@@ -469,7 +453,7 @@ func (projectImpl *Project) autoCreateReleaseDependencies(projectParams *project
 	return releaseParsed, nil
 }
 
-func (projectImpl *Project) brainFuckRuntimeDepParse(projectInfo *projectModel.ProjectInfo, releaseParams *releaseModel.ReleaseRequestV2, isRemove bool) ([]*releaseModel.ReleaseRequestV2, error) {
+func (projectImpl *Project) autoUpdateReleaseDependencies(projectInfo *projectModel.ProjectInfo, releaseParams *releaseModel.ReleaseRequestV2, isRemove bool) ([]*releaseModel.ReleaseRequestV2, error) {
 	var g dag.AcyclicGraph
 	affectReleases := make([]*releaseModel.ReleaseRequestV2, 0)
 

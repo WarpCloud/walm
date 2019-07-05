@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"WarpCloud/walm/pkg/k8s/utils"
+	"k8s.io/client-go/tools/cache"
 )
 
 type Informer struct {
@@ -44,6 +45,15 @@ type Informer struct {
 
 	releaseConifgFactory releaseconfigexternalversions.SharedInformerFactory
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
+}
+
+func (informer *Informer) AddReleaseConfigHandler(OnAdd func(obj interface{}), OnUpdate func(oldObj, newObj interface{}), OnDelete func(obj interface{})) {
+	handlerFuncs := &cache.ResourceEventHandlerFuncs{
+		AddFunc:    OnAdd,
+		UpdateFunc: OnUpdate,
+		DeleteFunc: OnDelete,
+	}
+	informer.releaseConifgFactory.Transwarp().V1beta1().ReleaseConfigs().Informer().AddEventHandler(handlerFuncs)
 }
 
 func (informer *Informer) ListPersistentVolumeClaims(namespace string, labelSelectorStr string) ([]*k8s.PersistentVolumeClaim, error) {

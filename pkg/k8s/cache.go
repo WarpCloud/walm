@@ -10,9 +10,13 @@ type Cache interface {
 	GetResourceSet(releaseResourceMetas []release.ReleaseResourceMeta) (resourceSet *k8s.ResourceSet,err error)
 	GetResource(kind k8s.ResourceKind, namespace, name string) (k8s.Resource, error)
 
+	AddReleaseConfigHandler(OnAdd func(obj interface{}), OnUpdate func(oldObj, newObj interface{}), OnDelete func(obj interface{}))
 	ListReleaseConfigs(namespace, labelSelectorStr string) ([]*k8s.ReleaseConfig, error)
+
 	ListPersistentVolumeClaims(namespace string, labelSelectorStr string) ([]*k8s.PersistentVolumeClaim, error)
 
 	ListTenants(labelSelectorStr string) (*tenant.TenantInfoList, error)
 	GetTenant(tenantName string) (*tenant.TenantInfo, error)
+
+
 }

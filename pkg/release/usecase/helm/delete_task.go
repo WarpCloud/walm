@@ -31,5 +31,11 @@ func (helm *Helm)deleteReleaseTask(releaseTaskArgsStr string) error {
 		logrus.Errorf("failed to delete release %s/%s: %s", releaseTaskArgs.Namespace, releaseTaskArgs.ReleaseName, err.Error())
 		return err
 	}
+
+	err = helm.releaseCache.DeleteReleaseTask(releaseTaskArgs.Namespace, releaseTaskArgs.ReleaseName)
+	if err != nil {
+		logrus.Warnf("failed to delete release task %s/%s : %s", releaseTaskArgs.Namespace, releaseTaskArgs.ReleaseName, err.Error())
+	}
+
 	return nil
 }

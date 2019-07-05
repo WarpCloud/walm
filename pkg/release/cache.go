@@ -16,4 +16,5 @@ type Cache interface {
 	GetReleaseTasks(namespace string)([]*release.ReleaseTask, error)
 	GetReleaseTasksByReleaseConfigs(releaseConfigs []*k8s.ReleaseConfig) ([]*release.ReleaseTask, error)
 	CreateOrUpdateReleaseTask(releaseTask *release.ReleaseTask) error
+	DeleteReleaseTask(namespace string, name string) error
 }

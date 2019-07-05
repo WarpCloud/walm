@@ -63,17 +63,11 @@ func (helm *Helm) buildReleaseInfoV2ByReleaseTask(releaseTask *releaseModel.Rele
 	}
 
 	if taskState.IsFinished() {
-		if taskState.IsSuccess() {
-			if releaseTask.LatestReleaseTaskSig.Name == deleteReleaseTaskName {
-				return nil, errorModel.NotFoundError{}
-			}
-		} else {
+		if !taskState.IsSuccess() {
 			releaseV2.Message = fmt.Sprintf("the release latest task %s-%s failed : %s", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID, taskState.GetErrorMsg())
-			return
 		}
 	} else {
 		releaseV2.Message = fmt.Sprintf("please wait for the release latest task %s-%s finished", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
-		return
 	}
 
 	return
@@ -199,9 +193,6 @@ func (helm *Helm) doListReleases(releaseTasks []*releaseModel.ReleaseTask, relea
 			defer wg.Done()
 			info, err1 := helm.buildReleaseInfoV2ByReleaseTask(releaseTask, releaseCache)
 			if err1 != nil {
-				if errorModel.IsNotFoundError(err1) {
-					return
-				}
 				err = errors.New(fmt.Sprintf("failed to build release info: %s", err1.Error()))
 				logrus.Error(err.Error())
 				return

@@ -10,10 +10,6 @@ import (
 )
 
 
-const (
-	ReleaseConfigTopic string = "release-config"
-)
-
 var kafkaClient *KafkaClient
 
 func GetDefaultKafkaClient() *KafkaClient {

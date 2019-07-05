@@ -63,3 +63,10 @@ func (cache *Cache) CreateOrUpdateProjectTask(projectTask *project.ProjectTask) 
 	return nil
 }
 
+func (cache *Cache) DeleteProjectTask(namespace, name string) error {
+	err := cache.redis.DeleteField(redis.WalmProjectsKey, namespace, name)
+	if err != nil {
+		return err
+	}
+	return nil
+}

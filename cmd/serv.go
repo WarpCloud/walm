@@ -103,8 +103,8 @@ func (sc *ServCmd) run() error {
 	if err != nil {
 		logrus.Error(err.Error())
 	}
-	task.GetDefaultTaskManager().StopWorker()
 	close(stopChan)
+	task.GetDefaultTaskManager().StopWorker()
 	logrus.Info("waiting for informer stopping")
 	time.Sleep(2 * time.Second)
 	logrus.Info("walm server stopped gracefully")

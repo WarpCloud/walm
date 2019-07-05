@@ -307,8 +307,8 @@ const (
 	ResourceRequestsMemory  ResourceName = "requests.memory"
 	ResourceRequestsStorage ResourceName = "requests.storage"
 
-	ResourceCPU       ResourceName = "cpu"
-	ResourceMemory    ResourceName = "memory"
+	ResourceCPU    ResourceName = "cpu"
+	ResourceMemory ResourceName = "memory"
 )
 
 type ResourceQuota struct {
@@ -322,11 +322,12 @@ func (resource *ResourceQuota) AddToResourceSet(resourceSet *ResourceSet) {
 
 type PersistentVolumeClaim struct {
 	Meta
-	StorageClass string   `json:"storageClass" description:"storage class"`
-	VolumeName   string   `json:"volumeName" description:"volume name"`
-	Capacity     string   `json:"capacity" description:"capacity"`
-	AccessModes  []string `json:"accessModes" description:"access modes"`
-	VolumeMode   string   `json:"volumeMode" description:"volume mode"`
+	Labels       map[string]string `json:"labels" description:"labels"`
+	StorageClass string            `json:"storageClass" description:"storage class"`
+	VolumeName   string            `json:"volumeName" description:"volume name"`
+	Capacity     string            `json:"capacity" description:"capacity"`
+	AccessModes  []string          `json:"accessModes" description:"access modes"`
+	VolumeMode   string            `json:"volumeMode" description:"volume mode"`
 }
 
 func (resource *PersistentVolumeClaim) AddToResourceSet(resourceSet *ResourceSet) {

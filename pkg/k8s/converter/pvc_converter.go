@@ -14,6 +14,7 @@ func ConvertPvcFromK8s(oriPersistentVolumeClaim *corev1.PersistentVolumeClaim) (
 	pvc = &k8s.PersistentVolumeClaim{
 		Meta:    k8s.NewMeta(k8s.PersistentVolumeClaimKind, persistentVolumeClaim.Namespace, persistentVolumeClaim.Name, k8s.NewState(string(persistentVolumeClaim.Status.Phase), "", "")),
 		VolumeName: persistentVolumeClaim.Spec.VolumeName,
+		Labels: persistentVolumeClaim.Labels,
 	}
 	if persistentVolumeClaim.Spec.AccessModes != nil {
 		pvc.AccessModes = []string{}

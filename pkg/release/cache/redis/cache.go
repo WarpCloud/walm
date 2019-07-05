@@ -189,3 +189,12 @@ func (cache *Cache) CreateOrUpdateReleaseTask(releaseTask *release.ReleaseTask) 
 	logrus.Debugf("succeed to set release task of %s/%s to redis", releaseTask.Namespace, releaseTask.Name)
 	return nil
 }
+
+func (cache *Cache) DeleteReleaseTask(namespace string, name string) error {
+	err := cache.redis.DeleteField(redis.WalmReleaseTasksKey, namespace, name)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("succeed to delete release task of %s from redis", name)
+	return nil
+}

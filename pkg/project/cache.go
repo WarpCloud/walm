@@ -6,4 +6,5 @@ type Cache interface {
 	GetProjectTask(namespace, name string) (*project.ProjectTask, error)
 	GetProjectTasks(namespace string) ([]*project.ProjectTask, error)
 	CreateOrUpdateProjectTask(projectTask *project.ProjectTask) error
+	DeleteProjectTask(namespace, name string) (error)
 }

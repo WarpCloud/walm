@@ -37,16 +37,22 @@ func (projectImpl *Project)DeleteProjectTask(deleteProjectTaskArgsStr string) er
 func (projectImpl *Project) doDeleteProject(namespace, name string, deletePvcs bool) error {
 	projectInfo, err := projectImpl.GetProjectInfo(namespace, name)
 	if err != nil {
-		logrus.Errorf("failed to get project info : %s", err.Error())
+		logrus.Errorf("failed to get project info %s/%s: %s", namespace, name, err.Error())
 		return err
 	}
 
 	for _, releaseInfo := range projectInfo.Releases {
 		err = projectImpl.helmUsecase.DeleteReleaseWithRetry(namespace, releaseInfo.Name,  deletePvcs, false, 0)
 		if err != nil {
-			logrus.Errorf("failed to delete release %s : %s", releaseInfo.Name, err.Error())
+			logrus.Errorf("failed to delete release %s/%s : %s", namespace, releaseInfo.Name, err.Error())
 			return err
 		}
 	}
+
+	err = projectImpl.cache.DeleteProjectTask(namespace, name)
+	if err != nil {
+		logrus.Warnf("failed to delete project task %s/%s : %s", namespace, name, err.Error())
+	}
+
 	return nil
 }

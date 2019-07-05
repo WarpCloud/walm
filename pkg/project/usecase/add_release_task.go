@@ -59,7 +59,7 @@ func (projectImpl *Project) doAddRelease(namespace, name string, projectParams *
 
 	for _, releaseParams := range releaseList {
 		if projectExists {
-			affectReleaseRequest, err2 := projectImpl.brainFuckRuntimeDepParse(projectInfo, releaseParams, false)
+			affectReleaseRequest, err2 := projectImpl.autoUpdateReleaseDependencies(projectInfo, releaseParams, false)
 			if err2 != nil {
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2

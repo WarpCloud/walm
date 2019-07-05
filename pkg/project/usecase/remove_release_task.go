@@ -43,7 +43,7 @@ func (projectImpl *Project) doRemoveRelease(namespace, name, releaseName string,
 		return fmt.Errorf("release %s is not found in project %s", releaseName, name)
 	}
 	if projectInfo != nil {
-		affectReleaseRequest, err2 := projectImpl.brainFuckRuntimeDepParse(projectInfo, releaseParams, true)
+		affectReleaseRequest, err2 := projectImpl.autoUpdateReleaseDependencies(projectInfo, releaseParams, true)
 		if err2 != nil {
 			logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 			return err2

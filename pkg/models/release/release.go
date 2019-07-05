@@ -30,10 +30,10 @@ type ReleaseSpec struct {
 
 type ReleaseCache struct {
 	ReleaseSpec
-	ReleaseResourceMetas []ReleaseResourceMeta    `json:"releaseResourceMetas" description:"release resource metas"`
-	ComputedValues       map[string]interface{}   `json:"computedValues" description:"release computed values"`
-	MetaInfoValues       *MetaInfoParams `json:"metaInfoValues" description:"meta info values"`
-	Manifest             string                   `json:"manifest" description:"meta info values"`
+	ReleaseResourceMetas []ReleaseResourceMeta  `json:"releaseResourceMetas" description:"release resource metas"`
+	ComputedValues       map[string]interface{} `json:"computedValues" description:"release computed values"`
+	MetaInfoValues       *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
+	Manifest             string                 `json:"manifest" description:"meta info values"`
 }
 
 type ReleaseResourceMeta struct {
@@ -51,34 +51,28 @@ type ReleaseRequest struct {
 	Dependencies map[string]string      `json:"dependencies" description:"map of dependency chart name and release"`
 }
 
-//type ReleaseConfigDeltaEventType string
-//
-//const (
-//	CreateOrUpdate ReleaseConfigDeltaEventType = "CreateOrUpdate"
-//	Delete         ReleaseConfigDeltaEventType = "Delete"
-//)
-//
-//type ReleaseConfigDeltaEvent struct {
-//	Type ReleaseConfigDeltaEventType `json:"type" description:"delta type: CreateOrUpdate, Delete"`
-//	Data ReleaseConfig               `json:"data" description:"release config data"`
-//}
-//
-//type ReleaseConfig struct {
-//	v1beta1.ReleaseConfigSpec `json:"config" description:"release config spec"`
-//	Namespace string          `json:"namespace" description:"release namespace"`
-//	Name      string          `json:"name" description:"release name"`
-//}
+type ReleaseConfigDeltaEventType string
+
+const (
+	CreateOrUpdate ReleaseConfigDeltaEventType = "CreateOrUpdate"
+	Delete         ReleaseConfigDeltaEventType = "Delete"
+)
+
+type ReleaseConfigDeltaEvent struct {
+	Type ReleaseConfigDeltaEventType `json:"type" description:"delta type: CreateOrUpdate, Delete"`
+	Data *k8s.ReleaseConfig           `json:"data" description:"release config data"`
+}
 
 type ReleaseInfoV2 struct {
 	ReleaseInfo
-	DependenciesConfigValues map[string]interface{}   `json:"dependenciesConfigValues" description:"release's dependencies' config values"`
-	ComputedValues           map[string]interface{}   `json:"computedValues" description:"config values to render chart templates"`
-	OutputConfigValues       map[string]interface{}   `json:"outputConfigValues" description:"release's output config values'"`
-	ReleaseLabels            map[string]string        `json:"releaseLabels" description:"release labels'"`
-	Plugins                  []*ReleasePlugin         `json:"plugins" description:"plugins"`
-	MetaInfoValues           *MetaInfoParams `json:"metaInfoValues" description:"meta info values"`
-	Paused                   bool                     `json:"paused" description:"whether release is paused"`
-	ChartImage               string                   `json:"chartImage" description:"release chart image"`
+	DependenciesConfigValues map[string]interface{} `json:"dependenciesConfigValues" description:"release's dependencies' config values"`
+	ComputedValues           map[string]interface{} `json:"computedValues" description:"config values to render chart templates"`
+	OutputConfigValues       map[string]interface{} `json:"outputConfigValues" description:"release's output config values'"`
+	ReleaseLabels            map[string]string      `json:"releaseLabels" description:"release labels'"`
+	Plugins                  []*ReleasePlugin       `json:"plugins" description:"plugins"`
+	MetaInfoValues           *MetaInfoParams        `json:"metaInfoValues" description:"meta info values"`
+	Paused                   bool                   `json:"paused" description:"whether release is paused"`
+	ChartImage               string                 `json:"chartImage" description:"release chart image"`
 }
 
 type ReleasePlugin struct {
@@ -106,10 +100,10 @@ func (releaseInfo *ReleaseInfoV2) BuildReleaseRequestV2() *ReleaseRequestV2 {
 
 type ReleaseRequestV2 struct {
 	ReleaseRequest
-	ReleaseLabels  map[string]string        `json:"releaseLabels" description:"release labels"`
-	Plugins        []*ReleasePlugin         `json:"plugins" description:"plugins"`
-	MetaInfoParams *MetaInfoParams `json:"metaInfoParams" description:"meta info parameters"`
-	ChartImage     string                   `json:"chartImage" description:"chart image url"`
+	ReleaseLabels  map[string]string `json:"releaseLabels" description:"release labels"`
+	Plugins        []*ReleasePlugin  `json:"plugins" description:"plugins"`
+	MetaInfoParams *MetaInfoParams   `json:"metaInfoParams" description:"meta info parameters"`
+	ChartImage     string            `json:"chartImage" description:"chart image url"`
 }
 
 type ReleaseInfoV2List struct {

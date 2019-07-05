@@ -10,7 +10,7 @@ import (
 	releaseModel "WarpCloud/walm/pkg/models/release"
 	k8sModel "WarpCloud/walm/pkg/models/k8s"
 	errorModel "WarpCloud/walm/pkg/models/error"
-	"strings"
+	"WarpCloud/walm/pkg/release/utils"
 )
 
 type Helm struct {
@@ -46,7 +46,7 @@ func (helm *Helm) ReloadRelease(namespace, name string) error {
 		return err
 	}
 
-	if ConfigValuesDiff(oldDependenciesConfigValues, newDependenciesConfigValues) {
+	if utils.ConfigValuesDiff(oldDependenciesConfigValues, newDependenciesConfigValues) {
 		releaseRequest := releaseInfo.BuildReleaseRequestV2()
 		err = helm.InstallUpgradeRelease(namespace, releaseRequest, nil, false, 0, nil)
 		if err != nil {
@@ -76,22 +76,16 @@ func (helm *Helm) getDependencyOutputConfigs(namespace string, dependencies map[
 	for dependencyKey, dependency := range dependencies {
 		dependencyAliasConfigVar, ok := dependencyAliasConfigVars[dependencyKey]
 		if !ok {
-			continue
-		}
-
-		ss := strings.Split(dependency, "/")
-		if len(ss) > 2 {
-			err = fmt.Errorf("dependency value %s should not contains more than 1 \"/\"", dependency)
+			err = fmt.Errorf("dependency key %s is not valid, you can see valid keys in chart metainfo", dependencyKey)
+			logrus.Errorf(err.Error())
 			return
 		}
-		dependencyNamespace, dependencyName := "", ""
-		if len(ss) == 2 {
-			dependencyNamespace = ss[0]
-			dependencyName = ss[1]
-		} else {
-			dependencyNamespace = namespace
-			dependencyName = ss[0]
+
+		dependencyNamespace, dependencyName, err := utils.ParseDependedRelease(namespace, dependency)
+		if err != nil {
+			return nil, err
 		}
+
 		dependencyReleaseConfigResource, err := helm.k8sCache.GetResource(k8sModel.ReleaseConfigKind, dependencyNamespace, dependencyName)
 		if err != nil {
 			if errorModel.IsNotFoundError(err) {
