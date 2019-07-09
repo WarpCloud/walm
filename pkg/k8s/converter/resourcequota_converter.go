@@ -27,7 +27,11 @@ func ConvertResourceQuotaToK8s(quota *k8s.ResourceQuota) (*v1.ResourceQuota, err
 	return k8sQuota, nil
 }
 
-func ConvertResourceQuotaFromK8s(quota *v1.ResourceQuota) (*k8s.ResourceQuota, error) {
+func ConvertResourceQuotaFromK8s(oriQuota *v1.ResourceQuota) (*k8s.ResourceQuota, error) {
+	if oriQuota == nil {
+		return nil, nil
+	}
+	quota := oriQuota.DeepCopy()
 	return &k8s.ResourceQuota{
 		Meta:       k8s.NewMeta(k8s.ResourceQuotaKind, quota.Namespace, quota.Name, k8s.NewState("Ready", "", "")),
 		ResourceLimits: buildResourceLimits(quota),

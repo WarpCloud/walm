@@ -20,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"WarpCloud/walm/pkg/k8s/converter"
 	"reflect"
+	"fmt"
+	errorModel "WarpCloud/walm/pkg/models/error"
 )
 
 type Operator struct {
@@ -522,4 +524,72 @@ func (op *Operator) AnnotateNode(name string, annotationsToAdd map[string]string
 	}
 
 	return
+}
+
+func (op *Operator) DeletePvc(namespace string, name string) error {
+	resource, err := op.k8sCache.GetResource(k8sModel.PersistentVolumeClaimKind, namespace, name)
+	if err != nil {
+		if errorModel.IsNotFoundError(err) {
+			logrus.Warnf("pvc %s/%s is not found", namespace, name)
+			return nil
+		}
+		logrus.Errorf("failed to get pvc %s/%s : %s", namespace, name, err.Error())
+		return err
+	}
+
+	return op.doDeletePvc(resource.(*k8sModel.PersistentVolumeClaim))
+}
+
+func (op *Operator) doDeletePvc(pvc *k8sModel.PersistentVolumeClaim) error {
+	if len(pvc.Labels) > 0 {
+		selector := &metav1.LabelSelector{
+			MatchLabels: pvc.Labels,
+		}
+
+		selectorStr, err := utils.ConvertLabelSelectorToStr(selector)
+		if err != nil {
+			logrus.Errorf("failed to convert label selector: %s", err.Error())
+			return err
+		}
+
+		statefulSets, err := op.k8sCache.ListStatefulSets(pvc.Namespace, selectorStr)
+		if err != nil {
+			logrus.Errorf("failed to list stateful set : %s", err.Error())
+			return err
+		}
+		if len(statefulSets) > 0 {
+			statefulSetNames := make([]string, len(statefulSets))
+			for _, statefulSet := range statefulSets {
+				statefulSetNames = append(statefulSetNames, statefulSet.Namespace+"/"+statefulSet.Name)
+			}
+			err = fmt.Errorf("pvc %s/%s can not be deleted, it is still used by statefulsets %v", pvc.Namespace, pvc.Name, statefulSetNames)
+			return err
+		}
+	}
+	err := op.client.CoreV1().PersistentVolumeClaims(pvc.Namespace).Delete(pvc.Name, &metav1.DeleteOptions{})
+	if err != nil {
+		if utils.IsK8sResourceNotFoundErr(err) {
+			logrus.Warnf("pvc %s/%s is not found ", pvc.Namespace, pvc.Name)
+			return nil
+		}
+		logrus.Errorf("failed to delete pvc %s/%s : %s", pvc.Namespace, pvc.Name, err.Error())
+		return err
+	}
+	logrus.Infof("succeed to delete pvc %s/%s", pvc.Namespace, pvc.Name)
+	return nil
+}
+
+func (op *Operator) DeletePvcs(namespace string, labelSeletorStr string) error {
+	pvcs, err := op.k8sCache.ListPersistentVolumeClaims(namespace, labelSeletorStr)
+	if err != nil {
+		logrus.Errorf("failed to list pvcs : %s", err.Error())
+		return err
+	}
+	for _, pvc := range pvcs {
+		err := op.doDeletePvc(pvc)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

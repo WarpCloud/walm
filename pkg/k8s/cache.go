@@ -19,4 +19,5 @@ type Cache interface {
 	GetTenant(tenantName string) (*tenant.TenantInfo, error)
 
 	GetNodes(labelSelector string) ([]*k8s.Node, error)
+	ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error)
 }

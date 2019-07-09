@@ -45,6 +45,34 @@ type Informer struct {
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
 }
 
+func (informer *Informer)ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error) {
+	selector, err := labels.Parse(labelSelectorStr)
+	if err != nil {
+		logrus.Errorf("failed to parse label string %s : %s", labelSelectorStr, err.Error())
+		return nil, err
+	}
+	resources, err := informer.statefulSetLister.StatefulSets(namespace).List(selector)
+	if err != nil {
+		logrus.Errorf("failed to list stateful sets in namespace %s : %s", namespace, err.Error())
+		return nil, err
+	}
+
+	statefulSets := []*k8s.StatefulSet{}
+	for _, resource := range resources {
+		pods, err := informer.listPods(namespace, resource.Spec.Selector)
+		if err != nil {
+			return nil, err
+		}
+		statefulSet, err := converter.ConvertStatefulSetFromK8s(resource, pods)
+		if err != nil {
+			logrus.Errorf("failed to convert stateful set %s/%s: %s", resource.Namespace, resource.Name, err.Error())
+			return nil, err
+		}
+		statefulSets = append(statefulSets, statefulSet)
+	}
+	return statefulSets, nil
+}
+
 func (informer *Informer) GetNodes(labelSelectorStr string) ([]*k8s.Node, error) {
 	selector, err := labels.Parse(labelSelectorStr)
 	if err != nil {

@@ -23,4 +23,6 @@ type Operator interface {
 
 	LabelNode(name string, labelsToAdd map[string]string, labelsToRemove []string) (error)
 	AnnotateNode(name string, annotationsToAdd map[string]string, annotationsToRemove []string) (error)
+	DeletePvc(namespace string, name string) error
+	DeletePvcs(namespace string, labelSeletorStr string) error
 }

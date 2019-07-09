@@ -9,7 +9,12 @@ import (
 	"WarpCloud/walm/pkg/k8s/utils"
 )
 
-func ConvertNodeFromK8s(node *corev1.Node, podsOnNode *corev1.PodList) (walmNode *k8s.Node, err error) {
+func ConvertNodeFromK8s(oriNode *corev1.Node, podsOnNode *corev1.PodList) (walmNode *k8s.Node, err error) {
+	if oriNode == nil {
+		return
+	}
+	node := oriNode.DeepCopy()
+
 	walmNode = &k8s.Node{
 		Meta:                 k8s.NewMeta(k8s.NodeKind, node.Namespace, node.Name, buildNodeState(node)),
 		NodeIp:               buildNodeIp(node),
