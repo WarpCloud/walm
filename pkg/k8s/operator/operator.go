@@ -60,6 +60,14 @@ func (op *Operator) DeletePod(namespace string, name string) error {
 	return nil
 }
 
+func (op *Operator) RestartPod(namespace string, name string) error {
+	err := op.client.CoreV1().Pods(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		logrus.Errorf("failed to restart pod %s/%s : %s", namespace, name, err.Error())
+	}
+	return nil
+}
+
 func (op *Operator) BuildManifestObjects(namespace string, manifest string) ([]map[string]interface{}, error) {
 	resources, err := client.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(manifest))
 	if err != nil {

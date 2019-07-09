@@ -19,6 +19,10 @@ import (
 	"WarpCloud/walm/pkg/models/release"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
+	"sort"
+	"WarpCloud/walm/pkg/k8s/utils"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Informer struct {
@@ -45,7 +49,62 @@ type Informer struct {
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
 }
 
-func (informer *Informer)ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error) {
+func (informer *Informer)GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error) {
+	podLogOptions := &corev1.PodLogOptions{}
+	if containerName != "" {
+		podLogOptions.Container = containerName
+	}
+	if tailLines != 0 {
+		podLogOptions.TailLines = &tailLines
+	}
+	logs, err := informer.client.CoreV1().Pods(namespace).GetLogs(podName, podLogOptions).Do().Raw()
+	if err != nil {
+		logrus.Errorf("failed to get pod logs : %s", err.Error())
+		return "", err
+	}
+	return string(logs), nil
+}
+
+func (informer *Informer) GetPodEventList(namespace string, name string) (*k8s.EventList, error) {
+	pod, err := informer.podLister.Pods(namespace).Get(name)
+	if err != nil {
+		logrus.Errorf("failed to get pod : %s", err.Error())
+		return nil, err
+	}
+
+	ref := &corev1.ObjectReference{
+		Namespace:       pod.Namespace,
+		Name:            pod.Name,
+		Kind:            pod.Kind,
+		ResourceVersion: pod.ResourceVersion,
+		UID:             pod.UID,
+		APIVersion:      pod.APIVersion,
+	}
+
+	podEvents, err := informer.searchEvents(pod.Namespace, ref)
+	if err != nil {
+		logrus.Errorf("failed to get Events : %s", err.Error())
+		return nil, err
+	}
+	sort.Sort(utils.SortableEvents(podEvents.Items))
+
+	walmEvents := []k8s.Event{}
+	for _, event := range podEvents.Items {
+		walmEvent := k8s.Event{
+			Type:           event.Type,
+			Reason:         event.Reason,
+			Message:        event.Message,
+			Count:          event.Count,
+			FirstTimestamp: event.FirstTimestamp.String(),
+			LastTimestamp:  event.LastTimestamp.String(),
+			From:           utils.FormatEventSource(event.Source),
+		}
+		walmEvents = append(walmEvents, walmEvent)
+	}
+	return &k8s.EventList{Events: walmEvents}, nil
+}
+
+func (informer *Informer) ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error) {
 	selector, err := labels.Parse(labelSelectorStr)
 	if err != nil {
 		logrus.Errorf("failed to parse label string %s : %s", labelSelectorStr, err.Error())
@@ -211,6 +270,10 @@ func (informer *Informer) start(stopCh <-chan struct{}) {
 func (informer *Informer) waitForCacheSync(stopCh <-chan struct{}) {
 	informer.factory.WaitForCacheSync(stopCh)
 	informer.releaseConifgFactory.WaitForCacheSync(stopCh)
+}
+
+func (informer *Informer) searchEvents(namespace string, objOrRef runtime.Object) (*corev1.EventList, error) {
+	return informer.client.CoreV1().Events(namespace).Search(runtime.NewScheme(), objOrRef)
 }
 
 func NewInformer(client *kubernetes.Clientset, releaseConfigClient *releaseconfigclientset.Clientset, resyncPeriod time.Duration, stopCh <-chan struct{}) (*Informer) {

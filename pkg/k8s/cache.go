@@ -19,5 +19,9 @@ type Cache interface {
 	GetTenant(tenantName string) (*tenant.TenantInfo, error)
 
 	GetNodes(labelSelector string) ([]*k8s.Node, error)
+
 	ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error)
+
+	GetPodEventList(namespace string, name string) (*k8s.EventList, error)
+	GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error)
 }
