@@ -8,6 +8,7 @@ import (
 	k8sModel "WarpCloud/walm/pkg/models/k8s"
 	httpUtils "WarpCloud/walm/pkg/util/http"
 	"fmt"
+	errorModel "WarpCloud/walm/pkg/models/error"
 )
 
 type SecretHandler struct {
@@ -80,13 +81,14 @@ func (handler *SecretHandler)GetSecret(request *restful.Request, response *restf
 	name := request.PathParameter("secretname")
 	secret, err := handler.k8sCache.GetResource(k8sModel.SecretKind,namespace, name)
 	if err != nil {
+		if errorModel.IsNotFoundError(err) {
+			httpUtils.WriteNotFoundResponse(response, -1, fmt.Sprintf("secret %s/%s is not found",namespace, name))
+			return
+		}
 		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get secret %s/%s: %s", namespace, name, err.Error()))
 		return
 	}
-	if secret.GetState().Status == "NotFound" {
-		httpUtils.WriteNotFoundResponse(response, -1, fmt.Sprintf("secret %s/%s is not found",namespace, name))
-		return
-	}
+
 	response.WriteEntity(secret.(*k8sModel.Secret))
 }
 

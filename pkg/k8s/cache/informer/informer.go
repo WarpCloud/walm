@@ -49,6 +49,31 @@ type Informer struct {
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
 }
 
+func (informer *Informer)ListStorageClasses(namespace string, labelSelectorStr string) ([]*k8s.StorageClass, error) {
+	selector, err := labels.Parse(labelSelectorStr)
+	if err != nil {
+		logrus.Errorf("failed to parse label string %s : %s", labelSelectorStr, err.Error())
+		return nil, err
+	}
+
+	resources, err := informer.storageClassLister.List(selector)
+	if err != nil {
+		logrus.Errorf("failed to list storage classes in namespace %s : %s", namespace, err.Error())
+		return nil, err
+	}
+
+	storageClasses := []*k8s.StorageClass{}
+	for _, resource := range resources {
+		storageClass, err := converter.ConvertStorageClassFromK8s(resource)
+		if err != nil {
+			logrus.Errorf("failed to convert storageClass %s/%s: %s", resource.Namespace, resource.Name, err.Error())
+			return nil, err
+		}
+		storageClasses = append(storageClasses, storageClass)
+	}
+	return storageClasses, nil
+}
+
 func (informer *Informer) GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error) {
 	podLogOptions := &corev1.PodLogOptions{}
 	if containerName != "" {
@@ -285,6 +310,8 @@ func (informer *Informer) GetResource(kind k8s.ResourceKind, namespace, name str
 		return informer.getSecret(namespace, name)
 	case k8s.NodeKind:
 		return informer.getNode(namespace, name)
+	case k8s.StorageClassKind:
+		return informer.getStorageClass(namespace, name)
 	default:
 		return &k8s.DefaultResource{Meta: k8s.NewMeta(kind, namespace, name, k8s.NewState("Unknown", "NotSupportedKind", "Can not get this resource"))}, nil
 	}

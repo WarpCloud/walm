@@ -189,6 +189,18 @@ func (informer *Informer) getNonTermiatedPodsOnNode(nodeName string, labelSelect
 	return informer.client.CoreV1().Pods(metav1.NamespaceAll).List(listOptions)
 }
 
+
+func (informer *Informer) getStorageClass(namespace, name string) (k8s.Resource, error) {
+	resource, err := informer.storageClassLister.Get(name)
+	if err != nil {
+		return convertResourceError(err, &k8s.StorageClass{
+			Meta: k8s.NewNotFoundMeta(k8s.StorageClassKind, namespace, name),
+		})
+	}
+
+	return converter.ConvertStorageClassFromK8s(resource)
+}
+
 func convertResourceError(err error, notFoundResource k8s.Resource) (k8s.Resource, error) {
 	if utils.IsK8sResourceNotFoundErr(err) {
 		logrus.Warnf(" %s %s/%s is not found", notFoundResource.GetKind(), notFoundResource.GetNamespace(), notFoundResource.GetName())
