@@ -24,4 +24,6 @@ type Cache interface {
 
 	GetPodEventList(namespace string, name string) (*k8s.EventList, error)
 	GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error)
+
+	ListSecrets(namespace string, name string) (*k8s.SecretList, error)
 }

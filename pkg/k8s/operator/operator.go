@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"fmt"
 	errorModel "WarpCloud/walm/pkg/models/error"
+	"encoding/base64"
 )
 
 type Operator struct {
@@ -600,4 +601,66 @@ func (op *Operator) DeletePvcs(namespace string, labelSeletorStr string) error {
 		}
 	}
 	return nil
+}
+
+func (op *Operator) CreateSecret(namespace string, secretRequestBody *k8sModel.CreateSecretRequestBody) error {
+	secret, err := buildSecret(namespace, secretRequestBody)
+	if err != nil {
+		return err
+	}
+	_, err = op.client.CoreV1().Secrets(namespace).Create(secret)
+	if err != nil {
+		logrus.Errorf("failed to create secret %s/%s : %s", namespace, secretRequestBody.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (op *Operator) UpdateSecret(namespace string, walmSecret *k8sModel.CreateSecretRequestBody) (err error) {
+	newSecret, err := buildSecret(namespace, walmSecret)
+	if err != nil {
+		return err
+	}
+	_, err = op.client.CoreV1().Secrets(namespace).Update(newSecret)
+	if err != nil {
+		logrus.Errorf("failed to update secret : %s", err.Error())
+		return
+	}
+	logrus.Infof("succeed to update secret %s/%s", namespace, walmSecret.Name)
+	return
+}
+
+func (op *Operator) DeleteSecret(namespace, name string) (err error) {
+	err = op.client.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		if utils.IsK8sResourceNotFoundErr(err) {
+			logrus.Warnf("secret %s/%s is not found ", namespace, name)
+			return nil
+		}
+		logrus.Errorf("failed to delete secret : %s", err.Error())
+		return
+	}
+	logrus.Infof("succeed to delete secret %s/%s", namespace, name)
+	return
+}
+
+func buildSecret(namespace string, walmSecret *k8sModel.CreateSecretRequestBody) (secret *v1.Secret, err error) {
+	DataByte := make(map[string][]byte, 0)
+	for k, v := range walmSecret.Data {
+		DataByte[k], err = base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			logrus.Errorf("failed to decode secret : %+v %s", walmSecret.Data, err.Error())
+			return
+		}
+	}
+	logrus.Infof("secret data: %+v", walmSecret.Data)
+	secret = &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      walmSecret.Name,
+		},
+		Data: DataByte,
+		Type: v1.SecretType(walmSecret.Type),
+	}
+	return
 }

@@ -225,6 +225,12 @@ func (resource *Ingress) AddToResourceSet(resourceSet *ResourceSet) {
 	resourceSet.Ingresses = append(resourceSet.Ingresses, resource)
 }
 
+type CreateSecretRequestBody struct {
+	Data map[string]string `json:"data" description:"secret data"`
+	Type string            `json:"type" description:"secret type"`
+	Name string            `json:"name" description:"resource name"`
+}
+
 type Secret struct {
 	Meta
 	Data map[string]string `json:"data" description:"secret data"`

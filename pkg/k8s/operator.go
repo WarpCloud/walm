@@ -28,4 +28,8 @@ type Operator interface {
 
 	DeletePvc(namespace string, name string) error
 	DeletePvcs(namespace string, labelSeletorStr string) error
+
+	CreateSecret(namespace string, secretRequestBody *k8s.CreateSecretRequestBody) error
+	UpdateSecret(namespace string, secretRequestBody *k8s.CreateSecretRequestBody) error
+	DeleteSecret(namespace, name string) (err error)
 }

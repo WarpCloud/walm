@@ -49,7 +49,7 @@ type Informer struct {
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
 }
 
-func (informer *Informer)GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error) {
+func (informer *Informer) GetPodLogs(namespace string, podName string, containerName string, tailLines int64) (string, error) {
 	podLogOptions := &corev1.PodLogOptions{}
 	if containerName != "" {
 		podLogOptions.Container = containerName
@@ -102,6 +102,34 @@ func (informer *Informer) GetPodEventList(namespace string, name string) (*k8s.E
 		walmEvents = append(walmEvents, walmEvent)
 	}
 	return &k8s.EventList{Events: walmEvents}, nil
+}
+
+func (informer *Informer) ListSecrets(namespace string, labelSelectorStr string) (*k8s.SecretList, error) {
+	selector, err := labels.Parse(labelSelectorStr)
+	if err != nil {
+		logrus.Errorf("failed to parse label string %s : %s", labelSelectorStr, err.Error())
+		return nil, err
+	}
+
+	resources, err := informer.secretLister.Secrets(namespace).List(selector)
+	if err != nil {
+		logrus.Errorf("failed to list secrets in namespace %s : %s", namespace, err.Error())
+		return nil, err
+	}
+
+	secrets := []*k8s.Secret{}
+	for _, resource := range resources {
+		secret, err := converter.ConvertSecretFromK8s(resource)
+		if err != nil {
+			logrus.Errorf("failed to convert secret %s/%s: %s", resource.Namespace, resource.Name, err.Error())
+			return nil, err
+		}
+		secrets = append(secrets, secret)
+	}
+	return &k8s.SecretList{
+		Num:   len(secrets),
+		Items: secrets,
+	}, nil
 }
 
 func (informer *Informer) ListStatefulSets(namespace string, labelSelectorStr string) ([]*k8s.StatefulSet, error) {
