@@ -6,6 +6,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"net/http"
 	httpModel "WarpCloud/walm/pkg/models/http"
+	"fmt"
 )
 
 func WriteErrorResponse(response *restful.Response, code int, errMsg string) error {
@@ -46,6 +47,11 @@ func GetTimeoutSecQueryParam(request *restful.Request) (timeoutSec int64, err er
 		timeoutSec, err = strconv.ParseInt(timeoutStr, 10, 64)
 		if err != nil {
 			logrus.Errorf("failed to parse query parameter timeoutSec %s : %s", timeoutStr, err.Error())
+			return
+		}
+		if timeoutSec <0 {
+			err = fmt.Errorf("query parameter timeoutSec %s should not be less than zero", timeoutStr)
+			logrus.Error(err.Error())
 			return
 		}
 	}

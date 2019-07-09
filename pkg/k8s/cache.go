@@ -18,5 +18,5 @@ type Cache interface {
 	ListTenants(labelSelectorStr string) (*tenant.TenantInfoList, error)
 	GetTenant(tenantName string) (*tenant.TenantInfo, error)
 
-
+	GetNodes(labelSelector string) ([]*k8s.Node, error)
 }

@@ -387,3 +387,13 @@ type LimitRange struct {
 
 func (resource *LimitRange) AddToResourceSet(resourceSet *ResourceSet) {
 }
+
+type LabelNodeRequestBody struct {
+	AddLabels    map[string]string `json:"addLabels"`
+	RemoveLabels []string          `json:"removeLabels"`
+}
+
+type AnnotateNodeRequestBody struct {
+	AddAnnotations    map[string]string `json:"addAnnotations"`
+	RemoveAnnotations []string          `json:"removeAnnotations"`
+}

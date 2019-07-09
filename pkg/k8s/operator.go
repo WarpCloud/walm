@@ -20,4 +20,7 @@ type Operator interface {
 	CreateResourceQuota(resourceQuota *k8s.ResourceQuota) error
 	CreateOrUpdateResourceQuota(resourceQuota *k8s.ResourceQuota) error
 	CreateLimitRange(limitRange *k8s.LimitRange) error
+
+	LabelNode(name string, labelsToAdd map[string]string, labelsToRemove []string) (error)
+	AnnotateNode(name string, annotationsToAdd map[string]string, annotationsToRemove []string) (error)
 }

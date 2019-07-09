@@ -19,6 +19,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"WarpCloud/walm/pkg/k8s/converter"
+	"reflect"
 )
 
 type Operator struct {
@@ -459,4 +460,66 @@ func (op *Operator) CreateLimitRange(limitRange *k8sModel.LimitRange) error {
 		return err
 	}
 	return nil
+}
+
+func (op *Operator) LabelNode(name string, labelsToAdd map[string]string, labelsToRemove []string) (err error) {
+	if len(labelsToAdd) == 0 && len(labelsToRemove) == 0 {
+		return
+	}
+
+	node, err := op.client.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	oldLabels, err := json.Marshal(node.Labels)
+	if err != nil {
+		return
+	}
+
+	node.Labels = utils.MergeLabels(node.Labels, labelsToAdd, labelsToRemove)
+	newLabels, err := json.Marshal(node.Labels)
+	if err != nil {
+		return
+	}
+
+	if !reflect.DeepEqual(oldLabels, newLabels) {
+		_, err = op.client.CoreV1().Nodes().Update(node)
+		logrus.Errorf("failed to update node %s : %s", name, err.Error())
+		return
+	}
+
+	return
+}
+
+func (op *Operator) AnnotateNode(name string, annotationsToAdd map[string]string, annotationsToRemove []string) (err error) {
+	if len(annotationsToAdd) == 0 && len(annotationsToRemove) == 0 {
+		return
+	}
+
+	node, err := op.client.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	oldAnnos, err := json.Marshal(node.Annotations)
+	if err != nil {
+		return
+	}
+
+	node.Annotations = utils.MergeLabels(node.Annotations, annotationsToAdd, annotationsToRemove)
+	newAnnos, err := json.Marshal(node.Annotations)
+	if err != nil {
+		return
+	}
+
+	if !reflect.DeepEqual(oldAnnos, newAnnos) {
+		_, err = op.client.CoreV1().Nodes().Update(node)
+		if err != nil {
+			logrus.Errorf("failed to update node %s : %s", name, err.Error())
+			return
+		}
+	}
+
+	return
 }

@@ -6,6 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"WarpCloud/walm/pkg/k8s/converter"
 	errorModel "WarpCloud/walm/pkg/models/error"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 func (informer *Informer) getReleaseConfig(namespace, name string) (k8s.Resource, error) {
@@ -127,6 +130,63 @@ func (informer *Informer) getStatefulSet(namespace, name string) (k8s.Resource, 
 		return nil, err
 	}
 	return converter.ConvertStatefulSetFromK8s(resource, pods)
+}
+
+func (informer *Informer) listPods(namespace string, labelSelector *metav1.LabelSelector) ([]*corev1.Pod, error) {
+	selector, err := utils.ConvertLabelSelectorToSelector(labelSelector)
+	if err != nil {
+		logrus.Errorf("failed to convert label selector : %s", err.Error())
+		return nil, err
+	}
+	pods, err := informer.podLister.Pods(namespace).List(selector)
+	if err != nil {
+		logrus.Errorf("failed to list pods : %s", err.Error())
+		return nil, err
+	}
+	return pods, nil
+}
+
+func (informer *Informer) getEndpoints(namespace, name string) (*corev1.Endpoints, error) {
+	endpoints, err := informer.endpointsLister.Endpoints(namespace).Get(name)
+	if err != nil {
+		logrus.Errorf("failed to get endpoints : %s", err.Error())
+		return nil, err
+	}
+
+	return endpoints, nil
+}
+
+func (informer *Informer) getNode(namespace, name string) (k8s.Resource, error) {
+	resource, err := informer.nodeLister.Get(name)
+	if err != nil {
+		return convertResourceError(err, &k8s.Node{
+			Meta: k8s.NewNotFoundMeta(k8s.NodeKind, namespace, name),
+		})
+	}
+
+	podsOnNode, err := informer.getNonTermiatedPodsOnNode(name, nil)
+	if err != nil {
+		logrus.Errorf("failed to get pods on node", err.Error())
+		return nil, err
+	}
+	return converter.ConvertNodeFromK8s(resource, podsOnNode)
+}
+
+func (informer *Informer) getNonTermiatedPodsOnNode(nodeName string, labelSelector *metav1.LabelSelector) (*corev1.PodList, error) {
+	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName + ",status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	if err != nil {
+		return nil, err
+	}
+	labelSelectorStr, err := utils.ConvertLabelSelectorToStr(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	listOptions := metav1.ListOptions{
+		FieldSelector: fieldSelector.String(),
+		LabelSelector: labelSelectorStr,
+	}
+
+	return informer.client.CoreV1().Pods(metav1.NamespaceAll).List(listOptions)
 }
 
 func convertResourceError(err error, notFoundResource k8s.Resource) (k8s.Resource, error) {

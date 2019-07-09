@@ -18,13 +18,11 @@ import (
 	errorModel "WarpCloud/walm/pkg/models/error"
 	"WarpCloud/walm/pkg/models/release"
 	"k8s.io/apimachinery/pkg/labels"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"WarpCloud/walm/pkg/k8s/utils"
 	"k8s.io/client-go/tools/cache"
 )
 
 type Informer struct {
+	client                      *kubernetes.Clientset
 	factory                     informers.SharedInformerFactory
 	deploymentLister            listv1beta1.DeploymentLister
 	configMapLister             v1.ConfigMapLister
@@ -45,6 +43,37 @@ type Informer struct {
 
 	releaseConifgFactory releaseconfigexternalversions.SharedInformerFactory
 	releaseConfigLister  releaseconfigv1beta1.ReleaseConfigLister
+}
+
+func (informer *Informer) GetNodes(labelSelectorStr string) ([]*k8s.Node, error) {
+	selector, err := labels.Parse(labelSelectorStr)
+	if err != nil {
+		logrus.Errorf("failed to parse label string %s : %s", labelSelectorStr, err.Error())
+		return nil, err
+	}
+	nodeList, err := informer.nodeLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+
+	walmNodes := []*k8s.Node{}
+	if nodeList != nil {
+		for _, node := range nodeList {
+			podsOnNode, err := informer.getNonTermiatedPodsOnNode(node.Name, nil)
+			if err != nil {
+				logrus.Errorf("failed to get pods on node", err.Error())
+				return nil, err
+			}
+			walmNode, err := converter.ConvertNodeFromK8s(node, podsOnNode)
+			if err != nil {
+				logrus.Errorf("failed to build walm node : %s", err.Error())
+				return nil, err
+			}
+			walmNodes = append(walmNodes, walmNode)
+		}
+	}
+
+	return walmNodes, nil
 }
 
 func (informer *Informer) AddReleaseConfigHandler(OnAdd func(obj interface{}), OnUpdate func(oldObj, newObj interface{}), OnDelete func(obj interface{})) {
@@ -104,30 +133,6 @@ func (informer *Informer) ListReleaseConfigs(namespace, labelSelectorStr string)
 	return releaseConfigs, nil
 }
 
-func (informer *Informer) listPods(namespace string, labelSelector *metav1.LabelSelector) ([]*corev1.Pod, error) {
-	selector, err := utils.ConvertLabelSelectorToSelector(labelSelector)
-	if err != nil {
-		logrus.Errorf("failed to convert label selector : %s", err.Error())
-		return nil, err
-	}
-	pods, err := informer.podLister.Pods(namespace).List(selector)
-	if err != nil {
-		logrus.Errorf("failed to list pods : %s", err.Error())
-		return nil, err
-	}
-	return pods, nil
-}
-
-func (informer *Informer) getEndpoints(namespace, name string) (*corev1.Endpoints, error) {
-	endpoints, err := informer.endpointsLister.Endpoints(namespace).Get(name)
-	if err != nil {
-		logrus.Errorf("failed to get endpoints : %s", err.Error())
-		return nil, err
-	}
-
-	return endpoints, nil
-}
-
 func (informer *Informer) GetResourceSet(releaseResourceMetas []release.ReleaseResourceMeta) (resourceSet *k8s.ResourceSet, err error) {
 	resourceSet = k8s.NewResourceSet()
 	for _, resourceMeta := range releaseResourceMetas {
@@ -163,6 +168,8 @@ func (informer *Informer) GetResource(kind k8s.ResourceKind, namespace, name str
 		return informer.getIngress(namespace, name)
 	case k8s.SecretKind:
 		return informer.getSecret(namespace, name)
+	case k8s.NodeKind:
+		return informer.getNode(namespace, name)
 	default:
 		return &k8s.DefaultResource{Meta: k8s.NewMeta(kind, namespace, name, k8s.NewState("Unknown", "NotSupportedKind", "Can not get this resource"))}, nil
 	}
@@ -180,6 +187,7 @@ func (informer *Informer) waitForCacheSync(stopCh <-chan struct{}) {
 
 func NewInformer(client *kubernetes.Clientset, releaseConfigClient *releaseconfigclientset.Clientset, resyncPeriod time.Duration, stopCh <-chan struct{}) (*Informer) {
 	informer := &Informer{}
+	informer.client = client
 	informer.factory = informers.NewSharedInformerFactory(client, resyncPeriod)
 	informer.deploymentLister = informer.factory.Extensions().V1beta1().Deployments().Lister()
 	informer.configMapLister = informer.factory.Core().V1().ConfigMaps().Lister()
