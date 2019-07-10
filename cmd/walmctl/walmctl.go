@@ -3,15 +3,14 @@ package main
 import (
 	walmctlEnv "WarpCloud/walm/cmd/walmctl/util/environment"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"os"
 )
 
 var globalUsage = `walmctl controls the walm application lifecycle manager.
 To begin working with walmctl,Find detail docs at:
-http://172.16.1.41:10080/zhiyangdai/WalmctlDocs
+http://172.16.1.41:10080/zhiyangdai/walmdocs/blob/master/docs/features/walmctl%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3.md
 Environment:
-  $WALM_HOST		set walm host to substitute --server/-s in commands. The format is host:port (export $WALM_HOST=...)
+  $WALM_HOST		Set WALM_HOST env to substitute --server/-s in commands. The format is host:port (export $WALM_HOST=...)
 
 `
 
@@ -34,16 +33,10 @@ func newRootCmd(args []string) *cobra.Command {
 		Hidden: true,
 	})
 
-	viper.AutomaticEnv()
 	flags := cmd.PersistentFlags()
 
-	flags.String("walm_host", "", "walm apiserver env. Overrides $WALM_HOST")
-	flags.MarkHidden("walm_host")
-	flags.StringVarP(&walmserver, "server", "s", "", "walm apiserver address")
+	flags.StringVarP(&walmserver, "server", "s", os.Getenv("WALM_HOST"), "walm apiserver address")
 	flags.StringVarP(&namespace, "namespace", "n", "", "kubernates namespace")
-
-	viper.BindPFlag("walm_host", flags.Lookup("walm_host"))
-
 
 	settings.AddFlags(flags)
 
