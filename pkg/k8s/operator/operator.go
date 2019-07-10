@@ -8,7 +8,6 @@ import (
 	"WarpCloud/walm/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"WarpCloud/walm/pkg/k8s/utils"
-	"WarpCloud/walm/pkg/k8s/client"
 	"bytes"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/api/extensions/v1beta1"
@@ -23,11 +22,13 @@ import (
 	"fmt"
 	errorModel "WarpCloud/walm/pkg/models/error"
 	"encoding/base64"
+	"WarpCloud/walm/pkg/k8s/client/helm"
 )
 
 type Operator struct {
-	client   *kubernetes.Clientset
-	k8sCache k8s.Cache
+	client      *kubernetes.Clientset
+	k8sCache    k8s.Cache
+	kubeClients *helm.Client
 }
 
 func (op *Operator) DeleteStatefulSetPvcs(statefulSets []*k8sModel.StatefulSet) error {
@@ -70,7 +71,7 @@ func (op *Operator) RestartPod(namespace string, name string) error {
 }
 
 func (op *Operator) BuildManifestObjects(namespace string, manifest string) ([]map[string]interface{}, error) {
-	resources, err := client.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(manifest))
+	resources, err := op.kubeClients.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(manifest))
 	if err != nil {
 		logrus.Errorf("failed to build unstructured : %s", err.Error())
 		return nil, err
@@ -84,7 +85,7 @@ func (op *Operator) BuildManifestObjects(namespace string, manifest string) ([]m
 }
 
 func (op *Operator) ComputeReleaseResourcesByManifest(namespace string, manifest string) (*release.ReleaseResources, error) {
-	resources, err := client.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(manifest))
+	resources, err := op.kubeClients.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(manifest))
 	if err != nil {
 		logrus.Errorf("failed to build unstructured : %s", err.Error())
 		return nil, err
@@ -663,4 +664,12 @@ func buildSecret(namespace string, walmSecret *k8sModel.CreateSecretRequestBody)
 		Type: v1.SecretType(walmSecret.Type),
 	}
 	return
+}
+
+func NewOperator(client *kubernetes.Clientset, k8sCache k8s.Cache, kubeClients *helm.Client) *Operator {
+	return &Operator{
+		client:      client,
+		k8sCache:    k8sCache,
+		kubeClients: kubeClients,
+	}
 }

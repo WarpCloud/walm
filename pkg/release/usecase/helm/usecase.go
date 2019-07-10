@@ -130,8 +130,21 @@ func (helm *Helm) validateReleaseTask(namespace, name string, allowReleaseTaskNo
 		if !(taskState.IsFinished() || taskState.IsTimeout()) {
 			err = fmt.Errorf("please wait for the last release task %s-%s finished or timeout", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
 			logrus.Warn(err.Error())
-			return
+			return releaseTask, err
 		}
 	}
 	return
+}
+
+func NewHelm(releaseCache release.Cache, helm helm.Helm, k8sCache k8s.Cache, k8sOperator k8s.Operator, task task.Task) *Helm {
+	h := &Helm{
+		releaseCache: releaseCache,
+		helm:         helm,
+		k8sCache:     k8sCache,
+		k8sOperator:  k8sOperator,
+		task:         task,
+	}
+	h.registerCreateReleaseTask()
+	h.registerDeleteReleaseTask()
+	return h
 }

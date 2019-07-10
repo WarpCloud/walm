@@ -15,7 +15,6 @@ import (
 	"strings"
 	"WarpCloud/walm/pkg/k8s"
 	k8sModel "WarpCloud/walm/pkg/models/k8s"
-	"WarpCloud/walm/pkg/k8s/client"
 	"k8s.io/helm/pkg/helm"
 	"github.com/hashicorp/golang-lru"
 	"k8s.io/helm/pkg/storage/driver"
@@ -24,6 +23,13 @@ import (
 	"bytes"
 	errorModel "WarpCloud/walm/pkg/models/error"
 	"k8s.io/helm/pkg/action"
+	k8sHelm "WarpCloud/walm/pkg/k8s/client/helm"
+	"k8s.io/helm/pkg/storage"
+	"crypto/tls"
+	"net/http"
+	"os"
+	"github.com/containerd/containerd/remotes/docker"
+	"WarpCloud/walm/pkg/setting"
 )
 
 type ChartRepository struct {
@@ -39,16 +45,17 @@ type Helm struct {
 	k8sCache       k8s.Cache
 	helmClients    *lru.Cache
 	list           *action.List
+	kubeClients    *k8sHelm.Client
 }
 
-func (helmImpl *Helm) ListAllReleases() (releaseCaches []*release.ReleaseCache,err error) {
+func (helmImpl *Helm) ListAllReleases() (releaseCaches []*release.ReleaseCache, err error) {
 	helmReleases, err := helmImpl.list.Run()
 	if err != nil {
 		logrus.Errorf("failed to list helm releases: %s\n", err.Error())
 		return nil, err
 	}
 	for _, helmRelease := range helmReleases {
-		releaseCache, err := convertHelmRelease(helmRelease)
+		releaseCache, err := helmImpl.convertHelmRelease(helmRelease)
 		if err != nil {
 			logrus.Errorf("failed to convert helm release %s/%s : %s", helmRelease.Namespace, helmRelease.Name, err.Error())
 			return nil, err
@@ -175,13 +182,28 @@ func (helmImpl *Helm) InstallOrCreateRelease(namespace string, releaseRequest *r
 	valueOverride := map[string]interface{}{}
 	util.MergeValues(valueOverride, configValues, false)
 	util.MergeValues(valueOverride, dependencyConfigs, false)
-	valueOverride[walm.WalmPluginConfigKey] = releasePlugins
+
+	walmPlugins := convertReleasePlugins(releasePlugins)
+	valueOverride[walm.WalmPluginConfigKey] = walmPlugins
 	releaseCache, err := helmImpl.doInstallUpgradeReleaseFromChart(namespace, releaseRequest, rawChart, valueOverride, update, dryRun)
 	if err != nil {
 		logrus.Errorf("failed to create or update release from chart : %s", err.Error())
 		return nil, err
 	}
 	return releaseCache, nil
+}
+
+func convertReleasePlugins(releasePlugins []*release.ReleasePlugin)  []*walm.WalmPlugin {
+	results := []*walm.WalmPlugin{}
+	for _, plugin := range releasePlugins {
+		results = append(results, &walm.WalmPlugin{
+			Name: plugin.Name,
+			Args: plugin.Args,
+			Version: plugin.Version,
+			Disable: plugin.Disable,
+		})
+	}
+	return results
 }
 
 func (helmImpl *Helm) doInstallUpgradeReleaseFromChart(namespace string,
@@ -230,10 +252,10 @@ func (helmImpl *Helm) doInstallUpgradeReleaseFromChart(namespace string,
 			return nil, err
 		}
 	}
-	return convertHelmRelease(helmRelease)
+	return helmImpl.convertHelmRelease(helmRelease)
 }
 
-func convertHelmRelease(helmRelease *helmRelease.Release) (releaseCache *release.ReleaseCache, err error) {
+func (helmImpl *Helm) convertHelmRelease(helmRelease *helmRelease.Release) (releaseCache *release.ReleaseCache, err error) {
 	releaseSpec := release.ReleaseSpec{}
 	releaseSpec.Name = helmRelease.Name
 	releaseSpec.Namespace = helmRelease.Namespace
@@ -255,14 +277,14 @@ func convertHelmRelease(helmRelease *helmRelease.Release) (releaseCache *release
 	}
 
 	releaseCache.MetaInfoValues, _ = buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
-	releaseCache.ReleaseResourceMetas, err = getReleaseResourceMetas(helmRelease)
+	releaseCache.ReleaseResourceMetas, err = helmImpl.getReleaseResourceMetas(helmRelease)
 	releaseCache.Manifest = helmRelease.Manifest
 	return
 }
 
-func getReleaseResourceMetas(helmRelease *helmRelease.Release) (resources []release.ReleaseResourceMeta, err error) {
+func (helmImpl *Helm) getReleaseResourceMetas(helmRelease *helmRelease.Release) (resources []release.ReleaseResourceMeta, err error) {
 	resources = []release.ReleaseResourceMeta{}
-	results, err := client.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
+	results, err := helmImpl.kubeClients.GetKubeClient(helmRelease.Namespace).BuildUnstructured(helmRelease.Namespace, bytes.NewBufferString(helmRelease.Manifest))
 	if err != nil {
 		logrus.Errorf("failed to get release resource metas of %s", helmRelease.Name)
 		return resources, err
@@ -298,7 +320,7 @@ func (helmImpl *Helm) getCurrentHelmClient(namespace string) (*helm.Client, erro
 	if c, ok := helmImpl.helmClients.Get(namespace); ok {
 		return c.(*helm.Client), nil
 	} else {
-		kc := client.GetKubeClient(namespace)
+		kc := helmImpl.kubeClients.GetKubeClient(namespace)
 		clientset, err := kc.KubernetesClientSet()
 		if err != nil {
 			return nil, err
@@ -433,4 +455,71 @@ func convertBufferFiles(chartFiles []*common.BufferedFile) []*loader.BufferedFil
 		})
 	}
 	return result
+}
+
+func NewHelm(repoList []*setting.ChartRepo, registryClient *registry.Client, k8sCache k8s.Cache, kubeClients *k8sHelm.Client) (*Helm, error) {
+	chartRepoMap := make(map[string]*ChartRepository)
+
+	for _, chartRepo := range repoList {
+		chartRepository := ChartRepository{
+			Name:     chartRepo.Name,
+			URL:      chartRepo.URL,
+			Username: "",
+			Password: "",
+		}
+		chartRepoMap[chartRepo.Name] = &chartRepository
+	}
+
+	helmClients, _ := lru.New(100)
+
+	kc := kubeClients.GetKubeClient("")
+	clientset, err := kc.KubernetesClientSet()
+	if err != nil {
+		logrus.Errorf("failed to get clientset: %s", err.Error())
+		return nil, err
+	}
+
+	d := driver.NewConfigMaps(clientset.CoreV1().ConfigMaps(""))
+	store := storage.Init(d)
+	config := &action.Configuration{
+		KubeClient: kc,
+		Releases:   store,
+		Discovery:  clientset.Discovery(),
+	}
+	list := action.NewList(config)
+	list.AllNamespaces = true
+	list.All = true
+	list.StateMask = action.ListDeployed | action.ListFailed | action.ListPendingInstall | action.ListPendingRollback |
+		action.ListPendingUpgrade | action.ListUninstalled | action.ListUninstalling | action.ListUnknown
+
+	return &Helm{
+		k8sCache:       k8sCache,
+		kubeClients:    kubeClients,
+		registryClient: registryClient,
+		helmClients:    helmClients,
+		list:           list,
+		chartRepoMap:   chartRepoMap,
+	}, nil
+
+}
+
+func NewRegistryClient(chartImageConfig *setting.ChartImageConfig) *registry.Client {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	option := &registry.ClientOptions{
+		Out: os.Stdout,
+		Resolver: registry.Resolver{
+			Resolver: docker.NewResolver(docker.ResolverOptions{
+				Client: client,
+			}),
+		},
+		CacheRootDir: "/helm-cache",
+	}
+	if chartImageConfig != nil && chartImageConfig.CacheRootDir != "" {
+		option.CacheRootDir = chartImageConfig.CacheRootDir
+	}
+	return registry.NewClient(option)
 }

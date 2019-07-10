@@ -42,7 +42,7 @@ func (projectImpl *Project) doDeleteProject(namespace, name string, deletePvcs b
 	}
 
 	for _, releaseInfo := range projectInfo.Releases {
-		err = projectImpl.helmUsecase.DeleteReleaseWithRetry(namespace, releaseInfo.Name,  deletePvcs, false, 0)
+		err = projectImpl.releaseUseCase.DeleteReleaseWithRetry(namespace, releaseInfo.Name,  deletePvcs, false, 0)
 		if err != nil {
 			logrus.Errorf("failed to delete release %s/%s : %s", namespace, releaseInfo.Name, err.Error())
 			return err

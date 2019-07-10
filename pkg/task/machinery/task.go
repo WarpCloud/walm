@@ -9,6 +9,10 @@ import (
 	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/sirupsen/logrus"
 	"time"
+	"github.com/RichardKnop/machinery/v1/config"
+	"WarpCloud/walm/pkg/setting"
+	"github.com/RichardKnop/machinery/v1/log"
+	"os"
 )
 
 type Task struct {
@@ -50,7 +54,7 @@ func convertTaskSig(sig *taskModel.TaskSig) *tasks.Signature {
 }
 
 func (task *Task) RegisterTask(taskName string, taskRunner func(taskArgs string) error) error{
-	err := task.server.RegisterTasks(map[string]interface{}{taskName: taskRunner})
+	err := task.server.RegisterTask(taskName, taskRunner)
 	if err != nil {
 		logrus.Errorf("failed to register task %s : %s", taskName, err.Error())
 		return err
@@ -107,4 +111,57 @@ func (task *Task) PurgeTaskState(sig *taskModel.TaskSig) (error){
 		return err
 	}
 	return nil
+}
+
+func (task *Task) StartWorker() {
+	task.worker = task.server.NewWorker(os.Getenv("Pod_Name"), 100)
+	errorsChan := make(chan error)
+	task.worker.LaunchAsync(errorsChan)
+	go func(errChan chan error) {
+		if err := <-errChan; err != nil {
+			logrus.Error(err.Error())
+		}
+	}(errorsChan)
+	logrus.Info("worker starting to consume tasks")
+}
+
+func (task *Task) StopWorker() {
+	quitChan := make(chan struct{})
+	go func() {
+		task.worker.Quit()
+		close(quitChan)
+	}()
+	select {
+	case <-quitChan:
+		logrus.Info("worker stopped consuming tasks successfully")
+	case <-time.After(time.Second * 30):
+		logrus.Warn("worker stopped consuming tasks failed after 30 seconds")
+	}
+}
+
+func NewTask(c *setting.TaskConfig) (*Task, error) {
+	taskConfig := &config.Config{
+		Broker:          c.Broker,
+		DefaultQueue:    c.DefaultQueue,
+		ResultBackend:   c.ResultBackend,
+		ResultsExpireIn: c.ResultsExpireIn,
+		NoUnixSignals:   true,
+		Redis: &config.RedisConfig{
+			MaxIdle:                3,
+			IdleTimeout:            240,
+			ReadTimeout:            15,
+			WriteTimeout:           15,
+			ConnectTimeout:         15,
+			DelayedTasksPollPeriod: 20,
+		},
+	}
+	server, err := machinery.NewServer(taskConfig)
+	if err != nil {
+		logrus.Errorf("Failed to create task server: %s", err.Error())
+		return nil, err
+	}
+	log.Set(logrus.StandardLogger())
+	return &Task{
+		server: server,
+	}, nil
 }

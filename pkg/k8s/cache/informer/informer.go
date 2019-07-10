@@ -357,5 +357,6 @@ func NewInformer(client *kubernetes.Clientset, releaseConfigClient *releaseconfi
 
 	informer.start(stopCh)
 	informer.waitForCacheSync(stopCh)
+	logrus.Info("k8s cache sync finished")
 	return informer
 }

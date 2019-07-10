@@ -64,21 +64,21 @@ func (projectImpl *Project) doAddRelease(namespace, name string, projectParams *
 				logrus.Errorf("RuntimeDepParse install release %s error %v\n", releaseParams.Name, err)
 				return err2
 			}
-			err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
+			err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err
 			}
 			for _, affectReleaseParams := range affectReleaseRequest {
 				logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-				err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, affectReleaseParams,  nil, false, 0, nil)
+				err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, affectReleaseParams,  nil, false, 0, nil)
 				if err != nil {
 					logrus.Errorf("AddReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 					return err
 				}
 			}
 		} else {
-			err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
+			err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
 			if err != nil {
 				logrus.Errorf("AddReleaseInProject install release %s error %v\n", releaseParams.Name, err)
 				return err

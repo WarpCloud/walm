@@ -50,7 +50,7 @@ func (projectImpl *Project) doRemoveRelease(namespace, name, releaseName string,
 		}
 		for _, affectReleaseParams := range affectReleaseRequest {
 			logrus.Infof("Update BecauseOf Dependency Modified: %v", *affectReleaseParams)
-			err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, affectReleaseParams,  nil, false, 0, nil)
+			err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, affectReleaseParams,  nil, false, 0, nil)
 			if err != nil {
 				logrus.Errorf("RemoveReleaseInProject Other Affected Release install release %s error %v\n", releaseParams.Name, err)
 				return err
@@ -58,7 +58,7 @@ func (projectImpl *Project) doRemoveRelease(namespace, name, releaseName string,
 		}
 	}
 
-	err = projectImpl.helmUsecase.DeleteReleaseWithRetry(namespace, releaseName,  deletePvcs, false, 0)
+	err = projectImpl.releaseUseCase.DeleteReleaseWithRetry(namespace, releaseName,  deletePvcs, false, 0)
 	if err != nil {
 		logrus.Errorf("failed to remove release %s in project : %s", releaseName, name, err.Error())
 		return err

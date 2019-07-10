@@ -198,3 +198,9 @@ func (cache *Cache) DeleteReleaseTask(namespace string, name string) error {
 	logrus.Debugf("succeed to delete release task of %s from redis", name)
 	return nil
 }
+
+func NewCache(redis redis.Redis) *Cache {
+	return &Cache{
+		redis: redis,
+	}
+}

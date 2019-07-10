@@ -70,3 +70,9 @@ func (cache *Cache) DeleteProjectTask(namespace, name string) error {
 	}
 	return nil
 }
+
+func NewProjectCache(redis redis.Redis) *Cache {
+	return &Cache{
+		redis: redis,
+	}
+}

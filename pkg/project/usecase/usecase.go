@@ -22,10 +22,10 @@ const (
 )
 
 type Project struct {
-	cache       project.Cache
-	task        task.Task
-	helmUsecase release.UseCase
-	helm        helm.Helm
+	cache          project.Cache
+	task           task.Task
+	releaseUseCase release.UseCase
+	helm           helm.Helm
 }
 
 func (projectImpl *Project) ListProjects(namespace string) (*projectModel.ProjectInfoList, error) {
@@ -132,7 +132,7 @@ func (projectImpl *Project) validateProjectTask(namespace, name string, allowPro
 		if !(taskState.IsFinished() || taskState.IsTimeout()) {
 			err = fmt.Errorf("please wait for the last project task %s-%s finished or timeout", projectTask.LatestTaskSignature.Name, projectTask.LatestTaskSignature.UUID)
 			logrus.Warn(err.Error())
-			return
+			return projectTask, err
 		}
 	}
 	return
@@ -312,7 +312,7 @@ func (projectImpl *Project) buildProjectInfo(task *projectModel.ProjectTask) (pr
 		Releases:  []*releaseModel.ReleaseInfoV2{},
 	}
 
-	projectInfo.Releases, err = projectImpl.helmUsecase.ListReleasesByLabels(task.Namespace, projectModel.ProjectNameLabelKey+"="+task.Name)
+	projectInfo.Releases, err = projectImpl.releaseUseCase.ListReleasesByLabels(task.Namespace, projectModel.ProjectNameLabelKey+"="+task.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -560,4 +560,19 @@ func deleteReleaseDependency(dependencies map[string]string, dependencyKey strin
 	if _, ok := dependencies[dependencyKey]; ok {
 		dependencies[dependencyKey] = ""
 	}
+}
+
+func NewProject(cache project.Cache, task task.Task, releaseUseCase release.UseCase, helm helm.Helm) *Project {
+	p := &Project{
+		cache:          cache,
+		task:           task,
+		releaseUseCase: releaseUseCase,
+		helm:           helm,
+	}
+	p.registerAddReleaseTask()
+	p.registerCreateProjectTask()
+	p.registerDeleteProjectTask()
+	p.registerRemoveReleaseTask()
+	p.registerUpgradeReleaseTask()
+	return p
 }

@@ -63,7 +63,7 @@ func (projectImpl *Project) doCreateProject(namespace string, name string, proje
 		return err
 	}
 	for _, releaseParams := range releaseList {
-		err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
+		err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
 		if err != nil {
 			logrus.Errorf("failed to create project release %s/%s : %s", namespace, releaseParams.Name, err)
 			return err

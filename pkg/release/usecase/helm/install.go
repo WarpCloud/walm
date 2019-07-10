@@ -86,10 +86,13 @@ func (helm *Helm) doInstallUpgradeRelease(namespace string, releaseRequest *rele
 		}
 	}
 
-	olgReleaseInfo, err := helm.buildReleaseInfoV2(oldReleaseCache)
-	if err != nil {
-		logrus.Errorf("failed to build release info of %s/%s: %s", namespace, releaseRequest.Name, err.Error())
-		return nil, err
+	var olgReleaseInfo *release.ReleaseInfoV2
+	if oldReleaseCache != nil {
+		olgReleaseInfo, err = helm.buildReleaseInfoV2(oldReleaseCache)
+		if err != nil {
+			logrus.Errorf("failed to build release info of %s/%s: %s", namespace, releaseRequest.Name, err.Error())
+			return nil, err
+		}
 	}
 
 	preProcessRequest(releaseRequest)

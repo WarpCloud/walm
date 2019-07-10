@@ -12,9 +12,9 @@ import (
 )
 
 type Tenant struct {
-	k8sCache k8s.Cache
-	k8sOperator k8s.Operator
-	releaseUsecase release.UseCase
+	k8sCache       k8s.Cache
+	k8sOperator    k8s.Operator
+	releaseUseCase release.UseCase
 }
 
 func (tenantImpl *Tenant) CreateTenant(tenantName string, tenantParams *tenant.TenantParams) error {
@@ -64,7 +64,7 @@ func buildNamespace(tenantParams *tenant.TenantParams, tenantName string) *k8sMo
 	return namespace
 }
 
-func (tenantImpl *Tenant)doCreateTenant(tenantName string, tenantParams *tenant.TenantParams) error {
+func (tenantImpl *Tenant) doCreateTenant(tenantName string, tenantParams *tenant.TenantParams) error {
 	for _, tenantQuota := range tenantParams.TenantQuotas {
 		err := tenantImpl.createResourceQuota(tenantName, tenantQuota)
 		if err != nil {
@@ -82,9 +82,9 @@ func (tenantImpl *Tenant)doCreateTenant(tenantName string, tenantParams *tenant.
 	return nil
 }
 
-const(
-	limitRangeDefaultMem = "128Mi"
-	limitRangeDefaultCpu = "0.1"
+const (
+	limitRangeDefaultMem  = "128Mi"
+	limitRangeDefaultCpu  = "0.1"
 	LimitRangeDefaultName = "walm-default-limitrange"
 )
 
@@ -92,16 +92,16 @@ func getDefaultLimitRange(namespace string) *k8sModel.LimitRange {
 	return &k8sModel.LimitRange{
 		Meta: k8sModel.Meta{
 			Namespace: namespace,
-			Name: LimitRangeDefaultName,
+			Name:      LimitRangeDefaultName,
 		},
 		DefaultLimit: map[k8sModel.ResourceName]string{
-			k8sModel.ResourceCPU: limitRangeDefaultCpu,
+			k8sModel.ResourceCPU:    limitRangeDefaultCpu,
 			k8sModel.ResourceMemory: limitRangeDefaultMem,
 		},
 	}
 }
 
-func (tenantImpl *Tenant)createResourceQuota(tenantName string, tenantQuota *tenant.TenantQuotaParams) error {
+func (tenantImpl *Tenant) createResourceQuota(tenantName string, tenantQuota *tenant.TenantQuotaParams) error {
 	resourceQuota := buildResourceQuota(tenantName, tenantQuota)
 	err := tenantImpl.k8sOperator.CreateResourceQuota(resourceQuota)
 	if err != nil {
@@ -130,7 +130,7 @@ func buildResourceQuota(tenantName string, tenantQuota *tenant.TenantQuotaParams
 	return resourceQuota
 }
 
-func (tenantImpl *Tenant)updateResourceQuota(tenantName string, tenantQuota *tenant.TenantQuotaParams) error {
+func (tenantImpl *Tenant) updateResourceQuota(tenantName string, tenantQuota *tenant.TenantQuotaParams) error {
 	resourceQuota := buildResourceQuota(tenantName, tenantQuota)
 	err := tenantImpl.k8sOperator.CreateOrUpdateResourceQuota(resourceQuota)
 	if err != nil {
@@ -158,7 +158,7 @@ func (tenantImpl *Tenant) DeleteTenant(tenantName string) error {
 		}
 	}
 
-	releases, err := tenantImpl.releaseUsecase.ListReleases(tenantName)
+	releases, err := tenantImpl.releaseUseCase.ListReleases(tenantName)
 	if err != nil {
 		logrus.Errorf("failed to get releases in tenant %s : %s", tenantName, err.Error())
 		return err
@@ -169,7 +169,7 @@ func (tenantImpl *Tenant) DeleteTenant(tenantName string) error {
 		wg.Add(1)
 		go func(releaseName string) {
 			defer wg.Done()
-			err1 := tenantImpl.releaseUsecase.DeleteReleaseWithRetry(tenantName, releaseName,  false, false, 0)
+			err1 := tenantImpl.releaseUseCase.DeleteReleaseWithRetry(tenantName, releaseName, false, false, 0)
 			if err1 != nil {
 				err = fmt.Errorf("failed to delete release %s under tenant %s : %s", releaseName, tenantName, err1.Error())
 				logrus.Error(err.Error())
@@ -215,4 +215,12 @@ func (tenantImpl *Tenant) UpdateTenant(tenantName string, tenantParams *tenant.T
 	}
 	logrus.Infof("succeed to update tenant %s", tenantName)
 	return nil
+}
+
+func NewTenant(k8sCache k8s.Cache, k8sOperator k8s.Operator, releaseUseCase release.UseCase) *Tenant {
+	return &Tenant{
+		k8sCache:       k8sCache,
+		k8sOperator:    k8sOperator,
+		releaseUseCase: releaseUseCase,
+	}
 }

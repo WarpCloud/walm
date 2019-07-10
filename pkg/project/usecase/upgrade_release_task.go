@@ -37,7 +37,7 @@ func (projectImpl *Project) upgradeRelease(namespace, projectName string, releas
 	}
 	releaseParams.ReleaseLabels[cache.ProjectNameLabelKey] = projectName
 
-	err = projectImpl.helmUsecase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
+	err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
 	if err != nil {
 		logrus.Errorf("failed to upgrade release %s in project %s/%s : %s", releaseParams.Name, namespace, projectName, err.Error())
 		return
