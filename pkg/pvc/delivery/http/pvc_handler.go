@@ -6,7 +6,6 @@ import (
 	"WarpCloud/walm/pkg/models/http"
 	"github.com/emicklei/go-restful-openapi"
 	k8sModel "WarpCloud/walm/pkg/models/k8s"
-	"WarpCloud/walm/router/api"
 	"fmt"
 	httpUtils "WarpCloud/walm/pkg/util/http"
 	errorModel "WarpCloud/walm/pkg/models/error"
@@ -75,7 +74,7 @@ func (handler *PvcHandler) GetPvcs(request *restful.Request, response *restful.R
 	labelSelectorStr := request.QueryParameter("labelselector")
 	pvcs, err := handler.k8sCache.ListPersistentVolumeClaims(namespace, labelSelectorStr)
 	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pvcs: %s", err.Error()))
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pvcs: %s", err.Error()))
 		return
 	}
 	response.WriteEntity(k8sModel.PersistentVolumeClaimList{len(pvcs), pvcs})
@@ -90,7 +89,7 @@ func (handler *PvcHandler) GetPvc(request *restful.Request, response *restful.Re
 			httpUtils.WriteNotFoundResponse(response, -1, fmt.Sprintf("pvc %s is not found", pvcName))
 			return
 		}
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pvc: %s", err.Error()))
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to get pvc: %s", err.Error()))
 		return
 	}
 
@@ -102,7 +101,7 @@ func (handler *PvcHandler) DeletePvc(request *restful.Request, response *restful
 	pvcName := request.PathParameter("pvcname")
 	err := handler.k8sOperator.DeletePvc(namespace, pvcName)
 	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete pvc : %s", err.Error()))
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete pvc : %s", err.Error()))
 		return
 	}
 }
@@ -113,7 +112,7 @@ func (handler *PvcHandler) DeletePvcs(request *restful.Request, response *restfu
 
 	err := handler.k8sOperator.DeletePvcs(namespace, labelSelectorStr)
 	if err != nil {
-		api.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete pvcs: %s",  err.Error()))
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to delete pvcs: %s",  err.Error()))
 		return
 	}
 }

@@ -1,43 +1,19 @@
 package redis
 
-import (
-	"time"
-	"WarpCloud/walm/pkg/setting"
-	"github.com/go-redis/redis"
-)
-
 const (
-	KeyNotFoundErrMsg = "redis: nil"
-
-	WalmJobsKey       = "walm-jobs"
-	//WalmReleasesKey   = "walm-releases"
-	//WalmProjectsKey   = "walm-project-tasks"
-	//WalmReleaseTasksKey   = "walm-release-tasks"
+	WalmReleasesKey   = "walm-releases"
+	WalmProjectsKey   = "walm-project-tasks"
+	WalmReleaseTasksKey   = "walm-release-tasks"
 )
 
-type RedisClient struct {
-	client *redis.Client
+type Redis interface {
+	GetFieldValue(key, namespace, name string) (string, error)
+	GetFieldValues(key, namespace string) ([]string, error)
+	GetFieldValuesByNames(key string, filedNames... string) ([]string, error)
+	SetFieldValues(key string, fieldValues map[string]interface{}) error
+	DeleteField(key, namespace, name string) error
 }
 
-var redisClient *RedisClient
-
-func GetDefaultRedisClient() *RedisClient {
-	if redisClient == nil {
-		client := redis.NewClient(&redis.Options{
-			Addr:         setting.Config.RedisConfig.Addr,
-			Password:     setting.Config.RedisConfig.Password,
-			DB:           setting.Config.RedisConfig.DB,
-			DialTimeout:  10 * time.Second,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
-			PoolSize:     10,
-			PoolTimeout:  30 * time.Second,
-		})
-		redisClient = &RedisClient{client: client}
-	}
-	return redisClient
-}
-
-func (redisClient *RedisClient) GetClient() *redis.Client {
-	return redisClient.client
+func BuildFieldName(namespace, name string) string {
+	return namespace + "/" + name
 }

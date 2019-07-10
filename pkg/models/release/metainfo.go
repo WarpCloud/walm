@@ -265,7 +265,7 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 				return nil, err
 			}
 			switch param.Type {
-			case "boolean", "int", "float", "string", "yaml", "json", "kvPair", "text":
+			case "boolean", "number", "int", "float", "string", "yaml", "json", "kvPair", "text":
 			default:
 				err = errors.Errorf("type <%s> not support in field params[%d]", param.Type, paramIndex)
 				return nil, err

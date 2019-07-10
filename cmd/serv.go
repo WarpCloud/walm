@@ -10,7 +10,6 @@ import (
 	"github.com/go-openapi/spec"
 	"github.com/emicklei/go-restful-openapi"
 
-	"WarpCloud/walm/router/middleware"
 	"WarpCloud/walm/pkg/setting"
 	"os"
 	"WarpCloud/walm/pkg/k8s/elect"
@@ -48,6 +47,7 @@ import (
 	projecthttp "WarpCloud/walm/pkg/project/delivery/http"
 	releasehttp "WarpCloud/walm/pkg/release/delivery/http"
 	podhttp "WarpCloud/walm/pkg/pod/delivery/http"
+	"github.com/thoas/stats"
 )
 
 const servDesc = `
@@ -202,8 +202,8 @@ func (sc *ServCmd) run() error {
 	restful.DefaultContainer.EnableContentEncoding(true)
 	// faster router
 	restful.DefaultContainer.Router(restful.CurlyRouter{})
-	restful.Filter(middleware.ServerStatsFilter)
-	restful.Filter(middleware.RouteLogging)
+	restful.Filter(ServerStatsFilter)
+	restful.Filter(RouteLogging)
 	logrus.Infoln("Adding Route...")
 
 	restful.Add(InitRootRouter())
@@ -263,6 +263,24 @@ func (sc *ServCmd) run() error {
 	return nil
 }
 
+func RouteLogging(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	now := time.Now()
+	chain.ProcessFilter(req, resp)
+	logrus.Infof("[route-filter (logger)] CLIENT %s OP %s URI %s COST %v RESP %d", req.Request.Host, req.Request.Method, req.Request.URL, time.Now().Sub(now), resp.StatusCode())
+}
+
+var ServerStats = stats.New()
+
+func ServerStatsFilter(request *restful.Request, response *restful.Response, chain *restful.FilterChain) {
+	beginning, recorder := ServerStats.Begin(response)
+	chain.ProcessFilter(request, response)
+	ServerStats.End(beginning, stats.WithRecorder(recorder))
+}
+
+func ServerStatsData(request *restful.Request, response *restful.Response) {
+	response.WriteEntity(ServerStats.Data())
+}
+
 func readinessProbe(request *restful.Request, response *restful.Response) {
 	response.WriteEntity("OK")
 }
@@ -292,7 +310,7 @@ func InitRootRouter() *restful.WebService {
 		Returns(200, "OK", nil).
 		Returns(500, "Internal Error", httpModel.ErrorMessageResponse{}))
 
-	ws.Route(ws.GET("/stats").To(middleware.ServerStatsData).
+	ws.Route(ws.GET("/stats").To(ServerStatsData).
 		Doc("获取服务Stats").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", nil).

@@ -24,7 +24,7 @@ import (
 
 	"WarpCloud/walm/pkg/setting"
 	"WarpCloud/walm/pkg/util"
-	"WarpCloud/walm/pkg/release/manager/metainfo"
+	"WarpCloud/walm/pkg/models/release"
 )
 
 const (
@@ -282,10 +282,10 @@ func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
 	return files, nil
 }
 
-func GetChartMetaInfo(rawChart *chart.Chart) (chartMetaInfo *metainfo.ChartMetaInfo, err error) {
+func GetChartMetaInfo(rawChart *chart.Chart) (chartMetaInfo *release.ChartMetaInfo, err error) {
 	for _, f := range rawChart.Files {
 		if f.Name == TranswarpMetadataDir+TranswarpMetaInfoFileName {
-			chartMetaInfo = &metainfo.ChartMetaInfo{}
+			chartMetaInfo = &release.ChartMetaInfo{}
 			err = yaml.Unmarshal(f.Data, chartMetaInfo)
 			if err != nil {
 				logrus.Error(errors.Wrapf(err, "chart %s-%s MetaInfo Unmarshal metainfo.yaml error",

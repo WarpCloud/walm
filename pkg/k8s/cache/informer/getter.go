@@ -8,7 +8,6 @@ import (
 	errorModel "WarpCloud/walm/pkg/models/error"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 )
 
 func (informer *Informer) getReleaseConfig(namespace, name string) (k8s.Resource, error) {
@@ -173,20 +172,29 @@ func (informer *Informer) getNode(namespace, name string) (k8s.Resource, error) 
 }
 
 func (informer *Informer) getNonTermiatedPodsOnNode(nodeName string, labelSelector *metav1.LabelSelector) (*corev1.PodList, error) {
-	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + nodeName + ",status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	selector, err := utils.ConvertLabelSelectorToSelector(labelSelector)
 	if err != nil {
 		return nil, err
-	}
-	labelSelectorStr, err := utils.ConvertLabelSelectorToStr(labelSelector)
-	if err != nil {
-		return nil, err
-	}
-	listOptions := metav1.ListOptions{
-		FieldSelector: fieldSelector.String(),
-		LabelSelector: labelSelectorStr,
 	}
 
-	return informer.client.CoreV1().Pods(metav1.NamespaceAll).List(listOptions)
+	pods, err := informer.podLister.Pods("").List(selector)
+	if err != nil {
+		logrus.Errorf("failed to list pods : %s", err.Error())
+		return nil, err
+	}
+
+	podList := &corev1.PodList{
+		Items: []corev1.Pod{},
+	}
+
+	for _, pod := range pods {
+		if pod.Spec.NodeName == nodeName && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
+			podList.Items = append(podList.Items, *pod)
+		}
+	}
+
+	return podList, nil
+
 }
 
 

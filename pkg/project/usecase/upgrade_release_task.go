@@ -3,8 +3,8 @@ package usecase
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-	"WarpCloud/walm/pkg/release/manager/helm/cache"
 	"WarpCloud/walm/pkg/models/release"
+	"WarpCloud/walm/pkg/models/project"
 )
 
 const (
@@ -35,7 +35,7 @@ func (projectImpl *Project) upgradeRelease(namespace, projectName string, releas
 	if releaseParams.ReleaseLabels == nil {
 		releaseParams.ReleaseLabels = map[string]string{}
 	}
-	releaseParams.ReleaseLabels[cache.ProjectNameLabelKey] = projectName
+	releaseParams.ReleaseLabels[project.ProjectNameLabelKey] = projectName
 
 	err = projectImpl.releaseUseCase.InstallUpgradeReleaseWithRetry(namespace, releaseParams,  nil, false, 0, nil)
 	if err != nil {

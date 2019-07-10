@@ -3,8 +3,6 @@ package usecase
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
-	"WarpCloud/walm/pkg/release"
-	"WarpCloud/walm/pkg/release/manager/helm/cache"
 	"WarpCloud/walm/pkg/models/project"
 	"WarpCloud/walm/pkg/util"
 )
@@ -39,22 +37,15 @@ func (projectImpl *Project)CreateProjectTask(createProjectTaskArgsStr string) er
 }
 
 func (projectImpl *Project) doCreateProject(namespace string, name string, projectParams *project.ProjectParams) error {
-	helmExtraLabelsBase := map[string]interface{}{}
-	helmExtraLabelsVals := release.HelmExtraLabels{}
-	helmExtraLabelsVals.HelmLabels = make(map[string]interface{})
-	helmExtraLabelsVals.HelmLabels["project_name"] = name
-	helmExtraLabelsBase["HelmExtraLabels"] = helmExtraLabelsVals
-
 	rawValsBase := map[string]interface{}{}
 	rawValsBase = util.MergeValues(rawValsBase, projectParams.CommonValues, false)
-	rawValsBase = util.MergeValues(helmExtraLabelsBase, rawValsBase, false)
 
 	for _, releaseParams := range projectParams.Releases {
 		releaseParams.ConfigValues = util.MergeValues(releaseParams.ConfigValues, rawValsBase, false)
 		if releaseParams.ReleaseLabels == nil {
 			releaseParams.ReleaseLabels = map[string]string{}
 		}
-		releaseParams.ReleaseLabels[cache.ProjectNameLabelKey] = name
+		releaseParams.ReleaseLabels[project.ProjectNameLabelKey] = name
 	}
 
 	releaseList, err := projectImpl.autoCreateReleaseDependencies(projectParams)

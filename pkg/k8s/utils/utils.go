@@ -145,3 +145,4 @@ func ParseK8sResourcePod(strValue string) (int64) {
 	quantity := resource.MustParse(strValue)
 	return quantity.Value()
 }
+

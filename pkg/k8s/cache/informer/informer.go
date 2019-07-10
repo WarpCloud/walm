@@ -23,6 +23,8 @@ import (
 	"WarpCloud/walm/pkg/k8s/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sync"
+	"errors"
 )
 
 type Informer struct {
@@ -198,18 +200,34 @@ func (informer *Informer) GetNodes(labelSelectorStr string) ([]*k8s.Node, error)
 
 	walmNodes := []*k8s.Node{}
 	if nodeList != nil {
+		mux := &sync.Mutex{}
+		var wg sync.WaitGroup
 		for _, node := range nodeList {
-			podsOnNode, err := informer.getNonTermiatedPodsOnNode(node.Name, nil)
-			if err != nil {
-				logrus.Errorf("failed to get pods on node", err.Error())
-				return nil, err
-			}
-			walmNode, err := converter.ConvertNodeFromK8s(node, podsOnNode)
-			if err != nil {
-				logrus.Errorf("failed to build walm node : %s", err.Error())
-				return nil, err
-			}
-			walmNodes = append(walmNodes, walmNode)
+			wg.Add(1)
+			go func(node *corev1.Node) {
+				defer wg.Done()
+				podsOnNode, err1 := informer.getNonTermiatedPodsOnNode(node.Name, nil)
+				if err1 != nil {
+					logrus.Errorf("failed to get pods on node", err1.Error())
+					err = errors.New(err1.Error())
+					return
+				}
+				walmNode, err1 := converter.ConvertNodeFromK8s(node, podsOnNode)
+				if err1 != nil {
+					logrus.Errorf("failed to build walm node : %s", err1.Error())
+					err = errors.New(err1.Error())
+					return
+				}
+
+				mux.Lock()
+				walmNodes = append(walmNodes, walmNode)
+				mux.Unlock()
+			}(node)
+		}
+		wg.Wait()
+		if err != nil {
+			logrus.Errorf("failed to build nodes : %s", err.Error())
+			return nil, err
 		}
 	}
 
