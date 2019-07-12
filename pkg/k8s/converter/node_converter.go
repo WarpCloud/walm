@@ -26,11 +26,6 @@ func ConvertNodeFromK8s(oriNode *corev1.Node, podsOnNode *corev1.PodList) (walmN
 	}
 
 	requestsAllocated, limitsAllocated := getTotalRequestsAndLimits(podsOnNode)
-	if err != nil {
-		logrus.Errorf("failed to build node allocated resource : %s", err.Error())
-		return
-	}
-
 	walmNode.RequestsAllocated = convertResourceListToMap(requestsAllocated)
 	walmNode.LimitsAllocated = convertResourceListToMap(limitsAllocated)
 	walmNode.UnifyUnitResourceInfo = buildUnifyUnitResourceInfo(walmNode)

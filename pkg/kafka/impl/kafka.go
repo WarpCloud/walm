@@ -26,10 +26,11 @@ func (kafkaImpl *Kafka) SyncSendMessage(topic, message string) error {
 
 	if err != nil {
 		logrus.Errorf("failed to send msg %s to topic %s : %s", message, topic, err.Error())
+		return err
 	}
 
 	logrus.Infof("succeed to send msg %s to topic %s", message, topic)
-	return err
+	return nil
 }
 
 func NewKafka(kafkaConfig *setting.KafkaConfig) (*Kafka, error) {

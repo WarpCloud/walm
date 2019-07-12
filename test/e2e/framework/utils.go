@@ -2,25 +2,37 @@ package framework
 
 import (
 	"strings"
-	"WarpCloud/walm/pkg/k8s/handler"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
-	"WarpCloud/walm/pkg/release/manager/helm"
 	"os"
 	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"k8s.io/helm/pkg/chart/loader"
 	"errors"
-	"runtime"
+	"WarpCloud/walm/pkg/setting"
+	"github.com/sirupsen/logrus"
+	"WarpCloud/walm/pkg/k8s/client"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clienthelm "WarpCloud/walm/pkg/k8s/client/helm"
 )
+
+var k8sClient *kubernetes.Clientset
+var kubeClients *clienthelm.Client
 
 const (
 	maxNameLength                = 62
 	randomLength                 = 5
 	maxGeneratedRandomNameLength = maxNameLength - randomLength
 )
+
+func GetKubeClient() *clienthelm.Client {
+	return kubeClients
+}
+
+func GetK8sClient() *kubernetes.Clientset {
+	return k8sClient
+}
 
 func GenerateRandomName(base string) string {
 	if len(base) > maxGeneratedRandomNameLength {
@@ -31,30 +43,31 @@ func GenerateRandomName(base string) string {
 
 func CreateRandomNamespace(base string) (string, error) {
 	namespace := GenerateRandomName(base)
-	ns := corev1.Namespace{
+	ns := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
-	_, err := handler.GetDefaultHandlerSet().GetNamespaceHandler().CreateNamespace(&ns)
+	_, err := k8sClient.CoreV1().Namespaces().Create(&ns)
 	return namespace, err
 }
 
-func DeleteNamespace(namespace string, deleteReleases bool) (error) {
-	if deleteReleases {
-		releases, err := helm.GetDefaultHelmClient().ListReleases(namespace, "")
-		if err != nil {
-			return err
-		}
-		for _, release := range releases {
-			err := helm.GetDefaultHelmClient().DeleteRelease(namespace, release.Name, false, false, false, 0)
-			if err !=  nil {
-				return err
-			}
-		}
-	}
+func DeleteNamespace(namespace string) (error) {
+	return k8sClient.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
+}
 
-	return handler.GetDefaultHandlerSet().GetNamespaceHandler().DeleteNamespace(namespace)
+func GetLimitRange(namespace, name string) (*v1.LimitRange, error) {
+	return k8sClient.CoreV1().LimitRanges(namespace).Get(name, metav1.GetOptions{})
+}
+
+func CreatePod(namespace, name string) (*v1.Pod, error) {
+	pod := &v1.Pod{}
+	pod.Name = name
+	pod.Spec.Containers = append(pod.Spec.Containers, v1.Container{
+		Name: "test-container",
+		Image: "busyBox",
+	})
+	return k8sClient.CoreV1().Pods(namespace).Create(pod)
 }
 
 func LoadChartArchive(name string) ([]*loader.BufferedFile, error) {
@@ -72,10 +85,27 @@ func LoadChartArchive(name string) ([]*loader.BufferedFile, error) {
 	return transwarpjsonnet.LoadArchive(raw)
 }
 
-func GetCurrentFilePath() (string, error) {
-	_, file, _, ok := runtime.Caller(1)
-	if !ok {
-		return "", errors.New("Can not get current file info")
+//func GetCurrentFilePath() (string, error) {
+//	_, file, _, ok := runtime.Caller(1)
+//	if !ok {
+//		return "", errors.New("Can not get current file info")
+//	}
+//	return file, nil
+//}
+
+func InitFramework() error {
+	kubeConfig := ""
+	if setting.Config.KubeConfig != nil {
+		kubeConfig = setting.Config.KubeConfig.Config
 	}
-	return file, nil
+
+	var err error
+	k8sClient, err = client.NewClient("", kubeConfig)
+	if err != nil {
+		logrus.Errorf("failed to create k8s client : %s", err.Error())
+		return err
+	}
+
+	kubeClients = clienthelm.NewHelmKubeClient(kubeConfig)
+	return nil
 }
