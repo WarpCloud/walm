@@ -355,19 +355,6 @@ func buildPvcStorage(pvc v1.PersistentVolumeClaim) *release.ReleaseResourceStora
 	return pvcStorage
 }
 
-func (op *Operator) DeletePersistentVolumeClaim(namespace string, name string) error {
-	err := op.client.CoreV1().PersistentVolumeClaims(namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		if utils.IsK8sResourceNotFoundErr(err) {
-			logrus.Warnf("pvc %s/%s is not found ", namespace, name)
-			return nil
-		}
-		logrus.Errorf("failed to delete pvc %s/%s : %s", namespace, name, err.Error())
-		return err
-	}
-	return nil
-}
-
 func (op *Operator) CreateNamespace(namespace *k8sModel.Namespace) error {
 	k8sNamespace, err := converter.ConvertNamespaceToK8s(namespace)
 	if err != nil {

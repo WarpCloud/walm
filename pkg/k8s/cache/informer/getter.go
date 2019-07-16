@@ -111,7 +111,7 @@ func (informer *Informer) getService(namespace, name string) (k8s.Resource, erro
 	}
 
 	endpoints, err := informer.getEndpoints(namespace, name)
-	if err != nil {
+	if err != nil && !errorModel.IsNotFoundError(err){
 		return nil, err
 	}
 	return converter.ConvertServiceFromK8s(resource, endpoints)
@@ -148,6 +148,10 @@ func (informer *Informer) listPods(namespace string, labelSelector *metav1.Label
 func (informer *Informer) getEndpoints(namespace, name string) (*corev1.Endpoints, error) {
 	endpoints, err := informer.endpointsLister.Endpoints(namespace).Get(name)
 	if err != nil {
+		if utils.IsK8sResourceNotFoundErr(err) {
+			logrus.Warnf("endpoints %s/%s is not found", namespace, name)
+			return nil, errorModel.NotFoundError{}
+		}
 		logrus.Errorf("failed to get endpoints : %s", err.Error())
 		return nil, err
 	}

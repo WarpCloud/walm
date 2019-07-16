@@ -18,6 +18,11 @@ import (
 	appsv1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	releaseconfigclientset "transwarp/release-config/pkg/client/clientset/versioned"
+	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	batchv1 "k8s.io/api/batch/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var k8sClient *kubernetes.Clientset
@@ -126,6 +131,82 @@ func DeleteStatefulSet(namespace, name string) (error) {
 	return k8sClient.AppsV1beta1().StatefulSets(namespace).Delete(name, &metav1.DeleteOptions{})
 }
 
+func CreateReleaseConfig(namespace, name string, labels map[string]string) (*v1beta1.ReleaseConfig, error) {
+	releaseConfig := &v1beta1.ReleaseConfig{}
+	releaseConfig.Name = name
+	releaseConfig.Labels = labels
+	return k8sReleaseConfigClient.TranswarpV1beta1().ReleaseConfigs(namespace).Create(releaseConfig)
+}
+
+func UpdateReleaseConfig(releaseConfig *v1beta1.ReleaseConfig) (*v1beta1.ReleaseConfig, error) {
+	return k8sReleaseConfigClient.TranswarpV1beta1().ReleaseConfigs(releaseConfig.Namespace).Update(releaseConfig)
+}
+
+func DeleteReleaseConfig(namespace, name string) (error) {
+	return k8sReleaseConfigClient.TranswarpV1beta1().ReleaseConfigs(namespace).Delete(name, &metav1.DeleteOptions{})
+}
+
+func CreateConfigMap(namespace, name string) (*v1.ConfigMap, error) {
+	configMap := &v1.ConfigMap{}
+	configMap.Name = name
+	return k8sClient.CoreV1().ConfigMaps(namespace).Create(configMap)
+}
+
+func CreateDaemonSet(namespace, name string) (*extv1beta1.DaemonSet, error) {
+	resource := &extv1beta1.DaemonSet{}
+	resource.Name = name
+	resource.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"app": "fluentd"},
+	}
+	resource.Spec.Template = v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"app": "fluentd"},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  "fluentd",
+					Image: "test-fluentd",
+				},
+			},
+		},
+	}
+	return k8sClient.ExtensionsV1beta1().DaemonSets(namespace).Create(resource)
+}
+
+func CreateDeployment(namespace, name string) (*extv1beta1.Deployment, error) {
+	resource := &extv1beta1.Deployment{}
+	resource.Name = name
+	resource.Spec.Selector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"app": "deploy-nginx"},
+	}
+	resource.Spec.Template = v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"app": "deploy-nginx"},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  "nginx",
+					Image: "test-nginx",
+				},
+			},
+		},
+	}
+	return k8sClient.ExtensionsV1beta1().Deployments(namespace).Create(resource)
+}
+
+func CreateService(namespace, name string, selector map[string]string) (*v1.Service, error) {
+	resource := &v1.Service{}
+	resource.Name = name
+	resource.Spec.Selector = selector
+	resource.Spec.Ports = []v1.ServicePort{{
+		Port: 80,
+		TargetPort: intstr.FromInt(80),
+	}}
+	return k8sClient.CoreV1().Services(namespace).Create(resource)
+}
+
 func CreateStatefulSet(namespace, name string) (*appsv1.StatefulSet, error) {
 	statefulSet := &appsv1.StatefulSet{}
 	statefulSet.Name = name
@@ -153,7 +234,7 @@ func CreateStatefulSet(namespace, name string) (*appsv1.StatefulSet, error) {
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
 				StorageClassName: &testStorageClass,
-				AccessModes:[]v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+				AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{v1.ResourceStorage: resource.MustParse("10Gi")},
 				},
@@ -161,6 +242,51 @@ func CreateStatefulSet(namespace, name string) (*appsv1.StatefulSet, error) {
 		},
 	}
 	return k8sClient.AppsV1beta1().StatefulSets(namespace).Create(statefulSet)
+}
+
+func CreateJob(namespace, name string) (*batchv1.Job, error) {
+	resource := &batchv1.Job{}
+	resource.Name = name
+	resource.Spec.Template = v1.PodTemplateSpec{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  "pi",
+					Image: "perl",
+					Command: []string{"perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"},
+				},
+			},
+			RestartPolicy: v1.RestartPolicyNever,
+		},
+	}
+
+	return k8sClient.BatchV1().Jobs(namespace).Create(resource)
+}
+
+func CreateIngress(namespace, name string) (*extv1beta1.Ingress, error) {
+	resource := &extv1beta1.Ingress{}
+	resource.Name = name
+	resource.Spec.Rules = []extv1beta1.IngressRule{{
+		Host: "test.cn",
+	}}
+	return k8sClient.ExtensionsV1beta1().Ingresses(namespace).Create(resource)
+}
+
+func CreateSecret(namespace, name string) (*v1.Secret, error) {
+	resource := &v1.Secret{}
+	resource.Name = name
+	return k8sClient.CoreV1().Secrets(namespace).Create(resource)
+}
+
+func CreateStorageClass(namespace, name string) (*storagev1.StorageClass, error) {
+	resource := &storagev1.StorageClass{}
+	resource.Name = name
+	resource.Provisioner = "test-provisioner"
+	return k8sClient.StorageV1().StorageClasses().Create(resource)
+}
+
+func DeleteStorageClass(namespace, name string) (error) {
+	return k8sClient.StorageV1().StorageClasses().Delete(name, &metav1.DeleteOptions{})
 }
 
 func LoadChartArchive(name string) ([]*loader.BufferedFile, error) {

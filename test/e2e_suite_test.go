@@ -11,6 +11,7 @@ import (
 	"flag"
 
 	_ "WarpCloud/walm/test/e2e/k8s/operator"
+	_ "WarpCloud/walm/test/e2e/k8s/cache"
 	"WarpCloud/walm/test/e2e/framework"
 )
 
