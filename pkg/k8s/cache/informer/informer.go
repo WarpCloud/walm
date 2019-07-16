@@ -208,7 +208,7 @@ func (informer *Informer) GetNodes(labelSelectorStr string) ([]*k8s.Node, error)
 				defer wg.Done()
 				podsOnNode, err1 := informer.getNonTermiatedPodsOnNode(node.Name, nil)
 				if err1 != nil {
-					logrus.Errorf("failed to get pods on node", err1.Error())
+					logrus.Errorf("failed to get pods on node: %s", err1.Error())
 					err = errors.New(err1.Error())
 					return
 				}

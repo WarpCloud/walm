@@ -165,7 +165,7 @@ func (informer *Informer) getNode(namespace, name string) (k8s.Resource, error) 
 
 	podsOnNode, err := informer.getNonTermiatedPodsOnNode(name, nil)
 	if err != nil {
-		logrus.Errorf("failed to get pods on node", err.Error())
+		logrus.Errorf("failed to get pods on node : %s", err.Error())
 		return nil, err
 	}
 	return converter.ConvertNodeFromK8s(resource, podsOnNode)

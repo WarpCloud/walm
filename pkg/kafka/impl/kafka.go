@@ -60,7 +60,7 @@ func NewKafka(kafkaConfig *setting.KafkaConfig) (*Kafka, error) {
 
 		syncProducer, err := sarama.NewSyncProducer(kafkaClient.Brokers, config)
 		if err != nil {
-			logrus.Errorf("Failed to start Sarama producer:", err)
+			logrus.Errorf("Failed to start Sarama producer: %s", err.Error())
 			return nil, err
 		}
 		kafkaClient.syncProducer = syncProducer

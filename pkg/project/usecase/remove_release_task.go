@@ -60,7 +60,7 @@ func (projectImpl *Project) doRemoveRelease(namespace, name, releaseName string,
 
 	err = projectImpl.releaseUseCase.DeleteReleaseWithRetry(namespace, releaseName,  deletePvcs, false, 0)
 	if err != nil {
-		logrus.Errorf("failed to remove release %s in project : %s", releaseName, name, err.Error())
+		logrus.Errorf("failed to remove release %s/%s in project : %s", releaseName, name, err.Error())
 		return err
 	}
 	return nil
