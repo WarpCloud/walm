@@ -18,6 +18,17 @@ Walm Server serves restful api server. Walmctl is cli for user.
 - Walm supports the finely grained authentication and authorization.
 - Walm supports to retrieve the more detailed specification and status of applications.
 
+## Features
+- [Application Management](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/application-management.md)
+- [Application Groups Management](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/application-groups-management.md)
+- [Helm Charts Management](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/helm-charts-management.md)
+- [Kubernetes Resource Management](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/kubernetes-resource-management.md)
+- [High Availability](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/high-availability.md)
+- [Security](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/security.md)
+
+## Deploy
+- [Run Walm On Linux Clusters](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/run-walm-on-linux-clusters.md)
+- [Run Walm On Google Kubernetes Engine Clusters](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/run-walm-on-google-kubernetes-engine-clusters.md) 
 ## Development
 ### Prerequisite
 - Go 1.11+
@@ -65,6 +76,7 @@ export Pod_Namespace=<walmns> && export Pod_Name=<walmname> && walm serv --confi
 http://<server_host>:9001/swagger
 
 ## Walmcli
+[walmcli使用说明](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/walmcli.md)
 ```
 walmctl --help
 ```
