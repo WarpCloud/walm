@@ -2,12 +2,13 @@ package main
 
 import (
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"WarpCloud/walm/pkg/release"
-	"encoding/json"
-	"fmt"
+
 	"github.com/go-resty/resty"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"fmt"
+	"encoding/json"
+	"WarpCloud/walm/pkg/models/release"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"io"

@@ -9,6 +9,7 @@ import (
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 	"flag"
+
 	_ "WarpCloud/walm/test/e2e/k8s/operator"
 	"WarpCloud/walm/test/e2e/framework"
 )
@@ -31,8 +32,6 @@ var _ = BeforeSuite(func() {
 
 	err := framework.InitFramework()
 	Expect(err).NotTo(HaveOccurred())
-
-	//TODO make sure ReleaseConfig CRD installed?
 })
 
 var _ = AfterSuite(func() {

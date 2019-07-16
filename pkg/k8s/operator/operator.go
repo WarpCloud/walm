@@ -25,6 +25,10 @@ import (
 	"WarpCloud/walm/pkg/k8s/client/helm"
 )
 
+const (
+	storageClassAnnotationKey = "volume.beta.kubernetes.io/storage-class"
+)
+
 type Operator struct {
 	client      *kubernetes.Clientset
 	k8sCache    k8s.Cache
@@ -33,18 +37,10 @@ type Operator struct {
 
 func (op *Operator) DeleteStatefulSetPvcs(statefulSets []*k8sModel.StatefulSet) error {
 	for _, statefulSet := range statefulSets {
-		pvcs, err := op.k8sCache.ListPersistentVolumeClaims(statefulSet.Namespace, statefulSet.Selector)
+		err := op.DeletePvcs(statefulSet.Namespace, statefulSet.Selector)
 		if err != nil {
-			logrus.Errorf("failed to list pvcs ralated to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
+			logrus.Errorf("failed to delete pvcs related to stateful set %s/%s : %s", statefulSet.Namespace, statefulSet.Name, err.Error())
 			return err
-		}
-
-		for _, pvc := range pvcs {
-			err = op.DeletePersistentVolumeClaim(pvc.Namespace, pvc.Name)
-			if err != nil {
-				return err
-			}
-			logrus.Infof("succeed to delete pvc %s/%s related to stateful set %s/%s", pvc.Namespace, pvc.Name, statefulSet.Namespace, statefulSet.Name)
 		}
 	}
 	return nil
@@ -354,7 +350,7 @@ func buildPvcStorage(pvc v1.PersistentVolumeClaim) *release.ReleaseResourceStora
 	if pvc.Spec.StorageClassName != nil {
 		pvcStorage.StorageClass = *pvc.Spec.StorageClassName
 	} else if len(pvc.Annotations) > 0 {
-		pvcStorage.StorageClass = pvc.Annotations["volume.beta.kubernetes.io/storage-class"]
+		pvcStorage.StorageClass = pvc.Annotations[storageClassAnnotationKey]
 	}
 	return pvcStorage
 }
@@ -499,8 +495,10 @@ func (op *Operator) LabelNode(name string, labelsToAdd map[string]string, labels
 
 	if !reflect.DeepEqual(oldLabels, newLabels) {
 		_, err = op.client.CoreV1().Nodes().Update(node)
-		logrus.Errorf("failed to update node %s : %s", name, err.Error())
-		return
+		if err != nil {
+			logrus.Errorf("failed to update node %s : %s", name, err.Error())
+			return
+		}
 	}
 
 	return

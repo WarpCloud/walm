@@ -10,7 +10,7 @@ import (
 	"WarpCloud/walm/pkg/models/k8s"
 )
 
-func BuildTestLimitRange(namespace string) *k8s.LimitRange {
+func buildTestLimitRange(namespace string) *k8s.LimitRange {
 	return &k8s.LimitRange{
 		Meta: k8s.Meta{
 			Namespace: namespace,
@@ -46,7 +46,7 @@ var _ = Describe("K8sOperatorLimitRange", func() {
 	It("test create limit range", func() {
 
 		By("create limitRange")
-		limitRange := BuildTestLimitRange(namespace)
+		limitRange := buildTestLimitRange(namespace)
 		err := k8sOperator.CreateLimitRange(limitRange)
 		Expect(err).NotTo(HaveOccurred())
 

@@ -39,7 +39,7 @@ var _ = Describe("K8sOperatorPod", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By( "delete pod which does not exist")
-		err = k8sOperator.DeletePod(namespace, pod.Name)
+		err = k8sOperator.DeletePod(namespace, "not-existed")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -50,7 +50,7 @@ var _ = Describe("K8sOperatorPod", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By( "restart pod which does not exist")
-		err = k8sOperator.RestartPod(namespace, pod.Name)
+		err = k8sOperator.RestartPod(namespace,"not-existed")
 		Expect(err).NotTo(BeNil())
 	})
 })
