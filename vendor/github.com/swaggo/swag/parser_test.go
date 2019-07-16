@@ -89,7 +89,14 @@ func TestParser_ParseGeneralApiInfo(t *testing.T) {
                 "write": " Grants write access"
             }
         }
-    }
+    },
+    "x-google-endpoints": [
+        {
+            "allowCors": true,
+            "name": "name.endpoints.environment.cloud.goog"
+        }
+    ],
+    "x-google-marks": "marks values"
 }`
 	gopath := os.Getenv("GOPATH")
 	assert.NotNil(t, gopath)
@@ -168,7 +175,14 @@ func TestParser_ParseGeneralApiInfoTemplated(t *testing.T) {
                 "write": " Grants write access"
             }
         }
-    }
+    },
+    "x-google-endpoints": [
+        {
+            "allowCors": true,
+            "name": "name.endpoints.environment.cloud.goog"
+        }
+    ],
+    "x-google-marks": "marks values"
 }`
 	gopath := os.Getenv("GOPATH")
 	assert.NotNil(t, gopath)
@@ -178,6 +192,32 @@ func TestParser_ParseGeneralApiInfoTemplated(t *testing.T) {
 
 	b, _ := json.MarshalIndent(p.swagger, "", "    ")
 	assert.Equal(t, expected, string(b))
+}
+
+func TestParser_ParseGeneralApiInfoExtensions(t *testing.T) {
+	// should be return an error because extension value is not a valid json
+	func() {
+		expected := "@x-google-endpoints need a valid json value"
+		gopath := os.Getenv("GOPATH")
+		assert.NotNil(t, gopath)
+		p := New()
+		err := p.ParseGeneralAPIInfo("testdata/extensionsFail1.go")
+		if assert.Error(t, err) {
+			assert.Equal(t, expected, err.Error())
+		}
+	}()
+
+	// should be return an error because extension don't have a value
+	func() {
+		expected := "@x-google-endpoints need a value"
+		gopath := os.Getenv("GOPATH")
+		assert.NotNil(t, gopath)
+		p := New()
+		err := p.ParseGeneralAPIInfo("testdata/extensionsFail2.go")
+		if assert.Error(t, err) {
+			assert.Equal(t, expected, err.Error())
+		}
+	}()
 }
 
 func TestParser_ParseGeneralApiInfoWithOpsInSameFile(t *testing.T) {
@@ -1910,6 +1950,14 @@ func TestParseStructComment(t *testing.T) {
                 "error": {
                     "description": "Error an Api error",
                     "type": "string"
+                },
+                "errorCtx": {
+                    "description": "Error context tick comment",
+                    "type": "string"
+                },
+                "errorNo": {
+                    "description": "Error number tick comment",
+                    "type": "integer"
                 }
             }
         },
@@ -2580,5 +2628,35 @@ func TestParseApiMarkdownDescription(t *testing.T) {
 
 	if p.swagger.Info.Description == "" {
 		t.Error("Failed to parse api description: " + err.Error())
+	}
+}
+
+func TestIgnoreInvalidPkg(t *testing.T) {
+	searchDir := "testdata/deps_having_invalid_pkg"
+	mainAPIFile := "main.go"
+	p := New()
+	if err := p.ParseAPI(searchDir, mainAPIFile); err != nil {
+		t.Error("Failed to ignore valid pkg: " + err.Error())
+	}
+}
+
+func TestFixes432(t *testing.T) {
+	searchDir := "testdata/fixes-432"
+	mainAPIFile := "cmd/main.go"
+
+	p := New()
+	if err := p.ParseAPI(searchDir, mainAPIFile); err != nil {
+		t.Error("Failed to ignore valid pkg: " + err.Error())
+	}
+}
+
+func TestParseOutsideDependencies(t *testing.T) {
+	searchDir := "testdata/pare_outside_dependencies"
+	mainAPIFile := "cmd/main.go"
+
+	p := New()
+	p.ParseDependency = true
+	if err := p.ParseAPI(searchDir, mainAPIFile); err != nil {
+		t.Error("Failed to parse api: " + err.Error())
 	}
 }
