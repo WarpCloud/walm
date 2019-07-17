@@ -6,11 +6,12 @@ import (
 	"WarpCloud/walm/pkg/util/transwarpjsonnet"
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/ghodss/yaml"
+	"github.com/golang/glog"
 	"github.com/pkg/errors"
 	"github.com/sergi/go-diff/diffmatchpatch"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes/fake"
@@ -72,6 +73,9 @@ func newLintCmd() *cobra.Command {
 }
 
 func (lint *lintOptions) run() error {
+	flag.Set("logtostderr", "true")
+	flag.Set("v", "2")
+	flag.Parse()
 
 	isOpenSource := false
 	/* whether chart is openSource */
@@ -119,7 +123,6 @@ func (lint *lintOptions) run() error {
 		return errors.Errorf("metainfo.yaml \n%s", err.Error())
 	}
 
-
 	/* reject unknown fields */
 	var chartMetaInfo metainfo.ChartMetaInfo
 	dec := json.NewDecoder(bytes.NewReader(metainfoByte))
@@ -139,16 +142,16 @@ func (lint *lintOptions) run() error {
 	if err != nil {
 		return errors.Errorf("metainfo error: %s", err.Error())
 	}
-	logrus.Infof("metainfo.yaml is valid, start check params in values.yaml...")
+	glog.Infof("metainfo.yaml is valid, start check params in values.yaml...")
 
 	/* check params in values */
 	err = chartMetaInfo.CheckParamsInValues(string(valuesByte), configMaps)
 
 	if err != nil {
-		logrus.Warn(err)
+		glog.Warning(err)
 	}
 
-	logrus.Info("values.yaml is valid...")
+	glog.Info("values.yaml is valid...")
 
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
@@ -197,7 +200,7 @@ func (lint *lintOptions) run() error {
 		if err != nil {
 			return err
 		}
-		logrus.Infof("dry run release %s %s success", inst.Namespace, inst.ReleaseName)
+		glog.Infof("dry run release %s %s success", inst.Namespace, inst.ReleaseName)
 		expectCasePath := path.Join(lint.ciPath, "_expect-cases", testCase.caseName)
 		fileByte, err := ioutil.ReadFile(expectCasePath)
 		if err != nil {
@@ -219,9 +222,9 @@ func checkGenReleaseConfig(expectChart string, outputChart string) error {
 	dmp := diffmatchpatch.New()
 	diffs := dmp.DiffMain(expectChart, outputChart, true)
 	if len(diffs) > 2 {
-		return errors.Errorf("rendered template result is not expected. There are %d diff places.\n%s" , len(diffs) - 1, dmp.DiffPrettyText(diffs[1:]))
+		return errors.Errorf("rendered template result is not expected. There are %d diff places.\n%s", len(diffs)-1, dmp.DiffPrettyText(diffs[1:]))
 	}
-	logrus.Infof("rendered template result is expected.")
+	glog.Infof("rendered template result is expected.")
 	return nil
 }
 
@@ -277,7 +280,7 @@ func (lint *lintOptions) writeAsFiles(rel *release.Release) error {
 	// At one point we parsed out the returned manifest and created multiple files.
 	// I'm not totally sure what the use case was for that.
 	filename := filepath.Join(outputDir, rel.Name)
-	logrus.Infof("start write result to %s", filename)
+	glog.Infof("start write result to %s", filename)
 	return ioutil.WriteFile(filename, []byte(rel.Manifest), 0644)
 }
 
@@ -290,7 +293,7 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 		if !info.IsDir() {
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
-				logrus.Errorf("Read file \"%s\", err: %v", path, err)
+				glog.Errorf("Read file \"%s\", err: %v", path, err)
 				return err
 			}
 

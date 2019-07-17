@@ -1,15 +1,42 @@
 package transwarpjsonnet
 
 import (
+	"bytes"
 	"github.com/sirupsen/logrus"
 	"encoding/json"
+	"io"
 	"strings"
 	"fmt"
 	"github.com/google/go-jsonnet"
 	"path/filepath"
 	"path"
 	"gopkg.in/yaml.v2"
+	jsonnetAst "github.com/google/go-jsonnet/ast"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
+
+func RegisterNativeFuncs(vm *jsonnet.VM) {
+	vm.NativeFunction(&jsonnet.NativeFunction{
+		Name:   "parseYaml",
+		Params: []jsonnetAst.Identifier{"yaml"},
+		Func: func(args []interface{}) (res interface{}, err error) {
+			ret := []interface{}{}
+			data := []byte(args[0].(string))
+			d := k8syaml.NewYAMLToJSONDecoder(bytes.NewReader(data))
+			for {
+				var doc interface{}
+				if err := d.Decode(&doc); err != nil {
+					if err == io.EOF {
+						break
+					}
+					return nil, err
+				}
+				ret = append(ret, doc)
+			}
+			return ret, nil
+		},
+	})
+}
 
 func renderMainJsonnetFile(templateFiles map[string]string, configValues map[string]interface{}) (jsonStr string, err error) {
 	mainJsonFileName, err := getMainJsonnetFile(templateFiles)
@@ -88,6 +115,7 @@ func (importer *MemoryImporter) Import(importedFrom, importedPath string) (conte
 
 func MakeMemoryVM(data map[string]jsonnet.Contents) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
+	RegisterNativeFuncs(vm)
 	vm.Importer(&MemoryImporter{Data: data})
 	return vm
 }
