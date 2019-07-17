@@ -8,6 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"encoding/json"
 	"WarpCloud/walm/pkg/util"
+	"sync"
+	"errors"
 )
 
 type WalmNodeAdaptor struct {
@@ -36,16 +38,30 @@ func (adaptor *WalmNodeAdaptor) GetWalmNodes(namespace string, labelSelector *me
 
 	walmNodes := []*WalmNode{}
 	if nodeList != nil {
+		mux := &sync.Mutex{}
+		var wg sync.WaitGroup
 		for _, node := range nodeList {
-			walmNode, err := adaptor.BuildWalmNode(*node)
-			if err != nil {
-				logrus.Errorf("failed to build walm node : %s", err.Error())
-				return nil, err
-			}
-			walmNodes = append(walmNodes, walmNode)
+			wg.Add(1)
+			go func(node *corev1.Node) {
+				defer wg.Done()
+				walmNode, err1 := adaptor.BuildWalmNode(*node)
+				if err1 != nil {
+					logrus.Errorf("failed to build walm node : %s", err1.Error())
+					err = errors.New(err1.Error())
+					return
+				}
+
+				mux.Lock()
+				walmNodes = append(walmNodes, walmNode)
+				mux.Unlock()
+			}(node)
+		}
+		wg.Wait()
+		if err != nil {
+			logrus.Errorf("failed to build nodes : %s", err.Error())
+			return nil, err
 		}
 	}
-
 	return walmNodes, nil
 }
 
@@ -106,7 +122,7 @@ func (adaptor *WalmNodeAdaptor) BuildWalmNode(node corev1.Node) (walmNode *WalmN
 }
 
 func (adaptor *WalmNodeAdaptor) buildAllocated(node corev1.Node) (requestsAllocated corev1.ResourceList, limitsAllocated corev1.ResourceList, err error) {
-	nonTerminatedPods, err := adaptor.handler.GetPodsOnNode(node.Name, nil)
+	nonTerminatedPods, err := adaptor.handler.GetPodsOnNodeUsingCache(node.Name, nil)
 	if err != nil {
 		logrus.Errorf("failed to get non terminated pods on this node : %s", err.Error())
 		return
