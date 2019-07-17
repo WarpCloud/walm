@@ -9,6 +9,7 @@ import (
 	listv1 "k8s.io/client-go/listers/core/v1"
 	"encoding/json"
 	"reflect"
+	"github.com/sirupsen/logrus"
 )
 
 type NodeHandler struct {
@@ -99,4 +100,24 @@ func (handler *NodeHandler) GetPodsOnNode(nodeName string, labelSelector *metav1
 	}
 
 	return handler.client.CoreV1().Pods(metav1.NamespaceAll).List(listOptions)
+}
+
+func (handler *NodeHandler) GetPodsOnNodeUsingCache(nodeName string, labelSelector *metav1.LabelSelector) (*v1.PodList, error) {
+	pods, err := GetDefaultHandlerSet().GetPodHandler().ListPods("", labelSelector)
+	if err != nil {
+		logrus.Errorf("failed to list pods : %s", err.Error())
+		return nil, err
+	}
+
+	podList := &v1.PodList{
+		Items: []v1.Pod{},
+	}
+
+	for _, pod := range pods {
+		if pod.Spec.NodeName == nodeName && pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
+			podList.Items = append(podList.Items, *pod)
+		}
+	}
+
+	return podList, nil
 }
