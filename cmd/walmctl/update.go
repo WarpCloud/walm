@@ -158,7 +158,7 @@ func (uc *updateCmd) run() error {
 			if err != nil {
 				return err
 			}
-			
+
 			configValuesStr, err = sjson.Set(configValuesStr, propertyKey, destVal)
 			if err != nil {
 				return err

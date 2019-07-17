@@ -41,8 +41,8 @@ func newPackageCmd(out io.Writer) *cobra.Command {
 			return pack.run()
 		},
 	}
-	cmd.PersistentFlags().StringVarP(&pack.chartPath, "chartPath", "c",".", "transwarp chart path")
-	cmd.PersistentFlags().StringVarP(&pack.destination, "destination", "d",".", "location to write the chart")
+	cmd.PersistentFlags().StringVarP(&pack.chartPath, "chartPath", "c", ".", "transwarp chart path")
+	cmd.PersistentFlags().StringVarP(&pack.destination, "destination", "d", ".", "location to write the chart")
 	cmd.MarkPersistentFlagRequired("chartPath")
 	return cmd
 }
@@ -238,5 +238,4 @@ func createTempDir() (string, error) {
 	}
 
 	return dir, nil
-
 }

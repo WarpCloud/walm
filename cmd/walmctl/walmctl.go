@@ -15,18 +15,17 @@ Environment:
 `
 
 var (
-	settings walmctlEnv.EnvSettings
+	settings   walmctlEnv.EnvSettings
 	walmserver string
-	namespace string
+	namespace  string
 )
 
 func newRootCmd(args []string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "walmctl",
-		Short: "walmctl controls the walm application lifecycle manager",
-		Long: globalUsage,
+		Use:          "walmctl",
+		Short:        "walmctl controls the walm application lifecycle manager",
+		Long:         globalUsage,
 		SilenceUsage: true,
-
 	}
 
 	cmd.SetHelpCommand(&cobra.Command{
@@ -43,7 +42,6 @@ func newRootCmd(args []string) *cobra.Command {
 	out := cmd.OutOrStdout()
 
 	cmd.AddCommand(
-
 		newCreateCmd(out),
 		newUpdateCmd(out),
 		newGetCmd(out),
