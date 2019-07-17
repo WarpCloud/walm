@@ -120,7 +120,7 @@
 
 ## 4. 升级产品里的应用
 
-升级产品里的应用， 使用方法同升级Release[见文档《基于Helm的应用管理》](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/application-management.md)。 
+升级产品里的应用， 使用方法同升级Release[见文档《基于Helm的应用管理》](application-management.md)。 
 
 ## 5. 移除产品里的应用
 
@@ -157,8 +157,6 @@ dependencies:
 #,那么系统会自动构建 kafka 和 chartName为 name的 应用之间的依赖关系。
 
 ```
-
-
 
 - 支持应用的动态依赖
 

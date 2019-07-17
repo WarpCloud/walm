@@ -16,10 +16,11 @@
   ```shell script
   vi /usr/lib/systemd/system/docker.service
   # config registry-mirror && insecure-registry
-  ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --registry-mirror https://172.16.1.99 --registry-mirror https://172.26.0.5:5000 --insecure-registry 172.16.1.99 --insecure-registry 172.26.0.5:5000
+  ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --registry-mirror xxx1 --registry-mirror xxx2 --insecure-registry xxx1 --insecure-registry xxx2
   # restart
   systemctl daemon-reload
   systemctl restart docker
+  ```
 - 集群无法连接外网
   自定义DNS配置, 选择其他如Google, Tencent的 DNS服务
   ```shell script
@@ -29,6 +30,7 @@
   DNS2=114.114.114.114
   # 重启
   systemctl restart network
+  ```
 
 ## 1. 使用kubeadm安装kubernetes 1.14
 
@@ -51,7 +53,7 @@ docker run -d -p 5000:5000 --restart=always --name registry registry:2
 
 ## 2. 安装helm
 
-由于开源的helm v3版本尚在开发，存在一些bug，目前可以使用我们自己定制的helm(可以跳过下面的 helm push 插件安装步骤)。[下载地址](http://172.16.1.41:10080/k8s/helm)
+由于开源的helm v3版本尚在开发，存在一些bug，目前可以使用我们自己定制的helm(可以跳过下面的 helm push 插件安装步骤)。[下载地址](https://github.com/WarpCloud/helm)
 
 ## 3. 安装chartmuseum
 
@@ -129,9 +131,9 @@ spec:
 
 ```yaml
 image:
-  image: transwarp/bitnami/redis:4.0.12
+  image: redis:4.0.12
   registry: docker.io
-  repository: bitnami/redis
+  repository: library/redis
   tag: 4.0.12
   pullPolicy: Always
 
@@ -296,7 +298,7 @@ configmap:
   conf.yaml: |-
     .......
     - name: qa
-      url: http://172.26.5.116:8088
+      url: xxx.xxx.xxx.xxx:xxx
     - name: apphub
       url: https://apphub.aliyuncs.com
     ......

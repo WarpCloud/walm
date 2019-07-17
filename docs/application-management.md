@@ -1,7 +1,6 @@
 # 目录
 
 * [应用生命周期](#应用生命周期)
-  
     * [1. 安装](#1-安装)
     * [2. 升级](#2-升级)
     * [3. 暂停](#3-暂停)
@@ -19,11 +18,11 @@
 
 # 应用生命周期
 
-:warning: 在进行应用的安装和升级操作时，需要提前了解下 `releaseRequest` 的定义。[Reference]([http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/ref/releaseRequest-reference.md))
+:warning: 在进行应用的安装和升级操作时，需要提前了解下 `releaseRequest` 的定义。[Reference](ref/releaseRequest-reference.md)
 
 ## 1. 安装
 
-walm的安装功能通过helm实现kubernates应用的定制化安装。
+walm的安装功能通过helm实现kubernetes应用的定制化安装。
 
 **1.1 Chart形式**
 
@@ -42,17 +41,16 @@ walm的安装功能通过helm实现kubernates应用的定制化安装。
   同步消息处理，向helm 发送 处理 release 相关请求时， 首先向redis查询是否有相同的 namespace/releaseName 的task存在，若old task还没完成， 等待其finished或timeout 。
 
   ```shell script
-  ssh 172.26.0.5 -l root
   helm repo list                  #查看repo列表
   helm search repoName            #通过search进行关键字查询
   helm search repoName/chartName  
   helm search chartName              
   #具体可参照 helm 的使用方法
   ```
-
-  eg: 安装zookeeper应用（/api/v1/release/{namespace} )
-
-  ```json
+  
+eg: 安装zookeeper应用（/api/v1/release/{namespace} )
+  
+```json
   {
     "chartName": "zookeeper",
     "chartVersion": "6.1.0",
@@ -60,7 +58,7 @@ walm的安装功能通过helm实现kubernates应用的定制化安装。
     "name": "zookeeper-xxx"
   }
   ```
-
+  
 - 根据chartImage 安装
 
   通过3.0及以上版本的helm来帮助通过chartImage来安装应用。
@@ -77,10 +75,10 @@ walm的安装功能通过helm实现kubernates应用的定制化安装。
   # 3. 在本地仓库缓存中存储某个chart的备份
   # 对于某个应用产品的tgz包，可以先进行解压，然后将其拷贝到本地仓库缓存中。
   tar -zxvf zookeeper-6.1.0.tgz
-  helm chart save /home/zookeeper 172.26.1.41:5000/cy-charts/zookeeper:6.1.0
+  helm chart save /home/zookeeper registryURL/repoName/zookeeper:6.1.0
   
   # 4. 上传一个chart到远程仓库（该ref必须存在于本地仓库缓存中）
-  helm chart push ref(ref即172.26.1.41:5000/cy-charts/zookeeper:6.1.0)
+  helm chart push ref(ref即registryURL/repoName/zookeeper:6.1.0)
   ```
 
   
@@ -111,7 +109,7 @@ eg：
 
 chart： zookeeper-6.1.0.tgz
 body {
-	"chartImage": "172.26.1.41:5000/cy-charts/zookeeper:6.0.0",
+	"chartImage": "registryURL/repoName/zookeeper:6.0.0",
 	"repoName": "qa",
 	"chartVersion": "5.2.0",
 	"chartName": "zookeeper"
@@ -134,7 +132,7 @@ eg: 安装zookeeper并通过configValues重写其应用配置
       "zookeeper": {
          "priority": 1,
          "replicas": 3,
-         "image": "172.16.1.99/gold/zookeeper:transwarp-5.2",
+         "image": "zookeeper:transwarp-5.2",
          "env_list": [],
          "use_host_network": false,
          "resources": {
@@ -171,7 +169,7 @@ eg: 安装zookeeper并通过metainfoParams重写其应用配置
       {
         "baseConfig": {
           "env": [],
-          "image": "172.16.1.99/gold/zookeeper:transwarp-5.2",
+          "image": "registryURL/repoName/zookeeper:transwarp-5.2",
           "others": [
             {
               "name": "string",
@@ -260,15 +258,15 @@ eg: 安装zookeeper并通过metainfoParams重写其应用配置
 
 ​		依赖应用配置动态注入可以对应用的依赖组件及其配置进行动态更新，主要是为了解耦动态依赖管理，例如**kafka依赖zookeeper, 如果zookeeper的配置进行了更新， kafka会对其进行感知和识别**。
 
-​		依赖注入通过配置`dependencies`字段来实现，格式为`<string, string>`的Map数组，存放的是`name`和`releaseName`的键值对。该信息原先的依赖可以从该组件chart的metainfo文件中获取到（参见项目`application-helmcharts`）。以下以设置kafka应用组件的依赖为例，参考其对应的[metainfo](<http://172.16.1.41:10080/app/application-helmcharts/blob/chart-v3/transwarp-jsonnetcharts/kafka/6.1/transwarp-meta/metainfo.yaml>)：
+​		依赖注入通过配置`dependencies`字段来实现，格式为`<string, string>`的Map数组，存放的是`name`和`releaseName`的键值对。该信息原先的依赖可以从该组件chart的metainfo文件中获取到（参见项目`application-helmcharts`）。以下以设置kafka应用组件的依赖为例，参考其对应的[metainfo](https://github.com/WarpCloud/walm-charts/blob/master/jsonnetcharts/kafka/transwarp-meta/metainfo.yaml):
 
 ```
-// 1.根据metainfo中信息所示，kafka依赖的是zookeeper，若更新kafka依赖某个namespace下名为zookeeper-dzy的zookeeper组件(如果不加namespace， 默认依赖当前目录的对应名称的zookeeper组件)
+// 1. 根据metainfo中信息所示，kafka依赖的是zookeeper，若更新kafka依赖某个namespace下名为zookeeper-dzy的zookeeper组件(如果不加namespace， 默认依赖当前目录的对应名称的zookeeper组件)
 dependencies{"zookeeper": "namespace/zookeeper-dzy"}
 
 // 2. 如果某个组件本不存在chart的依赖中，那么添加该组件会进行merge
 
-// 3.  如果dependencies字段中， 某个key的值为""(空字符串)， 表示将会从原有依赖中删除与该key相匹配的依赖。
+// 3. 如果dependencies字段中， 某个key的值为""(空字符串)，表示将会从原有依赖中删除与该key相匹配的依赖。
 dependencies{"zookeeper": ""}
 ```
 
@@ -359,7 +357,7 @@ PUT /api/v1/release/{namespace}
 // 通过chartImage进行升级
 PUT /api/v1/release/{namespace}
 {
-	"chartImage": "172.26.1.41:5000/cy-charts/zookeeper:6.1.0",
+	"chartImage": "repoUrl/cy-charts/zookeeper:6.1.0",
 	"name": "zookeeper-demo",
 	"releaseLabels": {}
 }
@@ -458,7 +456,7 @@ body
       "zookeeper": {
          "priority": 1,
          "replicas": 3,
-         "image": "172.16.1.99/gold/zookeeper:transwarp-5.2",
+         "image": "zookeeper:transwarp-5.2",
          "env_list": [],
          "use_host_network": false,
          "resources": {
@@ -506,7 +504,8 @@ body
       "zookeeper": {
          "priority": 2,
          "replicas": 3,
-         "image": "172.16.1.99/gold/zookeeper:transwarp-5.2",
+         "image": "zookeeper:transwarp-5.2
+         ",
          "env_list": [],
          "use_host_network": false,
          "resources": {
@@ -592,7 +591,7 @@ app.kubernates.io/managed-by=walm
 /api/v1/release/{namespace}/name/{release}
 ```
 
-[查询结果分类和解析](http://172.16.1.41:10080/TDC/WALM/tree/master/walmdocs/ref/queryResults-description.md)
+[查询结果分类和解析](ref/queryResults-description.md)
 
 # 基于Redis的应用缓存
 

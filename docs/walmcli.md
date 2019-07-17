@@ -7,8 +7,8 @@
 ***walmctl 执行每条命令都需要指定 `walm host(server)`和操作的 `namespace`，为了方便，可以设定env变量，eg:***
 
 ```shell
-walmctl -s/--server 172.26.0.5:31606 -n/--namespace p1138 [commands] ...
-export WALM_HOST=172.26.0.5:31606
+walmctl -s/--server xxx.xxx.xxx.xxx:xxx -n/--namespace p1138 [commands] ...
+export WALM_HOST=0.0.0.0:9001
 ```
 
 
@@ -130,7 +130,7 @@ Required Flags:
     "config_values": {
         "App": {
             "txsql": {
-                "image": "172.16.1.99/transwarp/txsql:transwarp-5.2.2-final",
+                "image": "txsql:transwarp-5.2.2-final",
                 "replicas": 1,
                 "resources": {
                     "cpu_limit": 2,
@@ -231,7 +231,7 @@ walmctl lint --chartPath transwarp-native-charts/$chart
 #### :seven: charts打包： `package`
 
 提供charts的打包功能， 对于开源的charts，可以通过 `helm package`完成，非开源charts 可通过 `walmctl package`完成。
-以[application-helmcharts](http://172.16.1.41:10080/app/application-helmcharts/tree/chart-v3)中的charts为例。
+以[application-helmcharts](https://github.com/WarpCloud/walm-charts)中的charts为例。
 对于transwarp-jsonnetcharts， 通过以下命令进行打包， 其中 `destination`指输出路径， 若不填代表charts打包输出在当前目录下。
 ```
 walmctl package --chartPath transwarp-jsonnetcharts/${transwarpchart}/${appVersion} --destination ${OUTPUTDIR}
