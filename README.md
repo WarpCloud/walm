@@ -82,7 +82,5 @@ walmctl --help
 ```
 
 # Road Map
-## Release 0.1 
 - Authentication & Authorization
 - Release Status Real-Time Synchronization
-- Document

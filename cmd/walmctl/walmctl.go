@@ -8,7 +8,7 @@ import (
 
 var globalUsage = `walmctl controls the walm application lifecycle manager.
 To begin working with walmctl,Find detail docs at:
-http://172.16.1.41:10080/zhiyangdai/walmdocs/blob/master/docs/features/walmctl%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3.md
+https://github.com/WarpCloud/walm/tree/master/docs/walmcli.md
 Environment:
   $WALM_HOST		Set WALM_HOST env to substitute --server/-s in commands. The format is host:port (export $WALM_HOST=...)
 
