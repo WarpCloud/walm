@@ -12,14 +12,17 @@ var _ = Describe("Node", func() {
 
 	var (
 		nodeName string
-		err error
-
 	)
 
 	BeforeEach(func() {
 
 		// check node
-		nodeName = "tdc-tester03"
+		nodes, err := handler.GetDefaultHandlerSet().GetNodeHandler().ListNodes(nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nodes).NotTo(HaveLen(0))
+
+		nodeName = nodes[0].Name
+
 		_, err = adaptor.GetDefaultAdaptorSet().GetAdaptor("Node").(*adaptor.WalmNodeAdaptor).GetResource("", nodeName)
 		Expect(err).NotTo(HaveOccurred())
 

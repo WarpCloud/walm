@@ -5,7 +5,7 @@ repoList:
   - name: "stable"
     url: "http://localhost:8880/"
 kubeConfig:
-  config: "test/k8sconfig/kubeconfig"
+  config: "k8sconfig/kubeconfig"
   context: ""
 redisConfig:
   addr: localhost:6380
@@ -25,7 +25,7 @@ taskConfig:
   result_backend: "redis://pwd@localhost:6380/2"
   results_expire_in: 360000
 jsonnetConfig:
-  commonTemplateFilesPath: "test/ksonnet-lib"
+  commonTemplateFilesPath: "ksonnet-lib"
 logConfig:
   level: "debug"
 chartImageConfig:

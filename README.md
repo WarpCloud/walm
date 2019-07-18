@@ -58,7 +58,7 @@ make test
 - K8s 1.9+
 - Redis 2.8+
 ```
-# config walm.yaml first
+# config test/e2e_walm.yaml first
 make e2e-test
 ```
 
@@ -82,7 +82,5 @@ walmctl --help
 ```
 
 # Road Map
-## Release 0.1 
 - Authentication & Authorization
 - Release Status Real-Time Synchronization
-- Document
