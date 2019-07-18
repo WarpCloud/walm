@@ -1,4 +1,4 @@
-package e2e_test
+package test
 
 import (
 	"testing"
@@ -6,8 +6,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"os"
-	"go/build"
 	"WarpCloud/walm/pkg/setting"
 	"WarpCloud/walm/pkg/k8s/informer"
 	"WarpCloud/walm/pkg/task"
@@ -22,9 +20,15 @@ import (
 	//_ "WarpCloud/walm/test/e2e/project"
 	_ "WarpCloud/walm/test/e2e/k8s/handler"
 	_ "WarpCloud/walm/test/e2e/release/manager/helm"
+	"flag"
 )
 
 var stopChan = make(chan struct{})
+var configPath string
+
+func init() {
+	flag.StringVar(&configPath, "configPath", "e2e_walm.yaml", "configPath is used to init config")
+}
 
 func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -32,13 +36,13 @@ func TestE2e(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		gopath = build.Default.GOPATH
-	}
+	//gopath := os.Getenv("GOPATH")
+	//if gopath == "" {
+	//	gopath = build.Default.GOPATH
+	//}
 
-	setting.InitConfig(gopath + "/src/WarpCloud/walm/walm.yaml")
-	setting.Config.KubeConfig.Config = gopath + "/src/WarpCloud/walm/test/k8sconfig/kubeconfig"
+	setting.InitConfig(configPath)
+	//setting.Config.KubeConfig.Config = gopath + "/src/WarpCloud/walm/test/k8sconfig/kubeconfig"
 
 	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
 

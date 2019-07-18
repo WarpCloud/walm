@@ -1,7 +1,0 @@
-{
-	"chartName": "weblogic",
-	"chartVersion": "12.2.0",
-	"name": "weblogic",
-	"repoName": "qa",
-    "releaseLabels": {"release": "weblogic-12.2.0"}
-}
