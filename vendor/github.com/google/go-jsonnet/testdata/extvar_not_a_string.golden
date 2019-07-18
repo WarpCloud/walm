@@ -1,0 +1,10 @@
+RUNTIME ERROR: Unexpected type number, expected string
+-------------------------------------------------
+	testdata/extvar_not_a_string:1:1-15	builtin function <extVar>
+
+std.extVar(42)
+
+-------------------------------------------------
+	During evaluation	
+
+

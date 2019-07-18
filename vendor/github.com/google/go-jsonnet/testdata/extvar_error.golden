@@ -1,0 +1,15 @@
+RUNTIME ERROR: xxx
+-------------------------------------------------
+	<extvar:errorVar>:1:1-12	$
+
+error 'xxx'
+
+-------------------------------------------------
+	testdata/extvar_error:1:1-23	builtin function <extVar>
+
+std.extVar("errorVar")
+
+-------------------------------------------------
+	During evaluation	
+
+

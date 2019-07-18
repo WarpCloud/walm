@@ -1,0 +1,10 @@
+RUNTIME ERROR: Overflow
+-------------------------------------------------
+	testdata/builtin_log5:1:1-11	builtin function <log>
+
+std.log(0)
+
+-------------------------------------------------
+	During evaluation	
+
+

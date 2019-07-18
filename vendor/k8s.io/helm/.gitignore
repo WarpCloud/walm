@@ -1,0 +1,12 @@
+*.exe
+.DS_Store
+.coverage/
+.idea/
+.vimrc
+.vscode/
+/docs/helm
+/docs/man
+_dist/
+bin/
+vendor/
+*.iml

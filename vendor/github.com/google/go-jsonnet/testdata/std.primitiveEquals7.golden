@@ -1,0 +1,10 @@
+RUNTIME ERROR: Cannot test equality of functions
+-------------------------------------------------
+	testdata/std.primitiveEquals7:1:1-50	builtin function <primitiveEquals>
+
+std.primitiveEquals(function() 42, function() 42)
+
+-------------------------------------------------
+	During evaluation	
+
+

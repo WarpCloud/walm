@@ -1,0 +1,10 @@
+RUNTIME ERROR: 'from' string must not be zero length.
+-------------------------------------------------
+	testdata/strReplace3:1:1-35	builtin function <strReplace>
+
+std.strReplace("test", "", "blah")
+
+-------------------------------------------------
+	During evaluation	
+
+

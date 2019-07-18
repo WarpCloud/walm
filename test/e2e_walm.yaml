@@ -1,0 +1,32 @@
+debug: true
+serverConfig:
+  port: 9001
+repoList:
+  - name: "stable"
+    url: "http://localhost:8880/"
+kubeConfig:
+  config: "k8sconfig/kubeconfig"
+  context: ""
+redisConfig:
+  addr: localhost:6380
+  password: "pwd"
+  db: 0
+kafkaConfig:
+  enable: false
+  brokers:
+    - "localhost:9092"
+  certFile: ""
+  keyFile: ""
+  caFile: ""
+  VerifySsl: false
+taskConfig:
+  broker: "redis://pwd@localhost:6380/2"
+  default_queue: "machinery_tasks"
+  result_backend: "redis://pwd@localhost:6380/2"
+  results_expire_in: 360000
+jsonnetConfig:
+  commonTemplateFilesPath: "ksonnet-lib"
+logConfig:
+  level: "debug"
+chartImageConfig:
+  cacheRootDir: "/chart-cache"

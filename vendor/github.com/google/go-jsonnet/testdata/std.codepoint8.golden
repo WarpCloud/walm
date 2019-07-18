@@ -1,0 +1,10 @@
+RUNTIME ERROR: Unexpected type number, expected string
+-------------------------------------------------
+	testdata/std.codepoint8:1:1-18	builtin function <codepoint>
+
+std.codepoint(42)
+
+-------------------------------------------------
+	During evaluation	
+
+

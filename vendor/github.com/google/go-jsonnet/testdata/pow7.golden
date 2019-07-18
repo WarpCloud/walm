@@ -1,0 +1,10 @@
+RUNTIME ERROR: Overflow
+-------------------------------------------------
+	testdata/pow7:2:1-23	builtin function <pow>
+
+std.pow(1.1, 7447.082)
+
+-------------------------------------------------
+	During evaluation	
+
+

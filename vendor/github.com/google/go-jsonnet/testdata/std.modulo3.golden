@@ -1,0 +1,10 @@
+RUNTIME ERROR: Unexpected type string, expected number
+-------------------------------------------------
+	testdata/std.modulo3:1:1-22	builtin function <modulo>
+
+std.modulo("xxx", 42)
+
+-------------------------------------------------
+	During evaluation	
+
+

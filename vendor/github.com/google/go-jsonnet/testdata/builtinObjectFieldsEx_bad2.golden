@@ -1,0 +1,10 @@
+RUNTIME ERROR: Unexpected type string, expected boolean
+-------------------------------------------------
+	testdata/builtinObjectFieldsEx_bad2:1:1-30	builtin function <objectFieldsEx>
+
+std.objectFieldsEx({}, "xxx")
+
+-------------------------------------------------
+	During evaluation	
+
+
