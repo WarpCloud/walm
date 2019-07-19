@@ -23,7 +23,7 @@ var _ = Describe("K8sOperatorPvc", func() {
 
 	BeforeEach(func() {
 		By("create namespace")
-		namespace, err = framework.CreateRandomNamespace("k8sOperatorPvcTest")
+		namespace, err = framework.CreateRandomNamespace("k8sOperatorPvcTest", nil)
 		Expect(err).NotTo(HaveOccurred())
 		stopChan = make(chan struct{})
 		k8sCache := informer.NewInformer(framework.GetK8sClient(), framework.GetK8sReleaseConfigClient(), 0, stopChan)
@@ -69,7 +69,7 @@ var _ = Describe("K8sOperatorPvc", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("delete statefulSet pvcs")
-		statefulSet, err := framework.CreateStatefulSet(namespace, "test-sts")
+		statefulSet, err := framework.CreateStatefulSet(namespace, "test-sts", nil)
 		Expect(err).NotTo(HaveOccurred())
 		time.Sleep(time.Second * 1)
 

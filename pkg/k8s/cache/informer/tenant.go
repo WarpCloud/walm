@@ -52,6 +52,23 @@ func (informer *Informer) GetTenant(tenantName string) (*tenant.TenantInfo, erro
 }
 
 func (informer *Informer)buildTenantInfo(namespace *corev1.Namespace)(*tenant.TenantInfo, error) {
+	tenantInfo := buildBasicTenantInfo(namespace)
+
+	resourceQuotas, err := informer.resourceQuotaLister.ResourceQuotas(namespace.Name).List(labels.NewSelector())
+	if err != nil {
+		logrus.Errorf("failed to get resource quotas : %s", err.Error())
+		return nil, err
+	}
+
+	tenantInfo.TenantQuotas, tenantInfo.UnifyUnitTenantQuotas, err = buildTenantQuotas(resourceQuotas)
+	if err != nil {
+		return nil, err
+	}
+
+	return tenantInfo, nil
+}
+
+func buildBasicTenantInfo(namespace *corev1.Namespace) *tenant.TenantInfo {
 	tenantInfo := &tenant.TenantInfo{
 		TenantName:            namespace.Name,
 		TenantCreationTime:    namespace.CreationTimestamp.String(),
@@ -61,33 +78,29 @@ func (informer *Informer)buildTenantInfo(namespace *corev1.Namespace)(*tenant.Te
 		TenantQuotas:          []*tenant.TenantQuota{},
 		UnifyUnitTenantQuotas: []*tenant.UnifyUnitTenantQuota{},
 	}
-
 	if tenantInfo.TenantLabels == nil {
 		tenantInfo.TenantLabels = map[string]string{}
 	}
 	if tenantInfo.TenantAnnotitions == nil {
 		tenantInfo.TenantAnnotitions = map[string]string{}
 	}
-
 	if _, ok := namespace.Labels[tenant.MultiTenantLabelKey]; ok {
 		tenantInfo.MultiTenant = true
 	}
-
 	if namespace.Status.Phase == corev1.NamespaceActive {
 		tenantInfo.Ready = true
 	}
+	return tenantInfo
+}
 
-	resourceQuotas, err := informer.resourceQuotaLister.ResourceQuotas(namespace.Name).List(labels.NewSelector())
-	if err != nil {
-		logrus.Errorf("failed to get resource quotas : %s", err.Error())
-		return nil, err
-	}
-
+func buildTenantQuotas(resourceQuotas []*corev1.ResourceQuota) ([]*tenant.TenantQuota, []*tenant.UnifyUnitTenantQuota, error) {
+	tenantQuotas := []*tenant.TenantQuota{}
+	unifyUnitTenantQuotas := []*tenant.UnifyUnitTenantQuota{}
 	for _, resourceQuota := range resourceQuotas {
 		walmResourceQuota, err := converter.ConvertResourceQuotaFromK8s(resourceQuota)
 		if err != nil {
 			logrus.Errorf("failed to convert resource quota %s: %s", resourceQuota.Name, err.Error())
-			return nil, err
+			return nil, nil, err
 		}
 		hard := &tenant.TenantQuotaInfo{
 			Pods:            walmResourceQuota.ResourceLimits[k8s.ResourcePods],
@@ -105,14 +118,13 @@ func (informer *Informer)buildTenantInfo(namespace *corev1.Namespace)(*tenant.Te
 			RequestsMemory:  walmResourceQuota.ResourceUsed[k8s.ResourceRequestsMemory],
 			RequestsCPU:     walmResourceQuota.ResourceUsed[k8s.ResourceRequestsCPU],
 		}
-		tenantInfo.TenantQuotas = append(tenantInfo.TenantQuotas, &tenant.TenantQuota{
+		tenantQuotas = append(tenantQuotas, &tenant.TenantQuota{
 			QuotaName: walmResourceQuota.Name,
 			Hard:      hard,
 			Used:      used})
-		tenantInfo.UnifyUnitTenantQuotas = append(tenantInfo.UnifyUnitTenantQuotas, buildUnifyUnitTenantQuota(walmResourceQuota.Name, hard, used))
+		unifyUnitTenantQuotas = append(unifyUnitTenantQuotas, buildUnifyUnitTenantQuota(walmResourceQuota.Name, hard, used))
 	}
-
-	return tenantInfo, nil
+	return tenantQuotas, unifyUnitTenantQuotas, nil
 }
 
 func buildUnifyUnitTenantQuota(name string, hard *tenant.TenantQuotaInfo, used *tenant.TenantQuotaInfo) *tenant.UnifyUnitTenantQuota {

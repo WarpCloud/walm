@@ -19,7 +19,7 @@ var _ = Describe("K8sOperatorPod", func() {
 
 	BeforeEach(func() {
 		By("create namespace")
-		namespace, err = framework.CreateRandomNamespace("k8sOperatorPodTest")
+		namespace, err = framework.CreateRandomNamespace("k8sOperatorPodTest", nil)
 		Expect(err).NotTo(HaveOccurred())
 		k8sOperator = operator.NewOperator(framework.GetK8sClient(), nil, nil)
 		pod, err = framework.CreatePod(namespace, "test-pod")

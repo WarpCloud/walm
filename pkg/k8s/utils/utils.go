@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -127,22 +128,50 @@ func GetPodRequestsAndLimits(podSpec v1.PodSpec) (reqs map[v1.ResourceName]resou
 }
 
 func ParseK8sResourceMemory(strValue string) (int64) {
-	quantity := resource.MustParse(strValue)
+	if strValue == "" {
+		return 0
+	}
+	quantity, err := resource.ParseQuantity(strValue)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", strValue, err.Error())
+		return 0
+	}
 	return quantity.Value() / K8sResourceMemoryScale
 }
 
 func ParseK8sResourceCpu(strValue string) (float64) {
-	quantity := resource.MustParse(strValue)
+	if strValue == "" {
+		return 0
+	}
+	quantity, err := resource.ParseQuantity(strValue)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", strValue, err.Error())
+		return 0
+	}
 	return float64(quantity.MilliValue()) / K8sResourceCpuScale
 }
 
 func ParseK8sResourceStorage(strValue string) (int64) {
-	quantity := resource.MustParse(strValue)
+	if strValue == "" {
+		return 0
+	}
+	quantity, err := resource.ParseQuantity(strValue)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", strValue, err.Error())
+		return 0
+	}
 	return quantity.Value() / K8sResourceStorageScale
 }
 
 func ParseK8sResourcePod(strValue string) (int64) {
-	quantity := resource.MustParse(strValue)
+	if strValue == "" {
+		return 0
+	}
+	quantity, err := resource.ParseQuantity(strValue)
+	if err != nil {
+		logrus.Warnf("failed to parse quantity %s : %s", strValue, err.Error())
+		return 0
+	}
 	return quantity.Value()
 }
 
