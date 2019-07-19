@@ -21,6 +21,7 @@
   systemctl daemon-reload
   systemctl restart docker
   ```
+  
 - 集群无法连接外网
   自定义DNS配置, 选择其他如Google, Tencent的 DNS服务
   ```shell script
@@ -31,6 +32,12 @@
   # 重启
   systemctl restart network
   ```
+  
+- chart 来源
+
+​       chart的来源可以参考我们提供的[walm-chart](https://github.com/WarpCloud/walm-charts)。
+
+
 
 ## 1. 使用kubeadm安装kubernetes 1.14
 
@@ -53,7 +60,7 @@ docker run -d -p 5000:5000 --restart=always --name registry registry:2
 
 ## 2. 安装helm
 
-由于开源的helm v3版本尚在开发，存在一些bug，目前可以使用我们自己定制的helm(可以跳过下面的 helm push 插件安装步骤)。[下载地址](https://github.com/WarpCloud/helm)
+由于开源的helm v3版本尚在开发，存在一些bug，目前可以使用我们自己定制的helm(可以跳过下面的 helm push 插件安装步骤)。[下载地址](https://github.com/WarpCloud/helm/releases/tag/v3.0%2Bunreleased)
 
 ## 3. 安装chartmuseum
 
@@ -125,7 +132,7 @@ spec:
 
 ## 5. redis部署
 
-修改 `redis/values.yaml`中 `persistence`的`storageClass`为`hostpath`, 创建 redis
+redis的chart可以从[walm-charts](https://github.com/WarpCloud/walm-charts)获取到， 修改 `redis/values.yaml`中 `persistence`的`storageClass`为`hostpath`, 创建 redis。
 
 `kubectl upgrade -n kube-system -i -f values.yaml walm-redis chartmuseum/redis`
 
@@ -270,7 +277,7 @@ sysctlImage:
 
 ## 6. walm部署
 
-- 修改 walm/values.yaml ， 指定安装的`redis svc`， 内部测试使用`172.16.1.99/gold/walm:dev` 的walm 镜像。 
+- 从[walm-charts](https://github.com/WarpCloud/walm-charts)获取到walm的chart， 修改 walm/values.yaml ， 指定安装的`redis svc`。 
 
 ```yaml
 # 1. 查询 svc name
@@ -297,8 +304,9 @@ redisConfig:
 configmap:
   conf.yaml: |-
     .......
-    - name: qa
-      url: xxx.xxx.xxx.xxx:xxx
+    - name: chartmuseum
+      url: 之前配置的chartmuseum的地址
+    // 如果需要使用外部的chartRepo源， 按如下方法进行配置
     - name: apphub
       url: https://apphub.aliyuncs.com
     ......

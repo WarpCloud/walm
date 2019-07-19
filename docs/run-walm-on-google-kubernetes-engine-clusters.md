@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:4.0.12
+          image: docker.io/warpcloud/redis:4.0.12
           imagePullPolicy: Always
           args: ["--requirepass", "$(REDIS_PASS)"]
           ports:
@@ -88,9 +88,9 @@ root@walm-redis-master-0:/data# redis-cli
 OK
 ```
 
-
-
 ## 4. Deploying walm
+
+[chartmuseum安装参考](run-walm-on-linux-clusters.md)
 
 ```yaml
 apiVersion: v1
@@ -171,10 +171,8 @@ data:
       commonTemplateFilesPath: "/opt/ksonnet-lib"
     kubeConfig: {}
     repoList:
-    - name: stable
-      url: http://172.16.1.41:8882/stable/
-    - name: transwarp
-      url: https://harbor.kube-system.ingress.lan/api/chartrepo/transwarp/charts/
+    - name: chartmuseum
+      url: http://127.0.0.1:8088
     serverConfig:
       port: 9001
       readTimeout: 0
@@ -296,7 +294,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.namespace
-        image: docker.io/corndai1997/walm:dev
+        image: docker.io/warpcloud/walm:dev
         imagePullPolicy: Always
         name: walm
         resources:
