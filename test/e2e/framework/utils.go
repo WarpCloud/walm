@@ -5,8 +5,6 @@ import (
 	"fmt"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"os"
-	"WarpCloud/walm/pkg/util/transwarpjsonnet"
-	"k8s.io/helm/pkg/chart/loader"
 	"errors"
 	"WarpCloud/walm/pkg/setting"
 	"github.com/sirupsen/logrus"
@@ -25,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"WarpCloud/walm/pkg/k8s/operator"
 	"time"
+	"WarpCloud/walm/pkg/models/common"
+	"runtime"
 )
 
 var k8sClient *kubernetes.Clientset
@@ -333,7 +333,7 @@ func DeleteStorageClass(namespace, name string) (error) {
 	return k8sClient.StorageV1().StorageClasses().Delete(name, &metav1.DeleteOptions{})
 }
 
-func LoadChartArchive(name string) ([]*loader.BufferedFile, error) {
+func LoadChartArchive(name string) ([]*common.BufferedFile, error) {
 	if fi, err := os.Stat(name); err != nil {
 		return nil, err
 	} else if fi.IsDir() {
@@ -345,16 +345,16 @@ func LoadChartArchive(name string) ([]*loader.BufferedFile, error) {
 		return nil, err
 	}
 	defer raw.Close()
-	return transwarpjsonnet.LoadArchive(raw)
+	return common.LoadArchive(raw)
 }
 
-//func GetCurrentFilePath() (string, error) {
-//	_, file, _, ok := runtime.Caller(1)
-//	if !ok {
-//		return "", errors.New("Can not get current file info")
-//	}
-//	return file, nil
-//}
+func GetCurrentFilePath() (string, error) {
+	_, file, _, ok := runtime.Caller(1)
+	if !ok {
+		return "", errors.New("Can not get current file info")
+	}
+	return file, nil
+}
 
 func InitFramework() error {
 	kubeConfig := ""

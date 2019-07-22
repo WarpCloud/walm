@@ -430,7 +430,7 @@ func mergeReleasePlugins(plugins, defaultPlugins []*release.ReleasePlugin) (merg
 	releasePluginsMap := map[string]*release.ReleasePlugin{}
 	for _, plugin := range plugins {
 		if _, ok := releasePluginsMap[plugin.Name]; ok {
-			return nil, fmt.Errorf("more than one plugin %s is not allowed", plugin.Name)
+			return nil, buildDuplicatedPluginError(plugin.Name)
 		} else {
 			releasePluginsMap[plugin.Name] = plugin
 		}
@@ -444,6 +444,10 @@ func mergeReleasePlugins(plugins, defaultPlugins []*release.ReleasePlugin) (merg
 		mergedPlugins = append(mergedPlugins, plugin)
 	}
 	return
+}
+
+func buildDuplicatedPluginError(pluginName string) error {
+	return fmt.Errorf("more than one plugin %s is not allowed", pluginName)
 }
 
 func convertBufferFiles(chartFiles []*common.BufferedFile) []*loader.BufferedFile {
