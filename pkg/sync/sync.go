@@ -46,21 +46,17 @@ func (sync *Sync) Resync() {
 	for {
 		err := sync.redisClient.Watch(func(tx *redis.Tx) error {
 
-			//helmReleases, err := cache.list.Run()
-			//if err != nil {
-			//	logrus.Errorf("failed to list helm releases: %s\n", err.Error())
-			//	return err
-			//}
-			//
-			//helmReleasesMap := buildHelmReleasesMap(helmReleases)
-			//releaseCachesFromHelm, err := cache.buildReleaseCaches(helmReleasesMap)
 			releaseCachesFromHelm, err := sync.helm.ListAllReleases()
 			if err != nil {
 				logrus.Errorf("failed to get release caches from helm : %s", err.Error())
 				return err
 			}
 
-			releaseCachesFromHelmMap := buildReleaseCachesFormHelmMap(releaseCachesFromHelm)
+			releaseCachesFromHelmMap, err := buildReleaseCachesFormHelmMap(releaseCachesFromHelm)
+			if err != nil {
+				logrus.Errorf("failed to build release cache map : %s", err.Error())
+				return err
+			}
 
 			releaseCacheKeysFromRedis, err := tx.HKeys(walmRedis.WalmReleasesKey).Result()
 			if err != nil {
@@ -202,20 +198,25 @@ func (sync *Sync) buildProjectTasksToDel(projectTasksFromReleaseConfigs map[stri
 	return projectTasksToDel, nil
 }
 
-func buildReleaseCachesFormHelmMap(caches []*releaseModel.ReleaseCache) map[string]interface{} {
+func buildReleaseCachesFormHelmMap(caches []*releaseModel.ReleaseCache) (map[string]interface{}, error) {
 	cacheMap := map[string]interface{}{}
 	for _, cache := range caches {
 		filedName := walmRedis.BuildFieldName(cache.Namespace, cache.Name)
+		cacheStr, err := json.Marshal(cache)
+		if err != nil {
+			logrus.Errorf("failed to marshal value : %s", err.Error())
+			return nil, err
+		}
 		if existedRelease, ok := cacheMap[filedName]; ok {
 			if existedRelease.(*releaseModel.ReleaseCache).Version < cache.Version {
-				cacheMap[filedName] = cache
+				cacheMap[filedName] = cacheStr
 			}
 		} else {
-			cacheMap[filedName] = cache
+			cacheMap[filedName] = cacheStr
 		}
 
 	}
-	return cacheMap
+	return cacheMap, nil
 }
 
 func buildReleaseTasksToSet(releaseTasksFromHelm map[string]string, releaseTaskInRedis map[string]string) map[string]interface{} {
