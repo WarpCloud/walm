@@ -25,6 +25,11 @@ import (
 	"time"
 	"WarpCloud/walm/pkg/models/common"
 	"runtime"
+	"github.com/go-resty/resty"
+	"path/filepath"
+	"WarpCloud/walm/pkg/helm/impl"
+	"k8s.io/helm/pkg/chart/loader"
+	"k8s.io/helm/pkg/registry"
 )
 
 var k8sClient *kubernetes.Clientset
@@ -35,6 +40,13 @@ const (
 	maxNameLength                = 62
 	randomLength                 = 5
 	maxGeneratedRandomNameLength = maxNameLength - randomLength
+
+	// For helm test
+	TestChartRepoName = "test"
+	TestChartName = "tomcat"
+	TestChartVersion = "0.2.0"
+
+	testChartImageSuffix = "walm-test/chart:0.2.0"
 )
 
 func GetKubeClient() *clienthelm.Client {
@@ -60,7 +72,7 @@ func CreateRandomNamespace(base string, labels map[string]string) (string, error
 	namespace := GenerateRandomName(base)
 	ns := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name:   namespace,
 			Labels: labels,
 		},
 	}
@@ -88,7 +100,7 @@ func CreateResourceQuota(namespace, name string) (*v1.ResourceQuota, error) {
 	resourceQuota := &v1.ResourceQuota{}
 	resourceQuota.Name = name
 	resourceQuota.Spec.Hard = v1.ResourceList{
-		v1.ResourceMemory : resource.MustParse("1Gi"),
+		v1.ResourceMemory: resource.MustParse("1Gi"),
 	}
 	return k8sClient.CoreV1().ResourceQuotas(namespace).Create(resourceQuota)
 }
@@ -108,7 +120,7 @@ func GetNode(name string) (*v1.Node, error) {
 	return k8sClient.CoreV1().Nodes().Get(name, metav1.GetOptions{})
 }
 
-func LabelNode(name string,  labelsToAdd map[string]string,  labelsToRemove []string) error {
+func LabelNode(name string, labelsToAdd map[string]string, labelsToRemove []string) error {
 	k8sOperator := operator.NewOperator(k8sClient, nil, nil)
 	return k8sOperator.LabelNode(name, labelsToAdd, labelsToRemove)
 }
@@ -125,14 +137,14 @@ func CreatePod(namespace, name string) (*v1.Pod, error) {
 	pod := &v1.Pod{}
 	pod.Name = name
 	pod.Spec.Containers = append(pod.Spec.Containers, v1.Container{
-		Name:  "test-container",
-		Image: "nginx",
-		ImagePullPolicy:v1.PullIfNotPresent,
+		Name:            "test-container",
+		Image:           "nginx",
+		ImagePullPolicy: v1.PullIfNotPresent,
 	})
 	return k8sClient.CoreV1().Pods(namespace).Create(pod)
 }
 
-func WaitPodRunning(namespace, name string)(error) {
+func WaitPodRunning(namespace, name string) (error) {
 	waitTimes := 10
 	waitInterval := time.Second * 20
 	for {
@@ -140,7 +152,7 @@ func WaitPodRunning(namespace, name string)(error) {
 		if err != nil {
 			return err
 		}
-		if pod.Status.Phase == "Running"{
+		if pod.Status.Phase == "Running" {
 			return nil
 		}
 		if waitTimes <= 0 {
@@ -242,7 +254,7 @@ func CreateService(namespace, name string, selector map[string]string) (*v1.Serv
 	resource.Name = name
 	resource.Spec.Selector = selector
 	resource.Spec.Ports = []v1.ServicePort{{
-		Port: 80,
+		Port:       80,
 		TargetPort: intstr.FromInt(80),
 	}}
 	return k8sClient.CoreV1().Services(namespace).Create(resource)
@@ -293,9 +305,9 @@ func CreateJob(namespace, name string) (*batchv1.Job, error) {
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:  "pi",
-					Image: "perl",
-					Command: []string{"perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"},
+					Name:    "pi",
+					Image:   "perl",
+					Command: []string{"perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"},
 				},
 			},
 			RestartPolicy: v1.RestartPolicyNever,
@@ -357,12 +369,60 @@ func GetCurrentFilePath() (string, error) {
 }
 
 func InitFramework() error {
+	testChartPath, err := GetTestTomcatChartPath()
+	if err != nil {
+		logrus.Errorf("failed to get test chart path : %s", err.Error())
+		return err
+	}
+
+	foundTestRepo := false
+	for _, repo := range setting.Config.RepoList {
+		if repo.Name == TestChartRepoName{
+			foundTestRepo = true
+			err = PushChartToRepo(repo.URL, testChartPath)
+			if err != nil {
+				logrus.Errorf("failed to push test chart to repo : %s", err.Error())
+				return err
+			}
+			break
+		}
+	}
+	if !foundTestRepo {
+		return fmt.Errorf("repo %s is not found", TestChartRepoName)
+	}
+
+	if setting.Config.ChartImageRegistry == "" {
+		return errors.New("chart image registry should not be empty")
+	}
+
+	chartImage := GetTestChartImage()
+	logrus.Infof("start to push chart image %s to registry", chartImage)
+	registryClient := impl.NewRegistryClient(setting.Config.ChartImageConfig)
+
+	testChart, err := loader.Load(testChartPath)
+	if err != nil {
+		logrus.Errorf("failed to load test chart : %s", err.Error())
+		return err
+	}
+
+	ref, err := registry.ParseReference(chartImage)
+	if err != nil {
+		logrus.Errorf("failed to parse chart image %s : %s", chartImage, err.Error())
+		return err
+	}
+
+	registryClient.SaveChart(testChart, ref)
+	err = registryClient.PushChart(ref)
+	if err != nil {
+		logrus.Errorf("failed to push chart image : %s", err.Error())
+		return err
+	}
+
 	kubeConfig := ""
 	if setting.Config.KubeConfig != nil {
 		kubeConfig = setting.Config.KubeConfig.Config
 	}
 
-	var err error
 	k8sClient, err = client.NewClient("", kubeConfig)
 	if err != nil {
 		logrus.Errorf("failed to create k8s client : %s", err.Error())
@@ -378,4 +438,42 @@ func InitFramework() error {
 	kubeClients = clienthelm.NewHelmKubeClient(kubeConfig)
 
 	return nil
+}
+
+func GetTestTomcatChartPath() (string, error) {
+	currentFilePath, err := GetCurrentFilePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(currentFilePath), "../../resources/helm/tomcat-0.2.0.tgz"), nil
+}
+
+func PushChartToRepo(repoBaseUrl, chartPath string) error{
+	logrus.Infof("start to push %s to repo %s", chartPath, repoBaseUrl)
+	if !strings.HasSuffix(repoBaseUrl, "/") {
+		repoBaseUrl += "/"
+	}
+
+	fullUrl := repoBaseUrl + "api/charts"
+
+	resp, err := resty.R().SetHeader("Content-Type", "multipart/form-data" ).
+		SetFile("chart", chartPath).Post(fullUrl)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != 201 {
+		logrus.Errorf("status code : %d", resp.StatusCode())
+		return errors.New(resp.String())
+	}
+	return nil
+}
+
+func GetTestChartImage() string {
+	chartImageRegistry := setting.Config.ChartImageRegistry
+	if !strings.HasSuffix(chartImageRegistry, "/") {
+		chartImageRegistry += "/"
+	}
+	return chartImageRegistry + testChartImageSuffix
 }
