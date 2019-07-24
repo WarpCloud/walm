@@ -113,6 +113,9 @@ func (helmImpl *Helm) InstallOrCreateRelease(namespace string, releaseRequest *r
 	}
 	// support meta pretty parameters
 	configValues := releaseRequest.ConfigValues
+	if configValues == nil {
+		configValues = map[string]interface{}{}
+	}
 	if releaseRequest.MetaInfoParams != nil {
 		metaInfoConfigs, err := releaseRequest.MetaInfoParams.BuildConfigValues(chartInfo.MetaInfo)
 		if err != nil {
@@ -392,7 +395,9 @@ func (helmImpl *Helm) getDependencyOutputConfigs(namespace string, dependencies 
 	for dependencyKey, dependency := range dependencies {
 		dependencyAliasConfigVar, ok := dependencyAliasConfigVars[dependencyKey]
 		if !ok {
-			continue
+			err = fmt.Errorf("dependency key %s is not valid, you can see valid keys in chart metainfo", dependencyKey)
+			logrus.Errorf(err.Error())
+			return
 		}
 
 		ss := strings.Split(dependency, "/")

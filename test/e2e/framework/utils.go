@@ -80,6 +80,17 @@ func CreateRandomNamespace(base string, labels map[string]string) (string, error
 	return namespace, err
 }
 
+func CreateNamespace(name string, labels map[string]string) (error) {
+	ns := v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+	}
+	_, err := k8sClient.CoreV1().Namespaces().Create(&ns)
+	return err
+}
+
 func DeleteNamespace(namespace string) (error) {
 	return k8sClient.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 }
