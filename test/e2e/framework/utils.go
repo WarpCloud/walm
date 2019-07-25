@@ -170,6 +170,7 @@ func WaitPodRunning(namespace, name string) (error) {
 			return errors.New("timeout waiting pod running")
 		}
 		waitTimes --
+		logrus.Infof("waiting for pod %s/%s running...", namespace, name)
 		time.Sleep(waitInterval)
 	}
 }
