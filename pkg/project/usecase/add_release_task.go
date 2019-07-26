@@ -18,8 +18,8 @@ type AddReleaseTaskArgs struct {
 	ProjectParams *project.ProjectParams
 }
 
-func (projectImpl *Project) registerAddReleaseTask() {
-	projectImpl.task.RegisterTask(addReleaseTaskName, projectImpl.AddReleaseTask)
+func (projectImpl *Project) registerAddReleaseTask() error{
+	return projectImpl.task.RegisterTask(addReleaseTaskName, projectImpl.AddReleaseTask)
 }
 
 func (projectImpl *Project)AddReleaseTask(addReleaseTaskArgsStr string) error {

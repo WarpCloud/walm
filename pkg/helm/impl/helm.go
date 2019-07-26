@@ -30,6 +30,7 @@ import (
 	"os"
 	"github.com/containerd/containerd/remotes/docker"
 	"WarpCloud/walm/pkg/setting"
+	"WarpCloud/walm/pkg/release/utils"
 )
 
 type ChartRepository struct {
@@ -146,7 +147,7 @@ func (helmImpl *Helm) InstallOrCreateRelease(namespace string, releaseRequest *r
 	}
 
 	// get all the dependency releases' output configs from ReleaseConfig
-	dependencyConfigs, err := helmImpl.getDependencyOutputConfigs(namespace, dependencies, chartInfo.MetaInfo)
+	dependencyConfigs, err := helmImpl.GetDependencyOutputConfigs(namespace, dependencies, chartInfo.MetaInfo)
 	if err != nil {
 		logrus.Errorf("failed to get all the dependency releases' output configs : %s", err.Error())
 		return nil, err
@@ -380,7 +381,7 @@ func reuseReleaseRequest(releaseInfo *release.ReleaseInfoV2, releaseRequest *rel
 	return
 }
 
-func (helmImpl *Helm) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
+func (helmImpl *Helm) GetDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
 	dependencyConfigs = map[string]interface{}{}
 	if chartMetaInfo == nil {
 		return
@@ -400,19 +401,11 @@ func (helmImpl *Helm) getDependencyOutputConfigs(namespace string, dependencies 
 			return
 		}
 
-		ss := strings.Split(dependency, "/")
-		if len(ss) > 2 {
-			err = fmt.Errorf("dependency value %s should not contains more than 1 \"/\"", dependency)
-			return
+		dependencyNamespace, dependencyName, err := utils.ParseDependedRelease(namespace, dependency)
+		if err != nil {
+			return nil, err
 		}
-		dependencyNamespace, dependencyName := "", ""
-		if len(ss) == 2 {
-			dependencyNamespace = ss[0]
-			dependencyName = ss[1]
-		} else {
-			dependencyNamespace = namespace
-			dependencyName = ss[0]
-		}
+
 		dependencyReleaseConfigResource, err := helmImpl.k8sCache.GetResource(k8sModel.ReleaseConfigKind, dependencyNamespace, dependencyName)
 		if err != nil {
 			if errorModel.IsNotFoundError(err) {

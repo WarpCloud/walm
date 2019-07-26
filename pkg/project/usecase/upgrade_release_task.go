@@ -17,8 +17,8 @@ type UpgradeReleaseTaskArgs struct {
 	ReleaseParams *release.ReleaseRequestV2
 }
 
-func (projectImpl *Project) registerUpgradeReleaseTask() {
-	projectImpl.task.RegisterTask(upgradeReleaseTaskName, projectImpl.UpgradeReleaseTask)
+func (projectImpl *Project) registerUpgradeReleaseTask() error{
+	return projectImpl.task.RegisterTask(upgradeReleaseTaskName, projectImpl.UpgradeReleaseTask)
 }
 
 func (projectImpl *Project) UpgradeReleaseTask(upgradeReleaseTaskArgsStr string) error {

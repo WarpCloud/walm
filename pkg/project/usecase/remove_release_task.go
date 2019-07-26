@@ -17,8 +17,8 @@ type RemoveReleaseTaskArgs struct {
 	DeletePvcs  bool
 }
 
-func (projectImpl *Project) registerRemoveReleaseTask() {
-	projectImpl.task.RegisterTask(removeReleaseTaskName, projectImpl.RemoveReleaseTask)
+func (projectImpl *Project) registerRemoveReleaseTask() error{
+	return projectImpl.task.RegisterTask(removeReleaseTaskName, projectImpl.RemoveReleaseTask)
 }
 
 func (projectImpl *Project) RemoveReleaseTask(removeReleaseTaskArgsStr string) error {

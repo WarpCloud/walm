@@ -562,17 +562,32 @@ func deleteReleaseDependency(dependencies map[string]string, dependencyKey strin
 	}
 }
 
-func NewProject(cache project.Cache, task task.Task, releaseUseCase release.UseCase, helm helm.Helm) *Project {
+func NewProject(cache project.Cache, task task.Task, releaseUseCase release.UseCase, helm helm.Helm) (*Project, error) {
 	p := &Project{
 		cache:          cache,
 		task:           task,
 		releaseUseCase: releaseUseCase,
 		helm:           helm,
 	}
-	p.registerAddReleaseTask()
-	p.registerCreateProjectTask()
-	p.registerDeleteProjectTask()
-	p.registerRemoveReleaseTask()
-	p.registerUpgradeReleaseTask()
-	return p
+	err := p.registerAddReleaseTask()
+	if err != nil {
+		return nil, err
+	}
+	err = p.registerCreateProjectTask()
+	if err != nil {
+		return nil, err
+	}
+	err = p.registerDeleteProjectTask()
+	if err != nil {
+		return nil, err
+	}
+	err = p.registerRemoveReleaseTask()
+	if err != nil {
+		return nil, err
+	}
+	err = p.registerUpgradeReleaseTask()
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }

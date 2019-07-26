@@ -8,7 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"fmt"
 	releaseModel "WarpCloud/walm/pkg/models/release"
-	k8sModel "WarpCloud/walm/pkg/models/k8s"
 	errorModel "WarpCloud/walm/pkg/models/error"
 	"WarpCloud/walm/pkg/release/utils"
 )
@@ -40,7 +39,7 @@ func (helm *Helm) ReloadRelease(namespace, name string) error {
 	}
 
 	oldDependenciesConfigValues := releaseInfo.DependenciesConfigValues
-	newDependenciesConfigValues, err := helm.getDependencyOutputConfigs(namespace, releaseInfo.Dependencies, chartInfo.MetaInfo)
+	newDependenciesConfigValues, err := helm.helm.GetDependencyOutputConfigs(namespace, releaseInfo.Dependencies, chartInfo.MetaInfo)
 	if err != nil {
 		logrus.Errorf("failed to get dependencies output configs of %s/%s : %s", namespace, name, err.Error())
 		return err
@@ -59,49 +58,6 @@ func (helm *Helm) ReloadRelease(namespace, name string) error {
 	}
 
 	return nil
-}
-
-func (helm *Helm) getDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *releaseModel.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error) {
-	dependencyConfigs = map[string]interface{}{}
-	if chartMetaInfo == nil {
-		return
-	}
-
-	chartDependencies := chartMetaInfo.ChartDependenciesInfo
-	dependencyAliasConfigVars := map[string]string{}
-	for _, chartDependency := range chartDependencies {
-		dependencyAliasConfigVars[chartDependency.Name] = chartDependency.AliasConfigVar
-	}
-
-	for dependencyKey, dependency := range dependencies {
-		dependencyAliasConfigVar, ok := dependencyAliasConfigVars[dependencyKey]
-		if !ok {
-			err = fmt.Errorf("dependency key %s is not valid, you can see valid keys in chart metainfo", dependencyKey)
-			logrus.Errorf(err.Error())
-			return
-		}
-
-		dependencyNamespace, dependencyName, err := utils.ParseDependedRelease(namespace, dependency)
-		if err != nil {
-			return nil, err
-		}
-
-		dependencyReleaseConfigResource, err := helm.k8sCache.GetResource(k8sModel.ReleaseConfigKind, dependencyNamespace, dependencyName)
-		if err != nil {
-			if errorModel.IsNotFoundError(err) {
-				logrus.Warnf("release config %s/%s is not found", dependencyNamespace, dependencyName)
-				continue
-			}
-			logrus.Errorf("failed to get release config %s/%s : %s", dependencyNamespace, dependencyName, err.Error())
-			return nil, err
-		}
-
-		dependencyReleaseConfig := dependencyReleaseConfigResource.(*k8sModel.ReleaseConfig)
-		if len(dependencyReleaseConfig.OutputConfig) > 0 {
-			dependencyConfigs[dependencyAliasConfigVar] = dependencyReleaseConfig.OutputConfig
-		}
-	}
-	return
 }
 
 func (helm *Helm) validateReleaseTask(namespace, name string, allowReleaseTaskNotExist bool) (releaseTask *releaseModel.ReleaseTask, err error) {
@@ -136,7 +92,7 @@ func (helm *Helm) validateReleaseTask(namespace, name string, allowReleaseTaskNo
 	return
 }
 
-func NewHelm(releaseCache release.Cache, helm helm.Helm, k8sCache k8s.Cache, k8sOperator k8s.Operator, task task.Task) *Helm {
+func NewHelm(releaseCache release.Cache, helm helm.Helm, k8sCache k8s.Cache, k8sOperator k8s.Operator, task task.Task) (*Helm, error) {
 	h := &Helm{
 		releaseCache: releaseCache,
 		helm:         helm,
@@ -144,7 +100,13 @@ func NewHelm(releaseCache release.Cache, helm helm.Helm, k8sCache k8s.Cache, k8s
 		k8sOperator:  k8sOperator,
 		task:         task,
 	}
-	h.registerCreateReleaseTask()
-	h.registerDeleteReleaseTask()
-	return h
+	err := h.registerCreateReleaseTask()
+	if err != nil {
+		return nil, err
+	}
+	err = h.registerDeleteReleaseTask()
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
 }

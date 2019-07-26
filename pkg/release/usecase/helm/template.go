@@ -29,7 +29,6 @@ func (helm *Helm) ComputeResourcesByDryRunRelease(namespace string, releaseReque
 		return nil, err
 	}
 	logrus.Debugf("release manifest : %s", r.Manifest)
-	//resources, err := client.GetKubeClient(namespace).BuildUnstructured(namespace, bytes.NewBufferString(r.Manifest))
 	resources, err := helm.k8sOperator.ComputeReleaseResourcesByManifest(namespace, r.Manifest)
 	if err != nil {
 		logrus.Errorf("failed to compute release resources by manifest : %s", err.Error())

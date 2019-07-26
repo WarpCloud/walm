@@ -16,6 +16,7 @@ type Helm interface {
 		dryRun bool, update bool, oldReleaseInfo *release.ReleaseInfoV2, paused *bool) (*release.ReleaseCache, error)
 	DeleteRelease(namespace string, name string) error
 	ListAllReleases() ([]*release.ReleaseCache, error)
+	GetDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (dependencyConfigs map[string]interface{}, err error)
 
 	GetChartDetailInfo(repoName, chartName, chartVersion string) (*release.ChartDetailInfo, error)
 	GetChartList(repoName string) (*release.ChartInfoList, error)

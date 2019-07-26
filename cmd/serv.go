@@ -145,9 +145,17 @@ func (sc *ServCmd) run() error {
 	redisClient := impl.NewRedisClient(config.RedisConfig)
 	redis := impl.NewRedis(redisClient)
 	releaseCache := releasecache.NewCache(redis)
-	releaseUseCase := releaseusecase.NewHelm(releaseCache, helm, k8sCache, k8sOperator, task)
+	releaseUseCase, err := releaseusecase.NewHelm(releaseCache, helm, k8sCache, k8sOperator, task)
+	if err != nil {
+		logrus.Errorf("failed to new release use case : %s", err.Error())
+		return err
+	}
 	projectCache := projectcache.NewProjectCache(redis)
-	projectUseCase := projectusecase.NewProject(projectCache, task, releaseUseCase, helm)
+	projectUseCase, err := projectusecase.NewProject(projectCache, task, releaseUseCase, helm)
+	if err != nil {
+		logrus.Errorf("failed to new project use case : %s", err.Error())
+		return err
+	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
 	go func() {

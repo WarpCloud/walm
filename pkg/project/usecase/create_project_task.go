@@ -17,8 +17,8 @@ type CreateProjectTaskArgs struct {
 	ProjectParams *project.ProjectParams
 }
 
-func (projectImpl *Project) registerCreateProjectTask() {
-	projectImpl.task.RegisterTask(createProjectTaskName, projectImpl.CreateProjectTask)
+func (projectImpl *Project) registerCreateProjectTask() error{
+	return projectImpl.task.RegisterTask(createProjectTaskName, projectImpl.CreateProjectTask)
 }
 
 func (projectImpl *Project)CreateProjectTask(createProjectTaskArgsStr string) error {

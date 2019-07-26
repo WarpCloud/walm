@@ -95,6 +95,29 @@ func (_m *Helm) GetChartList(repoName string) (*release.ChartInfoList, error) {
 	return r0, r1
 }
 
+// GetDependencyOutputConfigs provides a mock function with given fields: namespace, dependencies, chartMetaInfo
+func (_m *Helm) GetDependencyOutputConfigs(namespace string, dependencies map[string]string, chartMetaInfo *release.ChartMetaInfo) (map[string]interface{}, error) {
+	ret := _m.Called(namespace, dependencies, chartMetaInfo)
+
+	var r0 map[string]interface{}
+	if rf, ok := ret.Get(0).(func(string, map[string]string, *release.ChartMetaInfo) map[string]interface{}); ok {
+		r0 = rf(namespace, dependencies, chartMetaInfo)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]interface{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, map[string]string, *release.ChartMetaInfo) error); ok {
+		r1 = rf(namespace, dependencies, chartMetaInfo)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDetailChartInfoByImage provides a mock function with given fields: chartImage
 func (_m *Helm) GetDetailChartInfoByImage(chartImage string) (*release.ChartDetailInfo, error) {
 	ret := _m.Called(chartImage)

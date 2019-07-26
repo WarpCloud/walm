@@ -15,8 +15,8 @@ type DeleteProjectTaskArgs struct {
 	DeletePvcs    bool
 }
 
-func (projectImpl *Project)registerDeleteProjectTask() {
-	projectImpl.task.RegisterTask(deleteProjectTaskName, projectImpl.DeleteProjectTask)
+func (projectImpl *Project)registerDeleteProjectTask() error{
+	return projectImpl.task.RegisterTask(deleteProjectTaskName, projectImpl.DeleteProjectTask)
 }
 
 func (projectImpl *Project)DeleteProjectTask(deleteProjectTaskArgsStr string) error {
