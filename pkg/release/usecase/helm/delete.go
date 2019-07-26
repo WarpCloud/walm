@@ -12,7 +12,7 @@ func (helm *Helm) DeleteReleaseWithRetry(namespace, releaseName string, deletePv
 	for {
 		err := helm.DeleteRelease(namespace, releaseName, deletePvcs, async, timeoutSec)
 		if err != nil {
-			if strings.Contains(err.Error(), "please wait for the release latest task") && retryTimes > 0 {
+			if strings.Contains(err.Error(), waitReleaseTaskMsgPrefix) && retryTimes > 0 {
 				logrus.Warnf("retry to delete release %s/%s after 2 second", namespace, releaseName)
 				retryTimes --
 				time.Sleep(time.Second * 2)

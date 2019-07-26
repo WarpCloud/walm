@@ -19,7 +19,7 @@ func (helm *Helm) InstallUpgradeReleaseWithRetry(namespace string, releaseReques
 	for {
 		err := helm.InstallUpgradeRelease(namespace, releaseRequest, chartFiles, async, timeoutSec, paused)
 		if err != nil {
-			if strings.Contains(err.Error(), "please wait for the release latest task") && retryTimes > 0 {
+			if strings.Contains(err.Error(), waitReleaseTaskMsgPrefix) && retryTimes > 0 {
 				logrus.Warnf("retry to install or upgrade release %s/%s after 2 second", namespace, releaseRequest.Name)
 				retryTimes --
 				time.Sleep(time.Second * 2)
@@ -98,6 +98,10 @@ func (helm *Helm) doInstallUpgradeRelease(namespace string, releaseRequest *rele
 	preProcessRequest(releaseRequest)
 
 	releaseCache, err := helm.helm.InstallOrCreateRelease(namespace, releaseRequest, chartFiles, dryRun, update, oldReleaseInfo, paused)
+	if err != nil {
+		logrus.Errorf("failed to install or create release %s/%s : %s", namespace, releaseRequest.Name, err.Error())
+		return nil, err
+	}
 	if !dryRun {
 		err = helm.releaseCache.CreateOrUpdateReleaseCache(releaseCache)
 		if err != nil {

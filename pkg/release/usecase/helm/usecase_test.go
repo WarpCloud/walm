@@ -10,6 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"errors"
 	errorModel "WarpCloud/walm/pkg/models/error"
+	"WarpCloud/walm/pkg/models/release"
+	"WarpCloud/walm/pkg/models/task"
+	"WarpCloud/walm/pkg/models/k8s"
 )
 
 func TestHelm_ReloadRelease(t *testing.T) {
@@ -40,229 +43,184 @@ func TestHelm_ReloadRelease(t *testing.T) {
 	}
 
 	tests := []struct {
-		initMock    func()
-		err         error
+		initMock func()
+		err      error
 	}{
 		{
 			initMock: func() {
 				refreshMocks()
 				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(nil, errors.New("failed"))
 			},
-			err:         errors.New("failed"),
+			err: errors.New("failed"),
 		},
 		{
 			initMock: func() {
 				refreshMocks()
 				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
 			},
-			err:         nil,
+			err: nil,
 		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					Namespace: "test-ns",
+					Name:      "test-name",
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "test-ns",
+						Name:      "test-name",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", &task.TaskSig{
+					Name: "test-name",
+					UUID: "test-uuid",
+				}).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+				mockTaskState.On("IsSuccess").Return(true)
+				mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
+				mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
 
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errors.New("failed"))
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//		},
-		//	},
-		//	err: errors.New("failed"),
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(nil, errors.New("failed"))
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//		},
-		//	},
-		//	err: errors.New("failed"),
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(nil, errorModel.NotFoundError{})
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//		},
-		//	},
-		//	err: nil,
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(mockTaskState, nil)
-		//		mockTaskState.On("IsFinished").Return(true)
-		//		mockTaskState.On("IsSuccess").Return(true)
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//		},
-		//	},
-		//	err: nil,
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(mockTaskState, nil)
-		//		mockTaskState.On("IsFinished").Return(true)
-		//		mockTaskState.On("IsSuccess").Return(false)
-		//		mockTaskState.On("GetErrorMsg").Return("test-err")
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//			Message: "the release latest task test-name-test-uuid failed : test-err",
-		//		},
-		//	},
-		//	err: nil,
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(mockTaskState, nil)
-		//		mockTaskState.On("IsFinished").Return(false)
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//			Message: "please wait for the release latest task test-name-test-uuid finished",
-		//		},
-		//	},
-		//	err: nil,
-		//},
-		//{
-		//	initMock: func() {
-		//		refreshMocks()
-		//		mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
-		//			Namespace: "test-ns",
-		//			Name:      "test-name",
-		//			LatestReleaseTaskSig: &task.TaskSig{
-		//				Name: "test-name",
-		//				UUID: "test-uuid",
-		//			},
-		//		}, nil)
-		//		mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//		}, nil)
-		//		mockTask.On("GetTaskState", &task.TaskSig{
-		//			Name: "test-name",
-		//			UUID: "test-uuid",
-		//		}).Return(mockTaskState, nil)
-		//		mockTaskState.On("IsFinished").Return(true)
-		//		mockTaskState.On("IsSuccess").Return(true)
-		//		mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
-		//		mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
-		//	},
-		//	releaseInfo: &release.ReleaseInfoV2{
-		//		ReleaseInfo: release.ReleaseInfo{
-		//			ReleaseSpec: release.ReleaseSpec{
-		//				Namespace: "test-ns",
-		//				Name:      "test-name",
-		//			},
-		//			Ready:  true,
-		//			Status: k8s.NewResourceSet(),
-		//		},
-		//		Plugins: []*release.ReleasePlugin{},
-		//	},
-		//	err: nil,
-		//},
+				mockHelm.On("GetChartDetailInfo", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New(""))
+			},
+			err: errors.New(""),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					Namespace: "test-ns",
+					Name:      "test-name",
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "test-ns",
+						Name:      "test-name",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", &task.TaskSig{
+					Name: "test-name",
+					UUID: "test-uuid",
+				}).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+				mockTaskState.On("IsSuccess").Return(true)
+				mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
+				mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
+
+				mockHelm.On("GetChartDetailInfo", mock.Anything, mock.Anything, mock.Anything).Return(&release.ChartDetailInfo{}, nil)
+				mockHelm.On("GetDependencyOutputConfigs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New(""))
+			},
+			err: errors.New(""),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					Namespace: "test-ns",
+					Name:      "test-name",
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "test-ns",
+						Name:      "test-name",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", &task.TaskSig{
+					Name: "test-name",
+					UUID: "test-uuid",
+				}).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+				mockTaskState.On("IsSuccess").Return(true)
+				mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
+				mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
+
+				mockHelm.On("GetChartDetailInfo", mock.Anything, mock.Anything, mock.Anything).Return(&release.ChartDetailInfo{}, nil)
+				mockHelm.On("GetDependencyOutputConfigs", mock.Anything, mock.Anything, mock.Anything).Return(nil , nil)
+			},
+			err: nil,
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					Namespace: "test-ns",
+					Name:      "test-name",
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "test-ns",
+						Name:      "test-name",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", &task.TaskSig{
+					Name: "test-name",
+					UUID: "test-uuid",
+				}).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+				mockTaskState.On("IsSuccess").Return(true)
+				mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
+				mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
+
+				mockHelm.On("GetChartDetailInfo", mock.Anything, mock.Anything, mock.Anything).Return(&release.ChartDetailInfo{}, nil)
+				mockHelm.On("GetDependencyOutputConfigs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]interface{}{"test": "true"} , nil)
+
+			},
+			err: errors.New(""),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					Namespace: "test-ns",
+					Name:      "test-name",
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockReleaseCache.On("GetReleaseCache", mock.Anything, mock.Anything).Return(&release.ReleaseCache{
+					ReleaseSpec: release.ReleaseSpec{
+						Namespace: "test-ns",
+						Name:      "test-name",
+						ChartName: "test-chart",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", &task.TaskSig{
+					Name: "test-name",
+					UUID: "test-uuid",
+				}).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+				mockTaskState.On("IsSuccess").Return(true)
+				mockK8sCache.On("GetResourceSet", ([]release.ReleaseResourceMeta)(nil)).Return(k8s.NewResourceSet(), nil)
+				mockK8sCache.On("GetResource", k8s.ReleaseConfigKind, "test-ns", "test-name").Return(&k8s.ReleaseConfig{}, nil)
+
+				mockHelm.On("GetChartDetailInfo", mock.Anything, mock.Anything, mock.Anything).Return(&release.ChartDetailInfo{}, nil)
+				mockHelm.On("GetDependencyOutputConfigs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]interface{}{"test": "true"} , nil)
+
+				mockTask.On("SendTask", mock.Anything, mock.Anything, mock.Anything).Return(&task.TaskSig{}, nil)
+				mockReleaseCache.On("CreateOrUpdateReleaseTask", mock.Anything).Return(nil)
+				mockTask.On("TouchTask", mock.Anything, mock.Anything).Return(nil)
+				mockTask.On("PurgeTaskState", mock.Anything).Return(nil)
+			},
+			err: nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -280,3 +238,144 @@ func TestHelm_ReloadRelease(t *testing.T) {
 	}
 }
 
+func TestHelm_validateReleaseTask(t *testing.T) {
+
+	var mockReleaseCache *mocks.Cache
+	var mockHelm *helmMocks.Helm
+	var mockK8sOperator *k8sMocks.Operator
+	var mockK8sCache *k8sMocks.Cache
+	var mockTask *taskMocks.Task
+	var mockReleaseManager *Helm
+
+	var mockTaskState *taskMocks.TaskState
+
+	refreshMocks := func() {
+		mockReleaseCache = &mocks.Cache{}
+		mockHelm = &helmMocks.Helm{}
+		mockK8sOperator = &k8sMocks.Operator{}
+		mockK8sCache = &k8sMocks.Cache{}
+		mockTask = &taskMocks.Task{}
+
+		mockTaskState = &taskMocks.TaskState{}
+
+		mockTask.On("RegisterTask", mock.Anything, mock.Anything).Return(nil)
+
+		var err error
+		mockReleaseManager, err = NewHelm(mockReleaseCache, mockHelm, mockK8sCache, mockK8sOperator, mockTask)
+		assert.IsType(t, err, nil)
+	}
+
+	tests := []struct {
+		initMock      func()
+		allowNotExist bool
+		err           error
+	}{
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(nil, errors.New("failed"))
+			},
+			err: errors.New("failed"),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
+			},
+			allowNotExist: true,
+			err:           nil,
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(nil, errorModel.NotFoundError{})
+			},
+			allowNotExist: false,
+			err:           errorModel.NotFoundError{},
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", mock.Anything).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(true)
+			},
+			err: nil,
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", mock.Anything).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(false)
+				mockTaskState.On("IsTimeout").Return(false)
+			},
+			err: errors.New("please wait for the last release task test-name-test-uuid finished or timeout"),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", mock.Anything).Return(mockTaskState, nil)
+				mockTaskState.On("IsFinished").Return(false)
+				mockTaskState.On("IsTimeout").Return(true)
+			},
+			err: nil,
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", mock.Anything).Return(nil, errors.New("failed"))
+			},
+			err: errors.New("failed"),
+		},
+		{
+			initMock: func() {
+				refreshMocks()
+				mockReleaseCache.On("GetReleaseTask", mock.Anything, mock.Anything).Return(&release.ReleaseTask{
+					LatestReleaseTaskSig: &task.TaskSig{
+						Name: "test-name",
+						UUID: "test-uuid",
+					},
+				}, nil)
+				mockTask.On("GetTaskState", mock.Anything).Return(nil, errorModel.NotFoundError{})
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		test.initMock()
+		_, err := mockReleaseManager.validateReleaseTask("test-ns", "test-name", test.allowNotExist)
+		assert.IsType(t, test.err, err)
+
+		mockReleaseCache.AssertExpectations(t)
+		mockHelm.AssertExpectations(t)
+		mockK8sOperator.AssertExpectations(t)
+		mockK8sCache.AssertExpectations(t)
+		mockTask.AssertExpectations(t)
+
+		mockTaskState.AssertExpectations(t)
+	}
+}

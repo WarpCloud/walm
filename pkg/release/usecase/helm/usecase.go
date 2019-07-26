@@ -12,6 +12,10 @@ import (
 	"WarpCloud/walm/pkg/release/utils"
 )
 
+const (
+	waitReleaseTaskMsgPrefix = "please wait for the last release task"
+)
+
 type Helm struct {
 	releaseCache release.Cache
 	helm         helm.Helm
@@ -84,7 +88,7 @@ func (helm *Helm) validateReleaseTask(namespace, name string, allowReleaseTaskNo
 		}
 
 		if !(taskState.IsFinished() || taskState.IsTimeout()) {
-			err = fmt.Errorf("please wait for the last release task %s-%s finished or timeout", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
+			err = fmt.Errorf(waitReleaseTaskMsgPrefix + " %s-%s finished or timeout", releaseTask.LatestReleaseTaskSig.Name, releaseTask.LatestReleaseTaskSig.UUID)
 			logrus.Warn(err.Error())
 			return releaseTask, err
 		}
