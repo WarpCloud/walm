@@ -48,8 +48,9 @@ walm的安装功能通过helm实现kubernetes应用的定制化安装。
   #具体可参照 helm 的使用方法
   ```
   
+
 eg: 安装zookeeper应用（/api/v1/release/{namespace} )
-  
+
 ```json
   {
     "chartName": "zookeeper",
@@ -57,8 +58,8 @@ eg: 安装zookeeper应用（/api/v1/release/{namespace} )
     "repoName": "qa",
     "name": "zookeeper-xxx"
   }
-  ```
-  
+```
+
 - 根据chartImage 安装
 
   通过3.0及以上版本的helm来帮助通过chartImage来安装应用。
@@ -132,7 +133,7 @@ eg: 安装zookeeper并通过configValues重写其应用配置
       "zookeeper": {
          "priority": 1,
          "replicas": 3,
-         "image": "zookeeper:transwarp-5.2",
+         "image": "docker.io/warpcloud/zookeeper:5.2",
          "env_list": [],
          "use_host_network": false,
          "resources": {
@@ -169,7 +170,7 @@ eg: 安装zookeeper并通过metainfoParams重写其应用配置
       {
         "baseConfig": {
           "env": [],
-          "image": "registryURL/repoName/zookeeper:transwarp-5.2",
+          "image": "docker.io/warpcloud/zookeeper:5.2",
           "others": [
             {
               "name": "string",
@@ -357,7 +358,7 @@ PUT /api/v1/release/{namespace}
 // 通过chartImage进行升级
 PUT /api/v1/release/{namespace}
 {
-	"chartImage": "repoUrl/cy-charts/zookeeper:6.1.0",
+	"chartImage": "docker.io/warpcloud/zookeeper:6.1",
 	"name": "zookeeper-demo",
 	"releaseLabels": {}
 }
@@ -456,7 +457,7 @@ body
       "zookeeper": {
          "priority": 1,
          "replicas": 3,
-         "image": "zookeeper:transwarp-5.2",
+         "image": "docker.io/warpcloud/zookeeper:5.2",
          "env_list": [],
          "use_host_network": false,
          "resources": {
@@ -504,8 +505,7 @@ body
       "zookeeper": {
          "priority": 2,
          "replicas": 3,
-         "image": "zookeeper:transwarp-5.2
-         ",
+         "image": "docker.io/warpcloud/zookeeper:5.2",
          "env_list": [],
          "use_host_network": false,
          "resources": {

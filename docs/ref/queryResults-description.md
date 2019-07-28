@@ -165,7 +165,7 @@
                 "containers": [
                   {
                     "name": "kafka",
-                    "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+                    "image": "docker.io/warpcloud/kafka:6.0",
                     "ready": true,
                     "restartCount": 0,
                     "state": {
@@ -205,7 +205,7 @@
                 "containers": [
                   {
                     "name": "kafka",
-                    "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+                    "image": "docker.io/warpcloud/kafka:6.0",
                     "ready": true,
                     "restartCount": 1,
                     "state": {
@@ -245,7 +245,7 @@
                 "containers": [
                   {
                     "name": "kafka",
-                    "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+                    "image": "docker.io/warpcloud/kafka:6.0",
                     "ready": true,
                     "restartCount": 0,
                     "state": {
@@ -299,7 +299,7 @@
         "appConfig": {
           "kafka": {
             "env_list": [],
-            "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+            "image": "docker.io/warpcloud/kafka:6.0",
             "priority": 0,
             "replicas": 3,
             "resources": {
@@ -349,7 +349,7 @@
           {
             "name": "kafka",
             "baseConfig": {
-              "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+              "image": "docker.io/warpcloud/kafka:6.0",
               "priority": null,
               "replicas": 3,
               "env": null,
@@ -441,7 +441,7 @@
         "appConfig": {                                          // 应用配置
           "kafka": {
             "env_list": [],
-            "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+            "image": "docker.io/warpcloud/kafka:6.0",
             "priority": 0,
             "replicas": 3,
             "resources": {
@@ -491,7 +491,7 @@
           {
             "name": "kafka",
             "baseConfig": {
-              "image": "172.16.1.99/gold/kafka:transwarp-6.0",
+              "image": "docker.io/warpcloud/kafka:6.0",
               "priority": null,
               "replicas": 3,
               "env": null,

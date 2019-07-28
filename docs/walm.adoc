@@ -1,0 +1,78 @@
+== Walm
+
+*Name of project*: Walm
+
+*Description*:
+
+Walm is a micro service that supports rest api to define, install, and upgrade container based applications including those with dependencies.
+
+*Comparison with similar projects*:
+|===
+|Walm |Helm
+
+|Walm supports rest api to manage the lifecycle of applications.
+|Helm does not support.
+
+|Walm supports the orchestration and deployment of complex applications(jsonnet chart).
+|Helm does not support.
+
+|Walm supports the dynamic dependencies management.
+|Helm does not support.
+
+|Walm supports the real-time synchronization of the application's status.
+|Helm deos not support.
+
+|Walm supports the finely grained authentication and authorization.
+|Helm supports the coarse grained authentication and authorization.
+
+|Walm supports to retrieve the more detailed specification and status of applications.
+|Walm supports to retrieve the basic specification and status of applications.
+|===
+
+*Sponsor / Advisor from TOC*: Transwarp
+
+*Unique Identifier*: walm
+
+*License*: ALv2
+
+*Maturity Level:* Incubating
+
+*Source control repositories*:
+
+* https://github.com/WarpCloud/walm
+* https://github.com/WarpCloud/walm-charts
+
+*Current Core Maintainers*:
+
+* Yang Cong
+* Yu Bian
+* Zhiyang Dai
+* Lisong Qiu
+
+*Mailing lists*:
+
+* transwarp-community@transwarp.io
+
+*Website*: None
+
+*Infrastructure requirements*: CI, CNCF Cluster, Object Storage
+
+*Issue tracker*: https://github.com/WarpCloud/walm/issues
+
+*Release methodology and mechanics*
+
+Walm uses link:http://semver.org/[semantic versioning] for releases. Releases are announced using GitHub releases while the release artifacts are placed into object storage for later download. The continuous integration systems, currently Jenkins, automatically places releases and development builds into object storage.
+
+*Statement on alignment with CNCF mission*:
+
+Walm support rest api to manage the lifecycle of container based applications and it supports dynamic management of application dependencies.
+
+*External Dependencies*: A full list of dependencies can be found at https://github.com/WarpCloud/walm/blob/master/glide.lock.
+
+*Social media accounts*: N/A
+
+*Adopters*:
+
+* Transwarp
+
+*project logo*: https://github.com/WarpCloud/walm/blob/master/resource/walm_logo.png
