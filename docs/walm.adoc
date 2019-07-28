@@ -23,10 +23,10 @@ Walm is a micro service that supports rest api to define, install, and upgrade c
 |Helm deos not support.
 
 |Walm supports the finely grained authentication and authorization.
-|Helm supports the coarse grained authentication and authorization.
+|Helm only supports the coarse grained authentication and authorization.
 
 |Walm supports to retrieve the more detailed specification and status of applications.
-|Walm supports to retrieve the basic specification and status of applications.
+|Helm only supports to retrieve the basic specification and status of applications.
 |===
 
 *Sponsor / Advisor from TOC*: Transwarp
