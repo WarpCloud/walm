@@ -222,7 +222,7 @@ func (sc *ServCmd) run() error {
 	tenantUseCase := tenantusecase.NewTenant(k8sCache, k8sOperator, releaseUseCase)
 	restful.Add(tenanthttp.RegisterTenantHandler(tenantUseCase))
 	restful.Add(projecthttp.RegisterProjectHandler(projectUseCase))
-	restful.Add(releasehttp.RegisterReleaseHandler(releaseUseCase))
+	restful.Add(releasehttp.RegisterReleaseHandler(releasehttp.NewReleaseHandler(releaseUseCase)))
 	restful.Add(podhttp.RegisterPodHandler(k8sCache, k8sOperator))
 	restful.Add(releasehttp.RegisterChartHandler(helm))
 	logrus.Infoln("Add Route Success")

@@ -13,15 +13,22 @@ import (
 	"encoding/json"
 )
 
+const (
+	releaseRootPath = http.ApiV1 + "/release"
+)
+
 type ReleaseHandler struct {
 	usecase release.UseCase
 }
 
-func RegisterReleaseHandler(usecase release.UseCase) *restful.WebService {
-	releaseHandler := &ReleaseHandler{usecase: usecase}
+func NewReleaseHandler(usecase release.UseCase) *ReleaseHandler {
+	return &ReleaseHandler{usecase: usecase}
+}
+
+func RegisterReleaseHandler(releaseHandler *ReleaseHandler) *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(http.ApiV1 + "/release").
+	ws.Path(releaseRootPath).
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
