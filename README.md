@@ -4,8 +4,15 @@
 # Walm
 ![logo][3]
 
-The Warp application lifecycle manager,using Helm as backend to create,delete,update,get application, is composed of Walm Server and Walmctl.
-Walm Server serves restful api server. Walmctl is cli for user.
+Walm is a micro service, based on Helm, that supports both Rest Api and Cli to manage the lifecycle of container based applications including those with dependencies.
+
+Walm dynamically manages the dependencies of an application. An application can depend on the applications already existed, and the configurations of applications depending on would be injected automatically. Besides, once the configurations of applications depending on changes, the configurations would be injected again in real-time.
+
+Walm supports more advanced Chart that use jsonnet as template engine to render kubernetes objects. It is more suitable to orchestrate and deploy complex applications, such as Big Data applications.
+
+Walm supports finely grained authentication and authorization, that would make one user only have relevant authorization under kubernetes namespace scope.
+
+Walm uses distributed event system to synchronize the application’s status in real-time.
 
 ## Architecture
 ![arch][1]
