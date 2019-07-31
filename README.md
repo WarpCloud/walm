@@ -33,48 +33,7 @@ Walm uses distributed event system to synchronize the application’s status in 
 - [High Availability](docs/high-availability.md)
 - [Security](docs/security.md)
 
-## Deploy
-- [Run Walm On Linux Clusters](docs/run-walm-on-linux-clusters.md)
-- [Run Walm On Google Kubernetes Engine Clusters](docs/run-walm-on-google-kubernetes-engine-clusters.md)
-## Get Started
-#### Deploy walm on kubernetes cluster
-- [Run Walm On Linux Clusters](docs/run-walm-on-linux-clusters.md)
-- [Run Walm On Google Kubernetes Engine Clusters](docs/run-walm-on-google-kubernetes-engine-clusters.md)
-#### Install Helm
-If helm is not installed, download executable file [here](https://github.com/WarpCloud/helm/releases), move to /usr/local/bin
-
-#### Install zookeeper && kafka
-Get started to install products when succeed to deploy walm on your kubernetes clusters.<br>
-1. Visit https://github.com/WarpCloud/walm-charts, get kafka-6.1.0.tgz, zookeeper-6.1.0.tgz from _output_walm_charts saved to local.
-
-2. Visit walm api https://server_host:31607/swagger, choose `POST /api/v1/release/{namespace}/withchart`.
-3. Filled in the `namespace` && `release` field, upload zookeeper-6.1.0.tgz, in field `body`, with it empty or
-ref [releaseRequest](docs/ref/releaseRequest-reference.md). Following is a body example:
-   ```json
-   {
-     "name": "zk2",
-     "configValues": {
-        "appConfig": {
-           "zookeeper": {
-              "replicas": 3
-           }
-        }
-     },
-     "metaInfoParams": {},
-     "dependencies": {},
-     "releaseLabels": {}
-   }
-   ```
-4. Filled in the `namespace` && `release` field, upload kafka-6.1.0.tgz, in field `body`, filled it with Following example,
-   finally kafka will depend on existing zookeeper clusters.
-   ```json
-   {
-     "name": "ka2",
-     "dependencies": {
-        "zookeeper": "zk2"
-     }
-   }
-   ```
+## [Get Started](docs/getting-started.md)
 ## Development
 ### Prerequisite
 - Go 1.11+

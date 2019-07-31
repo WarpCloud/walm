@@ -33,11 +33,9 @@
   systemctl restart network
   ```
   
-- chart 来源
+- walm, redis chart 来源
 
-​       chart的来源可以参考我们提供的[walm-chart](https://github.com/WarpCloud/walm-charts)。
-
-
+​       chart的来源可以参考提供的[walm-chart](https://github.com/WarpCloud/walm-charts)。
 
 ## 1. 使用kubeadm安装kubernetes 1.14
 
@@ -95,7 +93,7 @@ helm push . https://my.chart.repo.com         # push directly to chart repo URL
 
 ## 4. hostPath实现本地存储(也可采用其他方式如local-volume-pre)
 
-创建 PersistentVolume
+创建 PersistentVolume和PersistentVolumeClaim
 
 ```yaml
 kind: PersistentVolume
@@ -112,17 +110,13 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "/tmp/redis"
-```
-
-创建 PersistentVolumeClaim
-
-```yaml
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: redis-data-walm-redis-master-0
 spec:
-  storageClassName: hostpath
+  storageClassName: stan
   accessModes:
     - ReadWriteOnce
   resources:
@@ -134,145 +128,8 @@ spec:
 
 redis的chart可以从[walm-charts](https://github.com/WarpCloud/walm-charts)获取到， 修改 `redis/values.yaml`中 `persistence`的`storageClass`为`hostpath`, 创建 redis。
 
-`kubectl upgrade -n kube-system -i -f values.yaml walm-redis chartmuseum/redis`
-
-```yaml
-image:
-  image: redis:4.0.12
-  registry: docker.io
-  repository: library/redis
-  tag: 4.0.12
-  pullPolicy: Always
-
-cluster:
-  enabled: false
-  slaveCount: 1
-
-networkPolicy:
-  enabled: false
-
-serviceAccount:
-  create: false
-  name:
-
-rbac:
-  create: false
-
-  role:
-    rules: []
-
-usePassword: true
-password: "123456"
-usePasswordFile: false
-
-persistence: {}
-master:
-  port: 6379
-  command: "/run.sh"
-  extraFlags: []
-  disableCommands:
-  - FLUSHDB
-  - FLUSHALL
-  hostNetwork: false
-
-  podLabels: {}
-  podAnnotations: {}
-
-  resources:
-    requests:
-      memory: 256Mi
-      cpu: 100m
-
-  livenessProbe:
-    enabled: true
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    timeoutSeconds: 5
-    successThreshold: 1
-    failureThreshold: 5
-  readinessProbe:
-    enabled: true
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    timeoutSeconds: 1
-    successThreshold: 1
-    failureThreshold: 5
-
-  affinity: {}
-
-  service:
-    type: ClusterIP
-    port: 6379
-
-    annotations: {}
-    loadBalancerIP:
-
-  securityContext:
-    enabled: true
-    fsGroup: 1001
-    runAsUser: 1001
-
-  persistence:
-    enabled: true
-    path: /tmp/redis-dzy
-    subPath: ""
-    storageClass: hostpath
-    accessModes:
-    - ReadWriteOnce
-    size: 8Gi
-
-  statefulset:
-    updateStrategy: RollingUpdate
-
-slave:
-  service:
-    type: ClusterIP
-    annotations: {}
-    loadBalancerIP:
-
-  affinity: {}
-
-metrics:
-  enabled: false
-
-  image:
-    registry: docker.io
-    repository: oliver006/redis_exporter
-    tag: v0.28.0
-    pullPolicy: IfNotPresent
-
-  service:
-    type: ClusterIP
-    annotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "9121"
-
-  serviceMonitor:
-    enabled: false
-    selector:
-      prometheus: kube-prometheus
-
-volumePermissions:
-  enabled: false
-  image:
-    registry: docker.io
-    repository: bitnami/minideb
-    tag: latest
-    pullPolicy: IfNotPresent
-  resources: {}
-
-configmap: |-
-  # maxmemory-policy volatile-lru
-
-sysctlImage:
-  enabled: false
-  command: []
-  registry: docker.io
-  repository: bitnami/minideb
-  tag: latest
-  pullPolicy: Always
-  mountHostSys: false
-  resources: {}
+```shell
+$ helm install -n namespace --name walm-redis ./redis
 ```
 
 ## 6. walm部署
@@ -313,16 +170,10 @@ configmap:
   
 ```
 
-- 创建 priorityClass
-
-```shell
-kubectl -n kube-system create priorityclass low-priority
-```
-
 - 部署walm
 
 ```shell
-helm install -n kube-system --no-hooks -f walm/values.yaml  walm walm-2.0.0.tgz
+$ helm install --name walm ./walm
 ```
 
 - 环境变量设置
@@ -331,9 +182,3 @@ helm install -n kube-system --no-hooks -f walm/values.yaml  walm walm-2.0.0.tgz
 export HELM_DRIVER=configmap && helm ls
 ```
 
-- 重装walm
-
-```
-helm -n kube-system uninstall walm-redis
-helm install -n kube-system --no-hooks -f walm/values.yaml  walm walm-2.0.0.tgz
-```
