@@ -13,7 +13,7 @@
 
 ###安装 zookeeper
 
-Walm支持rest api来管理应用程序的生命周期。在https://server_host:31607/swagger-ui中选择通过使用本地chart安装一个release，填写对应的`租户名字`和`release名字`， 并且上传chart后， 我们可以在`body`中对应用进行自定义配置， 具体参照[如何用walm安装一个应用](applications-management.md)：
+Walm支持rest api来管理应用程序的生命周期。在https://server_host:31607/swagger-ui中选择通过使用本地chart安装一个release，填写对应的`租户名字`和`release名字`， 并且上传chart后， 我们可以在`body`中对应用进行自定义配置， 具体参照[如何用walm安装一个应用](application-management.md)：
 
 - 通过metainfoParams, configValues 对原应用配置进行重写
 - 通过releaseLabels实现标签的添加和删除

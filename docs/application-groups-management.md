@@ -165,14 +165,15 @@ dependencies:
 ```yaml
 // 1. 调用/api/v1/project/{namespace}/name/{project}/instance接口添加一个kafka组件
 {
-	"chartName": "kafka",
-	"chartVersion": "6.1.0",
-	"name": "ka2",
-	"repoName": "qa",
-	"dependencies": {
-	"zookeeper": "zk2"
+  "chartName": "kafka",
+  "chartVersion": "6.1.0",
+  "name": "ka2",
+  "repoName": "qa",
+  "dependencies": {
+  "zookeeper": "zk2"
 	}
 }
+
 // 2.  kafka 组件安装成功后， 可以查看其release信息， 看到kafka依赖的配置
 "dependenciesConfigValues": {
   "ZOOKEEPER_CLIENT_CONFIG": {
