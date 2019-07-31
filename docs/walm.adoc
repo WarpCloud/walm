@@ -4,7 +4,7 @@
 
 *Description*:
 
-Walm is a micro service, based on link:http://helm.sh[Helm], that supports both Rest Api and Cli to manage the lifecycle of container based applications including those with dependencies.
+Walm is a micro service, as a manager of applications in kubernetes cluster, based on link:http://helm.sh[Helm], that supports both Rest Api and Cli to manage the lifecycle of pod based applications in kubernetes cluster including those with dependencies.
 
 Walm dynamically manages the dependencies of an application. An application can depend on the applications already existed, and the configurations of applications depending on would be injected automatically. Besides, once the configurations of applications depending on changes, the configurations would be injected again in real-time.
 
@@ -12,7 +12,7 @@ Walm supports more advanced link:https://helm.sh/docs/developing_charts/#charts[
 
 Walm supports finely grained authentication and authorization, that would make one user only have relevant authorization under kubernetes namespace scope.
 
-Walm uses distributed event system to synchronize the application's status in real-time.
+Walm uses Kafka to synchronize the application's status in real-time. Once the application's status changes, walm would produce an event to Kafka in real-time, and the walm client would get the latest application status in real-time by consuming the kafka event .
 
 *Comparison with similar projects*:
 |===
@@ -37,31 +37,33 @@ Walm uses distributed event system to synchronize the application's status in re
 |Helm only supports to retrieve the basic specification and status of applications.
 |===
 
-*Sponsor / Advisor from TOC*: Transwarp
+*Sponsor / Advisor from TOC*: Finding
 
 *Unique Identifier*: walm
 
-*License*: ALv2
+*License*: Apache 2.0 license
 
-*Maturity Level:* Incubating
+*Preferred maturity level:* Sandbox
 
 *Source control repositories*:
 
 * https://github.com/WarpCloud/walm
 * https://github.com/WarpCloud/walm-charts
 
-*Current Core Maintainers*:
+*Initial committers*:
 
-* Yang Cong
-* Yu Bian
-* Zhiyang Dai
-* Lisong Qiu
+* Yang Cong(Transwarp Technology)
+* Yu Bian(Transwarp Technology)
+* Zhiyang Dai(Transwarp Technology)
+* Lisong Qiu(Transwarp Technology)
 
 *Mailing lists*:
 
 * transwarp-community@transwarp.io
 
-*Website*: None
+*Website*:
+
+None at present; documentation is in markdown format in the link:https://github.com/WarpCloud/walm[GitHub repo]
 
 *Infrastructure requirements*: CI, CNCF Cluster, Object Storage
 
@@ -73,7 +75,7 @@ Walm uses link:http://semver.org/[semantic versioning] for releases. Releases ar
 
 *Statement on alignment with CNCF mission*:
 
-Walm support rest api to manage the lifecycle of container based applications and it supports dynamic management of application dependencies.
+TODO
 
 *External Dependencies*: A full list of dependencies can be found at https://github.com/WarpCloud/walm/blob/master/glide.lock.
 
@@ -81,6 +83,6 @@ Walm support rest api to manage the lifecycle of container based applications an
 
 *Adopters*:
 
-* Transwarp
+* Transwarp Technology
 
 *project logo*: https://github.com/WarpCloud/walm/blob/master/resource/walm_logo.png
