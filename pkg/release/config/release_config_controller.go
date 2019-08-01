@@ -29,6 +29,8 @@ const (
 	defaultWorkers                       = 1
 	defaultReloadDependingReleaseWorkers = 10
 	defaultKafkaWorkers                  = 2
+
+	defaultRetryReloadDelayTimeSecond = 5
 )
 
 type ReleaseConfigController struct {
@@ -41,9 +43,10 @@ type ReleaseConfigController struct {
 	k8sCache                           k8s.Cache
 	releaseUseCase                     release.UseCase
 	kafka                              kafka.Kafka
+	retryReloadDelayTimeSecond         int64
 }
 
-func NewReleaseConfigController(k8sCache k8s.Cache, releaseUseCase release.UseCase, kafka kafka.Kafka) *ReleaseConfigController {
+func NewReleaseConfigController(k8sCache k8s.Cache, releaseUseCase release.UseCase, kafka kafka.Kafka, retryReloadDelayTimeSecond int64) *ReleaseConfigController {
 	controller := &ReleaseConfigController{
 		workingQueue:                       workqueue.NewNamedDelayingQueue("release-config"),
 		workers:                            defaultWorkers,
@@ -54,6 +57,11 @@ func NewReleaseConfigController(k8sCache k8s.Cache, releaseUseCase release.UseCa
 		k8sCache:                           k8sCache,
 		releaseUseCase:                     releaseUseCase,
 		kafka:                              kafka,
+		retryReloadDelayTimeSecond:         retryReloadDelayTimeSecond,
+	}
+
+	if controller.retryReloadDelayTimeSecond == 0 {
+		controller.retryReloadDelayTimeSecond = defaultRetryReloadDelayTimeSecond
 	}
 
 	return controller
@@ -226,9 +234,9 @@ func (controller *ReleaseConfigController) reloadDependingReleaseWorker() {
 			defer controller.reloadDependingReleaseWorkingQueue.Done(key)
 			err := controller.reloadDependingRelease(key.(string))
 			if err != nil {
-				if strings.Contains(err.Error(), "please wait for the release latest task") {
-					logrus.Warnf("depending release %s would be reloaded after 5 second", key.(string))
-					controller.reloadDependingReleaseWorkingQueue.AddAfter(key, time.Second*5)
+				if strings.Contains(err.Error(), release.WaitReleaseTaskMsgPrefix) {
+					logrus.Warnf("depending release %s would be reloaded after %d second", key.(string), controller.retryReloadDelayTimeSecond)
+					controller.reloadDependingReleaseWorkingQueue.AddAfter(key, time.Second* time.Duration(controller.retryReloadDelayTimeSecond))
 				} else {
 					logrus.Errorf("Error reload depending release %s: %v", key.(string), err)
 				}
@@ -278,7 +286,10 @@ func (controller *ReleaseConfigController) syncReleaseConfig(releaseConfigKey st
 				continue
 			}
 			if dependedReleaseNamespace == namespace && dependedReleaseName == name {
-				controller.enqueueDependingRelease(releaseConfig)
+				rc := &v1beta1.ReleaseConfig{}
+				rc.Namespace = releaseConfig.Namespace
+				rc.Name = releaseConfig.Name
+				controller.enqueueDependingRelease(rc)
 				break
 			}
 		}

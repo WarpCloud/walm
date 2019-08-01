@@ -19,13 +19,21 @@ import (
 	"path/filepath"
 	"github.com/stretchr/testify/mock"
 	neturl "net/url"
-	"os"
 )
 
-var mockUseCase *mocks.UseCase
-var mockReleaseHandler ReleaseHandler
+
 
 func TestReleaseHandler_DeleteRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -82,12 +90,23 @@ func TestReleaseHandler_DeleteRelease(t *testing.T) {
 
 		httpRequest, _ := http.NewRequest("DELETE", url, nil)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, httpWriter.Code, test.statusCode)
 	}
 }
 
 func TestReleaseHandler_InstallRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -154,12 +173,23 @@ func TestReleaseHandler_InstallRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_InstallReleaseWithChart(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	currentFilePath, err := framework.GetCurrentFilePath()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -190,7 +220,7 @@ func TestReleaseHandler_InstallReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 			},
 			chartPath:  filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
-			body: "notvalid",
+			body:       "notvalid",
 			statusCode: 500,
 		},
 		{
@@ -272,7 +302,7 @@ func TestReleaseHandler_InstallReleaseWithChart(t *testing.T) {
 		httpRequest.Form = neturl.Values(map[string][]string{"body": {test.body}, "release": {test.releaseName}})
 
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 
 		mockUseCase.AssertExpectations(t)
@@ -280,6 +310,17 @@ func TestReleaseHandler_InstallReleaseWithChart(t *testing.T) {
 }
 
 func TestReleaseHandler_UpgradeRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -346,12 +387,23 @@ func TestReleaseHandler_UpgradeRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("PUT", url, bytes.NewBuffer(bodyBytes))
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_UpgradeReleaseWithChart(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	currentFilePath, err := framework.GetCurrentFilePath()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -382,7 +434,7 @@ func TestReleaseHandler_UpgradeReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 			},
 			chartPath:  filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
-			body: "notvalid",
+			body:       "notvalid",
 			statusCode: 500,
 		},
 		{
@@ -464,7 +516,7 @@ func TestReleaseHandler_UpgradeReleaseWithChart(t *testing.T) {
 		httpRequest.Form = neturl.Values(map[string][]string{"body": {test.body}, "release": {test.releaseName}})
 
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 
 		mockUseCase.AssertExpectations(t)
@@ -472,6 +524,17 @@ func TestReleaseHandler_UpgradeReleaseWithChart(t *testing.T) {
 }
 
 func TestReleaseHandler_ListRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -515,12 +578,23 @@ func TestReleaseHandler_ListRelease(t *testing.T) {
 
 		httpRequest, _ := http.NewRequest("GET", url, nil)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_ListReleaseByNamespace(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -564,12 +638,23 @@ func TestReleaseHandler_ListReleaseByNamespace(t *testing.T) {
 
 		httpRequest, _ := http.NewRequest("GET", url, nil)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_GetRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		statusCode int
@@ -603,12 +688,23 @@ func TestReleaseHandler_GetRelease(t *testing.T) {
 
 		httpRequest, _ := http.NewRequest("GET", url, nil)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_DryRunRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		body       interface{}
@@ -649,12 +745,23 @@ func TestReleaseHandler_DryRunRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	currentFilePath, err := framework.GetCurrentFilePath()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -685,7 +792,7 @@ func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 			},
 			chartPath:  filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
-			body: "notvalid",
+			body:       "notvalid",
 			statusCode: 500,
 		},
 		{
@@ -693,7 +800,7 @@ func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 				mockUseCase.On("DryRunRelease", "testns",
 					&release.ReleaseRequestV2{ReleaseRequest: release.ReleaseRequest{Name: "testname"}},
-					mock.Anything).Return(nil,nil)
+					mock.Anything).Return(nil, nil)
 			},
 			chartPath:   filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
 			body:        "{}",
@@ -705,7 +812,7 @@ func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 				mockUseCase.On("DryRunRelease", "testns",
 					&release.ReleaseRequestV2{ReleaseRequest: release.ReleaseRequest{Name: "testname"}},
-					mock.Anything).Return(nil,errors.New(""))
+					mock.Anything).Return(nil, errors.New(""))
 			},
 			chartPath:   filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
 			body:        "{}",
@@ -767,7 +874,7 @@ func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
 		httpRequest.Form = neturl.Values(map[string][]string{"body": {test.body}, "release": {test.releaseName}})
 
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 
 		mockUseCase.AssertExpectations(t)
@@ -775,6 +882,17 @@ func TestReleaseHandler_DryRunReleaseWithChart(t *testing.T) {
 }
 
 func TestReleaseHandler_ComputeResourcesByDryRunRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		body       interface{}
@@ -815,12 +933,23 @@ func TestReleaseHandler_ComputeResourcesByDryRunRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	currentFilePath, err := framework.GetCurrentFilePath()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -851,7 +980,7 @@ func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 			},
 			chartPath:  filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
-			body: "notvalid",
+			body:       "notvalid",
 			statusCode: 500,
 		},
 		{
@@ -859,7 +988,7 @@ func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 				mockUseCase.On("ComputeResourcesByDryRunRelease", "testns",
 					&release.ReleaseRequestV2{ReleaseRequest: release.ReleaseRequest{Name: "testname"}},
-					mock.Anything).Return(nil,nil)
+					mock.Anything).Return(nil, nil)
 			},
 			chartPath:   filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
 			body:        "{}",
@@ -871,7 +1000,7 @@ func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
 				refreshMockUseCase()
 				mockUseCase.On("ComputeResourcesByDryRunRelease", "testns",
 					&release.ReleaseRequestV2{ReleaseRequest: release.ReleaseRequest{Name: "testname"}},
-					mock.Anything).Return(nil,errors.New(""))
+					mock.Anything).Return(nil, errors.New(""))
 			},
 			chartPath:   filepath.Join(filepath.Dir(currentFilePath), "../../../../test/resources/helm/tomcat-0.2.0.tgz"),
 			body:        "{}",
@@ -933,7 +1062,7 @@ func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
 		httpRequest.Form = neturl.Values(map[string][]string{"body": {test.body}, "release": {test.releaseName}})
 
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 
 		mockUseCase.AssertExpectations(t)
@@ -941,6 +1070,17 @@ func TestReleaseHandler_ComputeResourcesByDryRunReleaseWithChart(t *testing.T) {
 }
 
 func TestReleaseHandler_PauseRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -991,12 +1131,23 @@ func TestReleaseHandler_PauseRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, nil)
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_RecoverRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
+
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -1047,12 +1198,22 @@ func TestReleaseHandler_RecoverRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, nil)
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
 func TestReleaseHandler_RestartRelease(t *testing.T) {
+	var mockUseCase *mocks.UseCase
+	var mockReleaseHandler ReleaseHandler
+
+	container := restful.NewContainer()
+	container.Add(RegisterReleaseHandler(&mockReleaseHandler))
+
+	refreshMockUseCase := func() {
+		mockUseCase = &mocks.UseCase{}
+		mockReleaseHandler.usecase = mockUseCase
+	}
 	tests := []struct {
 		initMock   func()
 		queryUrl   string
@@ -1081,17 +1242,8 @@ func TestReleaseHandler_RestartRelease(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", url, nil)
 		httpRequest.Header.Set("Content-Type", restful.MIME_JSON)
 		httpWriter := httptest.NewRecorder()
-		restful.DefaultContainer.ServeHTTP(httpWriter, httpRequest)
+		container.ServeHTTP(httpWriter, httpRequest)
 		assert.Equal(t, test.statusCode, httpWriter.Code)
 	}
 }
 
-func TestMain(m *testing.M) {
-	restful.Add(RegisterReleaseHandler(&mockReleaseHandler))
-	os.Exit(m.Run())
-}
-
-func refreshMockUseCase() {
-	mockUseCase = &mocks.UseCase{}
-	mockReleaseHandler.usecase = mockUseCase
-}

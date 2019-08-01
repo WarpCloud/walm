@@ -5,6 +5,10 @@ import (
 	"WarpCloud/walm/pkg/models/common"
 )
 
+const (
+	WaitReleaseTaskMsgPrefix = "please wait for the last release task"
+)
+
 type UseCase interface {
 	GetRelease(namespace, name string) (releaseV2 *release.ReleaseInfoV2, err error)
 	ListReleases(namespace string) ([]*release.ReleaseInfoV2, error)

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"WarpCloud/walm/pkg/models/common"
 	errorModel "WarpCloud/walm/pkg/models/error"
+
+	releasei "WarpCloud/walm/pkg/release"
 )
 
 const (
@@ -19,7 +21,7 @@ func (helm *Helm) InstallUpgradeReleaseWithRetry(namespace string, releaseReques
 	for {
 		err := helm.InstallUpgradeRelease(namespace, releaseRequest, chartFiles, async, timeoutSec, paused)
 		if err != nil {
-			if strings.Contains(err.Error(), waitReleaseTaskMsgPrefix) && retryTimes > 0 {
+			if strings.Contains(err.Error(), releasei.WaitReleaseTaskMsgPrefix) && retryTimes > 0 {
 				logrus.Warnf("retry to install or upgrade release %s/%s after 2 second", namespace, releaseRequest.Name)
 				retryTimes --
 				time.Sleep(time.Second * 2)

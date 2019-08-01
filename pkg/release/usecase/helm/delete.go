@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	errorModel "WarpCloud/walm/pkg/models/error"
+	"WarpCloud/walm/pkg/release"
 )
 
 func (helm *Helm) DeleteReleaseWithRetry(namespace, releaseName string, deletePvcs bool, async bool, timeoutSec int64) error {
@@ -12,7 +13,7 @@ func (helm *Helm) DeleteReleaseWithRetry(namespace, releaseName string, deletePv
 	for {
 		err := helm.DeleteRelease(namespace, releaseName, deletePvcs, async, timeoutSec)
 		if err != nil {
-			if strings.Contains(err.Error(), waitReleaseTaskMsgPrefix) && retryTimes > 0 {
+			if strings.Contains(err.Error(), release.WaitReleaseTaskMsgPrefix) && retryTimes > 0 {
 				logrus.Warnf("retry to delete release %s/%s after 2 second", namespace, releaseName)
 				retryTimes --
 				time.Sleep(time.Second * 2)

@@ -172,7 +172,7 @@ func (sc *ServCmd) run() error {
 		logrus.Errorf("failed to create kafka manager: %s", err.Error())
 		return err
 	}
-	releaseConfigController := releaseconfig.NewReleaseConfigController(k8sCache, releaseUseCase, kafka)
+	releaseConfigController := releaseconfig.NewReleaseConfigController(k8sCache, releaseUseCase, kafka, 0)
 	onStartedLeadingFunc := func(context context.Context) {
 		logrus.Info("Succeed to elect leader")
 		syncManager.Start(context.Done())
