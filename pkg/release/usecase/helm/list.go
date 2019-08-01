@@ -47,7 +47,7 @@ func (helm *Helm) buildReleaseInfoV2ByReleaseTask(releaseTask *releaseModel.Rele
 		releaseV2, err = helm.buildReleaseInfoV2(releaseCache)
 		if err != nil {
 			logrus.Errorf("failed to build v2 release info : %s", err.Error())
-			return nil, err
+			return
 		}
 	}
 
@@ -55,10 +55,10 @@ func (helm *Helm) buildReleaseInfoV2ByReleaseTask(releaseTask *releaseModel.Rele
 	if err != nil {
 		if errorModel.IsNotFoundError(err) {
 			err = nil
-			return
+			return releaseV2, nil
 		} else {
 			logrus.Errorf("failed to get task state : %s", err.Error())
-			return
+			return nil, err
 		}
 	}
 

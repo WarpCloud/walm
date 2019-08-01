@@ -11,7 +11,7 @@ import (
 
 func ConvertServiceFromK8s(oriService *corev1.Service, endpoints *corev1.Endpoints) (walmService *k8s.Service,err error) {
 	if oriService == nil {
-		return nil, nil
+		return
 	}
 	service := oriService.DeepCopy()
 

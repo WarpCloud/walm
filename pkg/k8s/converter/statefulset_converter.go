@@ -10,7 +10,7 @@ import (
 
 func ConvertStatefulSetFromK8s(oriStatefulSet *appsv1beta1.StatefulSet, pods []*v1.Pod) (walmStatefulSet *k8s.StatefulSet, err error) {
 	if oriStatefulSet == nil {
-		return nil, nil
+		return
 	}
 	statefulSet := oriStatefulSet.DeepCopy()
 
@@ -42,7 +42,7 @@ func ConvertStatefulSetFromK8s(oriStatefulSet *appsv1beta1.StatefulSet, pods []*
 		walmStatefulSet.Pods = append(walmStatefulSet.Pods, walmPod)
 	}
 	walmStatefulSet.State = buildWalmStatefulSetState(statefulSet, walmStatefulSet.Pods)
-	return walmStatefulSet, err
+	return walmStatefulSet, nil
 }
 
 func buildWalmStatefulSetState(statefulSet *appsv1beta1.StatefulSet, pods []*k8s.Pod) (walmState k8s.State) {

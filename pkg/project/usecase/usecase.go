@@ -325,7 +325,7 @@ func (projectImpl *Project) buildProjectInfo(task *projectModel.ProjectTask) (pr
 			return
 		}
 		logrus.Errorf("failed to get task state : %s", err.Error())
-		return
+		return nil, err
 	}
 
 	if taskState.IsFinished() {

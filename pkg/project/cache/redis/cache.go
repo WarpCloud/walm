@@ -21,7 +21,7 @@ func (cache *Cache) GetProjectTask(namespace, name string) (projectTask *project
 	err = json.Unmarshal([]byte(projectTaskStr), projectTask)
 	if err != nil {
 		logrus.Errorf("failed to unmarshal projectTaskStr %s : %s", projectTaskStr, err.Error())
-		return
+		return nil, err
 	}
 	projectTask.CompatiblePreviousProjectTask()
 	return
@@ -40,7 +40,7 @@ func (cache *Cache) GetProjectTasks(namespace string) (projectTasks []*project.P
 		err = json.Unmarshal([]byte(projectTaskStr), projectTask)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal project task of %s: %s", projectTaskStr, err.Error())
-			return
+			return nil, err
 		}
 		projectTask.CompatiblePreviousProjectTask()
 		projectTasks = append(projectTasks, projectTask)

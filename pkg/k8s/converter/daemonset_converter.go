@@ -8,7 +8,7 @@ import (
 
 func ConvertDaemonSetFromK8s(oriDaemonSet *extv1beta1.DaemonSet, pods []*v1.Pod) (walmDaemonSet *k8s.DaemonSet, err error) {
 	if oriDaemonSet == nil {
-		return nil, nil
+		return
 	}
 	daemonSet := oriDaemonSet.DeepCopy()
 
@@ -30,7 +30,7 @@ func ConvertDaemonSetFromK8s(oriDaemonSet *extv1beta1.DaemonSet, pods []*v1.Pod)
 	}
 
 	walmDaemonSet.State = buildWalmDaemonSetState(daemonSet, walmDaemonSet.Pods)
-	return walmDaemonSet, err
+	return walmDaemonSet, nil
 }
 
 func isDaemonSetReady(daemon *extv1beta1.DaemonSet) bool {

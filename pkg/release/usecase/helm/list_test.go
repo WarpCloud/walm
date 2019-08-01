@@ -95,14 +95,7 @@ func TestHelm_GetRelease(t *testing.T) {
 					UUID: "test-uuid",
 				}).Return(nil, errors.New("failed"))
 			},
-			releaseInfo: &release.ReleaseInfoV2{
-				ReleaseInfo: release.ReleaseInfo{
-					ReleaseSpec: release.ReleaseSpec{
-						Namespace: "test-ns",
-						Name:      "test-name",
-					},
-				},
-			},
+			releaseInfo: nil,
 			err: errors.New("failed"),
 		},
 		{

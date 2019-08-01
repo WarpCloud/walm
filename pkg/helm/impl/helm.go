@@ -282,6 +282,9 @@ func (helmImpl *Helm) convertHelmRelease(helmRelease *helmRelease.Release) (rele
 
 	releaseCache.MetaInfoValues, _ = buildMetaInfoValues(helmRelease.Chart, releaseCache.ComputedValues)
 	releaseCache.ReleaseResourceMetas, err = helmImpl.getReleaseResourceMetas(helmRelease)
+	if err != nil {
+		return nil, err
+	}
 	releaseCache.Manifest = helmRelease.Manifest
 	return
 }
@@ -378,6 +381,9 @@ func reuseReleaseRequest(releaseInfo *release.ReleaseInfoV2, releaseRequest *rel
 	}
 
 	walmPlugins, err = mergeReleasePlugins(releaseRequest.Plugins, releaseInfo.Plugins)
+	if err != nil {
+		return
+	}
 	return
 }
 

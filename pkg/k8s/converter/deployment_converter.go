@@ -8,7 +8,7 @@ import (
 
 func ConvertDeploymentFromK8s(oriDeployment *extv1beta1.Deployment, pods []*v1.Pod) (walmDeployment *k8s.Deployment, err error) {
 	if oriDeployment == nil {
-		return nil, nil
+		return
 	}
 	deployment := oriDeployment.DeepCopy()
 
@@ -35,7 +35,7 @@ func ConvertDeploymentFromK8s(oriDeployment *extv1beta1.Deployment, pods []*v1.P
 		walmDeployment.Pods = append(walmDeployment.Pods, walmPod)
 	}
 	walmDeployment.State = buildWalmDeploymentState(deployment, walmDeployment.Pods)
-	return walmDeployment, err
+	return walmDeployment, nil
 }
 
 func isDeploymentReady(deployment *extv1beta1.Deployment) bool {

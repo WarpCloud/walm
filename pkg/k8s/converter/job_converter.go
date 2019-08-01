@@ -9,7 +9,7 @@ import (
 
 func ConvertJobFromK8s(oriJob *batchv1.Job, pods []*v1.Pod) (walmJob *k8s.Job, err error) {
 	if oriJob == nil {
-		return nil, nil
+		return
 	}
 	job := oriJob.DeepCopy()
 
@@ -36,7 +36,7 @@ func ConvertJobFromK8s(oriJob *batchv1.Job, pods []*v1.Pod) (walmJob *k8s.Job, e
 		walmJob.Pods = append(walmJob.Pods, walmPod)
 	}
 	walmJob.State = buildWalmJobState(job)
-	return walmJob, err
+	return walmJob, nil
 }
 
 func buildWalmJobState(job *batchv1.Job) (jobState k8s.State) {

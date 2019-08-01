@@ -74,7 +74,7 @@ func (cache *Cache) GetReleaseCachesByReleaseConfigs(releaseConfigs []*k8s.Relea
 		err = json.Unmarshal([]byte(releaseCacheStr), releaseCache)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal release cache of %s: %s", releaseCacheStr, err.Error())
-			return
+			return nil, err
 		}
 		releaseCaches = append(releaseCaches, releaseCache)
 	}
@@ -115,7 +115,7 @@ func (cache *Cache) GetReleaseTask(namespace, name string) (releaseTask *release
 	err = json.Unmarshal([]byte(releaseTaskStr), releaseTask)
 	if err != nil {
 		logrus.Errorf("failed to unmarshal releaseTaskStr %s : %s", releaseTaskStr, err.Error())
-		return
+		return nil, err
 	}
 	return
 }
@@ -133,7 +133,7 @@ func (cache *Cache) GetReleaseTasks(namespace string) (releaseTasks []*release.R
 		err = json.Unmarshal([]byte(releaseTaskStr), releaseTask)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal release task of %s: %s", releaseTaskStr, err.Error())
-			return
+			return nil, err
 		}
 		releaseTasks = append(releaseTasks, releaseTask)
 	}
@@ -168,7 +168,7 @@ func (cache *Cache) GetReleaseTasksByReleaseConfigs(releaseConfigs []*k8s.Releas
 		err = json.Unmarshal([]byte(releaseTaskStr), releaseTask)
 		if err != nil {
 			logrus.Errorf("failed to unmarshal release task of %s: %s", releaseTaskStr, err.Error())
-			return
+			return nil, err
 		}
 		releaseTasks = append(releaseTasks, releaseTask)
 	}
