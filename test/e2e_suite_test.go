@@ -13,6 +13,7 @@ import (
 	_ "WarpCloud/walm/test/e2e/k8s/operator"
 	_ "WarpCloud/walm/test/e2e/k8s/cache"
 	_ "WarpCloud/walm/test/e2e/helm"
+	_ "WarpCloud/walm/test/e2e/redis"
 	"WarpCloud/walm/test/e2e/framework"
 )
 

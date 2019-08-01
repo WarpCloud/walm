@@ -89,7 +89,6 @@ func (redis *Redis) SetFieldValues(key string, fieldValues map[string]interface{
 	return nil
 }
 
-//TODO delete a filed which does not exist to check whether an error is returned
 func (redis *Redis) DeleteField(key, namespace, name string) error {
 	_, err := redis.client.HDel(key, walmRedis.BuildFieldName(namespace, name)).Result()
 	if err != nil {
