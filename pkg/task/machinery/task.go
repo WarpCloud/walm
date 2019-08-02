@@ -125,7 +125,7 @@ func (task *Task) StartWorker() {
 	logrus.Info("worker starting to consume tasks")
 }
 
-func (task *Task) StopWorker() {
+func (task *Task) StopWorker(timeoutSec int64) {
 	quitChan := make(chan struct{})
 	go func() {
 		task.worker.Quit()
@@ -134,7 +134,7 @@ func (task *Task) StopWorker() {
 	select {
 	case <-quitChan:
 		logrus.Info("worker stopped consuming tasks successfully")
-	case <-time.After(time.Second * 30):
+	case <-time.After(time.Second * time.Duration(timeoutSec)):
 		logrus.Warn("worker stopped consuming tasks failed after 30 seconds")
 	}
 }

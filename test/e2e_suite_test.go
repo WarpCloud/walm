@@ -14,6 +14,7 @@ import (
 	_ "WarpCloud/walm/test/e2e/k8s/cache"
 	_ "WarpCloud/walm/test/e2e/helm"
 	_ "WarpCloud/walm/test/e2e/redis"
+	_ "WarpCloud/walm/test/e2e/task"
 	"WarpCloud/walm/test/e2e/framework"
 )
 

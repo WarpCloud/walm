@@ -10,10 +10,7 @@ import (
 	"WarpCloud/walm/pkg/redis"
 	redislib "github.com/go-redis/redis"
 	errorModel "WarpCloud/walm/pkg/models/error"
-)
-
-const (
-	testKey = "walm-test"
+	"WarpCloud/walm/test/e2e/framework"
 )
 
 var _ = Describe("Redis", func() {
@@ -21,17 +18,23 @@ var _ = Describe("Redis", func() {
 	var (
 		redisClient *redislib.Client
 		redisImpl   *impl.Redis
+		testKey string
 	)
 
 	BeforeEach(func() {
+		Expect(setting.Config.RedisConfig).NotTo(BeNil())
+
+		testKey = framework.GenerateRandomName("redis-test")
 		Expect(setting.Config.RedisConfig)
 		redisClient = impl.NewRedisClient(setting.Config.RedisConfig)
 		redisImpl = impl.NewRedis(redisClient)
 	})
 
 	AfterEach(func() {
-		_, err := redisClient.Del(testKey).Result()
-		Expect(err).NotTo(HaveOccurred())
+		if redisClient != nil {
+			_, err := redisClient.Del(testKey).Result()
+			Expect(err).NotTo(HaveOccurred())
+		}
 	})
 
 	It("test redis lifycycle", func() {
