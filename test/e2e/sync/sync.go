@@ -25,7 +25,6 @@ var _ = Describe("Sync", func() {
 		mockHelm      *helmmocks.Helm
 		mockK8sCache  *k8smocks.Cache
 		mockTask      *taskmocks.Task
-		mockTaskState *taskmocks.TaskState
 		mockSync      *sync.Sync
 		testRcKey     string
 		testRtKey     string
@@ -40,7 +39,6 @@ var _ = Describe("Sync", func() {
 			mockHelm = &helmmocks.Helm{}
 			mockK8sCache = &k8smocks.Cache{}
 			mockTask = &taskmocks.Task{}
-			mockTaskState = &taskmocks.TaskState{}
 
 			mockSync = sync.NewSync(redisClient, mockHelm, mockK8sCache, mockTask, testRcKey, testRtKey, testPtKey)
 		}
