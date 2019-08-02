@@ -25,7 +25,6 @@ var _ = Describe("Redis", func() {
 		Expect(setting.Config.RedisConfig).NotTo(BeNil())
 
 		testKey = framework.GenerateRandomName("redis-test")
-		Expect(setting.Config.RedisConfig)
 		redisClient = impl.NewRedisClient(setting.Config.RedisConfig)
 		redisImpl = impl.NewRedis(redisClient)
 	})

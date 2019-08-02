@@ -15,6 +15,7 @@ import (
 	_ "WarpCloud/walm/test/e2e/helm"
 	_ "WarpCloud/walm/test/e2e/redis"
 	_ "WarpCloud/walm/test/e2e/task"
+	_ "WarpCloud/walm/test/e2e/sync"
 	"WarpCloud/walm/test/e2e/framework"
 )
 

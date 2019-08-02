@@ -166,7 +166,7 @@ func (sc *ServCmd) run() error {
 		}
 	}()
 
-	syncManager := sync.NewSync(redisClient, helm, k8sCache, task)
+	syncManager := sync.NewSync(redisClient, helm, k8sCache, task, "", "", "")
 	kafka, err := kafkaimpl.NewKafka(config.KafkaConfig)
 	if err != nil {
 		logrus.Errorf("failed to create kafka manager: %s", err.Error())

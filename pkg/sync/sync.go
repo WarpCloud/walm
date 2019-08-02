@@ -25,6 +25,10 @@ type Sync struct {
 	helm        helm.Helm
 	k8sCache    k8s.Cache
 	task        task.Task
+
+	releaseCacheKey string
+	releaseTaskKey  string
+	projectTaskKey  string
 }
 
 func (sync *Sync) Start(stopCh <-chan struct{}) {
@@ -52,13 +56,13 @@ func (sync *Sync) Resync() {
 				return err
 			}
 
-			releaseCachesFromHelmMap, err := buildReleaseCachesFormHelmMap(releaseCachesFromHelm)
+			releaseCachesFromHelmMap, err := buildReleaseCachesFromHelmMap(releaseCachesFromHelm)
 			if err != nil {
 				logrus.Errorf("failed to build release cache map : %s", err.Error())
 				return err
 			}
 
-			releaseCacheKeysFromRedis, err := tx.HKeys(walmRedis.WalmReleasesKey).Result()
+			releaseCacheKeysFromRedis, err := tx.HKeys(sync.releaseCacheKey).Result()
 			if err != nil {
 				logrus.Errorf("failed to get release cache keys from redis: %s", err.Error())
 				return err
@@ -75,7 +79,7 @@ func (sync *Sync) Resync() {
 				logrus.Errorf("failed to build project tasks by release configs : %s", err.Error())
 				return err
 			}
-			projectTasksInRedis, err := tx.HGetAll(walmRedis.WalmProjectsKey).Result()
+			projectTasksInRedis, err := tx.HGetAll(sync.projectTaskKey).Result()
 			if err != nil {
 				logrus.Errorf("failed to get project tasks from redis: %s", err.Error())
 				return err
@@ -90,7 +94,7 @@ func (sync *Sync) Resync() {
 			if err != nil {
 				return err
 			}
-			releaseTaskInRedis, err := tx.HGetAll(walmRedis.WalmReleaseTasksKey).Result()
+			releaseTaskInRedis, err := tx.HGetAll(sync.releaseTaskKey).Result()
 			if err != nil {
 				logrus.Errorf("failed to get release tasks from redis: %s", err.Error())
 				return err
@@ -104,27 +108,27 @@ func (sync *Sync) Resync() {
 
 			_, err = tx.Pipelined(func(pipe redis.Pipeliner) error {
 				if len(releaseCachesFromHelm) > 0 {
-					pipe.HMSet(walmRedis.WalmReleasesKey, releaseCachesFromHelmMap)
+					pipe.HMSet(sync.releaseCacheKey, releaseCachesFromHelmMap)
 				}
 				if len(releaseCacheKeysToDel) > 0 {
-					pipe.HDel(walmRedis.WalmReleasesKey, releaseCacheKeysToDel...)
+					pipe.HDel(sync.releaseCacheKey, releaseCacheKeysToDel...)
 				}
 				if len(projectTasksToSet) > 0 {
-					pipe.HMSet(walmRedis.WalmProjectsKey, projectTasksToSet)
+					pipe.HMSet(sync.projectTaskKey, projectTasksToSet)
 				}
 				if len(projectTasksToDel) > 0 {
-					pipe.HDel(walmRedis.WalmProjectsKey, projectTasksToDel...)
+					pipe.HDel(sync.projectTaskKey, projectTasksToDel...)
 				}
 				if len(releaseTasksToSet) > 0 {
-					pipe.HMSet(walmRedis.WalmReleaseTasksKey, releaseTasksToSet)
+					pipe.HMSet(sync.releaseTaskKey, releaseTasksToSet)
 				}
 				if len(releaseTasksToDel) > 0 {
-					pipe.HDel(walmRedis.WalmReleaseTasksKey, releaseTasksToDel...)
+					pipe.HDel(sync.releaseTaskKey, releaseTasksToDel...)
 				}
 				return nil
 			})
 			return err
-		}, walmRedis.WalmReleasesKey, walmRedis.WalmProjectsKey, walmRedis.WalmReleaseTasksKey)
+		}, sync.releaseCacheKey, sync.projectTaskKey, sync.releaseTaskKey)
 
 		if err == redis.TxFailedErr {
 			logrus.Warn("resync release cache transaction failed, will retry after 5 seconds")
@@ -198,25 +202,35 @@ func (sync *Sync) buildProjectTasksToDel(projectTasksFromReleaseConfigs map[stri
 	return projectTasksToDel, nil
 }
 
-func buildReleaseCachesFormHelmMap(caches []*releaseModel.ReleaseCache) (map[string]interface{}, error) {
-	cacheMap := map[string]interface{}{}
+func buildReleaseCachesFromHelmMap(caches []*releaseModel.ReleaseCache) (map[string]interface{}, error) {
+	cacheMap := map[string]*releaseModel.ReleaseCache{}
 	for _, cache := range caches {
 		filedName := walmRedis.BuildFieldName(cache.Namespace, cache.Name)
-		cacheStr, err := json.Marshal(cache)
-		if err != nil {
-			logrus.Errorf("failed to marshal value : %s", err.Error())
-			return nil, err
-		}
 		if existedRelease, ok := cacheMap[filedName]; ok {
-			if existedRelease.(*releaseModel.ReleaseCache).Version < cache.Version {
-				cacheMap[filedName] = cacheStr
+			if existedRelease.Version < cache.Version {
+				cacheMap[filedName] = cache
 			}
 		} else {
-			cacheMap[filedName] = cacheStr
+			cacheMap[filedName] = cache
 		}
 
 	}
-	return cacheMap, nil
+	return convertReleaseCachesMapToStrMap(cacheMap)
+}
+
+func convertReleaseCachesMapToStrMap(releaseCaches map[string]*releaseModel.ReleaseCache) (convertedResult map[string]interface{}, err error) {
+	if releaseCaches != nil {
+		convertedResult = make(map[string]interface{}, len(releaseCaches))
+		for key, value := range releaseCaches {
+			valueBytes, err := json.Marshal(value)
+			if err != nil {
+				logrus.Errorf("failed to marshal value : %s", err.Error())
+				return nil, err
+			}
+			convertedResult[key] = valueBytes
+		}
+	}
+	return
 }
 
 func buildReleaseTasksToSet(releaseTasksFromHelm map[string]string, releaseTaskInRedis map[string]string) map[string]interface{} {
@@ -293,11 +307,25 @@ func buildReleaseCacheKeysToDel(releaseCacheKeysFromRedis []string, releaseCache
 	return releaseCacheKeysToDel
 }
 
-func NewSync(redisClient *redis.Client, helm helm.Helm, k8sCache k8s.Cache, task task.Task) *Sync {
-	return &Sync{
+func NewSync(redisClient *redis.Client, helm helm.Helm, k8sCache k8s.Cache, task task.Task, releaseCacheKey, releaseTaskKey, projectTaskKey string) *Sync {
+	result := &Sync{
 		redisClient: redisClient,
 		helm:        helm,
 		k8sCache:    k8sCache,
 		task:        task,
+
+		releaseCacheKey: releaseCacheKey,
+		releaseTaskKey:  releaseTaskKey,
+		projectTaskKey:  projectTaskKey,
 	}
+	if result.releaseCacheKey == "" {
+		result.releaseCacheKey = walmRedis.WalmReleasesKey
+	}
+	if result.releaseTaskKey == "" {
+		result.releaseTaskKey = walmRedis.WalmReleaseTasksKey
+	}
+	if result.projectTaskKey == "" {
+		result.projectTaskKey = walmRedis.WalmProjectsKey
+	}
+	return result
 }
