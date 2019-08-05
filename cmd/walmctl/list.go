@@ -2,11 +2,11 @@ package main
 
 import (
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"WarpCloud/walm/pkg/project"
-	"WarpCloud/walm/pkg/release"
-	"encoding/json"
-	"fmt"
 	"github.com/bitly/go-simplejson"
+	"fmt"
+	"encoding/json"
+	"WarpCloud/walm/pkg/models/project"
+	"WarpCloud/walm/pkg/models/release"
 	"github.com/ghodss/yaml"
 	"github.com/go-resty/resty"
 	"github.com/gosuri/uitable"
@@ -175,7 +175,6 @@ func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProje
 		lp := listProject{
 			Name:      project.Name,
 			Ready:     project.Ready,
-			CreatedAt: project.LatestTaskState.CreatedAt.Format("2006-01-02 15:04:05"),
 			Message:   project.Message,
 		}
 

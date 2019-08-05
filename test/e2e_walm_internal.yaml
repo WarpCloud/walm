@@ -14,7 +14,7 @@ kubeConfig:
 redisConfig:
   addr: 172.26.0.5:6380
   password: "walmtest"
-  db: 0
+  db: 7
 kafkaConfig:
   enable: false
   brokers:
@@ -24,9 +24,9 @@ kafkaConfig:
   caFile: ""
   VerifySsl: false
 taskConfig:
-  broker: "redis://walmtest@172.26.0.5:6380/2"
+  broker: "redis://walmtest@172.26.0.5:6380/8"
   default_queue: "machinery_tasks"
-  result_backend: "redis://walmtest@172.26.0.5:6380/2"
+  result_backend: "redis://walmtest@172.26.0.5:6380/8"
   results_expire_in: 360000
 jsonnetConfig:
   commonTemplateFilesPath: "ksonnet-lib"
@@ -34,3 +34,7 @@ logConfig:
   level: "debug"
 chartImageConfig:
   cacheRootDir: "/chart-cache"
+
+# only for test
+chartImageRegistry: "172.26.0.5:5000"
+

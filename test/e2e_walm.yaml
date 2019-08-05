@@ -2,7 +2,7 @@ debug: true
 serverConfig:
   port: 9001
 repoList:
-  - name: "stable"
+  - name: "test"
     url: "http://localhost:8880/"
 kubeConfig:
   config: "k8sconfig/kubeconfig"
@@ -30,3 +30,6 @@ logConfig:
   level: "debug"
 chartImageConfig:
   cacheRootDir: "/chart-cache"
+
+# only for test
+chartImageRegistry: "172.26.0.5:5000"

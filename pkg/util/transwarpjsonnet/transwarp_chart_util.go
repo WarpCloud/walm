@@ -1,11 +1,7 @@
 package transwarpjsonnet
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 
 	"os"
@@ -14,17 +10,14 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/helm/pkg/chart"
-	"k8s.io/helm/pkg/chart/loader"
 	"k8s.io/helm/pkg/walm/plugins"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"transwarp/release-config/pkg/apis/transwarp/v1beta1"
 
 	"WarpCloud/walm/pkg/setting"
 	"WarpCloud/walm/pkg/util"
-	"WarpCloud/walm/pkg/release/manager/metainfo"
 )
 
 const (
@@ -226,74 +219,3 @@ func buildAutoGenReleaseConfig(releaseNamespace, releaseName, repo, chartName, c
 	return releaseConfigBytes, nil
 }
 
-func LoadArchive(in io.Reader) ([]*loader.BufferedFile, error) {
-	unzipped, err := gzip.NewReader(in)
-	if err != nil {
-		return nil, err
-	}
-	defer unzipped.Close()
-
-	var files []*loader.BufferedFile
-	tr := tar.NewReader(unzipped)
-	for {
-		b := bytes.NewBuffer(nil)
-		hd, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if hd.FileInfo().IsDir() {
-			// Use this instead of hd.Typeflag because we don't have to do any
-			// inference chasing.
-			continue
-		}
-
-		// Archive could contain \ if generated on Windows
-		delimiter := "/"
-		if strings.ContainsRune(hd.Name, '\\') {
-			delimiter = "\\"
-		}
-
-		parts := strings.Split(hd.Name, delimiter)
-		n := strings.Join(parts[1:], delimiter)
-
-		// Normalize the path to the / delimiter
-		n = strings.Replace(n, delimiter, "/", -1)
-
-		if parts[0] == "Chart.yaml" {
-			return nil, errors.New("chart yaml not in base directory")
-		}
-
-		if _, err := io.Copy(b, tr); err != nil {
-			return nil, err
-		}
-
-		files = append(files, &loader.BufferedFile{Name: n, Data: b.Bytes()})
-		b.Reset()
-	}
-
-	if len(files) == 0 {
-		return nil, errors.New("no files in chart archive")
-	}
-
-	return files, nil
-}
-
-func GetChartMetaInfo(rawChart *chart.Chart) (chartMetaInfo *metainfo.ChartMetaInfo, err error) {
-	for _, f := range rawChart.Files {
-		if f.Name == TranswarpMetadataDir+TranswarpMetaInfoFileName {
-			chartMetaInfo = &metainfo.ChartMetaInfo{}
-			err = yaml.Unmarshal(f.Data, chartMetaInfo)
-			if err != nil {
-				logrus.Error(errors.Wrapf(err, "chart %s-%s MetaInfo Unmarshal metainfo.yaml error",
-					rawChart.Metadata.Name, rawChart.Metadata.Version))
-				return
-			}
-			return
-		}
-	}
-	return
-}
