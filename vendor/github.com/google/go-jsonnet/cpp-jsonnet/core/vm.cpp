@@ -73,6 +73,7 @@ enum FrameKind {
     FRAME_UNARY,                // e in -e
     FRAME_BUILTIN_JOIN_STRINGS, // When executing std.join over strings, used to hold intermediate state.
     FRAME_BUILTIN_JOIN_ARRAYS,  // When executing std.join over arrays, used to hold intermediate state.
+    FRAME_BUILTIN_DECODE_UTF8,  // When executing std.decodeUTF8, used to hold intermediate state.
 };
 
 /** A frame on the stack.
@@ -133,6 +134,10 @@ struct Frame {
 
     /** Used for accumulating a joined string. */
     UString str;
+    bool first;
+
+    /** Used for accumulating bytes */
+    std::string bytes;
 
     /** The context is used in error messages to attempt to find a reasonable name for the
      * object, function, or thunk value being executed.  If it is a thunk, it is filled
@@ -874,6 +879,8 @@ class Interpreter {
         builtins["asciiUpper"] = &Interpreter::builtinAsciiUpper;
         builtins["join"] = &Interpreter::builtinJoin;
         builtins["parseJson"] = &Interpreter::builtinParseJson;
+        builtins["encodeUTF8"] = &Interpreter::builtinEncodeUTF8;
+        builtins["decodeUTF8"] = &Interpreter::builtinDecodeUTF8;
     }
 
     /** Clean up the heap, stack, stash, and builtin function ASTs. */
@@ -1307,6 +1314,65 @@ class Interpreter {
         return nullptr;
     }
 
+    const AST *builtinEncodeUTF8(const LocationRange &loc, const std::vector<Value> &args)
+    {
+        validateBuiltinArgs(loc, "encodeUTF8", args, {Value::STRING});
+
+        std::string byteString = encode_utf8(static_cast<HeapString *>(args[0].v.h)->value);
+
+        scratch = makeArray({});
+        auto &elements = static_cast<HeapArray *>(scratch.v.h)->elements;
+        for (const auto c : byteString) {
+            auto *th = makeHeap<HeapThunk>(idArrayElement, nullptr, 0, nullptr);
+            elements.push_back(th);
+            th->fill(makeNumber(uint8_t(c)));
+        }
+        return nullptr;
+    }
+
+    const AST *decodeUTF8(void)
+    {
+        Frame &f = stack.top();
+        const auto& elements = static_cast<HeapArray*>(f.val.v.h)->elements;
+        while (f.elementId < elements.size()) {
+            auto *th = elements[f.elementId];
+            if (th->filled) {
+                auto b = th->content;
+                if (b.t != Value::NUMBER) {
+                    std::stringstream ss;
+                    ss << "Element " << f.elementId << " of the provided array was not a number";
+                    throw makeError(stack.top().location, ss.str());
+                } else {
+                    double d = b.v.d;
+                    if (d < 0 || d > 255 || d != int(d)) {
+                        std::stringstream ss;
+                        ss << "Element " << f.elementId << " of the provided array was not an integer in range [0,255]";
+                        throw makeError(stack.top().location, ss.str());
+                    }
+                    f.bytes.push_back(uint8_t(d));
+                }
+                f.elementId++;
+            } else {
+                stack.newCall(f.location, th, th->self, th->offset, th->upValues);
+                return th->body;
+            }
+        }
+        scratch = makeString(decode_utf8(f.bytes));
+        return nullptr;
+    }
+
+    const AST *builtinDecodeUTF8(const LocationRange &loc, const std::vector<Value> &args)
+    {
+        validateBuiltinArgs(loc, "decodeUTF8", args, {Value::ARRAY});
+
+        Frame &f = stack.top();
+        f.kind = FRAME_BUILTIN_DECODE_UTF8;
+        f.val = args[0]; // arr
+        f.bytes.clear();
+        f.elementId = 0;
+        return decodeUTF8();
+    }
+
     const AST *builtinTrace(const LocationRange &loc, const std::vector<Value> &args)
     {
         if(args[0].t != Value::STRING) {
@@ -1330,12 +1396,12 @@ class Interpreter {
         const auto *str = static_cast<const HeapString *>(args[0].v.h);
         const auto *c = static_cast<const HeapString *>(args[1].v.h);
         long maxsplits = long(args[2].v.d);
-        int start = 0;
-        int test = 0;
+        unsigned start = 0;
+        unsigned test = 0;
         scratch = makeArray({});
         auto &elements = static_cast<HeapArray *>(scratch.v.h)->elements;
         while (test < str->value.size() && (maxsplits == -1 ||
-                                            maxsplits > elements.size())) {
+                                            size_t(maxsplits) > elements.size())) {
             if (c->value[0] == str->value[test]) {
                 auto *th = makeHeap<HeapThunk>(idArrayElement, nullptr, 0, nullptr);
                 elements.push_back(th);
@@ -1359,14 +1425,24 @@ class Interpreter {
         const auto *str = static_cast<const HeapString *>(args[0].v.h);
         long from = long(args[1].v.d);
         long len = long(args[2].v.d);
-        if (len + from > str->value.size()) {
+        if (from < 0) {
+            std::stringstream ss;
+            ss << "substr second parameter should be greater than zero, got " << from;
+            throw makeError(loc, ss.str());
+        }
+        if (len < 0) {
+            std::stringstream ss;
+            ss << "substr third parameter should be greater than zero, got " << len;
+            throw makeError(loc, ss.str());
+        }
+        if (static_cast<unsigned long>(from) > str->value.size()) {
+            scratch = makeString(UString());
+            return nullptr;
+        }
+        if (size_t(len + from) > str->value.size()) {
           len = str->value.size() - from;
         }
-        if (len <= 0) {
-          scratch = makeString(U"");
-        } else {
-          scratch = makeString(str->value.substr(from, len));
-        }
+        scratch = makeString(str->value.substr(from, len));
         return nullptr;
     }
 
@@ -1416,7 +1492,7 @@ class Interpreter {
         validateBuiltinArgs(loc, "asciiLower", args, {Value::STRING});
         const auto *str = static_cast<const HeapString *>(args[0].v.h);
         UString new_str(str->value);
-        for (int i = 0; i < new_str.size(); ++i) {
+        for (size_t i = 0; i < new_str.size(); ++i) {
             if (new_str[i] >= 'A' && new_str[i] <= 'Z') {
                 new_str[i] = new_str[i] - 'A' + 'a';
             }
@@ -1430,7 +1506,7 @@ class Interpreter {
         validateBuiltinArgs(loc, "asciiUpper", args, {Value::STRING});
         const auto *str = static_cast<const HeapString *>(args[0].v.h);
         UString new_str(str->value);
-        for (int i = 0; i < new_str.size(); ++i) {
+        for (size_t i = 0; i < new_str.size(); ++i) {
             if (new_str[i] >= 'a' && new_str[i] <= 'z') {
                 new_str[i] = new_str[i] - 'a' + 'A';
             }
@@ -1481,11 +1557,11 @@ class Interpreter {
                 break;
 
             case json::value_t::array:{
-                attach = makeArray(std::vector<HeapThunk *>(v.size()));
+                attach = makeArray(std::vector<HeapThunk *>{});
                 filled = true;
                 auto *arr = static_cast<HeapArray *>(attach.v.h);
                 for (size_t i = 0; i < v.size(); ++i) {
-                    arr->elements[i] = makeHeap<HeapThunk>(idArrayElement, nullptr, 0, nullptr);
+                    arr->elements.push_back(makeHeap<HeapThunk>(idArrayElement, nullptr, 0, nullptr));
                     otherJsonToHeap(v[i], arr->elements[i]->filled, arr->elements[i]->content);
                 }
             } break;
@@ -1508,7 +1584,7 @@ class Interpreter {
         }
     }
 
-    void joinString(UString &running, const Value &sep, unsigned idx, const Value &elt)
+    void joinString(bool &first, UString &running, const Value &sep, unsigned idx, const Value &elt)
     {
         if (elt.t == Value::NULL_TYPE) {
             return;
@@ -1518,39 +1594,33 @@ class Interpreter {
             ss << "expected string but arr[" << idx << "] was " << type_str(elt);
             throw makeError(stack.top().location, ss.str());
         }
-        if (!running.empty()) {
+        if (!first) {
             running.append(static_cast<HeapString *>(sep.v.h)->value);
         }
+        first = false;
         running.append(static_cast<HeapString *>(elt.v.h)->value);
     }
 
-    const AST *joinStrings(const Value &sep, const Value &arr, unsigned idx, UString running)
+    const AST *joinStrings(void)
     {
-        const auto& elements = static_cast<HeapArray*>(arr.v.h)->elements;
-        if (idx >= elements.size()) {
-            scratch = makeString(running);
-        } else {
-            for (int i = idx; i < elements.size(); ++i) {
-                auto *th = elements[i];
-                if (th->filled) {
-                    joinString(running, sep, i, th->content);
-                } else {
-                    Frame &f = stack.top();
-                    f.kind = FRAME_BUILTIN_JOIN_STRINGS;
-                    f.val = sep;
-                    f.val2 = arr;
-                    f.str = running;
-                    f.elementId = i;
-                    stack.newCall(f.location, th, th->self, th->offset, th->upValues);
-                    return th->body;
-                }
+        Frame &f = stack.top();
+        const auto& elements = static_cast<HeapArray*>(f.val2.v.h)->elements;
+        while (f.elementId < elements.size()) {
+            auto *th = elements[f.elementId];
+            if (th->filled) {
+                joinString(f.first, f.str, f.val, f.elementId, th->content);
+                f.elementId++;
+            } else {
+                stack.newCall(f.location, th, th->self, th->offset, th->upValues);
+                return th->body;
             }
-            scratch = makeString(running);
         }
+        scratch = makeString(f.str);
         return nullptr;
     }
 
-    void joinArray(std::vector<HeapThunk*> &running, const Value &sep, unsigned idx, const Value &elt)
+    void joinArray(bool &first, std::vector<HeapThunk*> &running, const Value &sep, unsigned idx,
+                   const Value &elt)
     {
         if (elt.t == Value::NULL_TYPE) {
             return;
@@ -1560,37 +1630,30 @@ class Interpreter {
             ss << "expected array but arr[" << idx << "] was " << type_str(elt);
             throw makeError(stack.top().location, ss.str());
         }
-        if (!running.empty()) {
+        if (!first) {
             auto& elts = static_cast<HeapArray *>(sep.v.h)->elements;
             running.insert(running.end(), elts.begin(), elts.end());
         }
+        first = false;
         auto& elts = static_cast<HeapArray *>(elt.v.h)->elements;
         running.insert(running.end(), elts.begin(), elts.end());
     }
 
-    const AST *joinArrays(const Value &sep, const Value &arr, unsigned idx, std::vector<HeapThunk*> &running)
+    const AST *joinArrays(void)
     {
-        const auto& elements = static_cast<HeapArray*>(arr.v.h)->elements;
-        if (idx >= elements.size()) {
-          scratch = makeArray(running);
-        } else {
-            for (int i = idx; i < elements.size(); ++i) {
-                auto *th = elements[i];
-                if (th->filled) {
-                    joinArray(running, sep, i, th->content);
-                } else {
-                    Frame &f = stack.top();
-                    f.kind = FRAME_BUILTIN_JOIN_ARRAYS;
-                    f.val = sep;
-                    f.val2 = arr;
-                    f.thunks = running;
-                    f.elementId = i;
-                    stack.newCall(f.location, th, th->self, th->offset, th->upValues);
-                    return th->body;
-                }
+        Frame &f = stack.top();
+        const auto& elements = static_cast<HeapArray*>(f.val2.v.h)->elements;
+        while (f.elementId < elements.size()) {
+            auto *th = elements[f.elementId];
+            if (th->filled) {
+                joinArray(f.first, f.thunks, f.val, f.elementId, th->content);
+                f.elementId++;
+            } else {
+                stack.newCall(f.location, th, th->self, th->offset, th->upValues);
+                return th->body;
             }
-            scratch = makeArray(running);
         }
+        scratch = makeArray(f.thunks);
         return nullptr;
     }
 
@@ -1608,11 +1671,21 @@ class Interpreter {
         }
         Frame &f = stack.top();
         if (args[0].t == Value::STRING) {
+            f.kind = FRAME_BUILTIN_JOIN_STRINGS;
+            f.val = args[0];  // sep
+            f.val2 = args[1];  // arr
             f.str.clear();
-            return joinStrings(args[0], args[1], 0, f.str);
+            f.first = true;
+            f.elementId = 0;
+            return joinStrings();
         } else {
+            f.kind = FRAME_BUILTIN_JOIN_ARRAYS;
+            f.val = args[0];  // sep
+            f.val2 = args[1];  // arr
             f.thunks.clear();
-            return joinArrays(args[0], args[1], 0, f.thunks);
+            f.first = true;
+            f.elementId = 0;
+            return joinArrays();
         }
     }
 
@@ -2832,9 +2905,9 @@ class Interpreter {
                 } break;
 
                 case FRAME_BUILTIN_JOIN_STRINGS: {
-                    joinString(f.str, f.val, f.elementId, scratch);
+                    joinString(f.first, f.str, f.val, f.elementId, scratch);
                     f.elementId++;
-                    auto *ast = joinStrings(f.val, f.val2, f.elementId, f.str);
+                    auto *ast = joinStrings();
                     if (ast != nullptr) {
                         ast_ = ast;
                         goto recurse;
@@ -2842,9 +2915,17 @@ class Interpreter {
                 } break;
 
                 case FRAME_BUILTIN_JOIN_ARRAYS: {
-                    joinArray(f.thunks, f.val, f.elementId, scratch);
+                    joinArray(f.first, f.thunks, f.val, f.elementId, scratch);
                     f.elementId++;
-                    auto *ast = joinArrays(f.val, f.val2, f.elementId, f.thunks);
+                    auto *ast = joinArrays();
+                    if (ast != nullptr) {
+                        ast_ = ast;
+                        goto recurse;
+                    }
+                } break;
+
+                 case FRAME_BUILTIN_DECODE_UTF8: {
+                    auto *ast = decodeUTF8();
                     if (ast != nullptr) {
                         ast_ = ast;
                         goto recurse;

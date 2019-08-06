@@ -16,22 +16,22 @@ package swag
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/stretchr/testify/assert"
 )
 
-/* currently unused:
-type failJSONMarshal struct {
+type failJSONMarhal struct {
 }
 
-func (f failJSONMarshal) MarshalJSON() ([]byte, error) {
+func (f failJSONMarhal) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("expected")
 }
-*/
 
 func TestLoadHTTPBytes(t *testing.T) {
 	_, err := LoadFromFileOrHTTP("httx://12394:abd")
@@ -47,7 +47,7 @@ func TestLoadHTTPBytes(t *testing.T) {
 
 	ts2 := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(http.StatusOK)
-		_, _ = rw.Write([]byte("the content"))
+		rw.Write([]byte("the content"))
 	}))
 	defer ts2.Close()
 
@@ -64,7 +64,7 @@ name: a string value
 'y': some value
 `
 	var data yaml.MapSlice
-	_ = yaml.Unmarshal([]byte(sd), &data)
+	yaml.Unmarshal([]byte(sd), &data)
 
 	d, err := YAMLToJSON(data)
 	if assert.NoError(t, err) {
@@ -141,7 +141,7 @@ func TestLoadStrategy(t *testing.T) {
 
 	ts2 := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(http.StatusNotFound)
-		_, _ = rw.Write([]byte("\n"))
+		rw.Write([]byte("\n"))
 	}))
 	defer ts2.Close()
 	_, err = YAMLDoc(ts2.URL)
@@ -150,7 +150,7 @@ func TestLoadStrategy(t *testing.T) {
 
 var yamlPestoreServer = func(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusOK)
-	_, _ = rw.Write([]byte(yamlPetStore))
+	rw.Write([]byte(yamlPetStore))
 }
 
 func TestWithYKey(t *testing.T) {

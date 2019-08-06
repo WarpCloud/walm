@@ -45,7 +45,7 @@ limitations under the License.
     else if len < 0 then
       error 'substr third parameter should be greater than zero, got ' + len
     else
-      std.join('', std.makeArray(len, function(i) str[i + from])),
+      std.join('', std.makeArray(std.max(0, std.min(len, std.length(str) - from)), function(i) str[i + from])),
 
   startsWith(a, b)::
     if std.length(a) < std.length(b) then
@@ -81,21 +81,21 @@ limitations under the License.
     std.foldl(addDigit, std.stringChars(str), 0),
 
   parseInt(str)::
-    assert std.isString(str): 'Expected string, got ' + std.type(str);
-    assert std.length(str) > 0 && str != "-": 'Not an integer: "%s"' % [str];
+    assert std.isString(str) : 'Expected string, got ' + std.type(str);
+    assert std.length(str) > 0 && str != '-' : 'Not an integer: "%s"' % [str];
     if str[0] == '-' then
       -parse_nat(str[1:], 10)
     else
       parse_nat(str, 10),
 
   parseOctal(str)::
-    assert std.isString(str): 'Expected string, got ' + std.type(str);
-    assert std.length(str) > 0: 'Not an octal number: ""';
+    assert std.isString(str) : 'Expected string, got ' + std.type(str);
+    assert std.length(str) > 0 : 'Not an octal number: ""';
     parse_nat(str, 8),
 
   parseHex(str)::
-    assert std.isString(str): 'Expected string, got ' + std.type(str);
-    assert std.length(str) > 0: 'Not hexadecimal: ""';
+    assert std.isString(str) : 'Expected string, got ' + std.type(str);
+    assert std.length(str) > 0 : 'Not hexadecimal: ""';
     parse_nat(str, 16),
 
   split(str, c)::
@@ -543,10 +543,15 @@ limitations under the License.
 
     // Render floating point in scientific form
     local render_float_sci(n__, zero_pad, blank, sign, ensure_pt, trailing, caps, prec) =
-      local exponent = std.floor(std.log(std.abs(n__)) / std.log(10));
+      local exponent = if n__ == 0 then 0 else std.floor(std.log(std.abs(n__)) / std.log(10));
       local suff = (if caps then 'E' else 'e')
                    + render_int(exponent, 3, 0, false, true, 10, '');
-      local mantissa = n__ / std.pow(10, exponent);
+      local mantissa = if exponent == -324 then
+        // Avoid a rounding error where std.pow(10, -324) is 0
+        // -324 is the smallest exponent possible.
+        n__ * 10 / std.pow(10, exponent + 1)
+      else
+        n__ / std.pow(10, exponent);
       local zp2 = zero_pad - std.length(suff);
       render_float_dec(mantissa, zp2, blank, sign, ensure_pt, trailing, prec) + suff;
 
@@ -660,7 +665,7 @@ limitations under the License.
           local tmp = if code.fw == '*' then {
             j: j + 1,
             fw: if j >= std.length(arr) then
-              error 'Not enough values to format: ' + std.length(arr)
+              error ('Not enough values to format: ' + std.length(arr) + ', expected at least ' + j)
             else
               arr[j],
           } else {
@@ -670,7 +675,7 @@ limitations under the License.
           local tmp2 = if code.prec == '*' then {
             j: tmp.j + 1,
             prec: if tmp.j >= std.length(arr) then
-              error 'Not enough values to format: ' + std.length(arr)
+              error ('Not enough values to format: ' + std.length(arr) + ', expected at least ' + tmp.j)
             else
               arr[tmp.j],
           } else {
@@ -682,7 +687,7 @@ limitations under the License.
             if j2 < std.length(arr) then
               arr[j2]
             else
-              error 'Not enough values to format, got ' + std.length(arr);
+              error ('Not enough values to format: ' + std.length(arr) + ', expected at least ' + j2);
           local s =
             if code.ctype == '%' then
               '%'
@@ -921,8 +926,8 @@ limitations under the License.
         std.join('', lines);
     aux(value, [], ''),
 
-  manifestYamlDoc(value)::
-    local aux(v, in_object, path, cindent) =
+  manifestYamlDoc(value, indent_array_in_object=false)::
+    local aux(v, path, cindent) =
       if v == true then
         'true'
       else if v == false then
@@ -937,7 +942,7 @@ limitations under the License.
           '""'
         else if v[len - 1] == '\n' then
           local split = std.split(v, '\n');
-          std.join('\n' + cindent, ['|'] + split[0:std.length(split) - 1])
+          std.join('\n' + cindent + '  ', ['|'] + split[0:std.length(split) - 1])
         else
           std.escapeStringJson(v)
       else if std.type(v) == 'function' then
@@ -946,28 +951,71 @@ limitations under the License.
         if std.length(v) == 0 then
           '[]'
         else
+          local params(value) =
+            if std.isArray(value) && std.length(value) > 0 then {
+              // While we could avoid the new line, it yields YAML that is
+              // hard to read, e.g.:
+              // - - - 1
+              //     - 2
+              //   - - 3
+              //     - 4
+              new_indent: cindent + '  ',
+              space: '\n' + self.new_indent,
+            } else if std.isObject(value) && std.length(value) > 0 then {
+              new_indent: cindent + '  ',
+              // In this case we can start on the same line as the - because the indentation
+              // matches up then.  The converse is not true, because fields are not always
+              // 1 character long.
+              space: ' ',
+            } else {
+              // In this case, new_indent is only used in the case of multi-line strings.
+              new_indent: cindent,
+              space: ' ',
+            };
           local range = std.range(0, std.length(v) - 1);
-          local actual_indent = if in_object then cindent[2:] else cindent;
-          local parts = [aux(v[i], false, path + [i], cindent) for i in range];
-          (if in_object then '\n' + actual_indent else '')
-          + '- ' + std.join('\n' + actual_indent + '- ', parts)
+          local parts = [
+            '-' + param.space + aux(v[i], path + [i], param.new_indent)
+            for i in range
+            for param in [params(v[i])]
+          ];
+          std.join('\n' + cindent, parts)
       else if std.type(v) == 'object' then
         if std.length(v) == 0 then
           '{}'
         else
-          local new_indent = cindent + '  ';
+          local params(value) =
+            if std.isArray(value) && std.length(value) > 0 then {
+              // Not indenting allows e.g.
+              // ports:
+              // - 80
+              // instead of
+              // ports:
+              //   - 80
+              new_indent: if indent_array_in_object then cindent + '  ' else cindent,
+              space: '\n' + self.new_indent,
+            } else if std.isObject(value) && std.length(value) > 0 then {
+              new_indent: cindent + '  ',
+              space: '\n' + self.new_indent,
+            } else {
+              // In this case, new_indent is only used in the case of multi-line strings.
+              new_indent: cindent,
+              space: ' ',
+            };
           local lines = [
-            std.escapeStringJson(k) + ': ' + aux(v[k], true, path + [k], new_indent)
+            std.escapeStringJson(k) + ':' + param.space + aux(v[k], path + [k], param.new_indent)
             for k in std.objectFields(v)
+            for param in [params(v[k])]
           ];
-          (if in_object then '\n' + cindent else '') + std.join('\n' + cindent, lines);
-    aux(value, false, [], ''),
+          std.join('\n' + cindent, lines);
+    aux(value, [], ''),
 
-  manifestYamlStream(value)::
+  manifestYamlStream(value, indent_array_in_object=false, c_document_end=true)::
     if std.type(value) != 'array' then
       error 'manifestYamlStream only takes arrays, got ' + std.type(value)
     else
-      '---\n' + std.join('\n---\n', [std.manifestYamlDoc(e) for e in value]) + '\n...\n',
+      '---\n' + std.join(
+        '\n---\n', [std.manifestYamlDoc(e, indent_array_in_object) for e in value]
+      ) + if c_document_end then '\n...\n' else '\n',
 
 
   manifestPython(o)::
@@ -1089,17 +1137,45 @@ limitations under the License.
     local bytes = std.base64DecodeBytes(str);
     std.join('', std.map(function(b) std.char(b), bytes)),
 
-  // Quicksort
-  sort(arr, keyF=id)::
+  reverse(arr)::
     local l = std.length(arr);
-    if std.length(arr) == 0 then
-      []
+    std.makeArray(l, function(i) arr[l - i - 1]),
+
+  // Merge-sort for long arrays and naive quicksort for shorter ones
+  sort(arr, keyF=id)::
+    local quickSort(arr, keyF=id) =
+      local l = std.length(arr);
+      if std.length(arr) <= 1 then
+        arr
+      else
+        local pos = 0;
+        local pivot = keyF(arr[pos]);
+        local rest = std.makeArray(l - 1, function(i) if i < pos then arr[i] else arr[i + 1]);
+        local left = std.filter(function(x) keyF(x) < pivot, rest);
+        local right = std.filter(function(x) keyF(x) >= pivot, rest);
+        quickSort(left, keyF) + [arr[pos]] + quickSort(right, keyF);
+
+    local merge(a, b) =
+      local la = std.length(a), lb = std.length(b);
+      local aux(i, j, prefix) =
+        if i == la then
+          prefix + b[j:]
+        else if j == lb then
+          prefix + a[i:]
+        else
+          if keyF(a[i]) <= keyF(b[j]) then
+            aux(i + 1, j, prefix + [a[i]]) tailstrict
+          else
+            aux(i, j + 1, prefix + [b[j]]) tailstrict;
+      aux(0, 0, []);
+
+    local l = std.length(arr);
+    if std.length(arr) <= 30 then
+      quickSort(arr, keyF=keyF)
     else
-      local pivot = keyF(arr[0]);
-      local rest = std.makeArray(l - 1, function(i) arr[i + 1]);
-      local left = std.filter(function(x) keyF(x) < pivot, rest);
-      local right = std.filter(function(x) keyF(x) >= pivot, rest);
-      std.sort(left, keyF) + [arr[0]] + std.sort(right, keyF),
+      local mid = std.floor(l / 2);
+      local left = arr[:mid], right = arr[mid:];
+      merge(std.sort(left, keyF=keyF), std.sort(right, keyF=keyF)),
 
   uniq(arr, keyF=id)::
     local f(a, b) =
@@ -1119,8 +1195,22 @@ limitations under the License.
     std.length(std.setInter([x], arr, keyF)) > 0,
 
   setUnion(a, b, keyF=id)::
-    // NOTE: order matters, values in `a` win due to sort being stable
-    std.set(a + b, keyF),
+    // NOTE: order matters, values in `a` win
+    local aux(a, b, i, j, acc) =
+      if i >= std.length(a) then
+        acc + b[j:]
+      else if j >= std.length(b) then
+        acc + a[i:]
+      else
+        local ak = keyF(a[i]);
+        local bk = keyF(b[j]);
+        if ak == bk then
+          aux(a, b, i + 1, j + 1, acc + [a[i]]) tailstrict
+        else if ak < bk then
+          aux(a, b, i + 1, j, acc + [a[i]]) tailstrict
+        else
+          aux(a, b, i, j + 1, acc + [b[j]]) tailstrict;
+    aux(a, b, 0, 0, []),
 
   setInter(a, b, keyF=id)::
     local aux(a, b, i, j, acc) =
@@ -1140,7 +1230,7 @@ limitations under the License.
       if i >= std.length(a) then
         acc
       else if j >= std.length(b) then
-        aux(a, b, i + 1, j, acc + [a[i]]) tailstrict
+        acc + a[i:]
       else
         if keyF(a[i]) == keyF(b[j]) then
           aux(a, b, i + 1, j + 1, acc) tailstrict
@@ -1259,7 +1349,7 @@ limitations under the License.
       if pat_len == 0 || str_len == 0 || pat_len > str_len then
         []
       else
-        std.filter(function(i) str[i:i+pat_len] == pat, std.range(0, str_len - pat_len)),
+        std.filter(function(i) str[i:i + pat_len] == pat, std.range(0, str_len - pat_len)),
 
   find(value, arr)::
     if std.type(arr) != 'array' then
