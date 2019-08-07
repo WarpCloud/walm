@@ -1,17 +1,11 @@
 package main
 
 import (
-	"WarpCloud/walm/pkg/release/manager/metainfo"
-	"WarpCloud/walm/pkg/util"
-	"WarpCloud/walm/pkg/util/transwarpjsonnet"
-	"bytes"
-	"encoding/json"
+
 	"flag"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes/fake"
@@ -27,6 +21,14 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"WarpCloud/walm/pkg/util"
+	"WarpCloud/walm/pkg/util/transwarpjsonnet"
+	"encoding/json"
+	"github.com/sergi/go-diff/diffmatchpatch"
+	"github.com/ghodss/yaml"
+	metainfo "WarpCloud/walm/pkg/models/release"
+	"bytes"
 )
 
 var longLintHelp = `

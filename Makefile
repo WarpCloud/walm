@@ -39,4 +39,4 @@ test:
 e2e-test:
 	@ginkgo version || go get -u github.com/onsi/ginkgo/ginkgo
 	@rm -f ./e2e-test-coverage-report.out
-	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace -outputdir=./ -coverprofile=e2e-test-coverage-report.out -coverpkg=WarpCloud/walm/pkg/...,WarpCloud/walm/cmd/...,WarpCloud/walm/router/... ./test/
+	@ginkgo -randomizeAllSpecs -flakeAttempts=2 -trace -outputdir=./ -coverprofile=e2e-test-coverage-report.out -coverpkg=WarpCloud/walm/pkg/... ./test/

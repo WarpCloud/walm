@@ -1,13 +1,16 @@
 package swag
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/build"
 	goparser "go/parser"
 	"go/token"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -16,6 +19,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/KyleBanks/depth"
 	"github.com/go-openapi/jsonreference"
 	"github.com/go-openapi/spec"
 	"github.com/pkg/errors"
@@ -37,7 +41,7 @@ type Parser struct {
 	// swagger represents the root document object for the API specification
 	swagger *spec.Swagger
 
-	//files is a map that stores map[real_go_file_path][astFile]
+	// files is a map that stores map[real_go_file_path][astFile]
 	files map[string]*ast.File
 
 	// TypeDefinitions is a map that stores [package name][type name][*ast.TypeSpec]
@@ -46,12 +50,15 @@ type Parser struct {
 	// CustomPrimitiveTypes is a map that stores custom primitive types to actual golang types [type name][string]
 	CustomPrimitiveTypes map[string]string
 
-	//registerTypes is a map that stores [refTypeName][*ast.TypeSpec]
+	// registerTypes is a map that stores [refTypeName][*ast.TypeSpec]
 	registerTypes map[string]*ast.TypeSpec
 
 	PropNamingStrategy string
 
 	ParseVendor bool
+
+	// ParseDependencies whether swag should be parse outside dependency folder
+	ParseDependency bool
 
 	// structStack stores full names of the structures that were already parsed or are being parsed now
 	structStack []string
@@ -97,14 +104,37 @@ func SetMarkdownFileDirectory(directoryPath string) func(*Parser) {
 	}
 }
 
-// ParseAPI parses general api info for gived searchDir and mainAPIFile
+// ParseAPI parses general api info for given searchDir and mainAPIFile
 func (parser *Parser) ParseAPI(searchDir string, mainAPIFile string) error {
-	Println("Generate general API Info")
+	Printf("Generate general API Info, search dir:%s", searchDir)
+
 	if err := parser.getAllGoFileInfo(searchDir); err != nil {
 		return err
 	}
 
-	if err := parser.ParseGeneralAPIInfo(path.Join(searchDir, mainAPIFile)); err != nil {
+	var t depth.Tree
+
+	absMainAPIFilePath, err := filepath.Abs(filepath.Join(searchDir, mainAPIFile))
+	if err != nil {
+		return err
+	}
+
+	if parser.ParseDependency {
+		pkgName, err := getPkgName(path.Dir(absMainAPIFilePath))
+		if err != nil {
+			return err
+		}
+		if err := t.Resolve(pkgName); err != nil {
+			return fmt.Errorf("pkg %s cannot find all dependencies, %s", pkgName, err)
+		}
+		for i := 0; i < len(t.Root.Deps); i++ {
+			if err := parser.getAllGoFileInfoFromDeps(&t.Root.Deps[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := parser.ParseGeneralAPIInfo(absMainAPIFilePath); err != nil {
 		return err
 	}
 
@@ -118,17 +148,37 @@ func (parser *Parser) ParseAPI(searchDir string, mainAPIFile string) error {
 		}
 	}
 
-	parser.ParseDefinitions()
-
-	return nil
+	return parser.parseDefinitions()
 }
 
-// ParseGeneralAPIInfo parses general api info for gived mainAPIFile path
+func getPkgName(searchDir string) (string, error) {
+	cmd := exec.Command("go", "list", "-f={{.ImportPath}}")
+	cmd.Dir = searchDir
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("execute go list command, %s, stdout:%s, stderr:%s", err, stdout.String(), stderr.String())
+	}
+
+	outStr, _ := stdout.String(), stderr.String()
+
+	if outStr[0] == '_' { // will shown like _/{GOPATH}/src/{YOUR_PACKAGE} when NOT enable GO MODULE.
+		outStr = strings.TrimPrefix(outStr, "_"+build.Default.GOPATH+"/src/")
+	}
+	f := strings.Split(outStr, "\n")
+	outStr = f[0]
+
+	return outStr, nil
+}
+
+// ParseGeneralAPIInfo parses general api info for given mainAPIFile path
 func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 	fileSet := token.NewFileSet()
 	fileTree, err := goparser.ParseFile(fileSet, mainAPIFile, nil, goparser.ParseComments)
 	if err != nil {
-		return errors.Wrap(err, "cannot parse soure files")
+		return errors.Wrap(err, "cannot parse source files")
 	}
 
 	parser.swagger.Swagger = "2.0"
@@ -145,6 +195,7 @@ func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 		for _, comment := range fileTree.Comments {
 			comments := strings.Split(comment.Text(), "\n")
 			previousAttribute := ""
+			// parsing classic meta data model
 			for _, commentLine := range comments {
 				attribute := strings.ToLower(strings.Split(commentLine, " ")[0])
 				multilineBlock := false
@@ -225,7 +276,6 @@ func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 						URL: commentInfo,
 					}
 					replaceLastTag(parser.swagger.Tags, tag)
-
 				case "@tag.docs.description":
 					commentInfo := strings.TrimSpace(commentLine[len(attribute):])
 					tag := parser.swagger.Tags[len(parser.swagger.Tags)-1]
@@ -237,7 +287,29 @@ func (parser *Parser) ParseGeneralAPIInfo(mainAPIFile string) error {
 				}
 				previousAttribute = attribute
 			}
-
+			// parsing specific meta data extensions
+			for _, commentLine := range comments {
+				prefixExtension := "@x-"
+				split := strings.Split(commentLine, " ")
+				if len(split[0]) < len(prefixExtension) {
+					continue
+				}
+				attribute := strings.ToLower(split[0])
+				switch attribute[:len(prefixExtension)] {
+				case prefixExtension:
+					var valueJSON interface{}
+					split = strings.SplitAfter(commentLine, attribute+" ")
+					if len(split) < 2 {
+						return errors.New(attribute + " need a value")
+					}
+					extensionName := "x-" + strings.SplitAfter(attribute, prefixExtension)[1]
+					if err := json.Unmarshal([]byte(split[1]), &valueJSON); err != nil {
+						return errors.New(attribute + " need a valid json value")
+					}
+					parser.swagger.AddExtension(extensionName, valueJSON)
+				}
+			}
+			// parsing specific meta data securities
 			for i := 0; i < len(comments); i++ {
 				attribute := strings.ToLower(strings.Split(comments[i], " ")[0])
 				switch attribute {
@@ -529,8 +601,8 @@ func (parser *Parser) isInStructStack(refTypeName string) bool {
 	return false
 }
 
-// ParseDefinitions parses Swagger Api definitions.
-func (parser *Parser) ParseDefinitions() {
+// parseDefinitions parses Swagger Api definitions.
+func (parser *Parser) parseDefinitions() error {
 	// sort the typeNames so that parsing definitions is deterministic
 	typeNames := make([]string, 0, len(parser.registerTypes))
 	for refTypeName := range parser.registerTypes {
@@ -543,8 +615,11 @@ func (parser *Parser) ParseDefinitions() {
 		ss := strings.Split(refTypeName, ".")
 		pkgName := ss[0]
 		parser.structStack = nil
-		parser.ParseDefinition(pkgName, typeSpec.Name.Name, typeSpec)
+		if err := parser.ParseDefinition(pkgName, typeSpec.Name.Name, typeSpec); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // ParseDefinition parses given type spec that corresponds to the type under
@@ -768,10 +843,10 @@ func (parser *Parser) parseStruct(pkgName string, field *ast.Field) (map[string]
 	}
 	var desc string
 	if field.Doc != nil {
-		desc = strings.TrimSpace(field.Doc.Text())
+		desc = strings.TrimSpace(strings.Replace(field.Doc.Text(), "`", "", -1))
 	}
 	if desc == "" && field.Comment != nil {
-		desc = strings.TrimSpace(field.Comment.Text())
+		desc = strings.TrimSpace(strings.Replace(field.Comment.Text(), "`", "", -1))
 	}
 	// TODO: find package of schemaType and/or arrayType
 
@@ -939,27 +1014,31 @@ func (parser *Parser) parseAnonymousField(pkgName string, field *ast.Field) (map
 	}
 
 	typeSpec := parser.TypeDefinitions[pkgName][typeName]
-	schema, err := parser.parseTypeExpr(pkgName, typeName, typeSpec.Type)
-	if err != nil {
-		return properties, []string{}, err
-	}
-	schemaType := "unknown"
-	if len(schema.SchemaProps.Type) > 0 {
-		schemaType = schema.SchemaProps.Type[0]
-	}
-
-	switch schemaType {
-	case "object":
-		for k, v := range schema.SchemaProps.Properties {
-			properties[k] = v
+	if typeSpec != nil {
+		schema, err := parser.parseTypeExpr(pkgName, typeName, typeSpec.Type)
+		if err != nil {
+			return properties, []string{}, err
 		}
-	case "array":
-		properties[typeName] = schema
-	default:
-		Printf("Can't extract properties from a schema of type '%s'", schemaType)
+		schemaType := "unknown"
+		if len(schema.SchemaProps.Type) > 0 {
+			schemaType = schema.SchemaProps.Type[0]
+		}
+
+		switch schemaType {
+		case "object":
+			for k, v := range schema.SchemaProps.Properties {
+				properties[k] = v
+			}
+		case "array":
+			properties[typeName] = schema
+		default:
+			Printf("Can't extract properties from a schema of type '%s'", schemaType)
+		}
+
+		return properties, schema.SchemaProps.Required, nil
 	}
 
-	return properties, schema.SchemaProps.Required, nil
+	return properties, nil, nil
 }
 
 func (parser *Parser) parseField(field *ast.Field) (*structField, error) {
@@ -1237,11 +1316,44 @@ func (parser *Parser) getAllGoFileInfo(searchDir string) error {
 	return filepath.Walk(searchDir, parser.visit)
 }
 
+func (parser *Parser) getAllGoFileInfoFromDeps(pkg *depth.Pkg) error {
+	if pkg.Internal || !pkg.Resolved { // ignored internal and not resolved dependencies
+		return nil
+	}
+
+	files, err := ioutil.ReadDir(pkg.SrcDir) // only parsing files in the dir(don't contains sub dir files)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+
+		path := filepath.Join(pkg.SrcDir, f.Name())
+		if err := parser.parseFile(path); err != nil {
+			return err
+		}
+	}
+
+	for i := 0; i < len(pkg.Deps); i++ {
+		if err := parser.getAllGoFileInfoFromDeps(&pkg.Deps[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (parser *Parser) visit(path string, f os.FileInfo, err error) error {
 	if err := parser.Skip(path, f); err != nil {
 		return err
 	}
+	return parser.parseFile(path)
+}
 
+func (parser *Parser) parseFile(path string) error {
 	if ext := filepath.Ext(path); ext == ".go" {
 		fset := token.NewFileSet() // positions are relative to fset
 		astFile, err := goparser.ParseFile(fset, path, nil, goparser.ParseComments)
@@ -1262,7 +1374,6 @@ func (parser *Parser) Skip(path string, f os.FileInfo) error {
 			return filepath.SkipDir
 		}
 	}
-
 	// exclude all hidden folder
 	if f.IsDir() && len(f.Name()) > 1 && f.Name()[0] == '.' {
 		return filepath.SkipDir

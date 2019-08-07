@@ -1,6 +1,7 @@
 package swag
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	goparser "go/parser"
@@ -64,7 +65,8 @@ func (operation *Operation) ParseComment(comment string, astFile *ast.File) erro
 
 	attribute := strings.Fields(commentLine)[0]
 	lineRemainder := strings.TrimSpace(commentLine[len(attribute):])
-	switch strings.ToLower(attribute) {
+	lowerAttribute := strings.ToLower(attribute)
+	switch lowerAttribute {
 	case "@description":
 		if operation.Description == "" {
 			operation.Description = lineRemainder
@@ -112,13 +114,27 @@ func (operation *Operation) ParseComment(comment string, astFile *ast.File) erro
 	case "@deprecated":
 		operation.Deprecate()
 	}
+
+	// parsing specific meta data extensions
+	if strings.HasPrefix(lowerAttribute, "@x-") {
+		if len(lineRemainder) == 0 {
+			return errors.New(attribute + " need a value")
+		}
+
+		var valueJSON interface{}
+		if err := json.Unmarshal([]byte(lineRemainder), &valueJSON); err != nil {
+			return errors.New(attribute + " need a valid json value")
+		}
+		operation.Operation.AddExtension(attribute[1:], valueJSON) // Trim "@" at head
+	}
+
 	return nil
 }
 
 var paramPattern = regexp.MustCompile(`(\S+)[\s]+([\w]+)[\s]+([\S.]+)[\s]+([\w]+)[\s]+"([^"]+)"`)
 
 // ParseParamComment parses params return []string of param properties
-// E.g. @Param	queryText		form	      string	  true		        "The email for login"
+// E.g. @Param	queryText		formData	      string	  true		        "The email for login"
 //              [param name]    [paramType] [data type]  [is mandatory?]   [Comment]
 // E.g. @Param   some_id     path    int     true        "Some ID"
 func (operation *Operation) ParseParamComment(commentLine string, astFile *ast.File) error {
