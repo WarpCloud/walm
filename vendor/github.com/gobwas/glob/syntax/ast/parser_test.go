@@ -1,10 +1,9 @@
 package ast
 
 import (
+	"github.com/gobwas/glob/syntax/lexer"
 	"reflect"
 	"testing"
-
-	"github.com/gobwas/glob/syntax/lexer"
 )
 
 type stubLexer struct {

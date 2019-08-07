@@ -8,7 +8,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/Masterminds/goutils"
+	"github.com/aokoli/goutils"
 	"github.com/stretchr/testify/assert"
 )
 
