@@ -3,7 +3,6 @@ cmd
 docs
 pkg
 resource
-router
 swagger-ui
 test/e2e
 test/k8sconfig
