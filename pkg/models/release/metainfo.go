@@ -302,7 +302,6 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 }
 
 func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, configSets []*MetaConfigTestSet) error {
-
 	var err error
 	for _, configSet := range configSets {
 		/*
@@ -313,10 +312,9 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 		*/
 		result := gjson.Get(valuesStr, configSet.MapKey)
 		if result.Exists() {
-
 			switch configSet.Type {
 			case "boolean":
-				if result.Type.String() == "True" || result.Type.String() == "False" {
+				if !(result.Type.String() == "True" || result.Type.String() == "False") {
 					return errors.Errorf("%s Type error in values.yaml, %s expected", configSet.MapKey, configSet.Type)
 				}
 			case "string":
