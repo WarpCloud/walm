@@ -5,9 +5,8 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
 	goruntime "runtime"
 
-
-	"WarpCloud/walm/pkg/models/release"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
+	"WarpCloud/walm/pkg/models/release"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -135,10 +134,10 @@ func (o *EditOptions) Run() error {
 	editFn := func(releaseRequest *release.ReleaseRequestV2) error {
 
 		var (
-			results = editResults{}
-			//original []byte
-			edited []byte
-			file   string
+			results  = editResults{}
+			original []byte
+			edited   []byte
+			file     string
 		)
 		containsError := false
 
@@ -156,14 +155,14 @@ func (o *EditOptions) Run() error {
 
 			if err := o.editPrinterOptions.PrintRequest(releaseRequest, w); err != nil {
 				return preservedFile(err, results.file, o.ErrOut)
+
 			}
-			// []byte without name
-			//original = buf.Bytes()
+			original = buf.Bytes()
 		} else {
-			// Todo:
 			// In case of an error, preserve the edited file.
 			// Remove the comments (header) from it since we already
 			// have included the latest header in the buffer above.
+			buf.Write(ManualStrip(edited))
 		}
 
 		// launch the editor
@@ -186,11 +185,11 @@ func (o *EditOptions) Run() error {
 
 		// Todo:// if not change, not send request
 		// Compare content without comments
-		//if bytes.Equal(StripComments(original), StripComments(edited)) {
-		//	os.Remove(file)
-		//	fmt.Fprintln(o.ErrOut, "Edit cancelled, no changes made.")
-		//	return nil
-		//}
+		if bytes.Equal(StripComments(original), StripComments(edited)) {
+			os.Remove(file)
+			fmt.Println(o.ErrOut, "Edit cancelled, no changes made.")
+			return nil
+		}
 
 		lines, err := hasLines(bytes.NewBuffer(edited))
 		if err != nil {
@@ -199,7 +198,7 @@ func (o *EditOptions) Run() error {
 
 		if !lines {
 			os.Remove(file)
-			fmt.Fprintln(o.ErrOut, "Edit cancelled, saved file was empty.")
+			fmt.Println(o.ErrOut, "Edit cancelled, saved file was empty.")
 			return nil
 		}
 
@@ -216,7 +215,7 @@ func (o *EditOptions) Run() error {
 
 		//Todo: cleanUp, apply validation, syntax check
 
-		fmt.Printf("edit resource succeed.\n")
+		fmt.Println("edit resource succeed.")
 		return nil
 	}
 

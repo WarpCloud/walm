@@ -148,8 +148,9 @@ func buildReleaseResourceDeployment(resource *unstructured.Unstructured) (*relea
 		return nil, err
 	}
 
-	releaseResourceDeployment := &release.ReleaseResourceDeployment{
-		Replicas: *deployment.Spec.Replicas,
+	releaseResourceDeployment := &release.ReleaseResourceDeployment{}
+	if deployment.Spec.Replicas != nil {
+		releaseResourceDeployment.Replicas = *deployment.Spec.Replicas
 	}
 
 	releaseResourceDeployment.ReleaseResourceBase, err = buildReleaseResourceBase(resource, deployment.Spec.Template, nil)
@@ -174,8 +175,9 @@ func buildReleaseResourceStatefulSet(resource *unstructured.Unstructured) (*rele
 		return nil, err
 	}
 
-	releaseResource := &release.ReleaseResourceStatefulSet{
-		Replicas: *statefulSet.Spec.Replicas,
+	releaseResource := &release.ReleaseResourceStatefulSet{}
+	if statefulSet.Spec.Replicas != nil {
+		releaseResource.Replicas = *statefulSet.Spec.Replicas
 	}
 
 	releaseResource.ReleaseResourceBase, err = buildReleaseResourceBase(resource, statefulSet.Spec.Template, statefulSet.Spec.VolumeClaimTemplates)
