@@ -209,7 +209,7 @@ func renderMainJsonnetFile(templateFiles map[string]string, configValues map[str
 		return "", err
 	}
 
-	jsonStr, err = parseTemplateWithTLAString(filepath.Join(tmpdir, mainJsonFileName), "config", string(tlaValue))
+	jsonStr, err = parseTemplateWithTLAString(filepath.ToSlash(filepath.Join(tmpdir, mainJsonFileName)), "config", string(tlaValue))
 	if err != nil {
 		logrus.Errorf("failed to parse main jsonnet template file : %s", err.Error())
 		return "", err
