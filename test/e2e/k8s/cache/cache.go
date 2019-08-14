@@ -21,7 +21,7 @@ var _ = Describe("K8sCache", func() {
 		namespace string
 		k8sCache  *informer.Informer
 		err       error
-		stopChan     chan struct{}
+		stopChan  chan struct{}
 	)
 
 	BeforeEach(func() {
@@ -41,7 +41,7 @@ var _ = Describe("K8sCache", func() {
 
 	Describe("test resource", func() {
 		var (
-			storageClass *storagev1.StorageClass
+			storageClass  *storagev1.StorageClass
 			storageClass2 *storagev1.StorageClass
 		)
 
@@ -99,7 +99,6 @@ var _ = Describe("K8sCache", func() {
 
 			node, err := framework.GetTestNode()
 			Expect(err).NotTo(HaveOccurred())
-
 
 			time.Sleep(time.Second)
 
@@ -188,54 +187,54 @@ var _ = Describe("K8sCache", func() {
 			// if resource is not found, it would be added to resourceSet
 			releaseResourceMetas := []release.ReleaseResourceMeta{
 				{
-					Namespace:namespace,
-					Name: releaseConfig.Name,
-					Kind: k8sModel.ReleaseConfigKind,
+					Namespace: namespace,
+					Name:      releaseConfig.Name,
+					Kind:      k8sModel.ReleaseConfigKind,
 				},
 				{
-					Namespace:namespace,
-					Name: configMap.Name,
-					Kind: k8sModel.ConfigMapKind,
+					Namespace: namespace,
+					Name:      configMap.Name,
+					Kind:      k8sModel.ConfigMapKind,
 				},
 				{
-					Namespace:namespace,
-					Name: daemonSet.Name,
-					Kind: k8sModel.DaemonSetKind,
+					Namespace: namespace,
+					Name:      daemonSet.Name,
+					Kind:      k8sModel.DaemonSetKind,
 				},
 				{
-					Namespace:namespace,
-					Name: deployment.Name,
-					Kind: k8sModel.DeploymentKind,
+					Namespace: namespace,
+					Name:      deployment.Name,
+					Kind:      k8sModel.DeploymentKind,
 				},
 				{
-					Namespace:namespace,
-					Name: service.Name,
-					Kind: k8sModel.ServiceKind,
+					Namespace: namespace,
+					Name:      service.Name,
+					Kind:      k8sModel.ServiceKind,
 				},
 				{
-					Namespace:namespace,
-					Name: statefulSet.Name,
-					Kind: k8sModel.StatefulSetKind,
+					Namespace: namespace,
+					Name:      statefulSet.Name,
+					Kind:      k8sModel.StatefulSetKind,
 				},
 				{
-					Namespace:namespace,
-					Name: job.Name,
-					Kind: k8sModel.JobKind,
+					Namespace: namespace,
+					Name:      job.Name,
+					Kind:      k8sModel.JobKind,
 				},
 				{
-					Namespace:namespace,
-					Name: ingress.Name,
-					Kind: k8sModel.IngressKind,
+					Namespace: namespace,
+					Name:      ingress.Name,
+					Kind:      k8sModel.IngressKind,
 				},
 				{
-					Namespace:namespace,
-					Name: secret.Name,
-					Kind: k8sModel.SecretKind,
+					Namespace: namespace,
+					Name:      secret.Name,
+					Kind:      k8sModel.SecretKind,
 				},
 				{
-					Namespace:namespace,
-					Name: "not-existed",
-					Kind: k8sModel.SecretKind,
+					Namespace: namespace,
+					Name:      "not-existed",
+					Kind:      k8sModel.SecretKind,
 				},
 			}
 			resourceSet, err := k8sCache.GetResourceSet(releaseResourceMetas)
@@ -250,11 +249,11 @@ var _ = Describe("K8sCache", func() {
 			Expect(resourceSet.Secrets).To(HaveLen(2))
 
 			By("list storage classes")
-			scs , err := k8sCache.ListStorageClasses(namespace, "")
+			scs, err := k8sCache.ListStorageClasses(namespace, "")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(scs) >= 2).To(BeTrue())
 
-			scs , err = k8sCache.ListStorageClasses(namespace, "test=true")
+			scs, err = k8sCache.ListStorageClasses(namespace, "test=true")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(scs).To(HaveLen(1))
 		})
@@ -426,11 +425,11 @@ var _ = Describe("K8sCache", func() {
 		Expect(err).NotTo(HaveOccurred())
 		time.Sleep(time.Millisecond * 500)
 
-		stss , err := k8sCache.ListStatefulSets(namespace, "")
+		stss, err := k8sCache.ListStatefulSets(namespace, "")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(stss).To(HaveLen(2))
 
-		stss , err = k8sCache.ListStatefulSets(namespace, "test=true")
+		stss, err = k8sCache.ListStatefulSets(namespace, "test=true")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(stss).To(HaveLen(1))
 	})
@@ -448,9 +447,8 @@ var _ = Describe("K8sCache", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(events.Events) > 0).To(BeTrue())
 
-		logs, err := k8sCache.GetPodLogs(namespace, "test-pod", "", 0)
+		_, err = k8sCache.GetPodLogs(namespace, "test-pod", "", 0)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(logs).NotTo(Equal(""))
 
 	})
 
@@ -463,18 +461,18 @@ var _ = Describe("K8sCache", func() {
 		Expect(err).NotTo(HaveOccurred())
 		time.Sleep(time.Millisecond * 500)
 
-		scts , err := k8sCache.ListSecrets(namespace, "")
+		scts, err := k8sCache.ListSecrets(namespace, "")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(scts.Items) >= 2).To(BeTrue())
 
-		scts , err = k8sCache.ListSecrets(namespace, "test=true")
+		scts, err = k8sCache.ListSecrets(namespace, "test=true")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(scts.Items).To(HaveLen(1))
 	})
 
 })
 
-func getTenantInfo(items []*tenant.TenantInfo, name string) *tenant.TenantInfo{
+func getTenantInfo(items []*tenant.TenantInfo, name string) *tenant.TenantInfo {
 	for _, item := range items {
 		if item.TenantName == name {
 			return item
