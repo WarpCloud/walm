@@ -50,6 +50,18 @@ func TestConvertPodFromK8s(t *testing.T) {
 							},
 						},
 					},
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "init-test",
+							Ready: false,
+							Image: "image-test",
+							RestartCount: 0,
+							State: corev1.ContainerState{
+								Terminated: &corev1.ContainerStateTerminated{
+								},
+							},
+						},
+					},
 				},
 			},
 			pod: &k8s.Pod{
@@ -77,6 +89,19 @@ func TestConvertPodFromK8s(t *testing.T) {
 					},
 				},
 				Age: duration.ShortHumanDuration(time.Since(testCreationTimestamp.Time)),
+				InitContainers: []k8s.Container{
+					{
+						Name: "init-test",
+						Image: "image-test",
+						Ready: false,
+						RestartCount: 0,
+						State: k8s.State{
+							Status:  "Terminated",
+							Reason:  "",
+							Message: "",
+						},
+					},
+				},
 			},
 			err: nil,
 		},

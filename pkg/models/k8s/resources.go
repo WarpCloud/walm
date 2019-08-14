@@ -126,6 +126,7 @@ type Pod struct {
 	PodIp       string            `json:"podIp" description:"pod ip"`
 	Containers  []Container       `json:"containers" description:"pod containers"`
 	Age         string            `json:"age" description:"pod age"`
+	InitContainers []Container    `json:"initContainers" description:"pod init containers"`
 }
 
 type Container struct {
