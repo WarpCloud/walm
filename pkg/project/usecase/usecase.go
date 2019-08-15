@@ -19,6 +19,8 @@ import (
 const (
 	defaultSleepTimeSecond int64 = 1
 	defaultTimeoutSec      int64 = 60 * 10
+
+	noReleaseFoundMsg = "no release can be found"
 )
 
 type Project struct {
@@ -352,7 +354,7 @@ func isProjectReadyByReleases(releases []*releaseModel.ReleaseInfoV2) (ready boo
 			}
 		}
 	} else {
-		message = "no release can be found"
+		message = noReleaseFoundMsg
 	}
 	return
 }
@@ -441,6 +443,9 @@ func (projectImpl *Project) autoCreateReleaseDependencies(projectParams *project
 		releaseRequest := v.(*releaseModel.ReleaseRequestV2)
 		for _, dv := range g.DownEdges(releaseRequest).List() {
 			releaseInfo := dv.(*releaseModel.ReleaseRequestV2)
+			if releaseRequest.Dependencies == nil {
+				releaseRequest.Dependencies = map[string]string{}
+			}
 			releaseRequest.Dependencies[releaseInfo.ChartName] = releaseInfo.Name
 		}
 		releaseParsed = append(releaseParsed, releaseRequest)
