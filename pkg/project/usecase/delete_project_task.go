@@ -3,6 +3,7 @@ package usecase
 import (
 	"github.com/sirupsen/logrus"
 	"encoding/json"
+	errorModel "WarpCloud/walm/pkg/models/error"
 )
 
 const (
@@ -37,6 +38,10 @@ func (projectImpl *Project)DeleteProjectTask(deleteProjectTaskArgsStr string) er
 func (projectImpl *Project) doDeleteProject(namespace, name string, deletePvcs bool) error {
 	projectInfo, err := projectImpl.GetProjectInfo(namespace, name)
 	if err != nil {
+		if errorModel.IsNotFoundError(err) {
+			logrus.Warnf("project %s/%s is not found", namespace, name)
+			return nil
+		}
 		logrus.Errorf("failed to get project info %s/%s: %s", namespace, name, err.Error())
 		return err
 	}
