@@ -36,7 +36,7 @@ func (projectImpl *Project) doAddRelease(namespace, name string, projectParams *
 	projectInfo, err := projectImpl.GetProjectInfo(namespace, name)
 	projectExists := true
 	if err != nil {
-		if !errorModel.IsNotFoundError(err) {
+		if errorModel.IsNotFoundError(err) {
 			projectExists = false
 		} else {
 			logrus.Errorf("failed to get project info : %s", err.Error())

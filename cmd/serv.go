@@ -221,7 +221,7 @@ func (sc *ServCmd) run() error {
 	restful.Add(pvchttp.RegisterPvcHandler(k8sCache, k8sOperator))
 	tenantUseCase := tenantusecase.NewTenant(k8sCache, k8sOperator, releaseUseCase)
 	restful.Add(tenanthttp.RegisterTenantHandler(tenantUseCase))
-	restful.Add(projecthttp.RegisterProjectHandler(projectUseCase))
+	restful.Add(projecthttp.RegisterProjectHandler(projecthttp.NewProjectHandler(projectUseCase)))
 	restful.Add(releasehttp.RegisterReleaseHandler(releasehttp.NewReleaseHandler(releaseUseCase)))
 	restful.Add(podhttp.RegisterPodHandler(k8sCache, k8sOperator))
 	restful.Add(releasehttp.RegisterChartHandler(helm))
