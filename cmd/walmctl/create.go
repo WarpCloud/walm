@@ -2,9 +2,14 @@ package main
 
 import (
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
+	"flag"
 	"fmt"
+	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io"
+	"io/ioutil"
+	"k8s.io/klog"
 	"path/filepath"
 )
 
@@ -24,6 +29,7 @@ There are options you can define, while usually not need.
 
 type createCmd struct {
 	file       string
+	chart      string
 	sourceType string
 	sourceName string
 	timeoutSec int64
@@ -33,12 +39,14 @@ type createCmd struct {
 
 func newCreateCmd(out io.Writer) *cobra.Command {
 	cc := &createCmd{out: out}
+	gofs := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(gofs)
 
 	cmd := &cobra.Command{
-		Use:   "create release/project",
-		Short: "create a release/project based on json/yaml",
+		Use:                   "create release/project",
+		Short:                 "create a release/project based on json/yaml",
 		DisableFlagsInUseLine: true,
-		Long:  createDesc,
+		Long:                  createDesc,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -57,20 +65,34 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 	cmd.Flags().StringVar(&cc.sourceName, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
 	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout")
 	cmd.Flags().BoolVar(&cc.async, "async", false, "whether asynchronous")
+	cmd.Flags().StringVarP(&cc.chart, "chart", "c", "", "absolutely or relative path to chart location")
 	cmd.MarkFlagRequired("namespace")
 	cmd.MarkFlagRequired("file")
 	return cmd
 }
 
 func (cc *createCmd) run() error {
-
-	err := checkResourceType(cc.sourceType)
+	var err error
+	var configValues map[string]interface{}
+	chartPath := cc.chart
+	if chartPath != "" {
+		chartPath, err = filepath.Abs(cc.chart)
+		if err != nil {
+			return err
+		}
+	}
+	err = checkResourceType(cc.sourceType)
 	if err != nil {
 		return err
 	}
-
-	filePath, err := filepath.Abs(cc.file)
+	fileBytes, err := ioutil.ReadFile(cc.file)
 	if err != nil {
+		klog.Errorf("read file %s error %v", cc.file, err)
+		return err
+	}
+	err = yaml.Unmarshal(fileBytes, &configValues)
+	if err != nil {
+		klog.Errorf("yaml Unmarshal file %s error %v", cc.file, err)
 		return err
 	}
 
@@ -79,17 +101,19 @@ func (cc *createCmd) run() error {
 		return err
 	}
 	if cc.sourceType == "release" {
-		_, err = client.CreateRelease(namespace, cc.sourceName, cc.async, cc.timeoutSec, filePath)
-
+		_, err = client.CreateRelease(namespace, chartPath, cc.sourceName, cc.async, cc.timeoutSec, configValues)
 	} else {
 		if cc.sourceName == "" {
 			return errProjectNameRequired
 		}
-		_, err = client.CreateProject(namespace, cc.sourceName, cc.async, cc.timeoutSec, filePath)
+		if chartPath != "" {
+			return errors.New("project use chartfile currently not support")
+		}
+		_, err = client.CreateProject(namespace, chartPath, cc.sourceName, cc.async, cc.timeoutSec, configValues)
 	}
 
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	fmt.Printf("%s %s created", cc.sourceType, cc.sourceName)

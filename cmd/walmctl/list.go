@@ -2,11 +2,11 @@ package main
 
 import (
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"github.com/bitly/go-simplejson"
-	"fmt"
-	"encoding/json"
 	"WarpCloud/walm/pkg/models/project"
 	"WarpCloud/walm/pkg/models/release"
+	"encoding/json"
+	"fmt"
+	"github.com/bitly/go-simplejson"
 	"github.com/ghodss/yaml"
 	"github.com/go-resty/resty"
 	"github.com/gosuri/uitable"
@@ -41,6 +41,7 @@ type listRelease struct {
 	Ready        bool
 	ChartName    string
 	ChartVersion string
+	Namespace    string
 }
 
 type listProject struct {
@@ -62,9 +63,6 @@ func newListCmd(out io.Writer) *cobra.Command {
 			if walmserver == "" {
 				return errServerRequired
 			}
-			if namespace == "" {
-				return errNamespaceRequired
-			}
 			if len(args) != 1 {
 				return errors.New("arguments error, list release/project")
 			}
@@ -84,7 +82,6 @@ func newListCmd(out io.Writer) *cobra.Command {
 }
 
 func (lc *listCmd) run() error {
-
 	var (
 		resp        *resty.Response
 		output      string
@@ -149,23 +146,21 @@ func (lc *listCmd) run() error {
 }
 
 func (lc *listCmd) getListResult(releases []*release.ReleaseInfoV2) []listRelease {
-
 	var listReleases []listRelease
 
 	for _, release := range releases {
-
 		lr := listRelease{
 			Name:         release.Name,
 			Ready:        release.Ready,
 			ChartName:    release.ChartName,
 			ChartVersion: release.ChartVersion,
+			Namespace:    release.Namespace,
 		}
 
 		listReleases = append(listReleases, lr)
 	}
 
 	return listReleases
-
 }
 
 func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProject {
@@ -173,9 +168,9 @@ func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProje
 
 	for _, project := range projects {
 		lp := listProject{
-			Name:      project.Name,
-			Ready:     project.Ready,
-			Message:   project.Message,
+			Name:    project.Name,
+			Ready:   project.Ready,
+			Message: project.Message,
 		}
 
 		listProjects = append(listProjects, lp)
@@ -184,7 +179,6 @@ func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProje
 }
 
 func formatReleaseResult(format string, result []listRelease) (string, error) {
-
 	var err error
 	var output string
 	var finalResult interface{}
@@ -214,7 +208,6 @@ func formatReleaseResult(format string, result []listRelease) (string, error) {
 	}
 
 	return output, err
-
 }
 
 func formatProjectResult(format string, result []listProject) (string, error) {
@@ -227,7 +220,6 @@ func formatProjectResult(format string, result []listProject) (string, error) {
 	switch format {
 	case "":
 		output = formatProjectText(result)
-
 	case "json":
 		o, e := json.Marshal(finalResult)
 		if e != nil {
@@ -250,7 +242,6 @@ func formatProjectResult(format string, result []listProject) (string, error) {
 }
 
 func formatProjectText(result []listProject) string {
-
 	table := uitable.New()
 	table.MaxColWidth = 60
 	table.AddRow("Name", "Ready", "CreateAt", "Message")
@@ -258,16 +249,16 @@ func formatProjectText(result []listProject) string {
 	for _, project := range result {
 		table.AddRow(project.Name, project.Ready, project.CreatedAt, project.Message)
 	}
+
 	return fmt.Sprintf("%s", table.String())
 }
 
 func formatReleaseText(result []listRelease) string {
-
 	table := uitable.New()
 	table.MaxColWidth = 60
-	table.AddRow("NAME", "Ready", "ChartName", "ChartVersion")
+	table.AddRow("NAME", "Ready", "ChartName", "ChartVersion", "Namespace")
 	for _, release := range result {
-		table.AddRow(release.Name, release.Ready, release.ChartName, release.ChartVersion)
+		table.AddRow(release.Name, release.Ready, release.ChartName, release.ChartVersion, release.Namespace)
 	}
 
 	return fmt.Sprintf("%s", table.String())
