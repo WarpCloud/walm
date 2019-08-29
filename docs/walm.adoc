@@ -4,24 +4,24 @@
 
 *Description*:
 
-Walm is a micro service, as a manager of applications in kubernetes cluster, based on link:http://helm.sh[Helm], that supports both Rest Api and Cli to manage the lifecycle of pod based applications in kubernetes cluster including those with dependencies.
+Walm is a micro service based on link:http://helm.sh[Helm], that supports both REST Api and Cli to manage the lifecycle of pod based applications in kubernetes cluster including those with dependencies.
 
 Walm dynamically manages the dependencies of an application. An application can depend on the applications already existed, and the configurations of applications depending on would be injected automatically. Besides, once the configurations of applications depending on changes, the configurations would be injected again in real-time.
 
-Walm supports more advanced link:https://helm.sh/docs/developing_charts/#charts[Chart] that use link:https://jsonnet.org/[jsonnet] as template engine to render kubernetes objects. It is more suitable to orchestrate and deploy complex applications, such as Big Data applications.
+Walm supports more advanced link:https://helm.sh/docs/developing_charts/#charts[Chart] that use link:https://jsonnet.org/[Jsonnet] as template engine to render kubernetes objects. It is more suitable to orchestrate and deploy complex applications, such as Big Data applications.
 
 Walm supports finely grained authentication and authorization, that would make one user only have relevant authorization under kubernetes namespace scope.
 
-Walm uses Kafka to synchronize the application's status in real-time. Once the application's status changes, walm would produce an event to Kafka in real-time, and the walm client would get the latest application status in real-time by consuming the kafka event .
+Walm uses a message system(Kafka) to synchronize the application's status in real-time. Once the application's status changes, Walm would produce an event to Kafka in real-time, and the Walm client would get the latest application status in real-time by consuming the Kafka event .
 
 *Comparison with similar projects*:
 |===
 |Walm |Helm
 
-|Walm supports rest api to manage the lifecycle of applications.
+|Walm supports REST api to manage the lifecycle of applications.
 |Helm does not support.
 
-|Walm supports the orchestration and deployment of complex applications(jsonnet chart).
+|Walm supports the orchestration and deployment of complex applications(Jsonnet chart).
 |Helm does not support.
 
 |Walm supports the dynamic dependencies management.
@@ -39,7 +39,7 @@ Walm uses Kafka to synchronize the application's status in real-time. Once the a
 
 *Sponsor / Advisor from TOC*: Finding
 
-*Unique Identifier*: walm
+*Unique Identifier*: Walm
 
 *License*: Apache 2.0 license
 
@@ -85,4 +85,4 @@ TODO
 
 * Transwarp Technology
 
-*project logo*: https://github.com/WarpCloud/walm/blob/master/resource/walm_logo.png
+*Project logo*: https://github.com/WarpCloud/walm/blob/master/resource/walm_logo.png
