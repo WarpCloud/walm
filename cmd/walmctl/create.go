@@ -28,13 +28,14 @@ There are options you can define, while usually not need.
 `
 
 type createCmd struct {
-	file       string
-	chart      string
-	sourceType string
-	sourceName string
-	timeoutSec int64
-	async      bool
-	out        io.Writer
+	sourceType  string
+	projectName string
+	file        string
+	name        string
+	withchart   string
+	timeoutSec  int64
+	async       bool
+	out         io.Writer
 }
 
 func newCreateCmd(out io.Writer) *cobra.Command {
@@ -56,36 +57,48 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 			if namespace == "" {
 				return errNamespaceRequired
 			}
+			if len(args) != 1 {
+				return errors.New("arguments release/project required after command create")
+			}
+			if err := checkResourceType(args[0]); err != nil {
+				return err
+			}
 			cc.sourceType = args[0]
 			return cc.run()
 		},
 	}
-
+	cmd.Flags().StringVarP(&cc.projectName, "project", "p", "", "operate resources of the project")
 	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
-	cmd.Flags().StringVar(&cc.sourceName, "name", "", "releaseName or projectName, Overrides name value in file, optional for release, but required for project")
+	cmd.Flags().StringVar(&cc.name, "name", "", "name for release or project you create, overrides field name in file, required!!!")
+	cmd.Flags().StringVar(&cc.withchart, "withchart", "", "update release with local chart, absolutely or relative path to source file")
 	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout")
-	cmd.Flags().BoolVar(&cc.async, "async", false, "whether asynchronous")
-	cmd.Flags().StringVarP(&cc.chart, "chart", "c", "", "absolutely or relative path to chart location")
-	cmd.MarkFlagRequired("namespace")
+	cmd.Flags().BoolVar(&cc.async, "async", true, "whether asynchronous")
+
 	cmd.MarkFlagRequired("file")
 	return cmd
 }
 
 func (cc *createCmd) run() error {
-	var err error
-	var configValues map[string]interface{}
-	chartPath := cc.chart
+	var (
+		err          error
+		filePath     string
+		chartPath    string
+		fileBytes	 []byte
+		configValues map[string]interface{}
+	)
+	chartPath = cc.withchart
 	if chartPath != "" {
-		chartPath, err = filepath.Abs(cc.chart)
+		chartPath, err = filepath.Abs(cc.withchart)
 		if err != nil {
 			return err
 		}
 	}
-	err = checkResourceType(cc.sourceType)
+
+	filePath, err = filepath.Abs(cc.file)
 	if err != nil {
 		return err
 	}
-	fileBytes, err := ioutil.ReadFile(cc.file)
+	fileBytes, err = ioutil.ReadFile(filePath)
 	if err != nil {
 		klog.Errorf("read file %s error %v", cc.file, err)
 		return err
@@ -101,21 +114,22 @@ func (cc *createCmd) run() error {
 		return err
 	}
 	if cc.sourceType == "release" {
-		_, err = client.CreateRelease(namespace, chartPath, cc.sourceName, cc.async, cc.timeoutSec, configValues)
+		if cc.projectName == "" {
+			_, err = client.CreateRelease(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, configValues)
+		} else {
+			_, err = client.AddReleaseInProject(namespace, cc.name, cc.projectName, cc.async, cc.timeoutSec, configValues)
+		}
 	} else {
-		if cc.sourceName == "" {
+		if cc.name == "" {
 			return errProjectNameRequired
 		}
-		if chartPath != "" {
-			return errors.New("project use chartfile currently not support")
-		}
-		_, err = client.CreateProject(namespace, chartPath, cc.sourceName, cc.async, cc.timeoutSec, configValues)
+		_, err = client.CreateProject(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, configValues)
 	}
 
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%s %s created", cc.sourceType, cc.sourceName)
+	fmt.Printf("%s %s Create Succeed!\n", cc.sourceType, cc.name)
 	return nil
 }

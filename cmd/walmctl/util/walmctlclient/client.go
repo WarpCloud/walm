@@ -209,6 +209,26 @@ func (c *WalmctlClient) ListProject(namespace string) (resp *resty.Response, err
 	return resp, err
 }
 
+func (c *WalmctlClient) AddReleaseInProject(namespace string, releaseName string, projectName string, async bool, timeoutSec int64, configValues map[string]interface{}) (resp *resty.Response, err error) {
+	if releaseName != "" {
+		releaseNameConfigs := make(map[string]interface{}, 0)
+		releaseNameConfigs["name"] = releaseName
+		util.MergeValues(configValues, releaseNameConfigs, false)
+	}
+	fileStr, err := json.Marshal(configValues)
+	if err != nil {
+		klog.Errorf("marshal to json error %v", err)
+	}
+
+	fullUrl := walmctlClient.baseURL + "/project/" + namespace + "/name/" + projectName + "/instance?async=" + strconv.FormatBool(async) + "&timeoutSec=" + strconv.FormatInt(timeoutSec, 10)
+	resp, err = resty.R().SetHeader("Content-Type", "application/json").
+		SetBody(fileStr).
+		Post(fullUrl)
+
+	return resp, err
+}
+
+
 func (c *WalmctlClient) DeleteReleaseInProject(namespace string, projectName string, releaseName string, async bool, timeoutSec int64, deletePvcs bool) (resp *resty.Response, err error) {
 	fullUrl := walmctlClient.baseURL + "/project/" + namespace + "/name/" + projectName + "/instance/" + releaseName + "?async=" + strconv.FormatBool(async) +
 		"&timeoutSec=" + strconv.FormatInt(timeoutSec, 10) + "&deletePvcs=" + strconv.FormatBool(deletePvcs)
