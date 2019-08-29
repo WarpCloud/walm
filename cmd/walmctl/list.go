@@ -5,6 +5,7 @@ import (
 	"WarpCloud/walm/pkg/models/project"
 	"WarpCloud/walm/pkg/models/release"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/bitly/go-simplejson"
 	"github.com/ghodss/yaml"
@@ -13,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io"
+	"k8s.io/klog"
 )
 
 const listDesc = `
@@ -49,10 +51,13 @@ type listProject struct {
 	Ready     bool
 	CreatedAt string
 	Message   string
+	Namespace string
 }
 
 func newListCmd(out io.Writer) *cobra.Command {
 	lc := listCmd{out: out}
+	gofs := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(gofs)
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -66,8 +71,7 @@ func newListCmd(out io.Writer) *cobra.Command {
 			if len(args) != 1 {
 				return errors.New("arguments error, list release/project")
 			}
-			err := checkResourceType(args[0])
-			if err != nil {
+			if err := checkResourceType(args[0]); err != nil {
 				return err
 			}
 			lc.sourceType = args[0]
@@ -123,6 +127,10 @@ func (lc *listCmd) run() error {
 			err = json.Unmarshal(respByte, &releases)
 
 		} else {
+			if namespace == "" {
+				klog.Errorf("flag --namespace/-n required, use `walmctl list project to get namespace of project`")
+				return err
+			}
 			resp, err = client.GetProject(namespace, lc.projectName)
 			if err != nil {
 				return err
@@ -171,6 +179,7 @@ func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProje
 			Name:    project.Name,
 			Ready:   project.Ready,
 			Message: project.Message,
+			Namespace: project.Namespace,
 		}
 
 		listProjects = append(listProjects, lp)
@@ -244,10 +253,10 @@ func formatProjectResult(format string, result []listProject) (string, error) {
 func formatProjectText(result []listProject) string {
 	table := uitable.New()
 	table.MaxColWidth = 60
-	table.AddRow("Name", "Ready", "CreateAt", "Message")
+	table.AddRow("Name", "Ready", "CreateAt", "Message", "Namespace")
 
 	for _, project := range result {
-		table.AddRow(project.Name, project.Ready, project.CreatedAt, project.Message)
+		table.AddRow(project.Name, project.Ready, project.CreatedAt, project.Message, project.Namespace)
 	}
 
 	return fmt.Sprintf("%s", table.String())
