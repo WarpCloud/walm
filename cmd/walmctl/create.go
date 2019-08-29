@@ -2,11 +2,8 @@ package main
 
 import (
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"WarpCloud/walm/pkg/models/release"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/bitly/go-simplejson"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -14,7 +11,6 @@ import (
 	"io/ioutil"
 	"k8s.io/klog"
 	"path/filepath"
-	projectModel "WarpCloud/walm/pkg/models/project"
 )
 
 const createDesc = `This command creates a walm release or project(collection of releases) 
