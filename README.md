@@ -4,15 +4,15 @@
 # Walm
 ![logo][3]
 
-Walm is a micro service, based on Helm, that supports both Rest Api and Cli to manage the lifecycle of container based applications including those with dependencies.
+Walm is a micro service, based on Helm, that supports both Rest Api and Cli to manage the lifecycle of pod based applications in kubernetes cluster including those with dependencies.
 
 Walm dynamically manages the dependencies of an application. An application can depend on the applications already existed, and the configurations of applications depending on would be injected automatically. Besides, once the configurations of applications depending on changes, the configurations would be injected again in real-time.
 
-Walm supports more advanced Chart that use jsonnet as template engine to render kubernetes objects. It is more suitable to orchestrate and deploy complex applications, such as Big Data applications.
+Walm supports more advanced Chart that use Jsonnet as template engine to render kubernetes objects. It is more suitable to orchestrate and deploy complex applications, such as Big Data applications.
 
 Walm supports finely grained authentication and authorization, that would make one user only have relevant authorization under kubernetes namespace scope.
 
-Walm uses distributed event system to synchronize the application’s status in real-time.
+Walm uses a message system(Kafka) to synchronize the application's status in real-time. Once the application's status changes, Walm would produce an event to Kafka in real-time, and the Walm client would get the latest application status in real-time by consuming the Kafka event .
 
 ## Architecture
 ![arch][1]

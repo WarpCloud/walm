@@ -167,12 +167,36 @@ spec:
 }
 
 func Test_BuildReleaseResourceDeployment(t *testing.T) {
-	unstructuredString := `
+	unstructuredString1 := `
 kind: Deployment
 metadata:
   name: test-deployment
 spec:
   replicas: 3
+  template:
+    spec:
+      containers:
+      - resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 4Gi
+      volumes:
+      - name: apacheds-log
+        tosDisk:
+          accessMode: ReadWriteOnce
+          capability: 20Gi
+          name: apacheds-log
+          storageType: silver
+`
+
+	unstructuredString2 := `
+kind: Deployment
+metadata:
+  name: test-deployment
+spec:
   template:
     spec:
       containers:
@@ -197,9 +221,34 @@ spec:
 		err             error
 	}{
 		{
-			r: convertYamlStringToUnstructured(unstructuredString, t),
+			r: convertYamlStringToUnstructured(unstructuredString1, t),
 			releaseResource: &release.ReleaseResourceDeployment{
 				Replicas: 3,
+				ReleaseResourceBase: release.ReleaseResourceBase{
+					Name: "test-deployment",
+					PodRequests: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    1,
+						Storage: []*release.ReleaseResourceStorage{
+							{
+								Name:         "apacheds-log",
+								StorageClass: "silver",
+								Type:         release.TosDiskPodStorageType,
+								Size:         20,
+							},
+						},
+					},
+					PodLimits: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    2,
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			r: convertYamlStringToUnstructured(unstructuredString2, t),
+			releaseResource: &release.ReleaseResourceDeployment{
 				ReleaseResourceBase: release.ReleaseResourceBase{
 					Name: "test-deployment",
 					PodRequests: &release.ReleaseResourcePod{
@@ -232,12 +281,48 @@ spec:
 }
 
 func Test_BuildReleaseResourceStatefulSet(t *testing.T) {
-	unstructuredString := `
+	unstructuredString1 := `
 kind: StatefulSet
 metadata:
   name: test-statefulset
 spec:
   replicas: 3
+  template:
+    spec:
+      containers:
+      - resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 4Gi
+      volumes:
+      - name: apacheds-log
+        tosDisk:
+          accessMode: ReadWriteOnce
+          capability: 20Gi
+          name: apacheds-log
+          storageType: silver
+  volumeClaimTemplates:
+  - metadata:
+      annotations:
+        volume.beta.kubernetes.io/storage-class: silver
+      name: apacheds-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 100Gi
+      volumeMode: Filesystem
+`
+
+	unstructuredString2 := `
+kind: StatefulSet
+metadata:
+  name: test-statefulset
+spec:
   template:
     spec:
       containers:
@@ -274,9 +359,40 @@ spec:
 		err             error
 	}{
 		{
-			r: convertYamlStringToUnstructured(unstructuredString, t),
+			r: convertYamlStringToUnstructured(unstructuredString1, t),
 			releaseResource: &release.ReleaseResourceStatefulSet{
 				Replicas: 3,
+				ReleaseResourceBase: release.ReleaseResourceBase{
+					Name: "test-statefulset",
+					PodRequests: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    1,
+						Storage: []*release.ReleaseResourceStorage{
+							{
+								Name:         "apacheds-log",
+								StorageClass: "silver",
+								Type:         release.TosDiskPodStorageType,
+								Size:         20,
+							},
+							{
+								Name:         "apacheds-data",
+								StorageClass: "silver",
+								Type:         release.PvcPodStorageType,
+								Size:         100,
+							},
+						},
+					},
+					PodLimits: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    2,
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			r: convertYamlStringToUnstructured(unstructuredString2, t),
+			releaseResource: &release.ReleaseResourceStatefulSet{
 				ReleaseResourceBase: release.ReleaseResourceBase{
 					Name: "test-statefulset",
 					PodRequests: &release.ReleaseResourcePod{
@@ -387,9 +503,11 @@ spec:
             memory: 4Gi
 `
 
-	resource := convertYamlStringToUnstructured(unstructuredString, t)
-	resource.Object["spec"].(map[string]interface{})["parallelism"] = int32(2)
-	resource.Object["spec"].(map[string]interface{})["completions"] = int32(2)
+	resource1 := convertYamlStringToUnstructured(unstructuredString, t)
+	resource1.Object["spec"].(map[string]interface{})["parallelism"] = int32(2)
+	resource1.Object["spec"].(map[string]interface{})["completions"] = int32(2)
+
+	resource2 := convertYamlStringToUnstructured(unstructuredString, t)
 
 	tests := []struct {
 		r               *unstructured.Unstructured
@@ -397,10 +515,29 @@ spec:
 		err             error
 	}{
 		{
-			r: resource,
+			r: resource1,
 			releaseResource: &release.ReleaseResourceJob{
 				Completions: 2,
 				Parallelism: 2,
+				ReleaseResourceBase: release.ReleaseResourceBase{
+					Name: "test-job",
+					PodRequests: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    1,
+						Storage: []*release.ReleaseResourceStorage{
+						},
+					},
+					PodLimits: &release.ReleaseResourcePod{
+						Memory: 4096,
+						Cpu:    2,
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			r: resource2,
+			releaseResource: &release.ReleaseResourceJob{
 				ReleaseResourceBase: release.ReleaseResourceBase{
 					Name: "test-job",
 					PodRequests: &release.ReleaseResourcePod{

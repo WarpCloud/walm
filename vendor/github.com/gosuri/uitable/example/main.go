@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/fatih/color"
 	"github.com/gosuri/uitable"
 )
 
@@ -35,18 +34,6 @@ func main() {
 		table.AddRow("Name:", hacker.Name)
 		table.AddRow("Birthday:", hacker.Birthday)
 		table.AddRow("Bio:", hacker.Bio)
-		table.AddRow("") // blank
-	}
-	fmt.Println(table)
-
-	fmt.Print("\n==> Multicolor Support\n")
-	table = uitable.New()
-	table.MaxColWidth = 80
-	table.Wrap = true
-	for _, hacker := range hackers {
-		table.AddRow(color.RedString("Name:"), color.WhiteString(hacker.Name))
-		table.AddRow(color.BlueString("Birthday:"), hacker.Birthday)
-		table.AddRow(color.GreenString("Bio:"), hacker.Bio)
 		table.AddRow("") // blank
 	}
 	fmt.Println(table)

@@ -22,6 +22,7 @@ func ConvertPodFromK8s(oriPod *corev1.Pod) (*k8s.Pod, error) {
 		HostIp:      pod.Status.HostIP,
 		Containers:  buildWalmPodContainers(pod),
 		Age:         duration.ShortHumanDuration(time.Since(pod.CreationTimestamp.Time)),
+		InitContainers: buildWalmPodInitContainers(pod),
 	}
 	if len(pod.Labels) > 0 {
 		walmPod.Labels = pod.Labels
@@ -35,16 +36,27 @@ func ConvertPodFromK8s(oriPod *corev1.Pod) (*k8s.Pod, error) {
 func buildWalmPodContainers(pod *corev1.Pod) (walmContainers []k8s.Container) {
 	walmContainers = []k8s.Container{}
 	for _, container := range pod.Status.ContainerStatuses {
-		walmContainer := k8s.Container{
-			Name:         container.Name,
-			Ready:        container.Ready,
-			Image:        container.Image,
-			RestartCount: container.RestartCount,
-			State:        buildPodContainerState(container.State),
-		}
-		walmContainers = append(walmContainers, walmContainer)
+		walmContainers = append(walmContainers, buildContainer(container))
 	}
 	return
+}
+
+func buildWalmPodInitContainers(pod *corev1.Pod) (containers []k8s.Container) {
+	containers = []k8s.Container{}
+	for _, container := range pod.Status.InitContainerStatuses {
+		containers = append(containers, buildContainer(container))
+	}
+	return
+}
+
+func buildContainer(container corev1.ContainerStatus) k8s.Container {
+	return k8s.Container{
+		Name:         container.Name,
+		Ready:        container.Ready,
+		Image:        container.Image,
+		RestartCount: container.RestartCount,
+		State:        buildPodContainerState(container.State),
+	}
 }
 
 func buildPodContainerState(state corev1.ContainerState) (walmState k8s.State) {

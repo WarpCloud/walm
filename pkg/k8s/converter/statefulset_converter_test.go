@@ -117,7 +117,7 @@ func TestConvertStatefulSetFromK8s(t *testing.T) {
 							},
 						},
 						Age: duration.ShortHumanDuration(time.Since(testCreationTimestamp.Time)),
-
+						InitContainers: []k8s.Container{},
 					},
 				},
 				Selector: "test1=test1,test2=test2",

@@ -1,7 +1,6 @@
 package main
 
 import (
-
 	"flag"
 	"fmt"
 	"github.com/golang/glog"
@@ -22,13 +21,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	metainfo "WarpCloud/walm/pkg/models/release"
 	"WarpCloud/walm/pkg/util"
 	"WarpCloud/walm/pkg/util/transwarpjsonnet"
-	"encoding/json"
-	"github.com/sergi/go-diff/diffmatchpatch"
-	"github.com/ghodss/yaml"
-	metainfo "WarpCloud/walm/pkg/models/release"
 	"bytes"
+	"encoding/json"
+	"github.com/ghodss/yaml"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 var longLintHelp = `
@@ -148,7 +147,6 @@ func (lint *lintOptions) run() error {
 
 	/* check params in values */
 	err = chartMetaInfo.CheckParamsInValues(string(valuesByte), configMaps)
-
 	if err != nil {
 		glog.Warning(err)
 	}

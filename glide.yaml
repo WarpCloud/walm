@@ -58,7 +58,7 @@ import:
 - package: github.com/imdario/mergo
   version: 0.3.6
 - package: github.com/google/go-jsonnet
-  version: v0.12.1
+  version: v0.13.0
 - package: github.com/go-resty/resty
   version: 1.11.0
 - package: github.com/spf13/viper

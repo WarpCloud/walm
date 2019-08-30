@@ -2,9 +2,9 @@ package release
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"github.com/pkg/errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,7 +17,7 @@ type ChartMetaInfo struct {
 	ChartDependenciesInfo []*ChartDependencyMetaInfo `json:"dependencies" description:"dependency metainfo"`
 	ChartRoles            []*MetaRoleConfig          `json:"roles"`
 	ChartParams           []*MetaCommonConfig        `json:"params"`
-	Plugins               []*ReleasePlugin         `json:"plugins"`
+	Plugins               []*ReleasePlugin           `json:"plugins"`
 	CustomChartParams     map[string]string          `json:"customParams"`
 }
 
@@ -302,18 +302,16 @@ func (chartMetaInfo *ChartMetaInfo) CheckMetainfoValidate(valuesStr string) ([]*
 }
 
 func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, configSets []*MetaConfigTestSet) error {
-
 	var err error
 	for _, configSet := range configSets {
 		/*
-		boolean --> True, False
-		string --> String
-		int, float --> Number
-		interface, {}, [], Null --> JSON, Null
+			boolean --> True, False
+			string --> String
+			int, float --> Number
+			interface, {}, [], Null --> JSON, Null
 		*/
 		result := gjson.Get(valuesStr, configSet.MapKey)
 		if result.Exists() {
-
 			switch configSet.Type {
 			case "boolean":
 				if !(result.Type.String() == "True" || result.Type.String() == "False") {
@@ -330,7 +328,6 @@ func (chartMetaInfo *ChartMetaInfo) CheckParamsInValues(valuesStr string, config
 						return errors.Errorf("%s Format error in values.yaml, eg: 4Gi, 400Mi expected", configSet.MapKey)
 					}
 				}
-
 			case "int":
 				_, err = strconv.Atoi(result.Raw)
 				if err != nil {

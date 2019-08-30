@@ -12,15 +12,22 @@ import (
 	errorModel "WarpCloud/walm/pkg/models/error"
 )
 
+const (
+	projectRootPath = http.ApiV1 + "/project"
+)
+
 type ProjectHandler struct {
 	usecase project.UseCase
 }
 
-func RegisterProjectHandler(usecase project.UseCase) *restful.WebService {
-	handler := &ProjectHandler{usecase: usecase}
+func NewProjectHandler(usecase project.UseCase) *ProjectHandler {
+	return &ProjectHandler{usecase: usecase}
+}
+
+func RegisterProjectHandler(handler *ProjectHandler) *restful.WebService {
 	ws := new(restful.WebService)
 
-	ws.Path(http.ApiV1 + "/project").
+	ws.Path(projectRootPath).
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 

@@ -157,6 +157,16 @@ std.assertEqual(std.toString([1, 2, 'foo']), '[1, 2, "foo"]') &&
 
 std.assertEqual(std.substr('cookie', 1, 3), 'ook') &&
 std.assertEqual(std.substr('cookie', 1, 0), '') &&
+std.assertEqual(std.substr('cookie', 1, 15), 'ookie') &&
+std.assertEqual(std.substr('cookie', 0, 5), 'cooki') &&
+std.assertEqual(std.substr('cookie', 0, 6), 'cookie') &&
+std.assertEqual(std.substr('cookie', 0, 15), 'cookie') &&
+std.assertEqual(std.substr('cookie', 3, 1), 'k') &&
+std.assertEqual(std.substr('cookie', 20, 1), '') &&
+std.assertEqual(std.substr('cookie', 6, 1), '') &&
+
+
+std.assertEqual(std.substr('ąę', 1, 1), 'ę') &&
 
 std.assertEqual(std.startsWith('food', 'foo'), true) &&
 std.assertEqual(std.startsWith('food', 'food'), true) &&
@@ -208,10 +218,12 @@ std.assertEqual(std.join([], [[1, 2], [3, 4, 5], [6]]), [1, 2, 3, 4, 5, 6]) &&
 std.assertEqual(std.join(['a', 'b'], [[]]), []) &&
 std.assertEqual(std.join(['a', 'b'], []), []) &&
 std.assertEqual(std.join(['a', 'b'], [null, [1, 2], null, [3, 4, 5], [6], null]), [1, 2, 'a', 'b', 3, 4, 5, 'a', 'b', 6]) &&
+std.assertEqual(std.join(['a', 'b'], [[], [1, 2]]), ['a', 'b', 1, 2]) &&
 std.assertEqual(std.join('', [null, '12', null, '345', '6', null]), '123456') &&
 std.assertEqual(std.join('ab', ['']), '') &&
 std.assertEqual(std.join('ab', []), '') &&
 std.assertEqual(std.join('ab', [null, '12', null, '345', '6', null]), '12ab345ab6') &&
+std.assertEqual(std.join('ab', ['', '12']), 'ab12') &&
 std.assertEqual(std.lines(['a', null, 'b']), 'a\nb\n') &&
 
 std.assertEqual(std.flattenArrays([[1, 2, 3], [4, 5, 6], []]), [1, 2, 3, 4, 5, 6]) &&
@@ -320,6 +332,12 @@ std.assertEqual(std.base64Decode('SGVsbG8gV29ybGQh'), 'Hello World!') &&
 std.assertEqual(std.base64Decode('SGVsbG8gV29ybGQ='), 'Hello World') &&
 std.assertEqual(std.base64Decode('SGVsbG8gV29ybA=='), 'Hello Worl') &&
 std.assertEqual(std.base64Decode(''), '') &&
+
+std.assertEqual(std.reverse([]), []) &&
+std.assertEqual(std.reverse([1]), [1]) &&
+std.assertEqual(std.reverse([1, 2]), [2, 1]) &&
+std.assertEqual(std.reverse([1, 2, 3]), [3, 2, 1]) &&
+std.assertEqual(std.reverse([[1, 2, 3]]), [[1, 2, 3]]) &&
 
 std.assertEqual(std.sort([]), []) &&
 std.assertEqual(std.sort([1]), [1]) &&
@@ -453,17 +471,107 @@ std.assertEqual(
   |||
 ) &&
 
+
+std.assertEqual(
+  std.manifestYamlDoc([{ x: [1, 2, 3] }]) + '\n',
+  |||
+    - "x":
+      - 1
+      - 2
+      - 3
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [1, 2, 3] }) + '\n',
+  |||
+    "x":
+    - 1
+    - 2
+    - 3
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc([[[1, 2], [3, 4]]]) + '\n',
+  |||
+    -
+      -
+        - 1
+        - 2
+      -
+        - 3
+        - 4
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [[[1, [1], 1]]] }) + '\n',
+  |||
+    "x":
+    -
+      -
+        - 1
+        -
+          - 1
+        - 1
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [[[1, { f: 3, g: [1, 2] }, 1]]] }) + '\n',
+  |||
+    "x":
+    -
+      -
+        - 1
+        - "f": 3
+          "g":
+          - 1
+          - 2
+        - 1
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc('hello\nworld\n') + '\n',
+  |||
+    |
+      hello
+      world
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc(['hello\nworld\n']) + '\n',
+  |||
+    - |
+      hello
+      world
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ f: 'hello\nworld\n' }) + '\n',
+  |||
+    "f": |
+      hello
+      world
+  |||
+) &&
+
 std.assertEqual(
   std.manifestYamlDoc(some_json) + '\n',
   |||
     "\"": null
-    "arr": 
-    - - []
+    "arr":
+    -
+      - []
     "emptyArray": []
     "emptyObject": {}
-    "objectInArray": 
+    "objectInArray":
     - "f": 3
-    "x": 
+    "x":
     - 1
     - 2
     - 3
@@ -473,12 +581,130 @@ std.assertEqual(
     - |
       string
       string
-    "y": 
+    "y":
       "a": 1
       "b": 2
-      "c": 
+      "c":
       - 1
       - 2
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc([{ x: [1, 2, 3] }], indent_array_in_object=true) + '\n',
+  |||
+    - "x":
+        - 1
+        - 2
+        - 3
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [1, 2, 3] }, indent_array_in_object=true) + '\n',
+  |||
+    "x":
+      - 1
+      - 2
+      - 3
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc([[[1, 2], [3, 4]]], indent_array_in_object=true) + '\n',
+  |||
+    -
+      -
+        - 1
+        - 2
+      -
+        - 3
+        - 4
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [[[1, [1], 1]]] }, indent_array_in_object=true) + '\n',
+  |||
+    "x":
+      -
+        -
+          - 1
+          -
+            - 1
+          - 1
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ x: [[[1, { f: 3, g: [1, 2] }, 1]]] }, indent_array_in_object=true) + '\n',
+  |||
+    "x":
+      -
+        -
+          - 1
+          - "f": 3
+            "g":
+              - 1
+              - 2
+          - 1
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc('hello\nworld\n', indent_array_in_object=true) + '\n',
+  |||
+    |
+      hello
+      world
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc(['hello\nworld\n'], indent_array_in_object=true) + '\n',
+  |||
+    - |
+      hello
+      world
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc({ f: 'hello\nworld\n' }, indent_array_in_object=true) + '\n',
+  |||
+    "f": |
+      hello
+      world
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlDoc(some_json, indent_array_in_object=true) + '\n',
+  |||
+    "\"": null
+    "arr":
+      -
+        - []
+    "emptyArray": []
+    "emptyObject": {}
+    "objectInArray":
+      - "f": 3
+    "x":
+      - 1
+      - 2
+      - 3
+      - true
+      - false
+      - null
+      - |
+        string
+        string
+    "y":
+      "a": 1
+      "b": 2
+      "c":
+        - 1
+        - 2
   |||
 ) &&
 
@@ -487,13 +713,14 @@ std.assertEqual(
   |||
     ---
     "\"": null
-    "arr": 
-    - - []
+    "arr":
+    -
+      - []
     "emptyArray": []
     "emptyObject": {}
-    "objectInArray": 
+    "objectInArray":
     - "f": 3
-    "x": 
+    "x":
     - 1
     - 2
     - 3
@@ -503,21 +730,22 @@ std.assertEqual(
     - |
       string
       string
-    "y": 
+    "y":
       "a": 1
       "b": 2
-      "c": 
+      "c":
       - 1
       - 2
     ---
     "\"": null
-    "arr": 
-    - - []
+    "arr":
+    -
+      - []
     "emptyArray": []
     "emptyObject": {}
-    "objectInArray": 
+    "objectInArray":
     - "f": 3
-    "x": 
+    "x":
     - 1
     - 2
     - 3
@@ -527,10 +755,10 @@ std.assertEqual(
     - |
       string
       string
-    "y": 
+    "y":
       "a": 1
       "b": 2
-      "c": 
+      "c":
       - 1
       - 2
     ---
@@ -542,6 +770,85 @@ std.assertEqual(
     ---
     "\""
     ...
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlStream([some_json, some_json, {}, [], 3, '"'], indent_array_in_object=true),
+  |||
+    ---
+    "\"": null
+    "arr":
+      -
+        - []
+    "emptyArray": []
+    "emptyObject": {}
+    "objectInArray":
+      - "f": 3
+    "x":
+      - 1
+      - 2
+      - 3
+      - true
+      - false
+      - null
+      - |
+        string
+        string
+    "y":
+      "a": 1
+      "b": 2
+      "c":
+        - 1
+        - 2
+    ---
+    "\"": null
+    "arr":
+      -
+        - []
+    "emptyArray": []
+    "emptyObject": {}
+    "objectInArray":
+      - "f": 3
+    "x":
+      - 1
+      - 2
+      - 3
+      - true
+      - false
+      - null
+      - |
+        string
+        string
+    "y":
+      "a": 1
+      "b": 2
+      "c":
+        - 1
+        - 2
+    ---
+    {}
+    ---
+    []
+    ---
+    3
+    ---
+    "\""
+    ...
+  |||
+) &&
+
+std.assertEqual(
+  std.manifestYamlStream([{}, [], 3, '"'], c_document_end=false),
+  |||
+    ---
+    {}
+    ---
+    []
+    ---
+    3
+    ---
+    "\""
   |||
 ) &&
 
@@ -602,5 +909,20 @@ std.assertEqual(std.find('a', ['b']), []) &&
 std.assertEqual(std.find('a', ['a']), [0]) &&
 std.assertEqual(std.find('a', ['a', ['a'], 'b', 'a']), [0, 3]) &&
 std.assertEqual(std.find(['a'], [['a']]), [0]) &&
+
+std.assertEqual(std.encodeUTF8(''), []) &&
+std.assertEqual(std.encodeUTF8('A'), [65]) &&
+std.assertEqual(std.encodeUTF8('AAA'), [65, 65, 65]) &&
+std.assertEqual(std.encodeUTF8('§'), [194, 167]) &&
+std.assertEqual(std.encodeUTF8('Zażółć gęślą jaźń'), [90, 97, 197, 188, 195, 179, 197, 130, 196, 135, 32, 103, 196, 153, 197, 155, 108, 196, 133, 32, 106, 97, 197, 186, 197, 132]) &&
+std.assertEqual(std.encodeUTF8('😃'), [240, 159, 152, 131]) &&
+
+std.assertEqual(std.decodeUTF8([]), '') &&
+std.assertEqual(std.decodeUTF8([65]), 'A') &&
+std.assertEqual(std.decodeUTF8([65, 65, 65]), 'AAA') &&
+std.assertEqual(std.decodeUTF8([(function(x) 65)(42)]), 'A') &&
+std.assertEqual(std.decodeUTF8([65 + 1 - 1]), 'A') &&
+std.assertEqual(std.decodeUTF8([90, 97, 197, 188, 195, 179, 197, 130, 196, 135, 32, 103, 196, 153, 197, 155, 108, 196, 133, 32, 106, 97, 197, 186, 197, 132]), 'Zażółć gęślą jaźń') &&
+std.assertEqual(std.decodeUTF8([240, 159, 152, 131]), '😃') &&
 
 true
