@@ -1,12 +1,13 @@
 package main
 
 import (
+	"flag"
 	"os"
 
-	"github.com/spf13/cobra"
-	"github.com/sirupsen/logrus"
-
 	"WarpCloud/walm/cmd"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"k8s.io/klog"
 )
 
 var globalUsage = `The Warp application lifecycle manager
@@ -38,11 +39,21 @@ func newRootCmd(args []string) *cobra.Command {
 	return rootCmd
 }
 
+func initKubeLogs() {
+	gofs := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(gofs)
+	pflag.CommandLine.AddGoFlagSet(gofs)
+	pflag.CommandLine.Set("logtostderr", "true")
+	pflag.CommandLine.Set("v", "1")
+}
+
 func main() {
-	logrus.Infof("Walm Start...")
+	initKubeLogs()
+
+	klog.Infof("Walm Start...")
 	rootCmd := newRootCmd(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
-		logrus.Errorln(err)
+		klog.Errorln(err)
 		os.Exit(1)
 	}
 }
