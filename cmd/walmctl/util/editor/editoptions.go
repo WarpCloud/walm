@@ -31,6 +31,8 @@ type EditOptions struct {
 	WindowsLineEndings bool
 	Namespace          string
 	WalmServer         string
+	EnableTLS          bool
+	RootCA             string
 	SourceType         string
 	SourceName         string
 	ChangeCause        string
@@ -41,11 +43,8 @@ type EditOptions struct {
 
 func NewEditOptions(editMode EditMode, ioStreams genericclioptions.IOStreams) *EditOptions {
 	return &EditOptions{
-
 		EditMode: editMode,
-
 		PrintFlags: genericclioptions.NewPrintFlags("edited").WithTypeSetter(scheme.Scheme),
-
 		editPrinterOptions: &editPrinterOptions{
 			// create new editor-specific PrintFlags, with all
 			// output flags disabled, except json / yaml
@@ -55,7 +54,6 @@ func NewEditOptions(editMode EditMode, ioStreams genericclioptions.IOStreams) *E
 			ext:       ".yaml",
 			addHeader: true,
 		},
-
 		WindowsLineEndings: goruntime.GOOS == "windows",
 		IOStreams:          ioStreams,
 	}
@@ -105,14 +103,17 @@ func (o *EditOptions) Validate() error {
 }
 
 func (o *EditOptions) Run() error {
-
 	o.editPrinterOptions.Complete(o.PrintFlags)
 	// check resource
 	var resp *resty.Response
 	var releaseInfo release.ReleaseInfoV2
 	var err error
-	client := walmctlclient.CreateNewClient(o.WalmServer)
-	if err = client.ValidateHostConnect(); err != nil {
+	client, err := walmctlclient.CreateNewClient(o.WalmServer, o.EnableTLS, o.RootCA)
+	if err != nil {
+		klog.Errorf("failed to create walmctl client: %s", err.Error())
+		return err
+	}
+	if err = client.ValidateHostConnect(o.WalmServer); err != nil {
 		return err
 	}
 	if o.SourceType == "release" {
@@ -132,14 +133,12 @@ func (o *EditOptions) Run() error {
 	edit := NewDefaultEditor(editorEnvs())
 	// editFn is invoked for each edit session (once with a list for normal edit, once for each individual resource in a edit-on-create invocation)
 	editFn := func(releaseRequest *release.ReleaseRequestV2) error {
-
 		var (
 			results  = editResults{}
 			original []byte
 			edited   []byte
 			file     string
 		)
-		containsError := false
 
 		// generate the file to edit
 		buf := &bytes.Buffer{}
@@ -151,19 +150,11 @@ func (o *EditOptions) Run() error {
 			results.header.writeTo(w, o.EditMode)
 		}
 
-		if !containsError {
-
 			if err := o.editPrinterOptions.PrintRequest(releaseRequest, w); err != nil {
 				return preservedFile(err, results.file, o.ErrOut)
 
 			}
 			original = buf.Bytes()
-		} else {
-			// In case of an error, preserve the edited file.
-			// Remove the comments (header) from it since we already
-			// have included the latest header in the buffer above.
-			buf.Write(ManualStrip(edited))
-		}
 
 		// launch the editor
 		editedDiff := edited
@@ -173,7 +164,7 @@ func (o *EditOptions) Run() error {
 		}
 
 		// If we're retrying the loop because of an error, and no change was made in the file, short-circuit
-		if containsError && bytes.Equal(StripComments(editedDiff), StripComments(edited)) {
+		if bytes.Equal(StripComments(editedDiff), StripComments(edited)) {
 			return preservedFile(fmt.Errorf("%s", "Edit cancelled, no valid changes were saved."), file, o.ErrOut)
 		}
 
@@ -208,7 +199,7 @@ func (o *EditOptions) Run() error {
 			return err
 		}
 
-		resp, err = client.UpdateRelease(o.Namespace, string(StripComments(edited)), true, 0)
+		resp, err = client.UpdateRelease(o.Namespace, string(StripComments(edited)), false, 0)
 		if err != nil {
 			return err
 		}
@@ -230,11 +221,9 @@ func (o *EditOptions) Run() error {
 	default:
 		return fmt.Errorf("unsupported edit mode %q", o.EditMode)
 	}
-	return nil
 }
 
 func (e *editPrinterOptions) PrintRequest(releaseRequest *release.ReleaseRequestV2, out io.Writer) error {
-
 	var releaseRequestByte []byte
 	var err error
 

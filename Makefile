@@ -33,7 +33,7 @@ all: build build_darwin build_windows
 
 .PHONY: test
 test:
-	@go test -v -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test') -coverprofile ut-coverage-report.out
+	@go test -race $(shell go list ${PKG}/... | grep -v vendor | grep -v '/test') -coverprofile ut-coverage-report.out
 
 .PHONY: e2e-test
 e2e-test:
