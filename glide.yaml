@@ -1,7 +1,19 @@
 package: WarpCloud/walm
 import:
-- package: k8s.io/helm
-  repo: https://github.com/WarpCloud/helm.git
+- package: transwarp/isomateset-client
+  repo: ssh://git@172.16.1.41:10022/yucheng.wu/isomateset-client.git
+  version: tos-2.0-dev
+- package: transwarp/cachex
+  repo: ssh://git@172.16.1.41:10022/app/cachex.git
+- package: transwarp/application-instance
+  repo: ssh://git@172.16.1.41:10022/k8s/application-instance.git
+  version: release-1.15
+- package: github.com/migration/pkg
+  repo: ssh://git@172.16.1.41:10022/app/migration-client-subpkg.git
+  version: master
+- package: helm.sh/helm
+  repo: ssh://git@172.16.1.41:10022/k8s/helm.git
+  version: github-dev3
 - package: github.com/emicklei/go-restful-openapi
   repo: https://github.com/WarpCloud/go-restful-openapi.git
   version: master
@@ -13,31 +25,32 @@ import:
   version: ^1.0.0
 - package: gopkg.in/igm/sockjs-go.v2/sockjs
   version: ^2.0.0
-- package: github.com/sirupsen/logrus
-  version: ^1.0.5
+- package: github.com/kubernetes/klog
+  version: ^0.4.0
 - package: github.com/spf13/cobra
   version: ^0.0.3
 - package: github.com/spf13/pflag
   version: ^1.0.1
 
 - package: k8s.io/kubernetes
-  version: release-1.13
+  version: release-1.15
 - package: k8s.io/client-go
-  version: kubernetes-1.13.0
+  version: kubernetes-1.15.1
 - package: k8s.io/api
-  version: release-1.13
+  repo: ssh://git@172.16.1.41:10022/k8s/api.git
+  version: release-1.15.1
 - package: k8s.io/apimachinery
-  version: release-1.13
+  version: release-1.15
 - package: k8s.io/apiserver
-  version: release-1.13
+  version: release-1.15
 - package: k8s.io/apiextensions-apiserver
-  version: release-1.13
+  version: release-1.15
 - package: k8s.io/cli-runtime
-  version: release-1.13
+  version: release-1.15
 
 - package: github.com/docker/spdystream
 - package: github.com/go-redis/redis
-  version: 6.13.2
+  version: 6.15.6
 - package: github.com/emicklei/go-restful
   version: 2.8.0
 - package: github.com/thoas/stats
@@ -54,11 +67,10 @@ import:
 - package: github.com/pierrec/lz4
 - package: github.com/rcrowley/go-metrics
 - package: github.com/RichardKnop/machinery
-  version: v1.4.5
-- package: github.com/imdario/mergo
-  version: 0.3.6
+  repo: ssh://git@172.16.1.41:10022/app/machinery.git
+  version: v1.7.3.1
 - package: github.com/google/go-jsonnet
-  version: v0.13.0
+  version: v0.14.0
 - package: github.com/go-resty/resty
   version: 1.11.0
 - package: github.com/spf13/viper
@@ -71,12 +83,8 @@ import:
 - package: github.com/tidwall/match
   version: 1.0.1
 - package: github.com/tidwall/pretty
-- package: github.com/deislabs/oras
-  version: 0.3.3
 - package: github.com/containerd/containerd
-  version: 1.2.1
-- package: github.com/x-cray/logrus-prefixed-formatter
-  version: v0.5.2
+  version: 1.3.0-beta.2
 - package: github.com/mgutz/ansi
 - package: github.com/mattn/go-colorable
   version: v0.1.1
@@ -85,5 +93,21 @@ import:
 - package: github.com/sergi/go-diff/...
 - package: github.com/stretchr/testify
   version: v1.3.0
+- package: github.com/deislabs/oras
+  version: 0.7.0
+- package: github.com/Azure/go-ansiterm
+  version: master
+- package: google.golang.org/grpc
+  version: v1.24.0
+- package: github.com/docker/docker
+  version: 2cb26cfe9cbf8a64c5046c74d65f4528b22e67f4
+- package: github.com/Microsoft/hcsshim
+  version: v0.8.6
+- package: google.golang.org/api
+  version: v0.11.0
+- package: github.com/golang/protobuf
+  version: v1.3.2
+- package: google.golang.org/genproto
+  version: master
 testImport:
 - package: gopkg.in/check.v1
