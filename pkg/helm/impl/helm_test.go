@@ -4,18 +4,20 @@ import (
 	"testing"
 	"WarpCloud/walm/pkg/models/release"
 	"github.com/stretchr/testify/assert"
+	helmRelease "helm.sh/helm/pkg/release"
+	"WarpCloud/walm/pkg/models/k8s"
 )
 
 func Test_ReuseReleaseRequest(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		releaseInfo *release.ReleaseInfoV2
 		releaseRequest *release.ReleaseRequestV2
 		configValues map[string]interface{}
 		dependencies map[string]string
 		releaseLabels map[string]string
-		walmPlugins []*release.ReleasePlugin
+		walmPlugins    []*k8s.ReleasePlugin
 		err error
-	} {
+	}{
 		{
 			releaseInfo: &release.ReleaseInfoV2{
 				ReleaseInfo: release.ReleaseInfo{
@@ -28,7 +30,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 						},
 					},
 				},
-				Plugins: []*release.ReleasePlugin{
+				Plugins: []*k8s.ReleasePlugin{
 					{
 						Name: "existed-plugin",
 						Args: "old-value",
@@ -48,7 +50,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 			releaseLabels: map[string]string{
 				"existed-key": "old-value",
 			},
-			walmPlugins: []*release.ReleasePlugin{
+			walmPlugins: []*k8s.ReleasePlugin{
 				{
 					Name: "existed-plugin",
 					Args: "old-value",
@@ -68,7 +70,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 						},
 					},
 				},
-				Plugins: []*release.ReleasePlugin{
+				Plugins: []*k8s.ReleasePlugin{
 					{
 						Name: "existed-plugin",
 						Args: "old-value",
@@ -93,7 +95,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 					"existed-key": "new-value",
 					"not-existed-key": "value",
 				},
-				Plugins: []*release.ReleasePlugin{
+				Plugins: []*k8s.ReleasePlugin{
 					{
 						Name: "existed-plugin",
 						Args: "new-value",
@@ -116,7 +118,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 				"existed-key": "new-value",
 				"not-existed-key": "value",
 			},
-			walmPlugins: []*release.ReleasePlugin{
+			walmPlugins: []*k8s.ReleasePlugin{
 				{
 					Name: "existed-plugin",
 					Args: "new-value",
@@ -140,7 +142,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 						},
 					},
 				},
-				Plugins: []*release.ReleasePlugin{
+				Plugins: []*k8s.ReleasePlugin{
 					{
 						Name: "existed-plugin",
 						Args: "old-value",
@@ -162,7 +164,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 				ReleaseLabels: map[string]string{
 					"existed-key": "",
 				},
-				Plugins: []*release.ReleasePlugin{
+				Plugins: []*k8s.ReleasePlugin{
 					{
 						Name: "existed-plugin",
 						Args: "",
@@ -177,7 +179,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 			},
 			releaseLabels: map[string]string{
 			},
-			walmPlugins: []*release.ReleasePlugin{
+			walmPlugins: []*k8s.ReleasePlugin{
 				{
 					Name: "existed-plugin",
 					Args: "",
@@ -189,7 +191,7 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		configValues, dependencies, releaseLabels, walmPlugins, err := reuseReleaseRequest(test.releaseInfo, test.releaseRequest)
+		configValues, dependencies, releaseLabels, walmPlugins, err := reuseReleaseRequest(test.releaseInfo, test.releaseRequest, false)
 		assert.IsType(t, test.err, err)
 		assert.Equal(t, test.configValues, configValues)
 		assert.Equal(t, test.dependencies, dependencies)
@@ -199,14 +201,14 @@ func Test_ReuseReleaseRequest(t *testing.T) {
 }
 
 func Test_MergeReleasePlugins(t *testing.T) {
-	tests := []struct{
-		plugins []*release.ReleasePlugin
-		defaultPlugins []*release.ReleasePlugin
-		mergedPlugins []*release.ReleasePlugin
+	tests := []struct {
+		plugins        []*k8s.ReleasePlugin
+		defaultPlugins []*k8s.ReleasePlugin
+		mergedPlugins  []*k8s.ReleasePlugin
 		err error
 	}{
 		{
-			plugins: []*release.ReleasePlugin{
+			plugins: []*k8s.ReleasePlugin{
 				{
 					Name: "test",
 				},
@@ -222,5 +224,458 @@ func Test_MergeReleasePlugins(t *testing.T) {
 		plugins, err := mergeReleasePlugins(test.plugins, test.defaultPlugins)
 		assert.IsType(t, test.err, err)
 		assert.ElementsMatch(t, test.mergedPlugins, plugins)
+	}
+}
+func Test_filterHelmReleases(t *testing.T) {
+	tests := []struct {
+		releases         []*helmRelease.Release
+		filteredReleases map[string]*helmRelease.Release
+	}{
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel2",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				"testns/rel2": {
+					Namespace: "testns",
+					Name:      "rel2",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusDeployed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusFailed,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusFailed,
+					},
+				},
+			},
+		},
+		{
+			releases: []*helmRelease.Release{
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   1,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusPendingUpgrade,
+					},
+				},
+				{
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusFailed,
+					},
+				},
+			},
+			filteredReleases: map[string]*helmRelease.Release{
+				"testns/rel1": {
+					Namespace: "testns",
+					Name:      "rel1",
+					Version:   2,
+					Info: &helmRelease.Info{
+						Status: helmRelease.StatusFailed,
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		filteredReleases := filterHelmReleases(test.releases)
+		assert.Equal(t, test.filteredReleases, filteredReleases)
+	}
+}
+
+func Test_mergeIsomateConfig(t *testing.T) {
+	tests := []struct {
+		isomateConfig    *k8s.IsomateConfig
+		oldIsomateConfig *k8s.IsomateConfig
+		err              error
+		result           *k8s.IsomateConfig
+	}{
+		{
+			isomateConfig: &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+			oldIsomateConfig: nil,
+			result: &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			isomateConfig: &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test1",
+						},
+					},
+				},
+			},
+			oldIsomateConfig:  &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin1",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+			result: &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+							{
+								Name: "test-plugin1",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test1",
+						},
+					},
+				},
+			},
+		},
+		{
+			isomateConfig: &k8s.IsomateConfig{
+				DefaultIsomateName: "arm",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "arm",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test1",
+						},
+					},
+				},
+			},
+			oldIsomateConfig:  &k8s.IsomateConfig{
+				DefaultIsomateName: "x86",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "x86",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin1",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+			result: &k8s.IsomateConfig{
+				DefaultIsomateName: "arm",
+				Isomates: []*k8s.Isomate{
+					{
+						Name: "arm",
+						Plugins: []*k8s.ReleasePlugin{
+							{
+								Name: "test-plugin",
+							},
+						},
+						ConfigValues: map[string]interface{}{
+							"test": "test1",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		err := mergeIsomateConfig(test.isomateConfig, test.oldIsomateConfig)
+		assert.IsType(t, test.err, err)
+		equalIsomateConfig(t, test.result, test.isomateConfig)
+	}
+}
+
+func equalIsomateConfig(t *testing.T, expectedIsomateConfig, actualIsomateConfig *k8s.IsomateConfig) {
+	assert.Equal(t, expectedIsomateConfig.DefaultIsomateName, actualIsomateConfig.DefaultIsomateName)
+	assert.Equal(t, len(expectedIsomateConfig.Isomates), len(actualIsomateConfig.Isomates))
+	for index, isomate := range expectedIsomateConfig.Isomates {
+		assert.Equal(t, isomate.Name, actualIsomateConfig.Isomates[index].Name)
+		assert.ElementsMatch(t, isomate.Plugins, actualIsomateConfig.Isomates[index].Plugins)
+		assert.Equal(t, isomate.ConfigValues, actualIsomateConfig.Isomates[index].ConfigValues)
 	}
 }
