@@ -2,22 +2,21 @@ package helm
 
 import (
 	"testing"
-	"WarpCloud/walm/pkg/models/release"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/helm/pkg/walm"
-	"k8s.io/helm/pkg/walm/plugins"
+	"WarpCloud/walm/pkg/helm/impl/plugins"
+	"WarpCloud/walm/pkg/models/k8s"
 )
 
 func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 	tests := []struct {
 		configValues          map[string]interface{}
-		releasePlugins        []*release.ReleasePlugin
+		releasePlugins        []*k8s.ReleasePlugin
 		hasPauseReleasePlugin bool
 		err                   error
 	}{
 		{
 			configValues: map[string]interface{}{
-				walm.WalmPluginConfigKey: []interface{}{
+				plugins.WalmPluginConfigKey: []interface{}{
 					map[string]interface{}{
 						"name": "test-plugin",
 						"args": "test-args",
@@ -26,7 +25,7 @@ func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 					},
 				},
 			},
-			releasePlugins: []*release.ReleasePlugin{
+			releasePlugins: []*k8s.ReleasePlugin{
 				{
 					Name: "test-plugin",
 					Args: "test-args",
@@ -39,7 +38,7 @@ func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 		},
 		{
 			configValues: map[string]interface{}{
-				walm.WalmPluginConfigKey: []interface{}{
+				plugins.WalmPluginConfigKey: []interface{}{
 					map[string]interface{}{
 						"name": "test-plugin",
 						"args": "test-args",
@@ -48,14 +47,14 @@ func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 					},
 				},
 			},
-			releasePlugins: []*release.ReleasePlugin{
+			releasePlugins: []*k8s.ReleasePlugin{
 			},
 			hasPauseReleasePlugin: false,
 			err: nil,
 		},
 		{
 			configValues: map[string]interface{}{
-				walm.WalmPluginConfigKey: []interface{}{
+				plugins.WalmPluginConfigKey: []interface{}{
 					map[string]interface{}{
 						"name": plugins.ValidateReleaseConfigPluginName,
 						"args": "test-args",
@@ -64,14 +63,14 @@ func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 					},
 				},
 			},
-			releasePlugins: []*release.ReleasePlugin{
+			releasePlugins: []*k8s.ReleasePlugin{
 			},
 			hasPauseReleasePlugin: false,
 			err: nil,
 		},
 		{
 			configValues: map[string]interface{}{
-				walm.WalmPluginConfigKey: []interface{}{
+				plugins.WalmPluginConfigKey: []interface{}{
 					map[string]interface{}{
 						"name": "test-plugin",
 						"args": "test-args",
@@ -86,7 +85,7 @@ func Test_BuildReleasePluginsByConfigValues(t *testing.T) {
 					},
 				},
 			},
-			releasePlugins: []*release.ReleasePlugin{
+			releasePlugins: []*k8s.ReleasePlugin{
 				{
 					Name: "test-plugin",
 					Args: "test-args",
