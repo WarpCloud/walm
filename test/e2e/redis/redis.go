@@ -68,12 +68,12 @@ var _ = Describe("Redis", func() {
 		_, err = redisImpl.GetFieldValue(testKey, "notexisted", "notexisted")
 		Expect(err).To(Equal(errorModel.NotFoundError{}))
 
-		values, err := redisImpl.GetFieldValues(testKey, releaseCache1.Namespace)
+		values, err := redisImpl.GetFieldValues(testKey, releaseCache1.Namespace, "")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(values).To(HaveLen(2))
 		Expect(values).To(ConsistOf([]string{string(releaseCache1Str), string(releaseCache2Str)}))
 
-		values, err = redisImpl.GetFieldValues(testKey, "")
+		values, err = redisImpl.GetFieldValues(testKey, "", "")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(values).To(HaveLen(2))
 		Expect(values).To(ConsistOf([]string{string(releaseCache1Str), string(releaseCache2Str)}))

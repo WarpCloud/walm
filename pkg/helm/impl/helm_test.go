@@ -226,6 +226,7 @@ func Test_MergeReleasePlugins(t *testing.T) {
 		assert.ElementsMatch(t, test.mergedPlugins, plugins)
 	}
 }
+
 func Test_filterHelmReleases(t *testing.T) {
 	tests := []struct {
 		releases         []*helmRelease.Release

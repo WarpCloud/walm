@@ -1,9 +1,10 @@
 package impl
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"WarpCloud/walm/pkg/models/release"
+	"github.com/stretchr/testify/assert"
+	"path"
+	"testing"
 )
 
 func TestHelm_GetRepoList(t *testing.T) {
@@ -25,4 +26,11 @@ func TestHelm_GetRepoList(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expectedRepoList, repoList)
+}
+
+func Test_BuildChartInfo(t *testing.T) {
+	extension := path.Ext("metainfo/filename.png")
+	if len(extension) > 1 {
+		assert.Equal(t, extension[1:], "png")
+	}
 }

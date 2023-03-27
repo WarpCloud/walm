@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io"
+	"k8s.io/klog"
 )
 
 const deleteDesc = `Delete walm resources by source name.
@@ -43,12 +44,12 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 			if walmserver == "" {
 				return errServerRequired
 			}
-			if namespace == "" {
+			if args[0] != "namespace" && namespace == "" {
 				return errNamespaceRequired
 			}
 
 			if len(args) != 2 {
-				return errors.New("arguments error, delete release/project releaseName/projectName")
+				return errors.New("arguments error, two args required")
 			}
 
 			err := checkResourceType(args[0])
@@ -59,17 +60,19 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 
 			if dc.sourceType == "release" {
 				dc.releaseName = args[1]
-			} else {
+			} else if dc.sourceType == "project" {
 				dc.projectName = args[1]
+			} else {
+				namespace = args[1]
 			}
 			return dc.run()
 		},
 	}
 
-	cmd.Flags().BoolVar(&dc.deletePvcs, "deletePvcs", true, "whether to delete pvcs related release")
-	cmd.Flags().Int64Var(&dc.timeoutSec, "timeoutSec", 0, "timeout (default 0)")
-	cmd.Flags().BoolVar(&dc.async, "async", true, "whether asynchronous")
-	cmd.Flags().StringVarP(&dc.projectName, "project", "p", "", "operate resource of project")
+	cmd.PersistentFlags().BoolVar(&dc.deletePvcs, "deletePvcs", true, "whether to delete pvcs related release")
+	cmd.PersistentFlags().Int64Var(&dc.timeoutSec, "timeoutSec", 0, "timeout (default 0)")
+	cmd.PersistentFlags().BoolVar(&dc.async, "async", true, "whether asynchronous")
+	cmd.PersistentFlags().StringVarP(&dc.projectName, "project", "p", "", "operate resource of project")
 
 	return cmd
 }
@@ -77,16 +80,27 @@ func newDeleteCmd(out io.Writer) *cobra.Command {
 func (dc *deleteCmd) run() error {
 
 	var err error
-	client := walmctlclient.CreateNewClient(walmserver)
-	if err = client.ValidateHostConnect(); err != nil {
+	client, err := walmctlclient.CreateNewClient(walmserver, enableTLS, rootCA)
+	if err != nil {
+		klog.Errorf("failed to create walmctl client: %s", err.Error())
 		return err
 	}
-	if dc.sourceType == "project" {
+	if err = client.ValidateHostConnect(walmserver); err != nil {
+		return err
+	}
+	if dc.sourceType == "namespace" {
+		_, err = client.DeleteTenant(namespace)
+		if err != nil {
+			klog.Errorf("failed to delete namespace %s : %s", namespace, err.Error())
+			return err
+		}
+		fmt.Printf("namespace %s deleted\n", namespace)
+	} else if dc.sourceType == "project" {
 		_, err = client.DeleteProject(namespace, dc.projectName, dc.async, dc.timeoutSec, dc.deletePvcs)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("project %s deleted", dc.projectName)
+		fmt.Printf("project %s deleted\n", dc.projectName)
 
 	} else {
 		if dc.projectName == "" {
@@ -95,14 +109,14 @@ func (dc *deleteCmd) run() error {
 				return err
 			}
 
-			fmt.Printf("release %s deleted", dc.releaseName)
+			fmt.Printf("release %s deleted\n", dc.releaseName)
 
 		} else {
 			_, err = client.DeleteReleaseInProject(namespace, dc.projectName, dc.releaseName, dc.async, dc.timeoutSec, dc.deletePvcs)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("release %s in project %s deleted", dc.releaseName, dc.projectName)
+			fmt.Printf("release %s in project %s deleted\n", dc.releaseName, dc.projectName)
 		}
 	}
 

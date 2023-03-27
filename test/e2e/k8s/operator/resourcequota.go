@@ -34,7 +34,7 @@ var _ = Describe("K8sOperatorResourceQuota", func() {
 		By("create namespace")
 		namespace, err = framework.CreateRandomNamespace("k8sOperatorResourceQuotaTest", nil)
 		Expect(err).NotTo(HaveOccurred())
-		k8sOperator = operator.NewOperator(framework.GetK8sClient(), nil, nil)
+		k8sOperator = operator.NewOperator(framework.GetK8sClient(), nil, nil, nil)
 	})
 
 	AfterEach(func() {

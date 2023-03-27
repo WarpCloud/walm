@@ -11,7 +11,7 @@ This command print version of walmctl`
 type vCmd struct {
 }
 
-func NewVersionCmd() *cobra.Command {
+func newVersionCmd() *cobra.Command {
 	vc := &vCmd{}
 
 	cmd := &cobra.Command{

@@ -50,7 +50,7 @@ var (
 		kubectl edit deployment/mydeployment -o yaml --save-config`))
 )
 
-func newEditCmd(out io.Writer ) *cobra.Command {
+func newEditCmd(out io.Writer) *cobra.Command {
 	ioStreams := genericclioptions.IOStreams{Out: out}
 	o := editor.NewEditOptions(editor.NormalEditMode, ioStreams)
 
@@ -75,6 +75,8 @@ func newEditCmd(out io.Writer ) *cobra.Command {
 			}
 			o.Namespace = namespace
 			o.WalmServer = walmserver
+			o.EnableTLS = enableTLS
+			o.RootCA = rootCA
 			o.SourceType = args[0]
 			o.SourceName = args[1]
 			return o.Run()
@@ -82,7 +84,7 @@ func newEditCmd(out io.Writer ) *cobra.Command {
 	}
 
 	// bind flag structs
-	cmd.Flags().StringVarP(o.PrintFlags.OutputFormat, "output", "o", "yaml", "-o, --output='': Output format for detail description. Support: json, yaml")
+	cmd.PersistentFlags().StringVarP(o.PrintFlags.OutputFormat, "output", "o", "yaml", "-o, --output='': Output format for detail description. Support: json, yaml")
 
 	return cmd
 }

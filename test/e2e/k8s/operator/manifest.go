@@ -23,7 +23,7 @@ var _ = Describe("K8sOperatorManifest", func() {
 		By("create namespace")
 		namespace, err = framework.CreateRandomNamespace("k8sOperatorPodTest", nil)
 		Expect(err).NotTo(HaveOccurred())
-		k8sOperator = operator.NewOperator(nil, nil, framework.GetKubeClient())
+		k8sOperator = operator.NewOperator(nil, nil, framework.GetKubeClient(), nil)
 	})
 
 	AfterEach(func() {
