@@ -14,7 +14,7 @@ var _ = Describe("K8sOperatorNode", func() {
 	)
 
 	BeforeEach(func() {
-		k8sOperator = operator.NewOperator(framework.GetK8sClient(), nil, nil)
+		k8sOperator = operator.NewOperator(framework.GetK8sClient(), nil, nil, nil)
 	})
 
 	AfterEach(func() {

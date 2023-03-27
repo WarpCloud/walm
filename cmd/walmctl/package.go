@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"helm.sh/helm/pkg/chart/loader"
+	"helm.sh/helm/pkg/chartutil"
 	"io"
 	"io/ioutil"
-	"k8s.io/helm/pkg/chart/loader"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/ignore"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +47,6 @@ func newPackageCmd(out io.Writer) *cobra.Command {
 }
 
 func (o *packageOptions) run() error {
-
 	chartPath, err := filepath.Abs(o.chartPath)
 	if err != nil {
 		return err
@@ -86,9 +84,9 @@ func (o *packageOptions) run() error {
 		return err
 	}
 
-	validChartType, err := chartutil.IsValidChartType(ch)
+	validChartType := isValidChartType(ch.Metadata.Type)
 	if !validChartType {
-		return err
+		return errors.New("not a ValidChartType")
 	}
 
 	var dest string
@@ -121,8 +119,7 @@ func (o *packageOptions) run() error {
 }
 
 func appendHelmIgnoreFile(path string, ignoreFiles []string) error {
-
-	ifile := filepath.Join(path, ignore.HelmIgnore)
+	ifile := filepath.Join(path, ".helmignore")
 	f, err := os.OpenFile(ifile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0664)
 	if err != nil {
 		return err
@@ -138,7 +135,6 @@ func appendHelmIgnoreFile(path string, ignoreFiles []string) error {
 }
 
 func copyDir(srcPath string, destPath string) error {
-
 	if srcInfo, err := os.Stat(srcPath); err != nil {
 		fmt.Println(err.Error())
 		return err
@@ -150,27 +146,22 @@ func copyDir(srcPath string, destPath string) error {
 	}
 
 	if destInfo, err := os.Stat(destPath); err != nil {
-
 		err := os.Mkdir(destPath, os.ModePerm)
 		if err != nil {
 			return err
 		}
 
 	} else {
-
 		if !destInfo.IsDir() {
 			e := errors.New(fmt.Sprintf("%s is not correct dir \n", destInfo))
 			return e
 		}
-
 	}
 
 	err := filepath.Walk(srcPath, func(path string, f os.FileInfo, err error) error {
-
 		if f == nil {
 			return err
 		}
-
 		if !f.IsDir() {
 			destNewPath := strings.Replace(path, srcPath, destPath, -1)
 			copyFile(path, destNewPath)
@@ -230,7 +221,6 @@ func pathExists(path string) (bool, error) {
 }
 
 func createTempDir() (string, error) {
-
 	dir, err := ioutil.TempDir("/tmp/", "tmp")
 	if err != nil {
 		fmt.Println("create tmpdir fail")
@@ -238,4 +228,12 @@ func createTempDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func isValidChartType(in string) bool {
+	switch in {
+	case "", "application", "library":
+		return true
+	}
+	return false
 }

@@ -5,7 +5,6 @@ import (
 	"WarpCloud/walm/pkg/models/project"
 	"WarpCloud/walm/pkg/models/release"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/bitly/go-simplejson"
 	"github.com/ghodss/yaml"
@@ -52,12 +51,11 @@ type listProject struct {
 	CreatedAt string
 	Message   string
 	Namespace string
+	Version   string
 }
 
 func newListCmd(out io.Writer) *cobra.Command {
 	lc := listCmd{out: out}
-	gofs := flag.NewFlagSet("klog", flag.ExitOnError)
-	klog.InitFlags(gofs)
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -79,9 +77,9 @@ func newListCmd(out io.Writer) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&lc.output, "output", "o", "", "output the specified format (json or yaml)")
-	cmd.Flags().StringVarP(&lc.projectName, "project", "p", "", "operate resources of the project")
-	cmd.Flags().StringVar(&lc.labelSelector, "labelSelector", "", "match values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2")
+	cmd.PersistentFlags().StringVarP(&lc.output, "output", "o", "", "output the specified format (json or yaml)")
+	cmd.PersistentFlags().StringVarP(&lc.projectName, "project", "p", "", "operate resources of the project")
+	cmd.PersistentFlags().StringVar(&lc.labelSelector, "labelSelector", "", "match values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2")
 	return cmd
 }
 
@@ -100,8 +98,12 @@ func (lc *listCmd) run() error {
 		return err
 	}
 
-	client := walmctlclient.CreateNewClient(walmserver)
-	if err = client.ValidateHostConnect(); err != nil {
+	client, err := walmctlclient.CreateNewClient(walmserver, enableTLS, rootCA)
+	if err != nil {
+		klog.Errorf("failed to create walmctl client: %s", err.Error())
+		return err
+	}
+	if err = client.ValidateHostConnect(walmserver); err != nil {
 		return err
 	}
 	if lc.sourceType == "project" {
@@ -118,10 +120,13 @@ func (lc *listCmd) run() error {
 		if err != nil {
 			return err
 		}
-
 	} else {
 		if lc.projectName == "" {
 			resp, err = client.ListRelease(namespace, lc.labelSelector)
+			if err != nil {
+				klog.Errorf("fail to list release: %s", err.Error())
+				return err
+			}
 			respJson, _ := simplejson.NewJson(resp.Body())
 			respByte, _ := respJson.Get("items").MarshalJSON()
 			err = json.Unmarshal(respByte, &releases)
@@ -176,10 +181,11 @@ func (lc *listCmd) getProjectResult(projects []*project.ProjectInfo) []listProje
 
 	for _, project := range projects {
 		lp := listProject{
-			Name:    project.Name,
-			Ready:   project.Ready,
-			Message: project.Message,
+			Name:      project.Name,
+			Ready:     project.Ready,
+			Message:   project.Message,
 			Namespace: project.Namespace,
+			Version:   string(project.WalmVersion),
 		}
 
 		listProjects = append(listProjects, lp)

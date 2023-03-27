@@ -1,21 +1,19 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"helm.sh/helm/pkg/action"
+	"helm.sh/helm/pkg/chart"
+	"helm.sh/helm/pkg/chart/loader"
+	"helm.sh/helm/pkg/chartutil"
+	"helm.sh/helm/pkg/kube"
+	"helm.sh/helm/pkg/release"
+	"helm.sh/helm/pkg/storage"
+	"helm.sh/helm/pkg/storage/driver"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/helm/pkg/action"
-	"k8s.io/helm/pkg/chart"
-	"k8s.io/helm/pkg/chart/loader"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/hapi/release"
-	"k8s.io/helm/pkg/storage"
-	"k8s.io/helm/pkg/storage/driver"
-	"k8s.io/helm/pkg/tiller/environment"
+	"k8s.io/klog"
 	"os"
 	"path"
 	"path/filepath"
@@ -38,6 +36,7 @@ If the linter encounters things that will cause the chart to fail installation,
 it will emit [ERROR] messages. If it encounters issues that break with convention
 or recommendation, it will emit [WARNING] messages.
 `
+
 // Todo: marshall metainfo.yaml to defined structure and add validate method in class
 
 type lintOptions struct {
@@ -70,14 +69,11 @@ func newLintCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&lint.ciPath, "ciPath", "", "test chart ci path")
 	cmd.PersistentFlags().StringVar(&lint.kubeconfig, "kubeconfig", "kubeconfig", "kubeconfig path")
 	cmd.MarkPersistentFlagRequired("chartPath")
+	cmd.MarkPersistentFlagRequired("kubeconfig")
 	return cmd
 }
 
 func (lint *lintOptions) run() error {
-	flag.Set("logtostderr", "true")
-	flag.Set("v", "2")
-	flag.Parse()
-
 	isOpenSource := false
 	/* whether chart is openSource */
 	var metaData map[string]interface{}
@@ -130,54 +126,61 @@ func (lint *lintOptions) run() error {
 	dec.DisallowUnknownFields()
 
 	if err = dec.Decode(&chartMetaInfo); err != nil {
+		klog.Errorf("check json decode error %v", err)
 		return err
 	}
 
 	err = json.Unmarshal(metainfoByte, &chartMetaInfo)
 	if err != nil {
+		klog.Errorf("json unmarshal metainfo error %v", err)
 		return err
 	}
 
 	/* check metainfo valid */
-	configMaps, err := chartMetaInfo.CheckMetainfoValidate(string(valuesByte))
+	configMaps, err := chartMetaInfo.CheckMetainfoValidate()
 	if err != nil {
 		return errors.Errorf("metainfo error: %s", err.Error())
 	}
-	glog.Infof("metainfo.yaml is valid, start check params in values.yaml...")
+	klog.Infof("metainfo.yaml is valid, start check params in values.yaml...")
 
 	/* check params in values */
 	err = chartMetaInfo.CheckParamsInValues(string(valuesByte), configMaps)
 	if err != nil {
-		glog.Warning(err)
+		klog.Warningf("[Warning] check params in values err: %v", err)
 	}
 
-	glog.Info("values.yaml is valid...")
+	klog.Info("values.yaml is valid...")
 
 	chartLoader, err := loader.Loader(lint.chartPath)
 	if err != nil {
+		klog.Errorf("read chart error %v...", err)
 		return err
 	}
 
 	rawChart, err := chartLoader.Load()
 	if err != nil {
+		klog.Errorf("load chart error %v...", err)
 		return err
 	}
 
 	if !isOpenSource {
 		err = lint.loadJsonnetAppLib(rawChart)
 		if err != nil {
+			klog.Errorf("load common lib error %v...", err)
 			return err
 		}
 	}
 
 	if req := rawChart.Metadata.Dependencies; req != nil {
 		if err := checkDependencies(rawChart, req); err != nil {
+			klog.Errorf("check dependencies error %v...", err)
 			return err
 		}
 	}
 
 	testCases, err := lint.loadCICases()
 	if err != nil {
+		klog.Errorf("find ci cases error %v...", err)
 		return err
 	}
 	for _, testCase := range testCases {
@@ -189,18 +192,25 @@ func (lint *lintOptions) run() error {
 			return err
 		}
 		repo := ""
-		err = transwarpjsonnet.ProcessJsonnetChart(repo, rawChart, testCase.caseNamespace, testCase.caseName,
-			testCase.userConfigs, testCase.dependencyConfigs, testCase.dependencies, testCase.releaseLabels, "")
+		err = transwarpjsonnet.ProcessJsonnetChart(
+			repo, rawChart, testCase.caseNamespace,
+			testCase.caseName, testCase.userConfigs, testCase.dependencyConfigs,
+			testCase.dependencies, testCase.releaseLabels, "", nil,
+			nil, "",
+		)
+		if err != nil {
+			klog.Errorf("processJsonnetChart error %v", err)
+			return err
+		}
 
-		inst := mockInst()
+		inst := lint.mockInst()
 		inst.Namespace = testCase.caseNamespace
 		inst.ReleaseName = testCase.caseName
 		rel, err := inst.Run(rawChart, valueOverride)
-
 		if err != nil {
 			return err
 		}
-		glog.Infof("dry run release %s %s success", inst.Namespace, inst.ReleaseName)
+		klog.Infof("dry run release %s %s success", inst.Namespace, inst.ReleaseName)
 		expectCasePath := path.Join(lint.ciPath, "_expect-cases", testCase.caseName)
 		fileByte, err := ioutil.ReadFile(expectCasePath)
 		if err != nil {
@@ -217,19 +227,18 @@ func (lint *lintOptions) run() error {
 
 	return nil
 }
-func checkGenReleaseConfig(expectChart string, outputChart string) error {
 
+func checkGenReleaseConfig(expectChart string, outputChart string) error {
 	dmp := diffmatchpatch.New()
 	diffs := dmp.DiffMain(expectChart, outputChart, true)
 	if len(diffs) > 2 {
 		return errors.Errorf("rendered template result is not expected. There are %d diff places.\n%s", len(diffs)-1, dmp.DiffPrettyText(diffs[1:]))
 	}
-	glog.Infof("rendered template result is expected.")
+	klog.Infof("rendered template result is expected.")
 	return nil
 }
 
 func (lint *lintOptions) loadCICases() ([]lintTestCase, error) {
-
 	testCases := make([]lintTestCase, 0)
 	cifiles, err := ioutil.ReadDir(lint.ciPath)
 	if err != nil {
@@ -237,9 +246,7 @@ func (lint *lintOptions) loadCICases() ([]lintTestCase, error) {
 	}
 
 	for _, cifile := range cifiles {
-
 		if !cifile.IsDir() {
-
 			userConfigByte, err := ioutil.ReadFile(path.Join(lint.ciPath, cifile.Name()))
 			if err != nil {
 				return nil, err
@@ -280,7 +287,7 @@ func (lint *lintOptions) writeAsFiles(rel *release.Release) error {
 	// At one point we parsed out the returned manifest and created multiple files.
 	// I'm not totally sure what the use case was for that.
 	filename := filepath.Join(outputDir, rel.Name)
-	glog.Infof("start write result to %s", filename)
+	klog.Infof("start write result to %s", filename)
 	return ioutil.WriteFile(filename, []byte(rel.Manifest), 0644)
 }
 
@@ -293,7 +300,7 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 		if !info.IsDir() {
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
-				glog.Errorf("Read file \"%s\", err: %v", path, err)
+				klog.Errorf("Read file \"%s\", err: %v", path, err)
 				return err
 			}
 
@@ -311,19 +318,19 @@ func (lint *lintOptions) loadJsonnetAppLib(ch *chart.Chart) error {
 	return err
 }
 
-func mockInst() *action.Install {
+func (lint *lintOptions) mockInst() *action.Install {
 	// dry-run using the Kubernetes mock
-	disc := fake.NewSimpleClientset().Discovery()
-
+	kc := kube.New(kube.GetConfig(lint.kubeconfig, "", ""), nil)
 	customConfig := &action.Configuration{
 		// Add mock objects in here so it doesn't use Kube API server
-		Releases:   storage.Init(driver.NewMemory()),
-		KubeClient: &environment.PrintingKubeClient{Out: ioutil.Discard},
-		Discovery:  disc,
+		Releases:         storage.Init(driver.NewMemory()),
+		KubeClient:       kc,
+		RESTClientGetter: kube.GetConfig(lint.kubeconfig, "", ""),
 		Log: func(format string, v ...interface{}) {
 			fmt.Fprintf(os.Stdout, format, v...)
 		},
 	}
+
 	inst := action.NewInstall(customConfig)
 	inst.DryRun = true
 	inst.Replace = true // Skip running the name check

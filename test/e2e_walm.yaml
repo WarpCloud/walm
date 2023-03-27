@@ -10,7 +10,7 @@ kubeConfig:
 redisConfig:
   addr: localhost:6380
   password: "pwd"
-  db: 0
+  db: 2
 kafkaConfig:
   enable: false
   brokers:
@@ -30,6 +30,9 @@ logConfig:
   level: "debug"
 chartImageConfig:
   cacheRootDir: "/chart-cache"
-
+crdConfig:
+  notNeedInstance: false
+  enableIsomateSet: false
+  enableServiceMonitor: false
 # only for test
 chartImageRegistry: "172.26.0.5:5000"

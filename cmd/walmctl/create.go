@@ -1,8 +1,8 @@
 package main
 
 import (
+	"WarpCloud/walm/cmd/walmctl/util"
 	"WarpCloud/walm/cmd/walmctl/util/walmctlclient"
-	"flag"
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
@@ -35,13 +35,12 @@ type createCmd struct {
 	withchart   string
 	timeoutSec  int64
 	async       bool
+	dryrun      bool
 	out         io.Writer
 }
 
 func newCreateCmd(out io.Writer) *cobra.Command {
 	cc := &createCmd{out: out}
-	gofs := flag.NewFlagSet("klog", flag.ExitOnError)
-	klog.InitFlags(gofs)
 
 	cmd := &cobra.Command{
 		Use:                   "create release/project",
@@ -50,7 +49,6 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 		Long:                  createDesc,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-
 			if walmserver == "" {
 				return errServerRequired
 			}
@@ -67,14 +65,15 @@ func newCreateCmd(out io.Writer) *cobra.Command {
 			return cc.run()
 		},
 	}
-	cmd.Flags().StringVarP(&cc.projectName, "project", "p", "", "operate resources of the project")
-	cmd.Flags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
-	cmd.Flags().StringVar(&cc.name, "name", "", "name for release or project you create, overrides field name in file, required!!!")
-	cmd.Flags().StringVar(&cc.withchart, "withchart", "", "update release with local chart, absolutely or relative path to source file")
-	cmd.Flags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout")
-	cmd.Flags().BoolVar(&cc.async, "async", true, "whether asynchronous")
+	cmd.PersistentFlags().StringVarP(&cc.projectName, "project", "p", "", "operate resources of the project")
+	cmd.PersistentFlags().StringVarP(&cc.file, "file", "f", "", "absolutely or relative path to source file")
+	cmd.PersistentFlags().StringVar(&cc.name, "name", "", "name for release or project you create, overrides field name in file, required!!!")
+	cmd.PersistentFlags().StringVar(&cc.withchart, "withchart", "", "update release with local chart, absolutely or relative path to source file")
+	cmd.PersistentFlags().Int64Var(&cc.timeoutSec, "timeoutSec", 0, "timeout")
+	cmd.PersistentFlags().BoolVar(&cc.async, "async", false, "whether asynchronous")
+	cmd.PersistentFlags().BoolVar(&cc.dryrun, "dryrun", false, "dry run")
 
-	cmd.MarkFlagRequired("file")
+	cmd.MarkPersistentFlagRequired("name")
 	return cmd
 }
 
@@ -83,7 +82,7 @@ func (cc *createCmd) run() error {
 		err          error
 		filePath     string
 		chartPath    string
-		fileBytes	 []byte
+		fileBytes    []byte
 		configValues map[string]interface{}
 	)
 	chartPath = cc.withchart
@@ -94,36 +93,57 @@ func (cc *createCmd) run() error {
 		}
 	}
 
-	filePath, err = filepath.Abs(cc.file)
-	if err != nil {
-		return err
+	if cc.file != "" {
+		filePath, err = filepath.Abs(cc.file)
+		if err != nil {
+			return err
+		}
+		fileBytes, err = ioutil.ReadFile(filePath)
+		if err != nil {
+			klog.Errorf("read file %s error %v", cc.file, err)
+			return err
+		}
+		err = yaml.Unmarshal(fileBytes, &configValues)
+		if err != nil {
+			klog.Errorf("yaml Unmarshal file %s error %v", cc.file, err)
+			return err
+		}
 	}
-	fileBytes, err = ioutil.ReadFile(filePath)
+
+	destConfigValues, _, _, err := util.SmartConfigValues(configValues)
 	if err != nil {
-		klog.Errorf("read file %s error %v", cc.file, err)
-		return err
-	}
-	err = yaml.Unmarshal(fileBytes, &configValues)
-	if err != nil {
-		klog.Errorf("yaml Unmarshal file %s error %v", cc.file, err)
+		klog.Errorf("smart yaml Unmarshal file %s error %v", cc.file, err)
 		return err
 	}
 
-	client := walmctlclient.CreateNewClient(walmserver)
-	if err = client.ValidateHostConnect(); err != nil {
+	client, err := walmctlclient.CreateNewClient(walmserver, enableTLS, rootCA)
+	if err != nil {
+		klog.Errorf("failed to create walmctl client: %s", err.Error())
+		return err
+	}
+	if err = client.ValidateHostConnect(walmserver); err != nil {
 		return err
 	}
 	if cc.sourceType == "release" {
+		if cc.dryrun {
+			klog.Infof("Dry Run %s %s", namespace, cc.name)
+			response, err := client.DryRunCreateRelease(namespace, chartPath, cc.name, destConfigValues)
+			klog.Infof("%v", response)
+			if err != nil {
+				klog.Errorf("error %v", err)
+			}
+			return nil
+		}
 		if cc.projectName == "" {
-			_, err = client.CreateRelease(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, configValues)
+			_, err = client.CreateRelease(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, destConfigValues)
 		} else {
-			_, err = client.AddReleaseInProject(namespace, cc.name, cc.projectName, cc.async, cc.timeoutSec, configValues)
+			_, err = client.AddReleaseInProject(namespace, cc.name, cc.projectName, cc.async, cc.timeoutSec, destConfigValues)
 		}
 	} else {
 		if cc.name == "" {
 			return errProjectNameRequired
 		}
-		_, err = client.CreateProject(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, configValues)
+		_, err = client.CreateProject(namespace, chartPath, cc.name, cc.async, cc.timeoutSec, destConfigValues)
 	}
 
 	if err != nil {

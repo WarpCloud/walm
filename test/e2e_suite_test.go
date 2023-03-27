@@ -6,8 +6,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"WarpCloud/walm/pkg/setting"
-	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
-	transwarpscheme "transwarp/release-config/pkg/client/clientset/versioned/scheme"
 	"flag"
 
 	_ "WarpCloud/walm/test/e2e/k8s/operator"
@@ -33,7 +31,6 @@ func TestE2e(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	setting.InitConfig(configPath)
-	transwarpscheme.AddToScheme(clientsetscheme.Scheme)
 
 	err := framework.InitFramework()
 	Expect(err).NotTo(HaveOccurred())

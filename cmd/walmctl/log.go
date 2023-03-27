@@ -7,8 +7,8 @@ var errServerRequired = errors.New("flag --server/-s required")
 var errProjectNameRequired = errors.New("flag --name required for specify projectName")
 
 func checkResourceType(sourceType string) error {
-	if sourceType != "release" && sourceType != "project" {
-		return errors.Errorf("the server doesn't have a resource type %s, release, project only", sourceType)
+	if sourceType != "release" && sourceType != "project" && sourceType != "migration" && sourceType != "namespace"{
+		return errors.Errorf("the server doesn't have a resource type %s, release, project, migration only", sourceType)
 	}
 	return nil
 }
