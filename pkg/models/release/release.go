@@ -165,3 +165,8 @@ type ReleaseResourceJob struct {
 	Completions int32 `json:"completions" description:"job completions"`
 	ReleaseResourceBase
 }
+
+type ReleaseDryRunUpdateInfo struct {
+	Configmaps       []interface{}       `json:"configmaps" description:"dryrun configmap results"`
+	DependedReleases []map[string]string `json:"dependedReleases" description:"releases depended on current release"`
+}
