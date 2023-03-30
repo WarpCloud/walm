@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
 )
 
 // this method only can convert struct with legacy scheme
@@ -204,4 +205,24 @@ func convertToUnstructured(obj runtime.Object) (runtime.Object, error) {
 
 	unstructuredObj.SetUnstructuredContent(objMap)
 	return unstructuredObj.DeepCopyObject(), nil
+}
+
+func setNestedStringMap(obj map[string]interface{}, stringMapToAdd map[string]string, fields ...string) error{
+	stringMap, _, err := unstructured.NestedStringMap(obj, fields...)
+	if err != nil {
+		klog.Errorf("failed to get string map : %s", err.Error())
+		return err
+	}
+	if stringMap == nil {
+		stringMap = map[string]string{}
+	}
+	for k, v := range stringMapToAdd{
+		stringMap[k] = v
+	}
+	err = unstructured.SetNestedStringMap(obj, stringMap, fields...)
+	if err != nil {
+		klog.Errorf("failed to set string map : %s", err.Error())
+		return err
+	}
+	return nil
 }
