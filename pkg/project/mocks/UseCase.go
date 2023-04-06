@@ -40,6 +40,52 @@ func (_m *UseCase) CreateProject(namespace string, _a1 string, projectParams *pr
 	return r0
 }
 
+// DryRunProject provides a mock function with given fields: namespace, project, projectParams
+func (_m *UseCase) DryRunProject(namespace, projectName string, projectParams *project.ProjectParams) ([]map[string]interface{}, error) {
+	ret := _m.Called(namespace, projectName, projectParams)
+
+	var r0 []map[string]interface{}
+	if rf, ok := ret.Get(0).(func(string, string, *project.ProjectParams) []map[string]interface{}); ok {
+		r0 = rf(namespace, projectName, projectParams)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]map[string]interface{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, *project.ProjectParams) error); ok {
+		r1 = rf(namespace, projectName, projectParams)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ComputeResourcesByDryRunProject provides a mock function with given fields: namespace, project, projectParams
+func (_m *UseCase) ComputeResourcesByDryRunProject(namespace, projectName string, projectParams *project.ProjectParams) ([]*release.ReleaseResources, error) {
+	ret := _m.Called(namespace, projectName, projectParams)
+
+	var r0 []*release.ReleaseResources
+	if rf, ok := ret.Get(0).(func(string, string, *project.ProjectParams) []*release.ReleaseResources); ok {
+		r0 = rf(namespace, projectName, projectParams)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*release.ReleaseResources)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, *project.ProjectParams) error); ok {
+		r1 = rf(namespace, projectName, projectParams)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteProject provides a mock function with given fields: namespace, _a1, async, timeoutSec, deletePvcs
 func (_m *UseCase) DeleteProject(namespace string, _a1 string, async bool, timeoutSec int64, deletePvcs bool) error {
 	ret := _m.Called(namespace, _a1, async, timeoutSec, deletePvcs)
