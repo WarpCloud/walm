@@ -1,19 +1,21 @@
 package usecase
 
 import (
+	"WarpCloud/walm/pkg/helm"
+	errorModel "WarpCloud/walm/pkg/models/error"
 	projectModel "WarpCloud/walm/pkg/models/project"
 	releaseModel "WarpCloud/walm/pkg/models/release"
-	"github.com/sirupsen/logrus"
 	"WarpCloud/walm/pkg/project"
-	"WarpCloud/walm/pkg/task"
 	"WarpCloud/walm/pkg/release"
-	errorModel "WarpCloud/walm/pkg/models/error"
-	"fmt"
-	"sync"
-	"errors"
-	"encoding/json"
+	"WarpCloud/walm/pkg/task"
+	"WarpCloud/walm/pkg/util"
 	"WarpCloud/walm/pkg/util/dag"
-	"WarpCloud/walm/pkg/helm"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
+	"k8s.io/klog"
+	"sync"
 )
 
 const (
@@ -77,6 +79,66 @@ func (projectImpl *Project) GetProjectInfo(namespace, projectName string) (*proj
 	}
 
 	return projectImpl.buildProjectInfo(projectTask)
+}
+
+func (projectImpl *Project) DryRunProject(namespace, projectName string, projectParams *projectModel.ProjectParams) ([]map[string]interface{}, error) {
+	manifests := make([]map[string]interface{}, 0)
+	rawValsBase := map[string]interface{}{}
+	rawValsBase = util.MergeValues(rawValsBase, projectParams.CommonValues, false)
+
+	for _, releaseParams := range projectParams.Releases {
+		releaseParams.ConfigValues = util.MergeValues(releaseParams.ConfigValues, rawValsBase, false)
+		if releaseParams.ReleaseLabels == nil {
+			releaseParams.ReleaseLabels = map[string]string{}
+		}
+		releaseParams.ReleaseLabels[projectModel.ProjectNameLabelKey] = projectName
+	}
+
+	releaseList, err := projectImpl.autoCreateReleaseDependencies(projectParams)
+	if err != nil {
+		klog.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
+		return manifests, err
+	}
+	for _, releaseParams := range releaseList {
+		releaseManifests, err := projectImpl.releaseUseCase.DryRunRelease(namespace, releaseParams, nil)
+		if err != nil {
+			klog.Errorf("failed to dryRun project release %s/%s : %s", namespace, releaseParams.Name, err)
+			return manifests, err
+		}
+		manifests = append(releaseManifests, releaseManifests...)
+		klog.V(2).Infof("succeed to dryRun project release %s/%s", namespace, releaseParams.Name)
+	}
+	return manifests, nil
+}
+
+func (projectImpl *Project) ComputeResourcesByDryRunProject(namespace, projectName string, projectParams *projectModel.ProjectParams) ([]*releaseModel.ReleaseResources, error) {
+	resources := make([]*releaseModel.ReleaseResources, 0)
+	rawValsBase := map[string]interface{}{}
+	rawValsBase = util.MergeValues(rawValsBase, projectParams.CommonValues, false)
+
+	for _, releaseParams := range projectParams.Releases {
+		releaseParams.ConfigValues = util.MergeValues(releaseParams.ConfigValues, rawValsBase, false)
+		if releaseParams.ReleaseLabels == nil {
+			releaseParams.ReleaseLabels = map[string]string{}
+		}
+		releaseParams.ReleaseLabels[projectModel.ProjectNameLabelKey] = projectName
+	}
+
+	releaseList, err := projectImpl.autoCreateReleaseDependencies(projectParams)
+	if err != nil {
+		klog.Errorf("failed to parse project charts dependency relation  : %s", err.Error())
+		return resources, err
+	}
+	for _, releaseParams := range releaseList {
+		releaseResources, err := projectImpl.releaseUseCase.ComputeResourcesByDryRunRelease(namespace, releaseParams, nil)
+		if err != nil {
+			klog.Errorf("failed to computeResources project release %s/%s : %s", namespace, releaseParams.Name, err)
+			return resources, err
+		}
+		resources = append(resources, releaseResources)
+		klog.V(2).Infof("succeed to computeResources project release %s/%s", namespace, releaseParams.Name)
+	}
+	return resources, nil
 }
 
 func (projectImpl *Project) CreateProject(namespace string, project string, projectParams *projectModel.ProjectParams, async bool, timeoutSec int64) error {

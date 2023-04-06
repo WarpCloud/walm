@@ -1,15 +1,15 @@
 package http
 
 import (
-	"WarpCloud/walm/pkg/project"
-	"github.com/emicklei/go-restful"
+	errorModel "WarpCloud/walm/pkg/models/error"
 	"WarpCloud/walm/pkg/models/http"
-	"github.com/emicklei/go-restful-openapi"
 	projectModel "WarpCloud/walm/pkg/models/project"
 	"WarpCloud/walm/pkg/models/release"
+	"WarpCloud/walm/pkg/project"
 	httpUtils "WarpCloud/walm/pkg/util/http"
 	"fmt"
-	errorModel "WarpCloud/walm/pkg/models/error"
+	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful-openapi"
 )
 
 const (
@@ -66,6 +66,24 @@ func RegisterProjectHandler(handler *ProjectHandler) *restful.WebService {
 		Param(ws.QueryParameter("timeoutSec", "超时时间").DataType("integer").Required(false)).
 		Reads(projectModel.ProjectParams{}).
 		Returns(200, "OK", nil).
+		Returns(500, "Internal Error", http.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/name/{project}/dryrun").To(handler.DryRunProject).
+		Doc("模拟安装一个Project").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Reads(projectModel.ProjectParams{}).
+		Returns(200, "OK", []map[string]interface{}{}).
+		Returns(500, "Internal Error", http.ErrorMessageResponse{}))
+
+	ws.Route(ws.POST("/{namespace}/name/{project}/dryrun/resources").To(handler.ComputeResourcesByDryRunProject).
+		Doc("模拟计算安装一个Project需要多少资源").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param(ws.PathParameter("namespace", "租户名字").DataType("string")).
+		Param(ws.PathParameter("project", "Project名字").DataType("string")).
+		Reads(projectModel.ProjectParams{}).
+		Returns(200, "OK", []*release.ReleaseResources{}).
 		Returns(500, "Internal Error", http.ErrorMessageResponse{}))
 
 	ws.Route(ws.DELETE("/{namespace}/name/{project}").To(handler.DeleteProject).
@@ -190,6 +208,44 @@ func (handler *ProjectHandler) CreateProject(request *restful.Request, response 
 		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to create project : %s", err.Error()))
 		return
 	}
+}
+
+func (handler *ProjectHandler) DryRunProject(request *restful.Request, response *restful.Response) {
+	projectParams := new(projectModel.ProjectParams)
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+
+	err := request.ReadEntity(&projectParams)
+	if err != nil {
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body : %s", err.Error()))
+		return
+	}
+
+	manifests, err := handler.usecase.DryRunProject(tenantName, projectName, projectParams)
+	if err != nil {
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to dryrun project : %s", err.Error()))
+		return
+	}
+	response.WriteEntity(manifests)
+}
+
+func (handler *ProjectHandler) ComputeResourcesByDryRunProject(request *restful.Request, response *restful.Response) {
+	projectParams := new(projectModel.ProjectParams)
+	tenantName := request.PathParameter("namespace")
+	projectName := request.PathParameter("project")
+
+	err := request.ReadEntity(&projectParams)
+	if err != nil {
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to read request body : %s", err.Error()))
+		return
+	}
+
+	resources, err := handler.usecase.ComputeResourcesByDryRunProject(tenantName, projectName, projectParams)
+	if err != nil {
+		httpUtils.WriteErrorResponse(response, -1, fmt.Sprintf("failed to compute resources project : %s", err.Error()))
+		return
+	}
+	response.WriteEntity(resources)
 }
 
 func (handler *ProjectHandler)GetProjectInfo(request *restful.Request, response *restful.Response) {
