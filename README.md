@@ -78,7 +78,7 @@ make e2e-test
 export Pod_Namespace=<walmns> && export Pod_Name=<walmname> && walm serv --config walm.yaml
 ```
 ### Rest Api Swagger Ui
-http://<server_host>:9001/swagger
+http://<server_host>:9001/swagger-ui/?url=/apidocs.json
 
 ## Walmcli
 [walmcli使用说明](docs/walmcli.md)
