@@ -14,5 +14,3 @@ cy490761462 yang.cong@transwarp.io
 caesar0301 chenxm35@gmail.com
 
 skydai corndai1997@gmail.com
-
-yunluw yunlu.wen@transwrp.io
